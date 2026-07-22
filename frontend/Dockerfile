@@ -1,9 +1,8 @@
-# 프론트엔드 테스트용 (Node.js 기반)
+# frontend/Dockerfile 
 FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm install || true
+RUN npm install
 COPY . .
 EXPOSE 3000
-# 테스트용 웹 서버 구동 (스켈레톤 실행 명령)
 CMD ["npm", "run", "dev", "--", "--host"]
