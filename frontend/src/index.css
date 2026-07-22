@@ -1,1 +1,75 @@
 @import "tailwindcss";
+
+@font-face {
+	font-family: "Paperlogy";
+	src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-3Light.woff2")
+		format("woff2");
+	font-weight: 300;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Paperlogy";
+	src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2")
+		format("woff2");
+	font-weight: 400;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Paperlogy";
+	src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-6SemiBold.woff2")
+		format("woff2");
+	font-weight: 600;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Paperlogy";
+	src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-7Bold.woff2")
+		format("woff2");
+	font-weight: 700;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Paperlogy";
+	src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-8ExtraBold.woff2")
+		format("woff2");
+	font-weight: 800;
+	font-display: swap;
+}
+
+@theme {
+	--color-brand: #ff4646;
+	--color-surface: #faf9fe;
+	--color-hero-tint: #ff8f74;
+	--font-paperlogy: "Paperlogy", sans-serif;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	font-family: var(--font-paperlogy);
+	background: #ffffff;
+	color: #000000;
+	-webkit-font-smoothing: antialiased;
+}
+
+button {
+	font-family: inherit;
+}
+
+img {
+	display: block;
+	max-width: 100%;
+}
