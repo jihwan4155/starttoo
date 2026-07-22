@@ -28,3 +28,15 @@
 - **포맷**: `[파트]태그/기능-이름` (예: `[FE]feat/login-ui`)
 - 구분자: 하이픈(`-`) 사용
 - 파트: 대문자 / 태그 및 기능명: 소문자
+
+## 🌿 브랜치 전략 (Branch Strategy)
+- **`master`**: 최종 배포 및 검증용 완성본 브랜치
+- **`dev`**: 팀원들의 작업이 1차 통합 및 테스트되는 **기본(Default) 브랜치**
+- **`[파트]feat/기능명`**: 개별 기능 개발 브랜치
+
+### ⚙️ 작업 워크플로우
+1. 작업 시작 시 항상 `dev` 브랜치를 기준으로 새 브랜치를 생성합니다.
+   ```bash
+   git checkout dev
+   git pull origin dev
+   git checkout -b [FE]feat/login-ui
