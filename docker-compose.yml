@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # 1. 백엔드
+  backend:
+    build: ./backend
+    container_name: test_backend
+    ports:
+      - "8080:8080"
+    restart: always
+
+  # 2. 프론트엔드
+  frontend:
+    build: ./frontend
+    container_name: test_frontend
+    ports:
+      - "3000:3000"
+    restart: always
+
+  # 3. AI 
+  ai:
+    build: ./ai
+    container_name: test_ai
+    ports:
+      - "8000:8000"
+    restart: always
