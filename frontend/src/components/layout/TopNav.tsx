@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
 import topnavGrain from "../../assets/images/topnav-grain.png";
+import CommunitySearchBar from "../community/CommunitySearchBar";
 
 function BellIcon() {
 	return (
@@ -32,20 +33,34 @@ function SettingIcon() {
 }
 
 export default function TopNav() {
+	const { pathname } = useLocation();
+	// 커뮤니티 라우트에서만 상단 검색 바 노출
+	const showSearch = pathname.startsWith("/posts");
+
 	return (
 		<header
-			className="fixed inset-x-0 top-0 z-50 h-[60px] overflow-hidden"
+			className="fixed inset-x-0 top-0 z-50 h-[60px]"
 			style={{
 				background: `url(${topnavGrain}) center / 100% 100% no-repeat, linear-gradient(90.22deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 80, 38, 0.7) 100.62%), #FFFFFF`,
 			}}>
 			<div className="relative z-10 flex h-full items-center justify-between pl-[12px] pr-7">
-				<Link to="/" className="flex h-[66px] items-center" aria-label="starttoo 홈">
+				{/* 검색 드롭다운이 잘리지 않도록 header 대신 로고에서만 클리핑 */}
+				<Link
+					to="/"
+					className="flex h-[60px] items-center overflow-hidden"
+					aria-label="starttoo 홈">
 					<img
 						src={logo}
 						alt="starttoo"
 						className="h-[66px] w-[122px] object-contain object-left"
 					/>
 				</Link>
+
+				{showSearch && (
+					<div className="flex flex-1 justify-center px-8">
+						<CommunitySearchBar />
+					</div>
+				)}
 
 				<div className="flex items-center gap-5">
 					<button

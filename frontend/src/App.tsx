@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
+import CommunityPage from "./pages/CommunityPage";
+import CommunitySearchPage from "./pages/CommunitySearchPage";
 import CoverUpPage from "./pages/CoverUpPage";
 import HomePage from "./pages/HomePage";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -23,10 +25,9 @@ export default function App() {
 					{/* API: POST /coverups/recommendations */}
 					<Route path="/coverups" element={<CoverUpPage />} />
 					{/* API: GET /posts */}
-					<Route
-						path="/posts"
-						element={<PlaceholderPage title="커뮤니티" />}
-					/>
+					<Route path="/posts" element={<CommunityPage />} />
+					{/* API: GET /posts/search */}
+					<Route path="/posts/search" element={<CommunitySearchPage />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Route>
 			</Routes>
