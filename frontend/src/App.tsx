@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
+import ScrollToTop from "./components/layout/ScrollToTop";
 import CommunityPage from "./pages/CommunityPage";
 import CommunitySearchPage from "./pages/CommunitySearchPage";
 import CoverUpPage from "./pages/CoverUpPage";
@@ -14,6 +15,7 @@ import TattooistPage from "./pages/TattooistPage";
 export default function App() {
 	return (
 		<BrowserRouter>
+			<ScrollToTop />
 			<Routes>
 				<Route element={<MainLayout />}>
 					<Route path="/" element={<HomePage />} />
