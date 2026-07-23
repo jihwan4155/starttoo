@@ -32,7 +32,7 @@ export default function UploadDropzoneBox({
 				onClick={onPick}
 				onDragOver={(event) => event.preventDefault()}
 				onDrop={onDrop}
-				className={`mx-auto flex aspect-[16/9] w-full max-w-[700px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[12px] border ${
+				className={`mx-auto flex h-full max-h-[400px] w-full max-w-[700px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[12px] border ${
 					visible ? "" : "hidden"
 				} ${
 					preview
@@ -47,10 +47,10 @@ export default function UploadDropzoneBox({
 					/>
 				) : (
 					<>
-						<p className="text-[13px] text-black/50">
+						<p className="text-[13px] font-light text-black/40">
 							드래그 또는 클릭해 사진 업로드
 						</p>
-						<p className="text-[11px] text-black/35">
+						<p className="text-[11px] font-light text-black/30">
 							JPG, JPEG, PNG, WEBP 형식 지원
 						</p>
 					</>
