@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
-import demoImage from "../../assets/images/demo-tattoo.png";
+import { MOCK_EXPLORE_POSTS } from "../../mocks/community";
+
+const PREVIEW_POSTS = MOCK_EXPLORE_POSTS.slice(0, 4);
 
 export default function CommunitySection() {
 	return (
@@ -11,16 +13,16 @@ export default function CommunitySection() {
 				다른 사람들은 어떻게 그렸을까요?
 			</h2>
 			<p className="mt-4 text-center text-[18px] font-light leading-[21px] text-black">
-				커뮤니티에서 도안과 후기를 나눠보세요.
+				커뮤니티에서 도안과 후기를 나눠보세요
 			</p>
 
 			<div className="mt-10 flex gap-[34px]">
-				{Array.from({ length: 4 }).map((_, index) => (
+				{PREVIEW_POSTS.map((post) => (
 					<img
-						key={index}
-						src={demoImage}
-						alt={`커뮤니티 도안 ${index + 1}`}
-						className="h-[200px] w-[200px] shrink-0 rounded-[10px] object-cover"
+						key={post.id}
+						src={post.imageUrl ?? undefined}
+						alt={`${post.author.nickname}의 게시글`}
+						className="h-[200px] w-[200px] shrink-0 rounded-[10px] bg-[#D9D9D9] object-cover"
 					/>
 				))}
 			</div>
