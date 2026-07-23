@@ -12,7 +12,7 @@ export default function BodyPartStep({
 	onSelect,
 }: BodyPartStepProps) {
 	return (
-		<div className="relative mx-auto aspect-[649/400] w-full max-w-[700px] overflow-hidden rounded-[16px] bg-white">
+		<div className="relative mx-auto aspect-[649/400] h-full max-h-[400px] w-auto max-w-[700px] overflow-hidden rounded-[16px] bg-white">
 			<img
 				src={arBody}
 				alt="신체 부위 선택 가이드 (팔, 등)"

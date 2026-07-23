@@ -11,12 +11,12 @@ export default function UploadDropzoneActions({
 	onPick,
 }: UploadDropzoneActionsProps) {
 	return (
-		<div className="mt-8">
+		<div className="mt-3 shrink-0">
 			<div className="flex justify-center gap-3">
 				<button
 					type="button"
 					onClick={onPick}
-					className={`h-[54px] min-w-[200px] rounded-[50px] text-[18px] font-semibold transition ${
+					className={`h-[46px] min-w-[180px] rounded-[50px] text-[16px] font-semibold transition ${
 						showLibraryButton
 							? "border border-black/15 text-black hover:bg-black/5"
 							: "bg-brand text-white hover:brightness-95"
@@ -26,15 +26,18 @@ export default function UploadDropzoneActions({
 				{showLibraryButton && (
 					<button
 						type="button"
-						className="h-[54px] min-w-[200px] rounded-[50px] bg-brand text-[18px] font-semibold text-white transition hover:brightness-95">
+						className="h-[46px] min-w-[180px] rounded-[50px] bg-brand text-[16px] font-semibold text-white transition hover:brightness-95">
 						보관함에서 선택
 					</button>
 				)}
 			</div>
 
-			{hint && (
-				<p className="mt-3 text-center text-[13px] text-black/50">{hint}</p>
-			)}
+			<p
+				className={`mt-2 text-center text-[13px] font-light text-black/50 ${
+					hint ? "" : "invisible"
+				}`}>
+				{hint || "placeholder"}
+			</p>
 		</div>
 	);
 }

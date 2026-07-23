@@ -30,8 +30,8 @@ export default function DesignSelectStep({
 	onCapture,
 }: DesignSelectStepProps) {
 	return (
-		<div className="mx-auto flex w-full max-w-[640px] flex-col gap-4 sm:flex-row">
-			<div className="relative aspect-[3/4] w-full max-w-[300px] overflow-hidden rounded-[12px] bg-black/5">
+		<div className="mx-auto flex w-full max-w-[480px] flex-col gap-4 sm:flex-row">
+			<div className="relative mx-auto aspect-[3/4] w-full max-w-[220px] overflow-hidden rounded-[12px] bg-black/5">
 				<span className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[13px] font-semibold text-brand">
 					<span className="size-[6px] rounded-full bg-brand" />
 					LIVE
@@ -50,7 +50,7 @@ export default function DesignSelectStep({
 				</button>
 			</div>
 
-			<div className="w-full max-w-[300px] rounded-[12px] bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+			<div className="w-full max-w-[220px] rounded-[12px] bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
 				<div className="grid grid-cols-2 gap-2">
 					{Array.from({ length: DESIGN_COUNT }, (_, index) => (
 						<button

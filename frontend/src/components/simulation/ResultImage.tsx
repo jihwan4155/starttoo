@@ -21,7 +21,7 @@ export default function ResultImage() {
 
 	return (
 		<>
-			<div className="relative mx-auto aspect-[16/9] w-full max-w-[700px] overflow-hidden rounded-[12px] bg-black/5">
+			<div className="relative mx-auto h-full max-h-[400px] w-full max-w-[700px] overflow-hidden rounded-[12px] bg-black/5">
 				<img
 					src={demoTattoo}
 					alt="합성 결과"

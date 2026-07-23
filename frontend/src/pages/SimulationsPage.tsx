@@ -78,21 +78,21 @@ export default function SimulationsPage() {
 
 	return (
 		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
-			<div className="mx-auto flex h-full max-w-[1020px] flex-col px-6 pt-10">
-				<p className="text-center text-[16px] text-black/50">
+			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pt-6 pb-6">
+				<p className="shrink-0 text-center text-[13px] font-light text-black/60">
 					상상만 하던 타투, 이제 눈으로 확인해보세요
 				</p>
-				<h1 className="mt-1 text-center text-[32px] font-extrabold text-black">
+				<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
 					타투 시뮬레이션
 				</h1>
 
-				<div className="mt-6">
+				<div className="mt-4 shrink-0">
 					<SimulationTabs active={tab} onChange={setTab} />
 				</div>
 
 				<StepHeading step={step} description={STEP_COPY[tab][step]} />
 
-				<div className="mt-6 grid grid-cols-[100px_1fr_100px] items-center gap-6">
+				<div className="mt-4 grid min-h-0 flex-1 grid-cols-[100px_1fr_100px] gap-6">
 					<button
 						type="button"
 						onClick={handleBack}
@@ -104,7 +104,7 @@ export default function SimulationsPage() {
 						이전
 					</button>
 
-					<div className="min-w-0">
+					<div className="flex min-w-0 min-h-0 items-center justify-center">
 						{tab === "ar" && step === 1 && (
 							<BodyPartStep selected={bodyPart} onSelect={setBodyPart} />
 						)}
@@ -150,13 +150,13 @@ export default function SimulationsPage() {
 				</div>
 
 				{tab === "ar" && step === 1 && (
-					<p className="mt-4 text-center text-[13px] text-black/50">
+					<p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/50">
 						부위를 선택하여 AR 인식률을 높이고 있어요!
 					</p>
 				)}
 
 				{tab === "ar" && step === 2 && (
-					<p className="mt-4 text-center text-[15px] leading-6 text-black/50">
+					<p className="mt-2 shrink-0 text-center text-[14px] font-light leading-5 text-black/50">
 						기본 카메라 앱으로 QR코드를 비추면
 						<br />
 						즉시 내 피부에 시뮬레이션할 수 있습니다.

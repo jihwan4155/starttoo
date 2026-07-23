@@ -48,8 +48,8 @@ function QrGlyph() {
 
 export default function CameraConnectStep() {
 	return (
-		<div className="mx-auto flex aspect-[16/9] w-full max-w-[700px] items-center justify-center rounded-[16px] bg-white">
-			<div className="flex size-[270px] items-center justify-center rounded-[12px] border border-black/10">
+		<div className="mx-auto flex h-full max-h-[400px] w-full max-w-[700px] items-center justify-center rounded-[16px] bg-white">
+			<div className="flex size-[clamp(180px,30vh,270px)] items-center justify-center rounded-[12px] border border-black/10">
 				<QrGlyph />
 			</div>
 		</div>

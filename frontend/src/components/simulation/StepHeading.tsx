@@ -5,9 +5,11 @@ type StepHeadingProps = {
 
 export default function StepHeading({ step, description }: StepHeadingProps) {
 	return (
-		<div className="mt-8 text-center">
-			<p className="text-[22px] font-extrabold text-black">STEP {step}</p>
-			<p className="mt-1 text-[15px] text-black/60">{description}</p>
+		<div className="mt-3 shrink-0 text-center">
+			<p className="text-[20px] font-bold text-black">STEP {step}</p>
+			<p className="mt-1 text-[14px] font-light leading-5 text-black/70">
+				{description}
+			</p>
 		</div>
 	);
 }
