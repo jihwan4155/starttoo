@@ -6,6 +6,7 @@ import {
 	MoreIcon,
 	ShareIcon,
 } from "./icons";
+import ArtistBadge from "../common/ArtistBadge";
 import useCommunityStore from "../../store/useCommunityStore";
 import type { Post } from "../../types/community";
 
@@ -31,11 +32,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					<span className="truncate text-[14px] font-semibold text-black">
 						{post.author.nickname}
 					</span>
-					{post.author.isArtist && (
-						<span className="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">
-							아티스트
-						</span>
-					)}
+					{post.author.isArtist && <ArtistBadge size={16} />}
 					<span className="shrink-0 text-[12px] font-light text-black/40">
 						{post.timeAgo}
 					</span>

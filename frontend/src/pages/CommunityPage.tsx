@@ -17,7 +17,8 @@ export default function CommunityPage() {
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
-			<div className="mx-auto flex w-full max-w-[440px] flex-col gap-10 px-4">
+			{/* ml-20(사이드 네비) 보정: 화면 전체 기준으로 중앙에 오도록 살짝 왼쪽 이동 */}
+			<div className="mx-auto flex w-full max-w-[440px] -translate-x-10 flex-col gap-10 px-4">
 				{feedPosts.map((post) => (
 					<PostCard key={post.id} post={post} onOpen={setActivePost} />
 				))}
