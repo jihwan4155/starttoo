@@ -130,6 +130,24 @@ export function CloseIcon({ size = 16, className }: IconProps) {
 	);
 }
 
+export function CameraIcon({ size = 20, className }: IconProps) {
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinejoin="round"
+			className={className}
+			aria-hidden>
+			<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6H8l1.3-2h5.4L16 6h1.5A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-8Z" />
+			<circle cx="12" cy="12.5" r="3.4" />
+		</svg>
+	);
+}
+
 export function PlusIcon({ size = 24, className }: IconProps) {
 	return (
 		<svg

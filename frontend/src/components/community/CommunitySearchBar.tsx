@@ -1,19 +1,55 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent, DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { CloseIcon, SearchIcon } from "./icons";
+import { CameraIcon, CloseIcon, SearchIcon } from "./icons";
+import ActionButton from "../common/ActionButton";
 import {
 	MOCK_CATEGORIES,
 	MOCK_RECENT_SEARCHES,
 	MOCK_SUGGESTIONS,
 } from "../../mocks/community";
 
-/** 커뮤니티 상단 검색 바 (추천 카테고리 · 최근 검색어 · 자동완성) */
+/** 커뮤니티 상단 검색 바 (추천 카테고리 · 최근 검색어 · 자동완성 · 사진 검색) */
 export default function CommunitySearchBar() {
 	const navigate = useNavigate();
+	const containerRef = useRef<HTMLDivElement>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [value, setValue] = useState("");
 	const [isFocused, setFocused] = useState(false);
+	const [isCameraOpen, setCameraOpen] = useState(false);
 	// TODO: 최근 검색어 API(/users/me/recent-searches) 연동
 	const [recentSearches, setRecentSearches] = useState(MOCK_RECENT_SEARCHES);
+
+	// 사진 검색 패널 바깥 클릭 시 닫기
+	useEffect(() => {
+		if (!isCameraOpen) return undefined;
+		const handleDown = (e: MouseEvent) => {
+			if (!containerRef.current?.contains(e.target as Node)) {
+				setCameraOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleDown);
+		return () => document.removeEventListener("mousedown", handleDown);
+	}, [isCameraOpen]);
+
+	// TODO: 이미지 검색 API 연동 — 현재는 업로드 시 그리드로 이동만
+	const handleImageSelected = (file: File) => {
+		if (!file.type.startsWith("image/")) return;
+		setCameraOpen(false);
+		navigate(`/posts/search?q=${encodeURIComponent("사진 검색")}`);
+	};
+
+	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) handleImageSelected(file);
+		e.target.value = "";
+	};
+
+	const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+		e.preventDefault();
+		const file = e.dataTransfer.files?.[0];
+		if (file) handleImageSelected(file);
+	};
 
 	const suggestions = value.trim()
 		? MOCK_SUGGESTIONS.filter((s) =>
@@ -34,20 +70,23 @@ export default function CommunitySearchBar() {
 	};
 
 	return (
-		<div className="relative w-full max-w-[520px]">
+		<div ref={containerRef} className="relative w-full max-w-[520px]">
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
 					submit(value);
 				}}
-				className="flex h-9 items-center gap-2 rounded-full bg-white pl-4 pr-3 shadow-sm">
+				className="flex h-9 items-center gap-2 rounded-full bg-white pl-4 pr-2 shadow-sm">
 				<SearchIcon size={16} className="shrink-0 text-black/40" />
 				<input
 					value={value}
 					onChange={(e) => setValue(e.target.value)}
-					onFocus={() => setFocused(true)}
+					onFocus={() => {
+						setFocused(true);
+						setCameraOpen(false);
+					}}
 					onBlur={() => setFocused(false)}
-					placeholder="도안, 아티스트 등을 검색해보세요"
+					placeholder="도안, 스타일로 검색 → 예: 미니멀 라인 나비"
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 				/>
 				{value && (
@@ -60,7 +99,52 @@ export default function CommunitySearchBar() {
 						<CloseIcon size={14} />
 					</button>
 				)}
+				<button
+					type="button"
+					aria-label="사진으로 검색"
+					onClick={() => setCameraOpen((prev) => !prev)}
+					className={`shrink-0 rounded-full p-1 transition ${
+						isCameraOpen ? "text-brand" : "text-black/45 hover:text-black"
+					}`}>
+					<CameraIcon size={18} />
+				</button>
 			</form>
+
+			{/* 사진(카메라) 검색 패널 */}
+			{isCameraOpen && (
+				<div className="absolute left-0 right-0 top-[calc(100%+10px)] z-50 rounded-[14px] bg-white p-6 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
+					<div
+						role="presentation"
+						onClick={() => fileInputRef.current?.click()}
+						onDragOver={(e) => e.preventDefault()}
+						onDrop={handleDrop}
+						className="flex h-[180px] cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-black/15 transition hover:border-brand/40">
+						<p className="text-center text-[13px] font-light leading-6 text-black/40">
+							드래그 또는 클릭해 사진 업로드
+							<br />
+							JPG, JPEG, PNG, WEBP 형식 지원
+						</p>
+					</div>
+					<div className="mt-5 flex justify-center gap-4">
+						<ActionButton
+							variant="outline"
+							onClick={() => fileInputRef.current?.click()}>
+							컴퓨터에서 선택
+						</ActionButton>
+						{/* TODO: 보관함 연동되면 보관함 선택 모달로 교체 */}
+						<ActionButton onClick={() => setCameraOpen(false)}>
+							보관함에서 선택
+						</ActionButton>
+					</div>
+					<input
+						ref={fileInputRef}
+						type="file"
+						accept="image/*"
+						className="hidden"
+						onChange={handleFileChange}
+					/>
+				</div>
+			)}
 
 			{isFocused && (
 				<div

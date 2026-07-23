@@ -3,6 +3,7 @@ import MainLayout from "./components/layout/MainLayout";
 import CommunityPage from "./pages/CommunityPage";
 import CommunitySearchPage from "./pages/CommunitySearchPage";
 import CoverUpPage from "./pages/CoverUpPage";
+import DmPage from "./pages/DmPage";
 import HomePage from "./pages/HomePage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
@@ -28,6 +29,8 @@ export default function App() {
 					<Route path="/posts" element={<CommunityPage />} />
 					{/* API: GET /posts/search */}
 					<Route path="/posts/search" element={<CommunitySearchPage />} />
+					{/* API: GET /dm/rooms */}
+					<Route path="/dm" element={<DmPage />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Route>
 			</Routes>
