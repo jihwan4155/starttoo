@@ -6,7 +6,7 @@ import CoverUpPage from "./pages/CoverUpPage";
 import DmPage from "./pages/DmPage";
 import HomePage from "./pages/HomePage";
 import AiPage from "./pages/AiPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
+import SimulationsPage from "./pages/SimulationsPage";
 
 export default function App() {
 	return (
@@ -17,10 +17,7 @@ export default function App() {
 					{/* API: POST /ai/generations */}
 					<Route path="/ai" element={<AiPage />} />
 					{/* API: POST /simulations/ar-sessions */}
-					<Route
-						path="/simulations"
-						element={<PlaceholderPage title="타투 시뮬레이션" />}
-					/>
+					<Route path="/simulations" element={<SimulationsPage />} />
 					{/* API: POST /coverups/recommendations */}
 					<Route path="/coverups" element={<CoverUpPage />} />
 					{/* API: GET /posts */}
