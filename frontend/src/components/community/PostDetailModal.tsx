@@ -7,6 +7,7 @@ import {
 	MoreIcon,
 } from "./icons";
 import useCommunityStore from "../../store/useCommunityStore";
+import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post, PostComment } from "../../types/community";
 
 function ExtractIcon() {
@@ -34,6 +35,9 @@ function CommentRow({
 	comment: PostComment;
 	isReply?: boolean;
 }) {
+	// 댓글 좋아요는 새로고침해도 유지되도록 전역 스토어 사용
+	const isLiked = useCommunityStore((s) => !!s.commentLiked[comment.id]);
+	const toggleCommentLike = useCommunityStore((s) => s.toggleCommentLike);
 	return (
 		<div className={isReply ? "mt-3 pl-10" : "mt-4"}>
 			<div className="flex items-start gap-2.5">
@@ -46,16 +50,19 @@ function CommentRow({
 						<span className="font-light">{comment.content}</span>
 					</p>
 					<div className="mt-1 flex items-center gap-3 text-[11px] font-light text-black/40">
-						<span>{comment.timeAgo}</span>
-						<span>좋아요 {comment.likeCount}</span>
+						<span>{formatTimeAgo(comment.createdAt)}</span>
+						<span>좋아요 {comment.likeCount + (isLiked ? 1 : 0)}</span>
 						{!isReply && <button type="button">답글 달기</button>}
 					</div>
 				</div>
 				<button
 					type="button"
 					aria-label="댓글 좋아요"
-					className="mt-1 text-black/40 transition hover:text-brand">
-					<HeartIcon size={14} />
+					onClick={() => toggleCommentLike(comment.id)}
+					className={`mt-1 transition ${
+						isLiked ? "text-brand" : "text-black/40 hover:text-brand"
+					}`}>
+					<HeartIcon size={14} filled={isLiked} />
 				</button>
 			</div>
 			{comment.replies?.map((reply) => (
@@ -132,7 +139,7 @@ export default function PostDetailModal({
 								{post.author.nickname}
 							</p>
 							<p className="text-[11px] font-light text-black/40">
-								{post.timeAgo}
+								{formatTimeAgo(post.createdAt)}
 							</p>
 						</div>
 						<button

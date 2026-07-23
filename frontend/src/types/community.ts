@@ -7,7 +7,8 @@ export type PostComment = {
 	id: number;
 	author: PostAuthor;
 	content: string;
-	timeAgo: string;
+	/** 작성 시각 (ISO 문자열) — 표시할 땐 formatTimeAgo로 변환 */
+	createdAt: string;
 	likeCount: number;
 	replies?: PostComment[];
 };
@@ -16,7 +17,8 @@ export type PostComment = {
 export type Post = {
 	id: number;
 	author: PostAuthor;
-	timeAgo: string;
+	/** 작성 시각 (ISO 문자열) — 표시할 땐 formatTimeAgo로 변환 */
+	createdAt: string;
 	/** null이면 회색 플레이스홀더 표시 */
 	imageUrl: string | null;
 	caption: string;

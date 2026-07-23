@@ -8,6 +8,7 @@ import {
 } from "./icons";
 import ArtistBadge from "../common/ArtistBadge";
 import useCommunityStore from "../../store/useCommunityStore";
+import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post } from "../../types/community";
 
 type PostCardProps = {
@@ -22,6 +23,10 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	const isBookmarked = useCommunityStore((s) => !!s.bookmarked[post.id]);
 	const toggleLike = useCommunityStore((s) => s.toggleLike);
 	const toggleBookmark = useCommunityStore((s) => s.toggleBookmark);
+	// 상세 모달에서 작성한 댓글 수를 피드 카운트에 반영
+	const myCommentCount = useCommunityStore(
+		(s) => s.extraComments[post.id]?.length ?? 0,
+	);
 
 	return (
 		<article className="w-full">
@@ -34,7 +39,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					</span>
 					{post.author.isArtist && <ArtistBadge size={16} />}
 					<span className="shrink-0 text-[12px] font-light text-black/40">
-						{post.timeAgo}
+						{formatTimeAgo(post.createdAt)}
 					</span>
 				</div>
 				<div className="relative">
@@ -109,7 +114,9 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					onClick={() => onOpen(post)}
 					className="flex items-center gap-1.5 transition hover:text-black/60">
 					<CommentIcon />
-					<span className="text-[13px] font-light">{post.commentCount}</span>
+					<span className="text-[13px] font-light">
+						{post.commentCount + myCommentCount}
+					</span>
 				</button>
 				<button
 					type="button"

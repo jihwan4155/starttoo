@@ -10,12 +10,15 @@ import type { Post, PostComment } from "../types/community";
 type CommunityState = {
 	liked: Record<number, boolean>;
 	bookmarked: Record<number, boolean>;
+	/** 댓글 좋아요 (댓글 id별) */
+	commentLiked: Record<number, boolean>;
 	/** 사용자가 이 세션에서 작성한 댓글 (게시글 id별) */
 	extraComments: Record<number, PostComment[]>;
 	/** 사용자가 이 세션에서 올린 게시물 (피드 맨 위에 노출) */
 	myPosts: Post[];
 	toggleLike: (postId: number) => void;
 	toggleBookmark: (postId: number) => void;
+	toggleCommentLike: (commentId: number) => void;
 	addComment: (postId: number, content: string) => void;
 	addPost: (imageUrl: string, caption: string) => void;
 };
@@ -25,6 +28,7 @@ const useCommunityStore = create<CommunityState>()(
 		(set) => ({
 			liked: {},
 			bookmarked: {},
+			commentLiked: {},
 			extraComments: {},
 			myPosts: [],
 			toggleLike: (postId) =>
@@ -38,6 +42,14 @@ const useCommunityStore = create<CommunityState>()(
 						[postId]: !state.bookmarked[postId],
 					},
 				})),
+			// TODO: 댓글 좋아요 API 연동
+			toggleCommentLike: (commentId) =>
+				set((state) => ({
+					commentLiked: {
+						...state.commentLiked,
+						[commentId]: !state.commentLiked[commentId],
+					},
+				})),
 			addComment: (postId, content) =>
 				set((state) => ({
 					extraComments: {
@@ -48,7 +60,7 @@ const useCommunityStore = create<CommunityState>()(
 								id: Date.now(),
 								author: { nickname: "나", isArtist: false },
 								content,
-								timeAgo: "방금 전",
+								createdAt: new Date().toISOString(),
 								likeCount: 0,
 							},
 						],
@@ -61,7 +73,7 @@ const useCommunityStore = create<CommunityState>()(
 						{
 							id: Date.now(),
 							author: { nickname: "스누피", isArtist: false },
-							timeAgo: "방금 전",
+							createdAt: new Date().toISOString(),
 							imageUrl,
 							caption,
 							likeCount: 0,
@@ -72,8 +84,31 @@ const useCommunityStore = create<CommunityState>()(
 					],
 				})),
 		}),
-		{ name: "starttoo-community" }
-	)
+		{
+			name: "starttoo-community",
+			version: 1,
+			// v0(timeAgo 문자열) → v1(createdAt ISO) 이관 — id가 Date.now()라 작성 시각으로 복원
+			migrate: (persisted) => {
+				const state = persisted as CommunityState;
+				const toCreatedAt = <T extends { id: number; createdAt?: string }>(
+					item: T,
+				) => ({
+					...item,
+					createdAt: item.createdAt ?? new Date(item.id).toISOString(),
+				});
+				return {
+					...state,
+					commentLiked: state.commentLiked ?? {},
+					extraComments: Object.fromEntries(
+						Object.entries(state.extraComments ?? {}).map(
+							([postId, comments]) => [postId, comments.map(toCreatedAt)],
+						),
+					),
+					myPosts: (state.myPosts ?? []).map(toCreatedAt),
+				};
+			},
+		},
+	),
 );
 
 export default useCommunityStore;
