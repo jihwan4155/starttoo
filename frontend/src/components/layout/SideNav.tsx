@@ -1,18 +1,30 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { MOCK_DM_ROOMS } from "../../mocks/dm";
+import useDmStore from "../../store/useDmStore";
 
 type NavItem = {
 	id: string;
 	label: string;
 	to: string;
-	icon: "ai" | "sim" | "cover" | "community";
+	icon: "ai" | "sim" | "cover" | "community" | "search" | "dm";
+	/** true면 경로가 정확히 일치할 때만 활성화 (하위 경로 제외) */
+	exact?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
 	{ id: "ai", label: "AI 도안 생성", to: "/ai", icon: "ai" },
 	{ id: "sim", label: "타투 시뮬레이션", to: "/simulations", icon: "sim" },
 	{ id: "cover", label: "커버업 타투", to: "/coverups", icon: "cover" },
-	{ id: "community", label: "커뮤니티", to: "/posts", icon: "community" },
+	{
+		id: "community",
+		label: "커뮤니티",
+		to: "/posts",
+		icon: "community",
+		exact: true,
+	},
+	{ id: "search", label: "피드 검색", to: "/posts/search", icon: "search" },
+	{ id: "dm", label: "DM", to: "/dm", icon: "dm" },
 ];
 
 function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
@@ -69,6 +81,30 @@ function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 					/>
 				</svg>
 			);
+		case "search":
+			return (
+				<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+					<circle cx="12.5" cy="12.5" r="7.5" stroke={color} strokeWidth="2.2" />
+					<path
+						d="m18.5 18.5 5.5 5.5"
+						stroke={color}
+						strokeWidth="2.2"
+						strokeLinecap="round"
+					/>
+				</svg>
+			);
+		case "dm":
+			return (
+				<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+					<path
+						d="M24.5 3.5 12.25 15.75M24.5 3.5 16.3 24.5l-4.05-8.75L3.5 11.7l21-8.2Z"
+						stroke={color}
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
+				</svg>
+			);
 		default:
 			return null;
 	}
@@ -77,12 +113,18 @@ function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 export default function SideNav() {
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const { pathname } = useLocation();
+	// 안읽은 메시지가 있는 채팅방 수 (읽으면 실시간으로 줄어듦)
+	const readRoomIds = useDmStore((s) => s.readRoomIds);
+	const unreadDmCount = MOCK_DM_ROOMS.filter(
+		(room) => room.unreadCount > 0 && !readRoomIds.includes(room.id),
+	).length;
 
 	return (
 		<aside className="fixed bottom-0 left-0 top-[60px] z-40 flex w-20 flex-col items-center gap-6 bg-white pt-8">
 			{NAV_ITEMS.map((item) => {
-				const isActive =
-					pathname === item.to || pathname.startsWith(`${item.to}/`);
+				const isActive = item.exact
+					? pathname === item.to
+					: pathname === item.to || pathname.startsWith(`${item.to}/`);
 				const showLabel = hoveredId === item.id;
 
 				return (
@@ -95,12 +137,17 @@ export default function SideNav() {
 							to={item.to}
 							aria-label={item.label}
 							aria-current={isActive ? "page" : undefined}
-							className={`flex size-[51px] items-center justify-center rounded-[10px] bg-white transition ${
+							className={`relative flex size-[51px] items-center justify-center rounded-[10px] bg-white transition ${
 								showLabel || isActive
 									? "shadow-[0_0_15px_rgba(255,0,4,0.12),4px_8px_30px_rgba(0,0,0,0.15)]"
 									: ""
 							}`}>
 							<NavIcon type={item.icon} active={showLabel || isActive} />
+							{item.id === "dm" && unreadDmCount > 0 && (
+								<span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold leading-none text-white">
+									{unreadDmCount}
+								</span>
+							)}
 						</Link>
 
 						{showLabel && (
