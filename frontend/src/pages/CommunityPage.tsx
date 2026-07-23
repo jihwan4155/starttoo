@@ -1,28 +1,24 @@
-import { useRef, useState } from "react";
-import type { ChangeEvent } from "react";
-import ConfirmModal from "../components/common/ConfirmModal";
+import { useState } from "react";
+import CreatePostModal from "../components/community/CreatePostModal";
 import PostCard from "../components/community/PostCard";
 import PostDetailModal from "../components/community/PostDetailModal";
 import { PlusIcon } from "../components/community/icons";
 import { MOCK_POSTS } from "../mocks/community";
+import useCommunityStore from "../store/useCommunityStore";
 import type { Post } from "../types/community";
 
 /** 커뮤니티 피드 — 시연용 목업 데이터 (TODO: GET /posts 연동) */
 export default function CommunityPage() {
-	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	const [isWriteOpen, setWriteOpen] = useState(false);
-
-	// TODO: 게시물 작성 플로우 연동 (현재는 이미지 선택까지만)
-	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-		e.target.value = "";
-		setWriteOpen(false);
-	};
+	// 이 세션에서 올린 게시물을 피드 맨 위에 노출
+	const myPosts = useCommunityStore((s) => s.myPosts);
+	const feedPosts = [...myPosts, ...MOCK_POSTS];
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
 			<div className="mx-auto flex w-full max-w-[440px] flex-col gap-10 px-4">
-				{MOCK_POSTS.map((post) => (
+				{feedPosts.map((post) => (
 					<PostCard key={post.id} post={post} onOpen={setActivePost} />
 				))}
 			</div>
@@ -43,23 +39,9 @@ export default function CommunityPage() {
 				onClose={() => setActivePost(null)}
 			/>
 
-			<ConfirmModal
-				title="게시물에 사용할 이미지를 선택해주세요"
+			<CreatePostModal
 				isOpen={isWriteOpen}
 				onClose={() => setWriteOpen(false)}
-				cancelText="컴퓨터에서 선택"
-				confirmText="보관함에서 선택"
-				onCancel={() => fileInputRef.current?.click()}
-				// TODO: 보관함 연동되면 보관함 선택 모달로 교체
-				onConfirm={() => setWriteOpen(false)}
-			/>
-
-			<input
-				ref={fileInputRef}
-				type="file"
-				accept="image/*"
-				className="hidden"
-				onChange={handleFileChange}
 			/>
 		</div>
 	);
