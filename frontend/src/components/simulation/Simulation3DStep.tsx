@@ -21,13 +21,42 @@ type Simulation3DStepProps = {
 	photoUrl: string | null;
 };
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-	return new Promise((resolve, reject) => {
-		const img = new Image();
-		img.onload = () => resolve(img);
-		img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다."));
-		img.src = url;
-	});
+/** 다른 출처(http/https) URL이면 동일 출처가 아닌지 확인 */
+function isCrossOrigin(url: string): boolean {
+	if (!/^https?:/i.test(url)) return false; // blob:/data: 는 동일 출처
+	try {
+		return new URL(url, window.location.href).origin !== window.location.origin;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * 이미지를 WebGL 텍스처로 쓸 수 있도록 로드한다.
+ * 다른 출처(예: 도안 추출 서버 http://127.0.0.1:8791)의 이미지는 그대로 <img>에
+ * 올리면 캔버스가 오염(cross-origin taint)돼 texImage2D가 실패한다.
+ * → fetch로 바이트를 받아 동일 출처 blob URL로 변환해 오염을 원천 차단한다.
+ * (crossOrigin="anonymous"만으로는 이미 no-cors로 캐시된 이미지에서 여전히 오염될 수 있음)
+ */
+async function loadImage(url: string): Promise<HTMLImageElement> {
+	let objectUrl: string | null = null;
+	if (isCrossOrigin(url)) {
+		const res = await fetch(url, { mode: "cors" });
+		if (!res.ok) throw new Error("이미지를 불러오지 못했습니다.");
+		objectUrl = URL.createObjectURL(await res.blob());
+	}
+	const src = objectUrl ?? url;
+	try {
+		return await new Promise<HTMLImageElement>((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => resolve(img);
+			img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다."));
+			img.src = src;
+		});
+	} finally {
+		// 로드 완료 후에는 <img>가 디코딩된 비트맵을 보유하므로 blob URL 해제 가능
+		if (objectUrl) URL.revokeObjectURL(objectUrl);
+	}
 }
 
 /**
