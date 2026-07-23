@@ -7,6 +7,8 @@ import {
 	MoreIcon,
 } from "./icons";
 import useCommunityStore from "../../store/useCommunityStore";
+import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
+import DesignExtractResultModal from "./DesignExtractResultModal";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post, PostComment } from "../../types/community";
 
@@ -93,8 +95,19 @@ export default function PostDetailModal({
 	const toggleLike = useCommunityStore((s) => s.toggleLike);
 	const toggleBookmark = useCommunityStore((s) => s.toggleBookmark);
 	const addComment = useCommunityStore((s) => s.addComment);
+	// 도안 추출: 성공 시 결과 모달 표시. TODO: 내 보관함 저장 연동
+	const {
+		mutate: extractDesign,
+		data: extractResult,
+		isPending: isExtracting,
+		error: extractError,
+		reset: resetExtract,
+	} = useDesignExtractMutation();
 
 	if (!post) return null;
+
+	// const로 캡처해 onClick 클로저에서도 null 아님이 보장되도록 함
+	const postImageUrl = post.imageUrl;
 
 	return createPortal(
 		<div
@@ -109,24 +122,31 @@ export default function PostDetailModal({
 				aria-label="게시글 상세">
 				{/* 좌: 이미지 */}
 				<div className="group relative hidden min-h-[540px] flex-1 bg-black/90 sm:block">
-					{post.imageUrl ? (
+					{postImageUrl ? (
 						<img
-							src={post.imageUrl}
+							src={postImageUrl}
 							alt={`${post.author.nickname}의 게시글`}
 							className="h-full w-full object-contain"
 						/>
 					) : (
 						<div className="h-full w-full bg-[#D9D9D9]" />
 					)}
-					{/* 호버 시 노출되는 도안 추출 버튼. TODO: 타투 추출·도안화 로직 연동 */}
-					{post.imageUrl && (
+					{/* 호버 시 노출되는 도안 추출 버튼 */}
+					{postImageUrl && (
 						<button
 							type="button"
 							aria-label="도안 추출"
-							className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 group-hover:opacity-100">
+							disabled={isExtracting}
+							onClick={() => extractDesign(postImageUrl)}
+							className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 group-hover:opacity-100">
 							<ExtractIcon />
-							도안 추출
+							{isExtracting ? "추출 중..." : "도안 추출"}
 						</button>
+					)}
+					{extractError && (
+						<p className="absolute bottom-16 right-4 rounded-lg bg-black/60 px-3 py-1.5 text-[12px] font-light text-white">
+							{extractError.message}
+						</p>
 					)}
 				</div>
 
@@ -221,6 +241,11 @@ export default function PostDetailModal({
 					</div>
 				</div>
 			</div>
+
+			<DesignExtractResultModal
+				result={extractResult ?? null}
+				onClose={resetExtract}
+			/>
 		</div>,
 		document.body,
 	);
