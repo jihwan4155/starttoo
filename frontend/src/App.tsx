@@ -6,6 +6,8 @@ import CoverUpPage from "./pages/CoverUpPage";
 import DmPage from "./pages/DmPage";
 import HomePage from "./pages/HomePage";
 import AiPage from "./pages/AiPage";
+import MyPage from "./pages/MyPage";
+import MyPageEditPage from "./pages/MyPageEditPage";
 import SimulationsPage from "./pages/SimulationsPage";
 import TattooistPage from "./pages/TattooistPage";
 
@@ -29,6 +31,10 @@ export default function App() {
 					<Route path="/dm" element={<DmPage />} />
 					{/* API: GET /artists */}
 					<Route path="/artists" element={<TattooistPage />} />
+					{/* API: GET /users/me */}
+					<Route path="/mypage" element={<MyPage />} />
+					{/* API: PATCH /users/me */}
+					<Route path="/mypage/edit" element={<MyPageEditPage />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Route>
 			</Routes>
