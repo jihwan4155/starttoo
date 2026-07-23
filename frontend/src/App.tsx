@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import HomePage from "./pages/HomePage";
+import AiPage from "./pages/AiPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
 export default function App() {
@@ -10,10 +11,7 @@ export default function App() {
 				<Route element={<MainLayout />}>
 					<Route path="/" element={<HomePage />} />
 					{/* API: POST /ai/generations */}
-					<Route
-						path="/ai"
-						element={<PlaceholderPage title="AI 도안 생성" />}
-					/>
+					<Route path="/ai" element={<AiPage />} />
 					{/* API: POST /simulations/ar-sessions */}
 					<Route
 						path="/simulations"

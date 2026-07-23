@@ -73,3 +73,28 @@ img {
 	display: block;
 	max-width: 100%;
 }
+
+.genre-tag-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: #ff4646 #f0f0f0;
+}
+
+.genre-tag-scroll::-webkit-scrollbar {
+	height: 6px;
+}
+
+.genre-tag-scroll::-webkit-scrollbar-track {
+	margin: 0 8px;
+	border-radius: 999px;
+	background: #f0f0f0;
+}
+
+.genre-tag-scroll::-webkit-scrollbar-thumb {
+	border: 1px solid #f0f0f0;
+	border-radius: 999px;
+	background: linear-gradient(90deg, #ff8f74 0%, #ff4646 100%);
+}
+
+.genre-tag-scroll::-webkit-scrollbar-thumb:hover {
+	background: #ff4646;
+}
