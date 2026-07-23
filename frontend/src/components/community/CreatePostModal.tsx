@@ -2,9 +2,11 @@ import { useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { createPortal } from "react-dom";
 import ActionButton from "../common/ActionButton";
+import ImageCropper from "./ImageCropper";
 import { CloseIcon } from "./icons";
 import useCommunityStore from "../../store/useCommunityStore";
-import { compressImageToDataUrl } from "../../utils/image";
+import { cropImageToDataUrl, DEFAULT_CROP } from "../../utils/image";
+import type { CropState } from "../../utils/image";
 
 type Step = "select" | "crop" | "write";
 
@@ -94,6 +96,10 @@ export default function CreatePostModal({
 	const [imageIndex, setImageIndex] = useState(0);
 	const [caption, setCaption] = useState("");
 	const [isSubmitting, setSubmitting] = useState(false);
+	// 이미지별 크롭 상태 (미리보기 URL 키) + 크롭 적용된 결과 이미지
+	const [crops, setCrops] = useState<Record<string, CropState>>({});
+	const [croppedUrls, setCroppedUrls] = useState<string[]>([]);
+	const [isCropping, setCropping] = useState(false);
 	const addPost = useCommunityStore((s) => s.addPost);
 
 	if (!isOpen) return null;
@@ -104,6 +110,9 @@ export default function CreatePostModal({
 		setImageIndex(0);
 		setCaption("");
 		setSubmitting(false);
+		setCrops({});
+		setCroppedUrls([]);
+		setCropping(false);
 	};
 
 	const handleClose = () => {
@@ -132,18 +141,41 @@ export default function CreatePostModal({
 	};
 
 	const removeImage = (index: number) => {
-		URL.revokeObjectURL(images[index].url);
+		const { url } = images[index];
+		URL.revokeObjectURL(url);
 		setImages((prev) => prev.filter((_, i) => i !== index));
+		setCrops((prev) => {
+			const next = { ...prev };
+			delete next[url];
+			return next;
+		});
 	};
 
-	// 이미지를 base64로 압축 저장 → localStorage 영속화로 새로고침해도 유지
-	// TODO: 자르기 실제 크롭 처리 + 백엔드 연동 시 presigned 업로드로 교체
-	const handleSubmit = async () => {
-		if (isSubmitting) return;
+	// 자르기 → 작성 단계 이동: 모든 이미지에 크롭을 적용해 압축 base64 생성
+	const handleCropDone = async () => {
+		if (isCropping) return;
+		setCropping(true);
+		try {
+			const urls = await Promise.all(
+				images.map((image) =>
+					cropImageToDataUrl(image.file, crops[image.url] ?? DEFAULT_CROP),
+				),
+			);
+			setCroppedUrls(urls);
+			setImageIndex(0);
+			setStep("write");
+		} finally {
+			setCropping(false);
+		}
+	};
+
+	// 크롭·압축된 base64 저장 → localStorage 영속화로 새로고침해도 유지
+	// TODO: 백엔드 연동 시 presigned 업로드로 교체
+	const handleSubmit = () => {
+		if (isSubmitting || !croppedUrls[0]) return;
 		setSubmitting(true);
 		try {
-			const dataUrl = await compressImageToDataUrl(images[0].file);
-			addPost(dataUrl, caption.trim());
+			addPost(croppedUrls[0], caption.trim());
 			handleClose();
 		} catch {
 			setSubmitting(false);
@@ -203,13 +235,11 @@ export default function CreatePostModal({
 					{step === "crop" && (
 						<button
 							type="button"
-							onClick={() => {
-								setImageIndex(0);
-								setStep("write");
-							}}
-							className="absolute right-4 flex items-center gap-0.5 text-[14px] font-semibold text-brand transition hover:brightness-90">
-							다음
-							<ChevronIcon direction="right" />
+							onClick={handleCropDone}
+							disabled={isCropping}
+							className="absolute right-4 flex items-center gap-0.5 text-[14px] font-semibold text-brand transition hover:brightness-90 disabled:opacity-50">
+							{isCropping ? "적용 중..." : "다음"}
+							{!isCropping && <ChevronIcon direction="right" />}
 						</button>
 					)}
 					{step === "write" && (
@@ -290,14 +320,44 @@ export default function CreatePostModal({
 					</div>
 				)}
 
-				{/* 2단계: 자르기 (TODO: 실제 크롭 로직) */}
+				{/* 2단계: 자르기 — 드래그로 영역 이동, 슬라이더로 확대/축소 */}
 				{step === "crop" && (
 					<div className="p-8">
 						<div className="mx-auto max-w-[380px]">
-							<ImageCarousel
-								images={images.map((image) => image.url)}
-								index={imageIndex}
-								onChangeIndex={setImageIndex}
+							{images.length > 1 && (
+								<div className="mb-3 flex items-center justify-center gap-4">
+									<button
+										type="button"
+										aria-label="이전 사진"
+										disabled={imageIndex === 0}
+										onClick={() => setImageIndex(imageIndex - 1)}
+										className="flex size-7 items-center justify-center rounded-full bg-black text-white shadow transition hover:bg-black/80 disabled:opacity-30">
+										<ChevronIcon direction="left" />
+									</button>
+									<span className="text-[13px] font-light text-black/60">
+										{imageIndex + 1} / {images.length}
+									</span>
+									<button
+										type="button"
+										aria-label="다음 사진"
+										disabled={imageIndex === images.length - 1}
+										onClick={() => setImageIndex(imageIndex + 1)}
+										className="flex size-7 items-center justify-center rounded-full bg-black text-white shadow transition hover:bg-black/80 disabled:opacity-30">
+										<ChevronIcon direction="right" />
+									</button>
+								</div>
+							)}
+							<ImageCropper
+								// 사진을 넘기면 해당 사진의 크롭 상태로 리마운트
+								key={images[imageIndex].url}
+								src={images[imageIndex].url}
+								crop={crops[images[imageIndex].url] ?? DEFAULT_CROP}
+								onChange={(next) =>
+									setCrops((prev) => ({
+										...prev,
+										[images[imageIndex].url]: next,
+									}))
+								}
 							/>
 						</div>
 					</div>
@@ -307,8 +367,13 @@ export default function CreatePostModal({
 				{step === "write" && (
 					<div className="flex gap-5 p-6">
 						<div className="w-[280px] shrink-0">
+							{/* 크롭이 적용된 결과 이미지 미리보기 */}
 							<ImageCarousel
-								images={images.map((image) => image.url)}
+								images={
+									croppedUrls.length > 0
+										? croppedUrls
+										: images.map((image) => image.url)
+								}
 								index={imageIndex}
 								onChangeIndex={setImageIndex}
 							/>

@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
 import { MOCK_ARTISTS } from "../mocks/artists";
 
 /** 타투이스트 모아보기 — 시연용 목업 (TODO: GET /artists 연동) */
 export default function TattooistPage() {
-	const [query, setQuery] = useState("");
+	// 검색은 상단 헤더(ArtistSearchBar)에서 입력 → URL ?q=로 동기화
+	const [searchParams] = useSearchParams();
+	const query = searchParams.get("q") ?? "";
 
 	const artists = useMemo(() => {
 		const keyword = query.trim();
@@ -19,26 +22,6 @@ export default function TattooistPage() {
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
 			<div className="mx-auto flex w-full max-w-[820px] flex-col gap-6 px-4">
-				{/* 검색 */}
-				<label className="flex h-[46px] items-center gap-2.5 rounded-full border border-black/10 bg-white px-5 shadow-sm">
-					<svg width="18" height="18" viewBox="0 0 28 28" fill="none" aria-hidden>
-						<circle cx="12.5" cy="12.5" r="7.5" stroke="#999" strokeWidth="2.2" />
-						<path
-							d="m18.5 18.5 5.5 5.5"
-							stroke="#999"
-							strokeWidth="2.2"
-							strokeLinecap="round"
-						/>
-					</svg>
-					<input
-						type="text"
-						value={query}
-						onChange={(e) => setQuery(e.target.value)}
-						placeholder="타투이스트 검색"
-						className="w-full bg-transparent text-[14px] text-black outline-none placeholder:font-light placeholder:text-black/35"
-					/>
-				</label>
-
 				{/* 타투이스트 카드 목록 */}
 				{artists.map((artist) => (
 					<article
