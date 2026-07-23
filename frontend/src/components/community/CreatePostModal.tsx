@@ -7,6 +7,7 @@ import { CloseIcon } from "./icons";
 import useCommunityStore from "../../store/useCommunityStore";
 import useUserStore from "../../store/useUserStore";
 import { cropImageToDataUrl, DEFAULT_CROP } from "../../utils/image";
+import { resolveAvatar } from "../../utils/profile";
 import type { CropState } from "../../utils/image";
 
 type Step = "select" | "crop" | "write";
@@ -103,6 +104,7 @@ export default function CreatePostModal({
 	const [isCropping, setCropping] = useState(false);
 	const addPost = useCommunityStore((s) => s.addPost);
 	const nickname = useUserStore((s) => s.nickname);
+	const avatarUrl = useUserStore((s) => s.avatarUrl);
 
 	if (!isOpen) return null;
 
@@ -382,7 +384,11 @@ export default function CreatePostModal({
 						</div>
 						<div className="flex min-w-0 flex-1 flex-col">
 							<div className="flex items-center gap-2.5">
-								<span className="size-8 shrink-0 rounded-full bg-[#D9D9D9]" />
+								<img
+									src={resolveAvatar(avatarUrl)}
+									alt=""
+									className="size-8 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+								/>
 								<span className="text-[14px] font-semibold text-black">
 									{nickname}
 								</span>

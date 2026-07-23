@@ -12,7 +12,7 @@ import exploreFeed9 from "../assets/images/explore/feed9.jpg";
 import exploreFeed10 from "../assets/images/explore/feed10.jpg";
 import exploreFeed11 from "../assets/images/explore/feed11.jpg";
 import exploreFeed12 from "../assets/images/explore/feed12.jpg";
-import type { Post } from "../types/community";
+import type { Post, PostAuthor, PostComment } from "../types/community";
 
 /** n시간 전 ISO 문자열 (목업용) */
 const hoursAgo = (hours: number) =>

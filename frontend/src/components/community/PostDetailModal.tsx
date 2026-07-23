@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import {
 	BookmarkIcon,
 	CloseIcon,
@@ -8,6 +9,7 @@ import {
 } from "./icons";
 import useCommunityStore from "../../store/useCommunityStore";
 import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
+import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import DesignExtractResultModal from "./DesignExtractResultModal";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post, PostComment } from "../../types/community";
@@ -33,22 +35,38 @@ function ExtractIcon() {
 function CommentRow({
 	comment,
 	isReply = false,
+	onNavigate,
 }: {
 	comment: PostComment;
 	isReply?: boolean;
+	/** 프로필로 이동하기 전 모달을 닫기 위한 콜백 */
+	onNavigate?: () => void;
 }) {
 	// 댓글 좋아요는 새로고침해도 유지되도록 전역 스토어 사용
 	const isLiked = useCommunityStore((s) => !!s.commentLiked[comment.id]);
 	const toggleCommentLike = useCommunityStore((s) => s.toggleCommentLike);
+	const { nickname, avatarUrl, profileTo } = useAuthorDisplay(comment.author);
 	return (
 		<div className={isReply ? "mt-3 pl-10" : "mt-4"}>
 			<div className="flex items-start gap-2.5">
-				<span className="mt-0.5 size-7 shrink-0 rounded-full bg-[#D9D9D9]" />
+				<Link
+					to={profileTo}
+					onClick={onNavigate}
+					aria-label={`${nickname} 프로필`}>
+					<img
+						src={avatarUrl}
+						alt=""
+						className="mt-0.5 size-7 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+					/>
+				</Link>
 				<div className="min-w-0 flex-1">
 					<p className="text-[13px] leading-5 text-black">
-						<span className="mr-2 font-semibold">
-							{comment.author.nickname}
-						</span>
+						<Link
+							to={profileTo}
+							onClick={onNavigate}
+							className="mr-2 font-semibold hover:underline">
+							{nickname}
+						</Link>
 						<span className="font-light">{comment.content}</span>
 					</p>
 					<div className="mt-1 flex items-center gap-3 text-[11px] font-light text-black/40">
@@ -68,7 +86,12 @@ function CommentRow({
 				</button>
 			</div>
 			{comment.replies?.map((reply) => (
-				<CommentRow key={reply.id} comment={reply} isReply />
+				<CommentRow
+					key={reply.id}
+					comment={reply}
+					isReply
+					onNavigate={onNavigate}
+				/>
 			))}
 		</div>
 	);
@@ -95,6 +118,12 @@ export default function PostDetailModal({
 	const toggleLike = useCommunityStore((s) => s.toggleLike);
 	const toggleBookmark = useCommunityStore((s) => s.toggleBookmark);
 	const addComment = useCommunityStore((s) => s.addComment);
+	// 훅 규칙상 early return 이전에 호출 (post 없을 때는 빈 작성자로 안전 처리)
+	const {
+		nickname: authorName,
+		avatarUrl: authorAvatar,
+		profileTo: authorProfileTo,
+	} = useAuthorDisplay(post?.author ?? { nickname: "", isArtist: false });
 	// 도안 추출: 성공 시 결과 모달 표시. TODO: 내 보관함 저장 연동
 	const {
 		mutate: extractDesign,
@@ -153,11 +182,23 @@ export default function PostDetailModal({
 				{/* 우: 댓글 패널 */}
 				<div className="flex w-full flex-col sm:w-[380px]">
 					<div className="flex items-center gap-3 border-b border-black/10 px-5 py-4">
-						<span className="size-8 shrink-0 rounded-full bg-[#D9D9D9]" />
+						<Link
+							to={authorProfileTo}
+							onClick={onClose}
+							aria-label={`${authorName} 프로필`}>
+							<img
+								src={authorAvatar}
+								alt=""
+								className="size-8 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+							/>
+						</Link>
 						<div className="min-w-0 flex-1">
-							<p className="truncate text-[14px] font-semibold text-black">
-								{post.author.nickname}
-							</p>
+							<Link
+								to={authorProfileTo}
+								onClick={onClose}
+								className="block truncate text-[14px] font-semibold text-black hover:underline">
+								{authorName}
+							</Link>
 							<p className="text-[11px] font-light text-black/40">
 								{formatTimeAgo(post.createdAt)}
 							</p>
@@ -179,17 +220,28 @@ export default function PostDetailModal({
 
 					<div className="flex-1 overflow-y-auto px-5 pb-4">
 						<p className="mt-4 text-[13px] font-light leading-5 text-black">
-							<span className="mr-2 font-semibold">
-								{post.author.nickname}
-							</span>
+							<Link
+								to={authorProfileTo}
+								onClick={onClose}
+								className="mr-2 font-semibold hover:underline">
+								{authorName}
+							</Link>
 							{post.caption}
 						</p>
 						{post.comments.map((comment) => (
-							<CommentRow key={comment.id} comment={comment} />
+							<CommentRow
+								key={comment.id}
+								comment={comment}
+								onNavigate={onClose}
+							/>
 						))}
 						{/* 이 세션에서 작성한 댓글 */}
 						{myComments?.map((comment) => (
-							<CommentRow key={comment.id} comment={comment} />
+							<CommentRow
+								key={comment.id}
+								comment={comment}
+								onNavigate={onClose}
+							/>
 						))}
 					</div>
 

@@ -1,3 +1,4 @@
+import defaultProfile from "../assets/images/default-profile.png";
 import type { Artist } from "../types/artist";
 import { MOCK_EXPLORE_POSTS } from "./community";
 
@@ -6,6 +7,10 @@ const worksOf = (nickname: string): string[] =>
 	MOCK_EXPLORE_POSTS.filter((post) => post.author.nickname === nickname)
 		.map((post) => post.imageUrl)
 		.filter((url): url is string => !!url);
+
+/** 프로필 사진 — 대표 작업물 첫 장을 사용, 없으면 기본 프로필 이미지 */
+const avatarOf = (nickname: string): string =>
+	worksOf(nickname)[0] ?? defaultProfile;
 
 /** 시연용 타투이스트 목업 데이터 — 백엔드 연동 시 API 응답으로 교체 */
 export const MOCK_ARTISTS: Artist[] = [
@@ -17,6 +22,7 @@ export const MOCK_ARTISTS: Artist[] = [
 		distanceKm: 1.2,
 		address: "서울 마포구 와우산로 39-14 1층",
 		categories: ["레터링", "미니타투", "라인워크"],
+		avatarUrl: avatarOf("김타투이스트!"),
 		imageUrls: worksOf("김타투이스트!"),
 	},
 	{
@@ -27,6 +33,7 @@ export const MOCK_ARTISTS: Artist[] = [
 		distanceKm: 3.8,
 		address: "서울 서대문구 연세로 12길 5 2층",
 		categories: ["커버업", "블랙앤그레이", "이레즈미"],
+		avatarUrl: avatarOf("잉크스튜디오"),
 		imageUrls: worksOf("잉크스튜디오"),
 	},
 	{
@@ -37,6 +44,7 @@ export const MOCK_ARTISTS: Artist[] = [
 		distanceKm: 8.4,
 		address: "서울 강남구 도산대로 15길 22 지하 1층",
 		categories: ["수채화", "꽃타투", "감성타투"],
+		avatarUrl: avatarOf("타투아티스트 레이디"),
 		imageUrls: worksOf("타투아티스트 레이디"),
 	},
 	{
@@ -47,6 +55,7 @@ export const MOCK_ARTISTS: Artist[] = [
 		distanceKm: 2.5,
 		address: "서울 마포구 양화로 23길 8 3층",
 		categories: ["레터링", "라인워크", "미니타투"],
+		avatarUrl: avatarOf("라인웍스"),
 		imageUrls: worksOf("라인웍스"),
 	},
 	{
@@ -57,6 +66,7 @@ export const MOCK_ARTISTS: Artist[] = [
 		distanceKm: 5.1,
 		address: "서울 용산구 이태원로 27길 40 2층",
 		categories: ["블랙워크", "이레즈미", "커버업"],
+		avatarUrl: avatarOf("블랙워크덕후"),
 		imageUrls: worksOf("블랙워크덕후"),
 	},
 	{
@@ -67,6 +77,7 @@ export const MOCK_ARTISTS: Artist[] = [
 		distanceKm: 6.7,
 		address: "서울 성동구 왕십리로 10길 15 1층",
 		categories: ["감성타투", "꽃타투", "미니타투"],
+		avatarUrl: avatarOf("감성타투_무이"),
 		imageUrls: worksOf("감성타투_무이"),
 	},
 	{
@@ -77,6 +88,7 @@ export const MOCK_ARTISTS: Artist[] = [
 		distanceKm: 4.3,
 		address: "서울 종로구 자하문로 12길 6 2층",
 		categories: ["블랙앤그레이", "레터링", "미니타투"],
+		avatarUrl: avatarOf("무채색스튜디오"),
 		imageUrls: worksOf("무채색스튜디오"),
 	},
 ];

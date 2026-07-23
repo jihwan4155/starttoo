@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
 import { MOCK_ARTISTS } from "../mocks/artists";
+import { profilePath, resolveAvatar } from "../utils/profile";
 
 /** 타투이스트 모아보기 — 시연용 목업 (TODO: GET /artists 연동) */
 export default function TattooistPage() {
@@ -28,14 +29,22 @@ export default function TattooistPage() {
 						key={artist.id}
 						className="flex flex-col gap-4 rounded-[20px] bg-white p-6 shadow-sm">
 						<div className="flex items-center gap-4">
-							<span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#D9D9D9] text-[12px] font-light text-black/40">
-								프사
-							</span>
+							<Link
+								to={profilePath(artist.name)}
+								aria-label={`${artist.name} 프로필`}>
+								<img
+									src={resolveAvatar(artist.avatarUrl, artist.name)}
+									alt=""
+									className="size-14 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+								/>
+							</Link>
 							<div className="min-w-0 flex-1">
 								<p className="flex items-center gap-1.5">
-									<span className="truncate text-[16px] font-bold text-black">
+									<Link
+										to={profilePath(artist.name)}
+										className="truncate text-[16px] font-bold text-black hover:underline">
 										{artist.name}
-									</span>
+									</Link>
 									<ArtistBadge size={16} />
 								</p>
 								<p className="mt-0.5 text-[13px] font-light text-black/45">
