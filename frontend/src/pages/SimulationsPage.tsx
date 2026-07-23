@@ -176,6 +176,7 @@ export default function SimulationsPage() {
 					<UploadDropzoneActions
 						showLibraryButton
 						onPick={designUpload.openPicker}
+						onPickLibrary={() => setMyDesignsOpen(true)}
 					/>
 				)}
 				{tab === "image" && step === 2 && (
@@ -187,7 +188,14 @@ export default function SimulationsPage() {
 			</div>
 
 			{myDesignsOpen && (
-				<MyDesignsModal onClose={() => setMyDesignsOpen(false)} />
+				<MyDesignsModal
+					onClose={() => setMyDesignsOpen(false)}
+					onSelect={(design) => {
+						// 보관함에서 고른 도안을 시뮬레이션 도안으로 사용
+						designUpload.setFromUrl(design.previewUrl);
+						setMyDesignsOpen(false);
+					}}
+				/>
 			)}
 			{previewOpen && (
 				<PhotoPreviewModal

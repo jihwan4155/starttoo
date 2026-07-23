@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
-import { MOCK_EXPLORE_IMAGES, MOCK_POSTS } from "../mocks/community";
+import { MOCK_EXPLORE_POSTS } from "../mocks/community";
 import type { Post } from "../types/community";
 
 /** 커뮤니티 탐색·검색 결과 그리드 — 시연용 목업 (TODO: GET /posts/search 연동) */
@@ -9,12 +9,6 @@ export default function CommunitySearchPage() {
 	const [searchParams] = useSearchParams();
 	const keyword = searchParams.get("q") ?? "";
 	const [activePost, setActivePost] = useState<Post | null>(null);
-
-	const handleOpen = (imageUrl: string | null) => {
-		// 목업: 이미지가 있는 셀은 해당 이미지를 쓰는 게시글 상세로 연결
-		const post = MOCK_POSTS.find((p) => p.imageUrl === imageUrl);
-		if (post) setActivePost(post);
-	};
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-6">
@@ -29,17 +23,16 @@ export default function CommunitySearchPage() {
 				)}
 
 				<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-					{MOCK_EXPLORE_IMAGES.map((imageUrl, index) => (
+					{MOCK_EXPLORE_POSTS.map((post) => (
 						<button
-							// 정적 목업 배열이라 index 키 안전
-							key={index}
+							key={post.id}
 							type="button"
-							aria-label={`게시글 ${index + 1} 보기`}
-							onClick={() => handleOpen(imageUrl)}
+							aria-label={`${post.author.nickname}의 게시글 보기`}
+							onClick={() => setActivePost(post)}
 							className="aspect-square overflow-hidden rounded-[6px] bg-[#D9D9D9]">
-							{imageUrl && (
+							{post.imageUrl && (
 								<img
-									src={imageUrl}
+									src={post.imageUrl}
 									alt=""
 									className="h-full w-full object-cover transition hover:scale-[1.03]"
 								/>

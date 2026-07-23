@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MOCK_DM_ROOMS } from "../../mocks/dm";
 import useDmStore from "../../store/useDmStore";
 
 type NavItem = {
@@ -38,7 +37,7 @@ const COMMUNITY_ITEMS: NavItem[] = [
 		exact: true,
 	},
 	{ id: "search", label: "피드", to: "/posts/search", icon: "search" },
-	{ id: "dm", label: "DM", to: "/dm", icon: "dm" },
+	{ id: "dm", label: "메시지", to: "/dm", icon: "dm" },
 	{ id: "artist", label: "타투이스트", to: "/artists", icon: "artist" },
 ];
 
@@ -171,10 +170,8 @@ export default function SideNav() {
 	const [communityHovered, setCommunityHovered] = useState(false);
 	const { pathname } = useLocation();
 	// 안읽은 메시지가 있는 채팅방 수 (읽으면 실시간으로 줄어듦)
-	const readRoomIds = useDmStore((s) => s.readRoomIds);
-	const unreadDmCount = MOCK_DM_ROOMS.filter(
-		(room) => room.unreadCount > 0 && !readRoomIds.includes(room.id),
-	).length;
+	const rooms = useDmStore((s) => s.rooms);
+	const unreadDmCount = rooms.filter((room) => room.unreadCount > 0).length;
 
 	// 커뮤니티 관련 페이지에서는 하위 아이콘을 항상 펼쳐둔다
 	const onCommunityPage = COMMUNITY_ITEMS.some((item) =>

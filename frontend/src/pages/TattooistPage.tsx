@@ -67,14 +67,24 @@ export default function TattooistPage() {
 							))}
 						</div>
 
-						{/* 작업물 미리보기 (TODO: 이미지 연동) */}
+						{/* 작업물 미리보기 — 탐색 게시글 이미지, 없으면 회색 플레이스홀더 */}
 						<div className="grid grid-cols-6 gap-1.5">
-							{Array.from({ length: 6 }, (_, i) => (
-								<span
-									key={i}
-									className="aspect-square rounded-[4px] bg-[#D9D9D9]"
-								/>
-							))}
+							{Array.from({ length: 6 }, (_, i) => {
+								const imageUrl = artist.imageUrls[i];
+								return (
+									<span
+										key={i}
+										className="aspect-square overflow-hidden rounded-[4px] bg-[#D9D9D9]">
+										{imageUrl && (
+											<img
+												src={imageUrl}
+												alt=""
+												className="h-full w-full object-cover"
+											/>
+										)}
+									</span>
+								);
+							})}
 						</div>
 					</article>
 				))}
