@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
 	BookmarkIcon,
 	CommentIcon,
@@ -8,6 +9,7 @@ import {
 } from "./icons";
 import ArtistBadge from "../common/ArtistBadge";
 import useCommunityStore from "../../store/useCommunityStore";
+import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post } from "../../types/community";
 
@@ -27,16 +29,25 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	const myCommentCount = useCommunityStore(
 		(s) => s.extraComments[post.id]?.length ?? 0,
 	);
+	const { nickname, avatarUrl, profileTo } = useAuthorDisplay(post.author);
 
 	return (
 		<article className="w-full">
 			{/* 작성자 헤더 */}
 			<div className="flex items-center gap-3">
-				<span className="size-9 shrink-0 rounded-full bg-[#D9D9D9]" />
+				<Link to={profileTo} aria-label={`${nickname} 프로필`}>
+					<img
+						src={avatarUrl}
+						alt=""
+						className="size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+					/>
+				</Link>
 				<div className="flex min-w-0 flex-1 items-center gap-2">
-					<span className="truncate text-[14px] font-semibold text-black">
-						{post.author.nickname}
-					</span>
+					<Link
+						to={profileTo}
+						className="truncate text-[14px] font-semibold text-black hover:underline">
+						{nickname}
+					</Link>
 					{post.author.isArtist && <ArtistBadge size={16} />}
 					<span className="shrink-0 text-[12px] font-light text-black/40">
 						{formatTimeAgo(post.createdAt)}
@@ -137,7 +148,9 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 
 			{/* 캡션 */}
 			<p className="mt-2 line-clamp-2 text-[13px] font-light leading-5 text-black">
-				<span className="mr-2 font-semibold">{post.author.nickname}</span>
+				<Link to={profileTo} className="mr-2 font-semibold hover:underline">
+					{nickname}
+				</Link>
 				{post.caption}
 			</p>
 		</article>

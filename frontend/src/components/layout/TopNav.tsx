@@ -7,6 +7,7 @@ import CommunitySearchBar from "../community/CommunitySearchBar";
 import useUserStore from "../../store/useUserStore";
 import useDmStore from "../../store/useDmStore";
 import useNotificationStore from "../../store/useNotificationStore";
+import { resolveAvatar } from "../../utils/profile";
 
 function BellIcon() {
 	return (
@@ -111,7 +112,11 @@ function NotificationBell() {
 										className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-black/[0.03] ${
 											n.read ? "" : "bg-brand/[0.06]"
 										}`}>
-										<span className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9]" />
+										<img
+										src={resolveAvatar(undefined, n.title)}
+										alt=""
+										className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+									/>
 										<span className="min-w-0 flex-1">
 											<span className="flex items-center gap-1.5">
 												<span className="truncate text-[13px] font-semibold text-black">

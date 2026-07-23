@@ -11,6 +11,8 @@ export type Artist = {
 	address: string;
 	/** 작업 장르 태그 */
 	categories: string[];
+	/** 프로필 사진 URL (대표 작업물 기반, 없으면 기본 프로필) */
+	avatarUrl: string;
 	/** 대표 작업물 이미지 URL (없으면 placeholder) */
 	imageUrls: string[];
 };

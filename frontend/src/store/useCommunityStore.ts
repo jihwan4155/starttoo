@@ -59,7 +59,12 @@ const useCommunityStore = create<CommunityState>()(
 							...(state.extraComments[postId] ?? []),
 							{
 								id: Date.now(),
-								author: { nickname: "나", isArtist: false },
+								author: {
+									nickname: useUserStore.getState().nickname,
+									isArtist: false,
+									avatarUrl: useUserStore.getState().avatarUrl,
+									isMe: true,
+								},
 								content,
 								createdAt: new Date().toISOString(),
 								likeCount: 0,
@@ -76,6 +81,8 @@ const useCommunityStore = create<CommunityState>()(
 							author: {
 								nickname: useUserStore.getState().nickname,
 								isArtist: false,
+								avatarUrl: useUserStore.getState().avatarUrl,
+								isMe: true,
 							},
 							createdAt: new Date().toISOString(),
 							imageUrl,

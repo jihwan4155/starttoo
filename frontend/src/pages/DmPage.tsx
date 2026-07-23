@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
 import { MoreIcon, ShareIcon } from "../components/community/icons";
 import useDmStore from "../store/useDmStore";
+import useUserStore from "../store/useUserStore";
+import { profilePath, resolveAvatar } from "../utils/profile";
 import type { DmMessage } from "../types/dm";
 
 function MessageBubble({ message }: { message: DmMessage }) {
@@ -47,6 +50,7 @@ export default function DmPage() {
 	const openRoomStore = useDmStore((s) => s.openRoom);
 	const leaveDm = useDmStore((s) => s.leaveDm);
 	const sendMessage = useDmStore((s) => s.sendMessage);
+	const myNickname = useUserStore((s) => s.nickname);
 	const [input, setInput] = useState("");
 	const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +82,7 @@ export default function DmPage() {
 			{/* 좌: 채팅방 목록 */}
 			<aside className="flex w-full max-w-[340px] flex-col border-r border-black/10">
 				<div className="flex items-center justify-between px-5 pb-3 pt-5">
-					<h1 className="text-[20px] font-extrabold text-black">스누피</h1>
+					<h1 className="text-[20px] font-extrabold text-black">{myNickname}</h1>
 					<span className="text-[12px] font-light text-black/40">메시지</span>
 				</div>
 				<ul className="flex-1 overflow-y-auto">
@@ -93,7 +97,11 @@ export default function DmPage() {
 									className={`flex w-full items-center gap-3 px-5 py-3 text-left transition ${
 										isSelected ? "bg-brand/5" : "hover:bg-black/[0.03]"
 									}`}>
-									<span className="size-11 shrink-0 rounded-full bg-[#D9D9D9]" />
+									<img
+										src={resolveAvatar(undefined, room.nickname)}
+										alt=""
+										className="size-11 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+									/>
 									<span className="min-w-0 flex-1">
 										<span className="flex items-center gap-1.5">
 											<span className="truncate text-[14px] font-semibold text-black">
@@ -131,10 +139,22 @@ export default function DmPage() {
 			{selectedRoom ? (
 				<section className="flex min-w-0 flex-1 flex-col">
 					<div className="flex items-center gap-3 border-b border-black/10 px-6 py-3">
-						<span className="size-9 shrink-0 rounded-full bg-[#D9D9D9]" />
+						<Link
+							to={profilePath(selectedRoom.nickname)}
+							aria-label={`${selectedRoom.nickname} 프로필`}>
+							<img
+								src={resolveAvatar(undefined, selectedRoom.nickname)}
+								alt=""
+								className="size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+							/>
+						</Link>
 						<div className="min-w-0 flex-1">
 							<p className="flex items-center gap-1.5 text-[14px] font-semibold text-black">
-								<span className="truncate">{selectedRoom.nickname}</span>
+								<Link
+									to={profilePath(selectedRoom.nickname)}
+									className="truncate hover:underline">
+									{selectedRoom.nickname}
+								</Link>
 								{selectedRoom.isArtist && <ArtistBadge size={15} />}
 							</p>
 						</div>
