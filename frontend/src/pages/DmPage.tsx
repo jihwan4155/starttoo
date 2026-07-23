@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ArtistBadge from "../components/common/ArtistBadge";
 import { MoreIcon, ShareIcon } from "../components/community/icons";
-import { MOCK_DM_ROOMS } from "../mocks/dm";
 import useDmStore from "../store/useDmStore";
 import type { DmMessage } from "../types/dm";
 
@@ -43,38 +42,34 @@ function MessageBubble({ message }: { message: DmMessage }) {
 
 /** DM — 채팅방 목록 + 대화창 (시연용 목업, TODO: /dm/rooms API 연동) */
 export default function DmPage() {
-	const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
-	/** 이 세션에서 보낸 메시지 (방 id별) */
-	const [sentMessages, setSentMessages] = useState<Record<number, DmMessage[]>>(
-		{},
-	);
-	// 읽음 처리는 사이드 네비 뱃지와 동기화되도록 전역 스토어 사용
-	const readRoomIds = useDmStore((s) => s.readRoomIds);
-	const markRead = useDmStore((s) => s.markRead);
+	const rooms = useDmStore((s) => s.rooms);
+	const activeRoomId = useDmStore((s) => s.activeRoomId);
+	const openRoomStore = useDmStore((s) => s.openRoom);
+	const leaveDm = useDmStore((s) => s.leaveDm);
+	const sendMessage = useDmStore((s) => s.sendMessage);
 	const [input, setInput] = useState("");
+	const scrollRef = useRef<HTMLDivElement>(null);
 
-	const selectedRoom = useMemo(
-		() => MOCK_DM_ROOMS.find((room) => room.id === selectedRoomId) ?? null,
-		[selectedRoomId],
-	);
+	const selectedRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
+
+	// DM 페이지를 벗어나면 활성 방 해제 (이후 수신 메시지는 알림으로 표시)
+	useEffect(() => () => leaveDm(), [leaveDm]);
+
+	// 새 메시지가 오면 대화창을 맨 아래로 스크롤
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (el) el.scrollTop = el.scrollHeight;
+	}, [selectedRoom?.messages]);
 
 	const openRoom = (roomId: number) => {
-		setSelectedRoomId(roomId);
+		openRoomStore(roomId);
 		setInput("");
-		markRead(roomId);
 	};
 
-	// TODO: 메시지 전송 API(POST /dm/rooms/{id}/messages) 연동
 	const handleSend = () => {
 		const content = input.trim();
 		if (!content || !selectedRoom) return;
-		setSentMessages((prev) => ({
-			...prev,
-			[selectedRoom.id]: [
-				...(prev[selectedRoom.id] ?? []),
-				{ id: Date.now(), mine: true, content, time: "방금" },
-			],
-		}));
+		sendMessage(selectedRoom.id, content);
 		setInput("");
 	};
 
@@ -87,11 +82,9 @@ export default function DmPage() {
 					<span className="text-[12px] font-light text-black/40">메시지</span>
 				</div>
 				<ul className="flex-1 overflow-y-auto">
-					{MOCK_DM_ROOMS.map((room) => {
-						const isSelected = room.id === selectedRoomId;
-						const unread = readRoomIds.includes(room.id)
-							? 0
-							: room.unreadCount;
+					{rooms.map((room) => {
+						const isSelected = room.id === activeRoomId;
+						const unread = room.unreadCount;
 						return (
 							<li key={room.id}>
 								<button
@@ -153,14 +146,11 @@ export default function DmPage() {
 						</button>
 					</div>
 
-					<div className="flex-1 overflow-y-auto px-6 py-4">
+					<div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
 						<p className="my-3 text-center text-[11px] font-light text-black/35">
 							{selectedRoom.dateLabel}
 						</p>
 						{selectedRoom.messages.map((message) => (
-							<MessageBubble key={message.id} message={message} />
-						))}
-						{sentMessages[selectedRoom.id]?.map((message) => (
 							<MessageBubble key={message.id} message={message} />
 						))}
 					</div>

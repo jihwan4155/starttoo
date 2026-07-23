@@ -1,9 +1,12 @@
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
 import topnavGrain from "../../assets/images/topnav-grain.png";
 import ArtistSearchBar from "../artist/ArtistSearchBar";
 import CommunitySearchBar from "../community/CommunitySearchBar";
 import useUserStore from "../../store/useUserStore";
+import useDmStore from "../../store/useDmStore";
+import useNotificationStore from "../../store/useNotificationStore";
 
 function BellIcon() {
 	return (
@@ -31,6 +34,108 @@ function SettingIcon() {
 				strokeLinejoin="round"
 			/>
 		</svg>
+	);
+}
+
+function NotificationBell() {
+	const navigate = useNavigate();
+	const [open, setOpen] = useState(false);
+	const wrapRef = useRef<HTMLDivElement>(null);
+	const notifications = useNotificationStore((s) => s.notifications);
+	const markAllRead = useNotificationStore((s) => s.markAllRead);
+	const openRoom = useDmStore((s) => s.openRoom);
+	const unreadCount = notifications.filter((n) => !n.read).length;
+
+	// 바깥 클릭 / ESC 시 닫기
+	useEffect(() => {
+		if (!open) return undefined;
+		const onDown = (e: MouseEvent) => {
+			if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+				setOpen(false);
+			}
+		};
+		const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+		document.addEventListener("mousedown", onDown);
+		document.addEventListener("keydown", onKey);
+		return () => {
+			document.removeEventListener("mousedown", onDown);
+			document.removeEventListener("keydown", onKey);
+		};
+	}, [open]);
+
+	const handleClickNotification = (roomId: number) => {
+		openRoom(roomId); // 방 열기 + 읽음 처리 + 관련 알림 읽음
+		setOpen(false);
+		navigate("/dm");
+	};
+
+	return (
+		<div ref={wrapRef} className="relative">
+			<button
+				type="button"
+				aria-label="알림"
+				onClick={() => setOpen((v) => !v)}
+				className="relative flex size-6 items-center justify-center">
+				<BellIcon />
+				{unreadCount > 0 && (
+					<span className="absolute -right-1.5 -top-1.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-brand px-1 text-[9px] font-semibold leading-none text-white">
+						{unreadCount}
+					</span>
+				)}
+			</button>
+
+			{open && (
+				<div className="absolute right-0 top-[calc(100%+14px)] z-50 w-[320px] overflow-hidden rounded-[14px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
+					<div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
+						<span className="text-[14px] font-bold text-black">알림</span>
+						{unreadCount > 0 && (
+							<button
+								type="button"
+								onClick={markAllRead}
+								className="text-[11px] font-light text-black/45 transition hover:text-black">
+								모두 읽음
+							</button>
+						)}
+					</div>
+					<ul className="max-h-[380px] overflow-y-auto">
+						{notifications.length === 0 ? (
+							<li className="px-4 py-8 text-center text-[13px] font-light text-black/40">
+								새로운 알림이 없어요.
+							</li>
+						) : (
+							notifications.map((n) => (
+								<li key={n.id}>
+									<button
+										type="button"
+										onClick={() => handleClickNotification(n.roomId)}
+										className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-black/[0.03] ${
+											n.read ? "" : "bg-brand/[0.06]"
+										}`}>
+										<span className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9]" />
+										<span className="min-w-0 flex-1">
+											<span className="flex items-center gap-1.5">
+												<span className="truncate text-[13px] font-semibold text-black">
+													{n.title}
+												</span>
+												<span className="shrink-0 text-[10px] font-light text-black/35">
+													{n.time}
+												</span>
+												{!n.read && (
+													<span className="ml-auto size-[7px] shrink-0 rounded-full bg-brand" />
+												)}
+											</span>
+											<span className="mt-0.5 block truncate text-[12px] font-light text-black/55">
+												메시지: {n.body}
+											</span>
+										</span>
+									</button>
+								</li>
+							))
+						)}
+					</ul>
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -67,12 +172,7 @@ export default function TopNav() {
 				)}
 
 				<div className="flex items-center gap-5">
-					<button
-						type="button"
-						aria-label="알림"
-						className="flex size-6 items-center justify-center">
-						<BellIcon />
-					</button>
+					<NotificationBell />
 					<button
 						type="button"
 						aria-label="설정"
