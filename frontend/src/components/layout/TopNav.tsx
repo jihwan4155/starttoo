@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
 import topnavGrain from "../../assets/images/topnav-grain.png";
+import ArtistSearchBar from "../artist/ArtistSearchBar";
 import CommunitySearchBar from "../community/CommunitySearchBar";
 
 function BellIcon() {
@@ -34,8 +35,9 @@ function SettingIcon() {
 
 export default function TopNav() {
 	const { pathname } = useLocation();
-	// 피드 검색 페이지에서만 상단 검색 바 노출
+	// 피드 검색·타투이스트 페이지에서만 상단 검색 바 노출
 	const showSearch = pathname.startsWith("/posts/search");
+	const showArtistSearch = pathname.startsWith("/artists");
 
 	return (
 		<header
@@ -56,9 +58,9 @@ export default function TopNav() {
 					/>
 				</Link>
 
-				{showSearch && (
+				{(showSearch || showArtistSearch) && (
 					<div className="flex flex-1 justify-center px-8">
-						<CommunitySearchBar />
+						{showSearch ? <CommunitySearchBar /> : <ArtistSearchBar />}
 					</div>
 				)}
 
