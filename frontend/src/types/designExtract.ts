@@ -18,3 +18,9 @@ export type DesignExtractResult = {
 	/** PNG 다운로드 URL */
 	downloadUrl: string;
 };
+
+/** 내 도안 보관함에 저장된 도안 */
+export type SavedDesign = DesignExtractResult & {
+	id: number;
+	createdAt: string;
+};

@@ -1,5 +1,7 @@
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { CloseIcon } from "./icons";
+import useDesignStore from "../../store/useDesignStore";
 import type { DesignExtractResult } from "../../types/designExtract";
 
 type DesignExtractResultModalProps = {
@@ -12,6 +14,15 @@ export default function DesignExtractResultModal({
 	result,
 	onClose,
 }: DesignExtractResultModalProps) {
+	// 이미 보관함에 저장된 도안이면 버튼을 "추가됨"으로 표시
+	const isSaved = useDesignStore(
+		(s) =>
+			!!result &&
+			s.savedDesigns.some((d) => d.previewUrl === result.previewUrl),
+	);
+	const addDesign = useDesignStore((s) => s.addDesign);
+	const navigate = useNavigate();
+
 	if (!result) return null;
 
 	return createPortal(
@@ -45,12 +56,22 @@ export default function DesignExtractResultModal({
 				</div>
 
 				<div className="flex items-center justify-end gap-2 border-t border-black/10 px-5 py-3">
-					{/* TODO: 내 도안(보관함) 저장 API 연동 */}
-					<button
-						type="button"
-						className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95">
-						내 도안에 추가
-					</button>
+					{/* TODO: 백엔드 연동 시 POST /designs API로 교체 */}
+					{isSaved ? (
+						<button
+							type="button"
+							onClick={() => navigate("/mypage?tab=designs")}
+							className="rounded-full border border-brand px-5 py-2 text-[13px] font-semibold text-brand transition hover:bg-brand/5">
+							내 도안함 바로가기
+						</button>
+					) : (
+						<button
+							type="button"
+							onClick={() => addDesign(result)}
+							className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95">
+							내 도안에 추가
+						</button>
+					)}
 				</div>
 			</div>
 		</div>,
