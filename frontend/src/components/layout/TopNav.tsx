@@ -3,6 +3,7 @@ import logo from "../../assets/images/logo.png";
 import topnavGrain from "../../assets/images/topnav-grain.png";
 import ArtistSearchBar from "../artist/ArtistSearchBar";
 import CommunitySearchBar from "../community/CommunitySearchBar";
+import useUserStore from "../../store/useUserStore";
 
 function BellIcon() {
 	return (
@@ -38,6 +39,7 @@ export default function TopNav() {
 	// 피드 검색·타투이스트 페이지에서만 상단 검색 바 노출
 	const showSearch = pathname.startsWith("/posts/search");
 	const showArtistSearch = pathname.startsWith("/artists");
+	const avatarUrl = useUserStore((s) => s.avatarUrl);
 
 	return (
 		<header
@@ -80,8 +82,11 @@ export default function TopNav() {
 					<Link
 						to="/mypage"
 						aria-label="마이페이지"
-						className="size-9 rounded-full bg-[#D9D9D9]"
-					/>
+						className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
+						{avatarUrl && (
+							<img src={avatarUrl} alt="" className="size-full object-cover" />
+						)}
+					</Link>
 				</div>
 			</div>
 		</header>
