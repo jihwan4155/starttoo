@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CloseIcon, SearchIcon } from "../community/icons";
 
 /** 타투이스트 상단 검색 바 — URL ?q=와 동기화되어 목록이 입력 즉시 필터링된다 */
 export default function ArtistSearchBar() {
 	const [searchParams, setSearchParams] = useSearchParams();
-	const value = searchParams.get("q") ?? "";
+	// input 값은 로컬 state가 소스 — setSearchParams는 transition이라 값이 늦게
+	// 돌아와 한글 IME 조합이 끊기므로(자모 겹침) URL에서 직접 읽지 않는다
+	const [value, setValue] = useState(searchParams.get("q") ?? "");
 
 	const update = (next: string) => {
+		setValue(next);
 		setSearchParams(next ? { q: next } : {}, { replace: true });
 	};
 
