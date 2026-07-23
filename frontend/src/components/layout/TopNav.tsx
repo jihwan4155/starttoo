@@ -77,9 +77,9 @@ export default function TopNav() {
 						className="flex size-6 items-center justify-center">
 						<SettingIcon />
 					</button>
-					<button
-						type="button"
-						aria-label="프로필"
+					<Link
+						to="/mypage"
+						aria-label="마이페이지"
 						className="size-9 rounded-full bg-[#D9D9D9]"
 					/>
 				</div>

@@ -5,6 +5,7 @@ import ActionButton from "../common/ActionButton";
 import ImageCropper from "./ImageCropper";
 import { CloseIcon } from "./icons";
 import useCommunityStore from "../../store/useCommunityStore";
+import useUserStore from "../../store/useUserStore";
 import { cropImageToDataUrl, DEFAULT_CROP } from "../../utils/image";
 import type { CropState } from "../../utils/image";
 
@@ -101,6 +102,7 @@ export default function CreatePostModal({
 	const [croppedUrls, setCroppedUrls] = useState<string[]>([]);
 	const [isCropping, setCropping] = useState(false);
 	const addPost = useCommunityStore((s) => s.addPost);
+	const nickname = useUserStore((s) => s.nickname);
 
 	if (!isOpen) return null;
 
@@ -382,7 +384,7 @@ export default function CreatePostModal({
 							<div className="flex items-center gap-2.5">
 								<span className="size-8 shrink-0 rounded-full bg-[#D9D9D9]" />
 								<span className="text-[14px] font-semibold text-black">
-									스누피
+									{nickname}
 								</span>
 							</div>
 							<div className="relative mt-3 flex-1">

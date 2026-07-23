@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Post, PostComment } from "../types/community";
+import useUserStore from "./useUserStore";
 
 /**
  * 커뮤니티 좋아요·북마크·작성 댓글·작성 게시물 상태 (피드 ↔ 상세 모달 동기화)
@@ -72,7 +73,10 @@ const useCommunityStore = create<CommunityState>()(
 					myPosts: [
 						{
 							id: Date.now(),
-							author: { nickname: "스누피", isArtist: false },
+							author: {
+								nickname: useUserStore.getState().nickname,
+								isArtist: false,
+							},
 							createdAt: new Date().toISOString(),
 							imageUrl,
 							caption,
