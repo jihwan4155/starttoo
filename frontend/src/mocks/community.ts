@@ -1,5 +1,17 @@
 import heroImage from "../assets/images/hero-rosalia.png";
 import demoTattoo from "../assets/images/demo-tattoo.png";
+import exploreFeed1 from "../assets/images/explore/feed1.jpg";
+import exploreFeed2 from "../assets/images/explore/feed2.jpg";
+import exploreFeed3 from "../assets/images/explore/feed3.jpg";
+import exploreFeed4 from "../assets/images/explore/feed4.jpg";
+import exploreFeed5 from "../assets/images/explore/feed5.jpg";
+import exploreFeed6 from "../assets/images/explore/feed6.jpg";
+import exploreFeed7 from "../assets/images/explore/feed7.jpg";
+import exploreFeed8 from "../assets/images/explore/feed8.jpg";
+import exploreFeed9 from "../assets/images/explore/feed9.jpg";
+import exploreFeed10 from "../assets/images/explore/feed10.jpg";
+import exploreFeed11 from "../assets/images/explore/feed11.jpg";
+import exploreFeed12 from "../assets/images/explore/feed12.jpg";
 import type { Post } from "../types/community";
 
 /** n시간 전 ISO 문자열 (목업용) */
@@ -90,18 +102,18 @@ export const MOCK_POSTS: Post[] = [
 
 /** 탐색 그리드 — null은 회색 플레이스홀더 */
 export const MOCK_EXPLORE_IMAGES: (string | null)[] = [
-	heroImage,
-	demoTattoo,
-	null,
-	null,
-	heroImage,
-	null,
-	null,
-	null,
-	null,
-	demoTattoo,
-	null,
-	null,
+	exploreFeed1,
+	exploreFeed2,
+	exploreFeed3,
+	exploreFeed4,
+	exploreFeed5,
+	exploreFeed6,
+	exploreFeed7,
+	exploreFeed8,
+	exploreFeed9,
+	exploreFeed10,
+	exploreFeed11,
+	exploreFeed12,
 ];
 
 export const MOCK_CATEGORIES = [
