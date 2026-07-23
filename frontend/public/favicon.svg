@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+	<!-- starttoo S 스타버스트 아이콘 -->
+	<polygon
+		fill="#D9291E"
+		points="32,2 37.36,19.07 53.21,10.79 44.93,26.64 62,32 44.93,37.36 53.21,53.21 37.36,44.93 32,62 26.64,44.93 10.79,53.21 19.07,37.36 2,32 19.07,26.64 10.79,10.79 26.64,19.07"
+	/>
+	<text
+		x="32"
+		y="39.5"
+		text-anchor="middle"
+		font-family="'Arial Black', Arial, sans-serif"
+		font-size="21"
+		font-weight="900"
+		fill="#FFFFFF">S</text>
+</svg>
