@@ -31,7 +31,9 @@ export default function CoverUpSection() {
 				/>
 			</div>
 
-			<CtaButton className="mt-10">도안 생성하기</CtaButton>
+			<CtaButton to="/coverups" className="mt-10">
+				커버업 도안 추천 받기
+			</CtaButton>
 		</section>
 	);
 }
