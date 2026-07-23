@@ -74,8 +74,16 @@ export default function SimulationsPage() {
 	const setStep: Dispatch<SetStateAction<number>> =
 		tab === "ar" ? setArStep : setImageStep;
 	const maxStep = MAX_STEP[tab];
+	// 변경: 이미지(3D)는 각 입력이 완료된 뒤에만 다음 단계로 이동한다.
+	const canAdvance =
+		tab !== "image" ||
+		(step === 1 && Boolean(designUpload.preview)) ||
+		(step === 2 && Boolean(bodyPhotoUpload.preview));
 
-	const handleNext = () => setStep((current) => Math.min(maxStep, current + 1));
+	const handleNext = () => {
+		if (!canAdvance) return;
+		setStep((current) => Math.min(maxStep, current + 1));
+	};
 	const handleBack = () => setStep((current) => Math.max(1, current - 1));
 
 	return (
@@ -149,8 +157,13 @@ export default function SimulationsPage() {
 					<button
 						type="button"
 						onClick={handleNext}
+						disabled={!canAdvance}
 						aria-label="다음"
-						className={`flex items-center justify-self-start gap-1.5 whitespace-nowrap text-[19px] font-extrabold text-brand transition hover:brightness-90 ${
+						className={`flex items-center justify-self-start gap-1.5 whitespace-nowrap text-[19px] font-extrabold transition ${
+							canAdvance
+								? "text-brand hover:brightness-90"
+								: "cursor-not-allowed text-black/20"
+						} ${
 							step === maxStep ? "invisible" : ""
 						}`}>
 						다음
