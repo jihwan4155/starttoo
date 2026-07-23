@@ -34,8 +34,8 @@ function SettingIcon() {
 
 export default function TopNav() {
 	const { pathname } = useLocation();
-	// 커뮤니티 라우트에서만 상단 검색 바 노출
-	const showSearch = pathname.startsWith("/posts");
+	// 피드 검색 페이지에서만 상단 검색 바 노출
+	const showSearch = pathname.startsWith("/posts/search");
 
 	return (
 		<header

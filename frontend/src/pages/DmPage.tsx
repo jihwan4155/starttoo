@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import ArtistBadge from "../components/common/ArtistBadge";
 import { MoreIcon, ShareIcon } from "../components/community/icons";
 import { MOCK_DM_ROOMS } from "../mocks/dm";
 import useDmStore from "../store/useDmStore";
@@ -105,11 +106,7 @@ export default function DmPage() {
 											<span className="truncate text-[14px] font-semibold text-black">
 												{room.nickname}
 											</span>
-											{room.isArtist && (
-												<span className="shrink-0 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
-													아티스트
-												</span>
-											)}
+											{room.isArtist && <ArtistBadge size={14} />}
 										</span>
 										<span
 											className={`mt-0.5 block truncate text-[12px] ${
@@ -145,11 +142,7 @@ export default function DmPage() {
 						<div className="min-w-0 flex-1">
 							<p className="flex items-center gap-1.5 text-[14px] font-semibold text-black">
 								<span className="truncate">{selectedRoom.nickname}</span>
-								{selectedRoom.isArtist && (
-									<span className="shrink-0 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
-										아티스트
-									</span>
-								)}
+								{selectedRoom.isArtist && <ArtistBadge size={15} />}
 							</p>
 						</div>
 						<button

@@ -7,6 +7,7 @@ import DmPage from "./pages/DmPage";
 import HomePage from "./pages/HomePage";
 import AiPage from "./pages/AiPage";
 import SimulationsPage from "./pages/SimulationsPage";
+import TattooistPage from "./pages/TattooistPage";
 
 export default function App() {
 	return (
@@ -26,6 +27,8 @@ export default function App() {
 					<Route path="/posts/search" element={<CommunitySearchPage />} />
 					{/* API: GET /dm/rooms */}
 					<Route path="/dm" element={<DmPage />} />
+					{/* API: GET /artists */}
+					<Route path="/artists" element={<TattooistPage />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Route>
 			</Routes>
