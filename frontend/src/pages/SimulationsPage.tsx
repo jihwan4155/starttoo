@@ -11,8 +11,7 @@ import DesignSelectStep from "../components/simulation/DesignSelectStep";
 import UploadDropzoneBox from "../components/simulation/UploadDropzoneBox";
 import UploadDropzoneActions from "../components/simulation/UploadDropzoneActions";
 import { useImageUpload } from "../components/simulation/useImageUpload";
-import ResultImage from "../components/simulation/ResultImage";
-import ResultActions from "../components/simulation/ResultActions";
+import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import MyDesignsModal from "../components/simulation/MyDesignsModal";
 import PhotoPreviewModal from "../components/simulation/PhotoPreviewModal";
 
@@ -53,9 +52,11 @@ const STEP_COPY: Record<SimulationTab, Record<number, string>> = {
 	image: {
 		1: "원하는 이미지 도안을 올려주세요",
 		2: "시착해 볼 신체 사진을 선택하세요",
-		3: "완성된 결과를 확인하세요",
+		3: "타투를 배치하고 완성된 결과를 확인하세요",
 	},
 };
+
+const MAX_STEP: Record<SimulationTab, number> = { ar: 3, image: 3 };
 
 export default function SimulationsPage() {
 	const [tab, setTab] = useState<SimulationTab>("image");
@@ -72,8 +73,9 @@ export default function SimulationsPage() {
 	const step = tab === "ar" ? arStep : imageStep;
 	const setStep: Dispatch<SetStateAction<number>> =
 		tab === "ar" ? setArStep : setImageStep;
+	const maxStep = MAX_STEP[tab];
 
-	const handleNext = () => setStep((current) => Math.min(3, current + 1));
+	const handleNext = () => setStep((current) => Math.min(maxStep, current + 1));
 	const handleBack = () => setStep((current) => Math.max(1, current - 1));
 
 	return (
@@ -92,7 +94,8 @@ export default function SimulationsPage() {
 
 				<StepHeading step={step} description={STEP_COPY[tab][step]} />
 
-				<div className="mt-4 grid min-h-0 flex-1 grid-cols-[100px_1fr_100px] gap-6">
+				{/* grid-rows-[minmax(0,1fr)]: 행이 콘텐츠 크기로 늘어나 STEP 문구를 덮지 않게 가용 높이로 고정 */}
+				<div className="mt-4 grid min-h-0 flex-1 grid-cols-[100px_1fr_100px] grid-rows-[minmax(0,1fr)] gap-6">
 					<button
 						type="button"
 						onClick={handleBack}
@@ -134,7 +137,13 @@ export default function SimulationsPage() {
 							onChange={bodyPhotoUpload.handleChange}
 							onDrop={bodyPhotoUpload.handleDrop}
 						/>
-						{tab === "image" && step === 3 && <ResultImage />}
+						{/* 3D 시뮬레이션: 진입 즉시 AI 파이프라인 실행 → 배치·바램·저장을 한 화면에서 */}
+						{tab === "image" && step === 3 && (
+							<Simulation3DStep
+								designUrl={designUpload.preview}
+								photoUrl={bodyPhotoUpload.preview}
+							/>
+						)}
 					</div>
 
 					<button
@@ -142,7 +151,7 @@ export default function SimulationsPage() {
 						onClick={handleNext}
 						aria-label="다음"
 						className={`flex items-center justify-self-start gap-1.5 whitespace-nowrap text-[19px] font-extrabold text-brand transition hover:brightness-90 ${
-							step === 3 ? "invisible" : ""
+							step === maxStep ? "invisible" : ""
 						}`}>
 						다음
 						<ChevronRightIcon />
@@ -175,7 +184,6 @@ export default function SimulationsPage() {
 						hint="내 사진을 사용하면 실제로 내 피부에 어떻게 보일지 확인할 수 있어요"
 					/>
 				)}
-				{tab === "image" && step === 3 && <ResultActions />}
 			</div>
 
 			{myDesignsOpen && (
