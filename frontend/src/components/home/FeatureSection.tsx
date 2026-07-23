@@ -1,5 +1,4 @@
 import CtaButton from "../ui/CtaButton";
-import demoImage from "../../assets/images/demo-tattoo.png";
 
 type FeatureBlockProps = {
 	id?: string;
@@ -9,6 +8,8 @@ type FeatureBlockProps = {
 	description: string;
 	buttonLabel: string;
 	buttonTo: string;
+	image: string;
+	imageAlt: string;
 };
 
 function FeatureCopy({
@@ -17,13 +18,13 @@ function FeatureCopy({
 	description,
 	buttonLabel,
 	buttonTo,
-}: Omit<FeatureBlockProps, "id" | "reversed">) {
+}: Omit<FeatureBlockProps, "id" | "reversed" | "image" | "imageAlt">) {
 	return (
-		<div className="flex w-full max-w-[482px] flex-col">
-			<p className="text-[24px] font-normal leading-7 text-black">
+		<div className="flex w-fit max-w-[650px] flex-col">
+			<p className="whitespace-nowrap text-[24px] font-normal leading-7 text-black">
 				{eyebrow}
 			</p>
-			<h2 className="mt-5 text-[48px] font-extrabold leading-[57px] text-black">
+			<h2 className="mt-5 whitespace-nowrap text-[48px] font-extrabold leading-[57px] text-black">
 				{heading[0]}
 				<br />
 				{heading[1]}
@@ -38,12 +39,12 @@ function FeatureCopy({
 	);
 }
 
-function FeatureImage() {
+function FeatureImage({ image, imageAlt }: { image: string; imageAlt: string }) {
 	return (
 		<img
-			src={demoImage}
-			alt="타투 도안 예시"
-			className="h-[334px] w-full max-w-[493px] rounded-[10px] object-cover"
+			src={image}
+			alt={imageAlt}
+			className="h-[284px] w-[420px] shrink-0 rounded-[10px] object-cover"
 		/>
 	);
 }
@@ -56,13 +57,15 @@ export default function FeatureSection({
 	description,
 	buttonLabel,
 	buttonTo,
+	image,
+	imageAlt,
 }: FeatureBlockProps) {
 	return (
 		<section
 			id={id}
 			className="mx-auto flex w-full max-w-[1199px] items-center justify-center py-[138px]">
 			<div
-				className={`flex w-full max-w-[1039px] items-center justify-between gap-10 ${
+				className={`flex items-center gap-10 ${
 					reversed ? "flex-row-reverse" : "flex-row"
 				}`}>
 				<FeatureCopy
@@ -72,7 +75,7 @@ export default function FeatureSection({
 					buttonLabel={buttonLabel}
 					buttonTo={buttonTo}
 				/>
-				<FeatureImage />
+				<FeatureImage image={image} imageAlt={imageAlt} />
 			</div>
 		</section>
 	);
