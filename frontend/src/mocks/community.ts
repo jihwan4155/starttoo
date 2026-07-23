@@ -12,6 +12,7 @@ import exploreFeed9 from "../assets/images/explore/feed9.jpg";
 import exploreFeed10 from "../assets/images/explore/feed10.jpg";
 import exploreFeed11 from "../assets/images/explore/feed11.jpg";
 import exploreFeed12 from "../assets/images/explore/feed12.jpg";
+import exploreFeed13 from "../assets/images/explore/feed13.jpg";
 import type { Post, PostAuthor, PostComment } from "../types/community";
 
 /** n시간 전 ISO 문자열 (목업용) */
@@ -108,6 +109,22 @@ const EXPLORE_SEED: {
 	likeCount: number;
 	comments: PostComment[];
 }[] = [
+	{
+		imageUrl: exploreFeed13,
+		author: { nickname: "김타투이스트!", isArtist: true },
+		caption:
+			"센티넬 로봇에 고양이 파일럿 태워봤어요 🤖🐱 컬러 채도 살리면서 메탈 질감 표현에 신경 쓴 작업물입니다!",
+		likeCount: 421,
+		comments: [
+			{
+				id: 1131,
+				author: { nickname: "니들노노 레이니", isArtist: false },
+				content: "고양이 너무 귀여워요 ㅠㅠ 색감 미쳤다..",
+				createdAt: hoursAgo(2),
+				likeCount: 12,
+			},
+		],
+	},
 	{
 		imageUrl: exploreFeed1,
 		author: { nickname: "라인웍스", isArtist: true },
