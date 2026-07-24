@@ -47,11 +47,6 @@ export default function TattooistPage() {
 									</Link>
 									<ArtistBadge size={16} />
 								</p>
-								<p className="mt-0.5 text-[13px] font-light text-black/45">
-									{artist.isOpen ? "영업 중" : "영업 종료"}
-									<span className="mx-1.5">·</span>
-									{artist.hoursLabel}
-								</p>
 								<p className="mt-0.5 flex items-center gap-1.5 text-[13px]">
 									<span className="truncate font-light text-black/45">
 										{artist.address}

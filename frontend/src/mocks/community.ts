@@ -161,6 +161,76 @@ export const MOCK_POSTS: Post[] = [
 			},
 		],
 	},
+	{
+		id: 7,
+		author: { nickname: "타투입문_소소경", isArtist: false },
+		createdAt: hoursAgo(1),
+		imageUrl: exploreFeed7,
+		caption:
+			"드디어 첫 타투 했어요!! 손등에 미니 심볼로 시작 🥹 생각보다 안 아프고 너무 만족스러워요",
+		likeCount: 128,
+		commentCount: 2,
+		comments: [
+			{
+				id: 71,
+				author: { nickname: "니들노노 레이니", isArtist: false },
+				content: "축하해요! 첫 타투 위치 완전 예뻐요 👏",
+				createdAt: hoursAgo(7),
+				likeCount: 6,
+			},
+			{
+				id: 72,
+				author: { nickname: "무채색스튜디오", isArtist: true },
+				content: "첫 작업 만족하셨다니 다행이에요 :) 관리 잘 하세요!",
+				createdAt: hoursAgo(6),
+				likeCount: 4,
+			},
+		],
+	},
+	{
+		id: 8,
+		author: { nickname: "무채색스튜디오", isArtist: true },
+		createdAt: hoursAgo(2),
+		imageUrl: exploreFeed10,
+		caption: "목 뒤 레터링. 옷깃에 살짝 가려지는 위치라 부담 없이 즐기기 좋아요.",
+		likeCount: 473,
+		commentCount: 1,
+		comments: [
+			{
+				id: 81,
+				author: { nickname: "소소경", isArtist: false },
+				content: "위치 진짜 세련됐다.. 저장해둘게요!",
+				createdAt: hoursAgo(12),
+				likeCount: 9,
+			},
+		],
+	},
+	{
+		id: 9,
+		author: { nickname: "잉크수집가", isArtist: false },
+		createdAt: hoursAgo(4),
+		imageUrl: exploreFeed11,
+		caption:
+			"슬리브 3세션차 후기 남겨요. 명암 들어가니까 입체감이 확 사네요. 다음 세션이 마지막! 🖤",
+		likeCount: 305,
+		commentCount: 2,
+		comments: [
+			{
+				id: 91,
+				author: { nickname: "블랙워크덕후", isArtist: true },
+				content: "진행 과정 공유 감사해요! 완성 기대됩니다 🔥",
+				createdAt: hoursAgo(17),
+				likeCount: 11,
+			},
+			{
+				id: 92,
+				author: { nickname: "수제비", isArtist: false },
+				content: "세션마다 후기 올려주셔서 입문할 때 참고 많이 돼요 ㅠㅠ",
+				createdAt: hoursAgo(15),
+				likeCount: 3,
+			},
+		],
+	},
 ];
 
 /** 탐색 그리드용 게시글 원본 데이터 (이미지 + 게시글 정보) */

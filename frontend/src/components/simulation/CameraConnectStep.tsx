@@ -1,56 +1,51 @@
-function QrGlyph() {
+import { useMemo } from "react";
+import { encodeText } from "../../utils/qrcode";
+
+/** 스캔 가능한 실제 QR 코드를 SVG로 렌더링 (quiet zone 4모듈 포함) */
+function QrCode({ text, size = 230 }: { text: string; size?: number }) {
+	const modules = useMemo(() => encodeText(text, "M"), [text]);
+	const border = 4;
+	const dim = modules.length + border * 2;
+
+	// 검정 모듈만 path로 묶어 렌더 (rect 다발보다 가볍고 선명)
+	const path = useMemo(() => {
+		const parts: string[] = [];
+		modules.forEach((row, y) => {
+			row.forEach((dark, x) => {
+				if (dark) parts.push(`M${x + border},${y + border}h1v1h-1z`);
+			});
+		});
+		return parts.join("");
+	}, [modules]);
+
 	return (
-		<svg width="230" height="230" viewBox="0 0 110 110" fill="none" aria-hidden>
-			<rect
-				x="4"
-				y="4"
-				width="30"
-				height="30"
-				rx="4"
-				stroke="#111111"
-				strokeWidth="6"
-			/>
-			<rect
-				x="76"
-				y="4"
-				width="30"
-				height="30"
-				rx="4"
-				stroke="#111111"
-				strokeWidth="6"
-			/>
-			<rect
-				x="4"
-				y="76"
-				width="30"
-				height="30"
-				rx="4"
-				stroke="#111111"
-				strokeWidth="6"
-			/>
-			<rect x="14" y="14" width="10" height="10" fill="#111111" />
-			<rect x="86" y="14" width="10" height="10" fill="#111111" />
-			<rect x="14" y="86" width="10" height="10" fill="#111111" />
-			<rect x="48" y="4" width="8" height="8" fill="#111111" />
-			<rect x="48" y="20" width="8" height="8" fill="#111111" />
-			<rect x="64" y="36" width="8" height="8" fill="#111111" />
-			<rect x="48" y="48" width="8" height="8" fill="#111111" />
-			<rect x="64" y="48" width="8" height="8" fill="#111111" />
-			<rect x="48" y="64" width="8" height="8" fill="#111111" />
-			<rect x="80" y="64" width="8" height="8" fill="#111111" />
-			<rect x="96" y="80" width="8" height="8" fill="#111111" />
-			<rect x="48" y="80" width="8" height="8" fill="#111111" />
-			<rect x="64" y="96" width="8" height="8" fill="#111111" />
-			<rect x="80" y="96" width="8" height="8" fill="#111111" />
+		<svg
+			width={size}
+			height={size}
+			viewBox={`0 0 ${dim} ${dim}`}
+			shapeRendering="crispEdges"
+			role="img"
+			aria-label="AR 시뮬레이션 접속 QR 코드">
+			<rect width={dim} height={dim} fill="#ffffff" />
+			<path d={path} fill="#111111" />
 		</svg>
 	);
 }
 
 export default function CameraConnectStep() {
+	// 스캔 시 현재 서비스의 AR 시뮬레이션 페이지로 접속되도록 인코딩
+	const arUrl = useMemo(() => {
+		const origin =
+			typeof window !== "undefined"
+				? window.location.origin
+				: "https://starttoo.app";
+		return `${origin}/simulations?mode=ar`;
+	}, []);
+
 	return (
 		<div className="mx-auto flex h-full max-h-[400px] w-full max-w-[700px] items-center justify-center rounded-[16px] bg-white">
-			<div className="flex size-[clamp(180px,30vh,270px)] items-center justify-center rounded-[12px] border border-black/10">
-				<QrGlyph />
+			<div className="flex size-[clamp(180px,30vh,270px)] items-center justify-center rounded-[12px] border border-black/10 p-4">
+				<QrCode text={arUrl} size={230} />
 			</div>
 		</div>
 	);

@@ -80,10 +80,6 @@ export default function ProfilePage() {
 							</div>
 							{artist && (
 								<p className="mt-1 truncate text-[13px] font-light text-black/45">
-									{artist.isOpen ? "영업 중" : "영업 종료"}
-									<span className="mx-1.5">·</span>
-									{artist.hoursLabel}
-									<span className="mx-1.5">·</span>
 									{artist.address}
 								</p>
 							)}
