@@ -10,7 +10,6 @@ import {
 	createDepthPreview,
 	distance,
 	estimateDepth,
-	getOverlayGeometry,
 	isPersonPathContinuous,
 	isPointInsidePerson,
 	removeTattooBackground,
@@ -329,6 +328,34 @@ export default function Simulation3DStep({
 		ready,
 	]);
 
+	// 변경: 휠로 확대·축소, Shift+휠로 회전한다. 페이지 스크롤을 막으려면
+	// passive:false 네이티브 리스너가 필요하다.
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return undefined;
+
+		const handleWheel = (event: WheelEvent) => {
+			if (!ready) return;
+			event.preventDefault();
+			if (event.shiftKey) {
+				const rotationStep = (event.deltaY < 0 ? -1 : 1) * (Math.PI / 60);
+				setTransform((current) => ({
+					...current,
+					rotation: current.rotation + rotationStep,
+				}));
+			} else {
+				const scaleFactor = event.deltaY < 0 ? 1.05 : 1 / 1.05;
+				setTransform((current) => ({
+					...current,
+					width: Math.min(1.2, Math.max(0.045, current.width * scaleFactor)),
+				}));
+			}
+		};
+
+		canvas.addEventListener("wheel", handleWheel, { passive: false });
+		return () => canvas.removeEventListener("wheel", handleWheel);
+	}, [ready]);
+
 	const pointFromEvent = (event: ReactPointerEvent<HTMLCanvasElement>) => {
 		const canvas = event.currentTarget;
 		const bounds = canvas.getBoundingClientRect();
@@ -365,49 +392,27 @@ export default function Simulation3DStep({
 		if (!canvas || !tattooImage || !personMask || !depth) return;
 
 		const point = pointFromEvent(event);
-		const geometry = getOverlayGeometry(
-			canvas.width,
-			canvas.height,
-			tattooImage,
-			transform,
-		);
-		const handleRadius = Math.max(18, canvas.width * 0.018);
-		const scaleHandle = geometry.corners.find(
-			(corner) => distance(point, corner) <= handleRadius,
-		);
-		let mode: InteractionMode = "idle";
-		let sessionTransform = transform;
-
-		if (distance(point, geometry.rotationHandle) <= handleRadius * 1.2) {
-			mode = "rotate";
-		} else if (scaleHandle) {
-			mode = "scale";
-		} else {
-			const normalizedPoint = {
-				x: point.x / canvas.width,
-				y: point.y / canvas.height,
-			};
-			// 변경: 배경 클릭은 무시하고 신체 클릭만 도안 이동을 시작한다.
-			if (
-				!isPointInsidePerson(
-					personMask,
-					normalizedPoint.x,
-					normalizedPoint.y,
-				)
-			) {
-				return;
-			}
-
-			mode = "drag";
-			sessionTransform = {
-				...transform,
-				x: normalizedPoint.x,
-				y: normalizedPoint.y,
-			};
-			// 변경: 드래그 중에도 절단 기준은 최초 클릭한 신체 좌표로 고정한다.
-			setClipAnchor(normalizedPoint);
-			setTransform(sessionTransform);
+		const normalizedPoint = {
+			x: point.x / canvas.width,
+			y: point.y / canvas.height,
+		};
+		// 변경: 배경 클릭은 무시하고 신체 클릭만 도안 이동을 시작한다.
+		if (
+			!isPointInsidePerson(personMask, normalizedPoint.x, normalizedPoint.y)
+		) {
+			return;
 		}
+
+		// 변경: 확대·회전은 휠로 처리하고 포인터는 이동만 담당한다.
+		const mode: InteractionMode = "drag";
+		const sessionTransform = {
+			...transform,
+			x: normalizedPoint.x,
+			y: normalizedPoint.y,
+		};
+		// 변경: 드래그 중에도 절단 기준은 최초 클릭한 신체 좌표로 고정한다.
+		setClipAnchor(normalizedPoint);
+		setTransform(sessionTransform);
 
 		event.currentTarget.focus();
 		event.currentTarget.setPointerCapture(event.pointerId);
@@ -441,10 +446,6 @@ export default function Simulation3DStep({
 
 		const point = pointFromEvent(event);
 		const start = session.startTransform;
-		const center = {
-			x: start.x * canvas.width,
-			y: start.y * canvas.height,
-		};
 
 		if (session.mode === "drag") {
 			const nextTransform = {
@@ -480,19 +481,6 @@ export default function Simulation3DStep({
 			}
 			session.lastTransform = nextTransform;
 			setTransform(nextTransform);
-		} else if (session.mode === "scale") {
-			const nextDistance = distance(point, center);
-			const ratio = nextDistance / Math.max(1, session.startDistance);
-			setTransform({
-				...start,
-				width: Math.min(1.2, Math.max(0.045, start.width * ratio)),
-			});
-		} else if (session.mode === "rotate") {
-			const nextAngle = Math.atan2(point.y - center.y, point.x - center.x);
-			setTransform({
-				...start,
-				rotation: start.rotation + nextAngle - session.startAngle,
-			});
 		}
 	};
 
@@ -669,7 +657,7 @@ export default function Simulation3DStep({
 
 				{ready && (
 					<span className="pointer-events-none absolute bottom-2 right-2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-light text-white/90">
-						신체 클릭·드래그 이동 · 모서리 크기 · 상단 핸들 회전
+						신체 클릭·드래그 이동 · 휠 확대·축소 · Shift+휠 회전
 					</span>
 				)}
 			</div>

@@ -3485,10 +3485,10 @@ const drawGuides = (
   geometry: OverlayGeometry,
   scale: number,
 ) => {
-  const handleRadius = 6 * scale;
+  // 변경: 크기·회전 조작을 휠로 옮기면서 손잡이 점은 제거하고
+  // 선택 영역을 나타내는 점선 테두리만 남긴다.
   context.save();
   context.strokeStyle = "#f6f3ed";
-  context.fillStyle = "#111211";
   context.lineWidth = Math.max(1.5, 1.4 * scale);
   context.setLineDash([6 * scale, 5 * scale]);
   context.beginPath();
@@ -3497,28 +3497,6 @@ const drawGuides = (
   context.closePath();
   context.stroke();
   context.setLineDash([]);
-
-  const topMiddle = {
-    x: (geometry.corners[0].x + geometry.corners[1].x) / 2,
-    y: (geometry.corners[0].y + geometry.corners[1].y) / 2,
-  };
-  context.beginPath();
-  context.moveTo(topMiddle.x, topMiddle.y);
-  context.lineTo(geometry.rotationHandle.x, geometry.rotationHandle.y);
-  context.stroke();
-
-  [...geometry.corners, geometry.rotationHandle].forEach((point, index) => {
-    context.beginPath();
-    context.arc(
-      point.x,
-      point.y,
-      index === geometry.corners.length ? handleRadius * 1.18 : handleRadius,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-    context.stroke();
-  });
   context.restore();
 };
 
