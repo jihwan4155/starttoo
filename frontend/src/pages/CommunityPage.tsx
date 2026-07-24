@@ -11,12 +11,15 @@ import type { Post } from "../types/community";
 export default function CommunityPage() {
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	const [isWriteOpen, setWriteOpen] = useState(false);
-	// 이 세션에서 올린 게시물을 피드 맨 위에 노출
+	// 이 세션에서 올린 게시물 + 목업 게시물을 최신순(작성 시각 내림차순)으로 정렬
 	const myPosts = useCommunityStore((s) => s.myPosts);
 	const deletedIds = useCommunityStore((s) => s.deletedIds);
-	const feedPosts = [...myPosts, ...MOCK_POSTS].filter(
-		(post) => !deletedIds[post.id],
-	);
+	const feedPosts = [...myPosts, ...MOCK_POSTS]
+		.filter((post) => !deletedIds[post.id])
+		.sort(
+			(a, b) =>
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+		);
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
