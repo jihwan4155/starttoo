@@ -99,6 +99,68 @@ export const MOCK_POSTS: Post[] = [
 			},
 		],
 	},
+	{
+		id: 4,
+		author: { nickname: "라인웍스", isArtist: true },
+		createdAt: hoursAgo(7),
+		imageUrl: exploreFeed1,
+		caption:
+			"손목 미니멀 레터링. 얇은 선으로 오래 봐도 질리지 않게 작업했어요 🖤 문의는 DM으로!",
+		likeCount: 356,
+		commentCount: 2,
+		comments: [
+			{
+				id: 41,
+				author: { nickname: "소소경", isArtist: false },
+				content: "폰트 너무 예뻐요! 커스텀 가능한가요?",
+				createdAt: hoursAgo(5),
+				likeCount: 7,
+			},
+			{
+				id: 42,
+				author: { nickname: "라인웍스", isArtist: true },
+				content: "네! 원하시는 문구로 도안 잡아드려요 :)",
+				createdAt: hoursAgo(4),
+				likeCount: 3,
+			},
+		],
+	},
+	{
+		id: 5,
+		author: { nickname: "감성타투_무이", isArtist: true },
+		createdAt: hoursAgo(11),
+		imageUrl: exploreFeed3,
+		caption: "발목 미니 플라워 🌷 봄 느낌 나게 은은한 톤으로 채색했어요.",
+		likeCount: 289,
+		commentCount: 1,
+		comments: [
+			{
+				id: 51,
+				author: { nickname: "니들노노 레이니", isArtist: false },
+				content: "색감 진짜 취향이에요 ㅠㅠ 유지력도 궁금해요!",
+				createdAt: hoursAgo(9),
+				likeCount: 5,
+			},
+		],
+	},
+	{
+		id: 6,
+		author: { nickname: "블랙워크덕후", isArtist: true },
+		createdAt: hoursAgo(30),
+		imageUrl: exploreFeed2,
+		caption: "종아리 블랙워크. 면을 꽉 채워 존재감 있게 표현했습니다.",
+		likeCount: 612,
+		commentCount: 1,
+		comments: [
+			{
+				id: 61,
+				author: { nickname: "수제비", isArtist: false },
+				content: "면 채움 미쳤다... 세션 얼마나 걸렸어요?",
+				createdAt: hoursAgo(26),
+				likeCount: 15,
+			},
+		],
+	},
 ];
 
 /** 탐색 그리드용 게시글 원본 데이터 (이미지 + 게시글 정보) */

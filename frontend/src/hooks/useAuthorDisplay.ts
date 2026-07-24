@@ -24,11 +24,13 @@ export default function useAuthorDisplay(author: PostAuthor) {
 			nickname: myNickname,
 			avatarUrl: myAvatar || DEFAULT_PROFILE_IMAGE,
 			profileTo: "/mypage",
+			isMine: true,
 		};
 	}
 	return {
 		nickname: author.nickname,
 		avatarUrl: resolveAvatar(author.avatarUrl, author.nickname),
 		profileTo: profilePath(author.nickname),
+		isMine: false,
 	};
 }

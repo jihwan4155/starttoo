@@ -17,11 +17,18 @@ type CommunityState = {
 	extraComments: Record<number, PostComment[]>;
 	/** 사용자가 이 세션에서 올린 게시물 (피드 맨 위에 노출) */
 	myPosts: Post[];
+	/** 삭제한 게시물 id (목업 게시물도 피드에서 숨기기 위해 사용) */
+	deletedIds: Record<number, boolean>;
+	/** 차단(숨김)한 게시물 id — 실행취소로 되돌릴 수 있음 */
+	hiddenIds: Record<number, boolean>;
 	toggleLike: (postId: number) => void;
 	toggleBookmark: (postId: number) => void;
 	toggleCommentLike: (commentId: number) => void;
 	addComment: (postId: number, content: string) => void;
 	addPost: (imageUrl: string, caption: string) => void;
+	deletePost: (postId: number) => void;
+	hidePost: (postId: number) => void;
+	unhidePost: (postId: number) => void;
 };
 
 const useCommunityStore = create<CommunityState>()(
@@ -32,6 +39,8 @@ const useCommunityStore = create<CommunityState>()(
 			commentLiked: {},
 			extraComments: {},
 			myPosts: [],
+			deletedIds: {},
+			hiddenIds: {},
 			toggleLike: (postId) =>
 				set((state) => ({
 					liked: { ...state.liked, [postId]: !state.liked[postId] },
@@ -94,6 +103,23 @@ const useCommunityStore = create<CommunityState>()(
 						...state.myPosts,
 					],
 				})),
+			// TODO: 게시물 삭제 API(DELETE /posts/:id) 연동
+			deletePost: (postId) =>
+				set((state) => ({
+					myPosts: state.myPosts.filter((post) => post.id !== postId),
+					deletedIds: { ...state.deletedIds, [postId]: true },
+				})),
+			// TODO: 차단 API 연동 — 우선 프론트에서 숨김 처리(실행취소 가능)
+			hidePost: (postId) =>
+				set((state) => ({
+					hiddenIds: { ...state.hiddenIds, [postId]: true },
+				})),
+			unhidePost: (postId) =>
+				set((state) => {
+					const next = { ...state.hiddenIds };
+					delete next[postId];
+					return { hiddenIds: next };
+				}),
 		}),
 		{
 			name: "starttoo-community",
@@ -109,6 +135,8 @@ const useCommunityStore = create<CommunityState>()(
 				});
 				return {
 					...state,
+					deletedIds: state.deletedIds ?? {},
+					hiddenIds: state.hiddenIds ?? {},
 					commentLiked: state.commentLiked ?? {},
 					extraComments: Object.fromEntries(
 						Object.entries(state.extraComments ?? {}).map(

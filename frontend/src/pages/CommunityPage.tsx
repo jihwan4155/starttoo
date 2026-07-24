@@ -13,7 +13,10 @@ export default function CommunityPage() {
 	const [isWriteOpen, setWriteOpen] = useState(false);
 	// 이 세션에서 올린 게시물을 피드 맨 위에 노출
 	const myPosts = useCommunityStore((s) => s.myPosts);
-	const feedPosts = [...myPosts, ...MOCK_POSTS];
+	const deletedIds = useCommunityStore((s) => s.deletedIds);
+	const feedPosts = [...myPosts, ...MOCK_POSTS].filter(
+		(post) => !deletedIds[post.id],
+	);
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">

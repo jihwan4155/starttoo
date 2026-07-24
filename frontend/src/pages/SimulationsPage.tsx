@@ -86,19 +86,26 @@ export default function SimulationsPage() {
 	};
 	const handleBack = () => setStep((current) => Math.max(1, current - 1));
 
+	// 이미지(3D) 마지막 단계에서는 상단 제목·설명·탭 박스를 숨겨 결과 화면에 집중
+	const hideHeader = tab === "image" && step === maxStep;
+
 	return (
 		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pt-6 pb-6">
-				<p className="shrink-0 text-center text-[13px] font-light text-black/60">
-					상상만 하던 타투, 이제 눈으로 확인해보세요
-				</p>
-				<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
-					타투 시뮬레이션
-				</h1>
+				{!hideHeader && (
+					<>
+						<p className="shrink-0 text-center text-[13px] font-light text-black/60">
+							상상만 하던 타투, 이제 눈으로 확인해보세요
+						</p>
+						<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
+							타투 시뮬레이션
+						</h1>
 
-				<div className="mt-4 shrink-0">
-					<SimulationTabs active={tab} onChange={setTab} />
-				</div>
+						<div className="mt-4 shrink-0">
+							<SimulationTabs active={tab} onChange={setTab} />
+						</div>
+					</>
+				)}
 
 				<StepHeading step={step} description={STEP_COPY[tab][step]} />
 
