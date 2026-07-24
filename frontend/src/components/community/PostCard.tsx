@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
 	BookmarkIcon,
@@ -20,16 +20,62 @@ type PostCardProps = {
 
 export default function PostCard({ post, onOpen }: PostCardProps) {
 	const [isMenuOpen, setMenuOpen] = useState(false);
+	const menuRef = useRef<HTMLDivElement>(null);
 	// 좋아요·북마크는 상세 모달과 동기화되도록 전역 스토어 사용
 	const isLiked = useCommunityStore((s) => !!s.liked[post.id]);
 	const isBookmarked = useCommunityStore((s) => !!s.bookmarked[post.id]);
 	const toggleLike = useCommunityStore((s) => s.toggleLike);
 	const toggleBookmark = useCommunityStore((s) => s.toggleBookmark);
+	const deletePost = useCommunityStore((s) => s.deletePost);
+	const isHidden = useCommunityStore((s) => !!s.hiddenIds[post.id]);
+	const hidePost = useCommunityStore((s) => s.hidePost);
+	const unhidePost = useCommunityStore((s) => s.unhidePost);
 	// 상세 모달에서 작성한 댓글 수를 피드 카운트에 반영
 	const myCommentCount = useCommunityStore(
 		(s) => s.extraComments[post.id]?.length ?? 0,
 	);
-	const { nickname, avatarUrl, profileTo } = useAuthorDisplay(post.author);
+	const { nickname, avatarUrl, profileTo, isMine } = useAuthorDisplay(
+		post.author,
+	);
+
+	// 메뉴 바깥(화면 다른 곳)을 클릭하면 닫기
+	useEffect(() => {
+		if (!isMenuOpen) return;
+		const handleClickOutside = (event: MouseEvent) => {
+			if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+				setMenuOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, [isMenuOpen]);
+
+	const handleDelete = () => {
+		setMenuOpen(false);
+		if (window.confirm("이 게시글을 삭제할까요?")) {
+			deletePost(post.id);
+		}
+	};
+
+	const handleBlock = () => {
+		setMenuOpen(false);
+		hidePost(post.id);
+	};
+
+	// 차단(숨김) 상태 — 게시글 대신 숨김 안내 + 실행취소 버튼 노출
+	if (isHidden) {
+		return (
+			<article className="flex w-full flex-col items-center gap-6 rounded-[16px] border border-black/10 bg-white px-6 py-14">
+				<p className="text-[17px] font-bold text-black">게시물 숨김</p>
+				<button
+					type="button"
+					onClick={() => unhidePost(post.id)}
+					className="w-full rounded-full border border-black/80 py-3.5 text-center text-[16px] font-bold text-black transition hover:bg-black/5">
+					실행취소
+				</button>
+			</article>
+		);
+	}
 
 	return (
 		<article className="w-full">
@@ -53,7 +99,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						{formatTimeAgo(post.createdAt)}
 					</span>
 				</div>
-				<div className="relative">
+				<div className="relative" ref={menuRef}>
 					<button
 						type="button"
 						aria-label="게시글 메뉴"
@@ -62,26 +108,41 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						<MoreIcon size={20} />
 					</button>
 					{isMenuOpen && (
-						<div className="absolute right-0 top-9 z-20 w-[120px] overflow-hidden rounded-[10px] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
-							{/* TODO: 신고/차단 API 연동 */}
-							<button
-								type="button"
-								onClick={() => setMenuOpen(false)}
-								className="block w-full px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
-								신고
-								<span className="mt-0.5 block text-[11px] font-light text-black/40">
-									건전한 커뮤니티
-								</span>
-							</button>
-							<button
-								type="button"
-								onClick={() => setMenuOpen(false)}
-								className="block w-full px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
-								차단
-								<span className="mt-0.5 block text-[11px] font-light text-black/40">
-									이 사용자 게시글 숨기기
-								</span>
-							</button>
+						<div className="absolute right-0 top-9 z-20 w-max min-w-[160px] overflow-hidden rounded-[10px] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+							{isMine ? (
+								// TODO: 게시물 삭제 API 연동
+								<button
+									type="button"
+									onClick={handleDelete}
+									className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
+									삭제
+									<span className="mt-0.5 block text-[11px] font-light text-black/40">
+										이 게시글을 삭제합니다
+									</span>
+								</button>
+							) : (
+								<>
+									{/* TODO: 신고/차단 API 연동 */}
+									<button
+										type="button"
+										onClick={() => setMenuOpen(false)}
+										className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
+										신고
+										<span className="mt-0.5 block text-[11px] font-light text-black/40">
+											건전한 커뮤니티
+										</span>
+									</button>
+									<button
+										type="button"
+										onClick={handleBlock}
+										className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
+										차단
+										<span className="mt-0.5 block text-[11px] font-light text-black/40">
+											이 사용자 게시글 숨기기
+										</span>
+									</button>
+								</>
+							)}
 						</div>
 					)}
 				</div>

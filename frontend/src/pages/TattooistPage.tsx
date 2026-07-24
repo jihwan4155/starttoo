@@ -53,27 +53,11 @@ export default function TattooistPage() {
 									{artist.hoursLabel}
 								</p>
 								<p className="mt-0.5 flex items-center gap-1.5 text-[13px]">
-									{artist.distanceKm != null && (
-										<span className="font-semibold text-black">
-											{artist.distanceKm}km
-										</span>
-									)}
 									<span className="truncate font-light text-black/45">
 										{artist.address}
 									</span>
 								</p>
 							</div>
-						</div>
-
-						{/* 장르 태그 */}
-						<div className="flex flex-wrap gap-1.5">
-							{artist.categories.map((category) => (
-								<span
-									key={category}
-									className="rounded-[6px] bg-[#1A1A1A] px-2.5 py-1 text-[12px] font-medium text-white">
-									{category}
-								</span>
-							))}
 						</div>
 
 						{/* 작업물 미리보기 — 탐색 게시글 이미지, 없으면 회색 플레이스홀더 */}
