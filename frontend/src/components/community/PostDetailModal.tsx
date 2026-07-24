@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
@@ -107,6 +107,8 @@ export default function PostDetailModal({
 	onClose,
 }: PostDetailModalProps) {
 	const [commentInput, setCommentInput] = useState("");
+	const [isMenuOpen, setMenuOpen] = useState(false);
+	const menuRef = useRef<HTMLDivElement>(null);
 	// 좋아요·북마크·작성 댓글은 피드와 동기화되도록 전역 스토어 사용
 	const isLiked = useCommunityStore((s) => !!post && !!s.liked[post.id]);
 	const isBookmarked = useCommunityStore(
@@ -118,12 +120,44 @@ export default function PostDetailModal({
 	const toggleLike = useCommunityStore((s) => s.toggleLike);
 	const toggleBookmark = useCommunityStore((s) => s.toggleBookmark);
 	const addComment = useCommunityStore((s) => s.addComment);
+	const deletePost = useCommunityStore((s) => s.deletePost);
+	const hidePost = useCommunityStore((s) => s.hidePost);
 	// 훅 규칙상 early return 이전에 호출 (post 없을 때는 빈 작성자로 안전 처리)
 	const {
 		nickname: authorName,
 		avatarUrl: authorAvatar,
 		profileTo: authorProfileTo,
+		isMine,
 	} = useAuthorDisplay(post?.author ?? { nickname: "", isArtist: false });
+
+	// 메뉴 바깥을 클릭하면 닫기 (PostCard와 동일 패턴)
+	useEffect(() => {
+		if (!isMenuOpen) return;
+		const handleClickOutside = (event: MouseEvent) => {
+			if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+				setMenuOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, [isMenuOpen]);
+
+	// 삭제 시 스토어에서 제거되면 모달을 닫아 사라진 게시글이 남지 않게 한다.
+	const handleDelete = () => {
+		if (!post) return;
+		setMenuOpen(false);
+		if (window.confirm("이 게시글을 삭제할까요?")) {
+			deletePost(post.id);
+			onClose();
+		}
+	};
+
+	const handleBlock = () => {
+		if (!post) return;
+		setMenuOpen(false);
+		hidePost(post.id);
+		onClose();
+	};
 	// 도안 추출: 성공 시 결과 모달 표시. TODO: 내 보관함 저장 연동
 	const {
 		mutate: extractDesign,
@@ -203,12 +237,52 @@ export default function PostDetailModal({
 								{formatTimeAgo(post.createdAt)}
 							</p>
 						</div>
-						<button
-							type="button"
-							aria-label="게시글 메뉴"
-							className="text-black/60">
-							<MoreIcon size={20} />
-						</button>
+						<div className="relative" ref={menuRef}>
+							<button
+								type="button"
+								aria-label="게시글 메뉴"
+								onClick={() => setMenuOpen((prev) => !prev)}
+								className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/5">
+								<MoreIcon size={20} />
+							</button>
+							{isMenuOpen && (
+								<div className="absolute right-0 top-9 z-20 w-max min-w-[160px] overflow-hidden rounded-[10px] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+									{isMine ? (
+										<button
+											type="button"
+											onClick={handleDelete}
+											className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
+											삭제
+											<span className="mt-0.5 block text-[11px] font-light text-black/40">
+												이 게시글을 삭제합니다
+											</span>
+										</button>
+									) : (
+										<>
+											{/* TODO: 신고 API 연동 */}
+											<button
+												type="button"
+												onClick={() => setMenuOpen(false)}
+												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
+												신고
+												<span className="mt-0.5 block text-[11px] font-light text-black/40">
+													건전한 커뮤니티
+												</span>
+											</button>
+											<button
+												type="button"
+												onClick={handleBlock}
+												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
+												차단
+												<span className="mt-0.5 block text-[11px] font-light text-black/40">
+													이 사용자 게시글 숨기기
+												</span>
+											</button>
+										</>
+									)}
+								</div>
+							)}
+						</div>
 						<button
 							type="button"
 							aria-label="닫기"
