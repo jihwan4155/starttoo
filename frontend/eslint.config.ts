@@ -17,10 +17,9 @@ const compat = new FlatCompat({
 export default defineConfig([
   // tseslint.config(...tseslint.configs.recommended), // tseslint v9+
   pluginReact.configs.flat.recommended,
-  ...compat.extends("airbnb"),
   ...compat.extends("plugin:@typescript-eslint/recommended"),
   ...compat.extends("plugin:prettier/recommended"), // prettier 연동 규칙
-  // ...compat.extends("plugin:react/recommended"), // airbnb에 포함되어 중복될 수 있음
+  // ...compat.extends("plugin:react/recommended"),
   prettier, // prettier 규칙 적용
   {
     languageOptions: {
