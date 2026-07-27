@@ -7,7 +7,22 @@ import CommunitySearchBar from "../community/CommunitySearchBar";
 import useUserStore from "../../store/useUserStore";
 import useDmStore from "../../store/useDmStore";
 import useNotificationStore from "../../store/useNotificationStore";
+import { useServerNotifications } from "../../hooks/useServerNotifications";
 import { resolveAvatar } from "../../utils/profile";
+
+/** ISO 시각을 알림 목록용 짧은 표기로 변환 (오늘이면 HH:MM, 아니면 M/D) */
+function formatNotifTime(iso: string): string {
+	const d = new Date(iso);
+	if (Number.isNaN(d.getTime())) return "";
+	const now = new Date();
+	const sameDay =
+		d.getFullYear() === now.getFullYear() &&
+		d.getMonth() === now.getMonth() &&
+		d.getDate() === now.getDate();
+	return sameDay
+		? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+		: `${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 function BellIcon() {
 	return (
@@ -45,7 +60,12 @@ function NotificationBell() {
 	const notifications = useNotificationStore((s) => s.notifications);
 	const markAllRead = useNotificationStore((s) => s.markAllRead);
 	const openRoom = useDmStore((s) => s.openRoom);
-	const unreadCount = notifications.filter((n) => !n.read).length;
+
+	// 로그인 상태면 서버 알림(API), 아니면 목업 스토어로 폴백
+	const server = useServerNotifications();
+	const mockUnread = notifications.filter((n) => !n.read).length;
+	// 뱃지: 메시지 기준 unreadCount(21) · 목록: 묶음 행(items, 6줄)
+	const unreadCount = server.enabled ? server.unreadCount : mockUnread;
 
 	// 바깥 클릭 / ESC 시 닫기
 	useEffect(() => {
@@ -70,6 +90,25 @@ function NotificationBell() {
 		navigate("/dm");
 	};
 
+	// 서버 알림 클릭: NEW_DM은 해당 방으로 이동, 그 외는 읽음 처리만
+	const handleClickServerNotification = (
+		notificationId: number,
+		type: string,
+		referenceId: number | null,
+	) => {
+		void server.markOne(notificationId);
+		setOpen(false);
+		if (type === "NEW_DM" && referenceId != null) {
+			openRoom(referenceId);
+			navigate("/dm");
+		}
+	};
+
+	const handleMarkAll = () => {
+		if (server.enabled) void server.markAll();
+		else markAllRead();
+	};
+
 	return (
 		<div ref={wrapRef} className="relative">
 			<button
@@ -92,14 +131,62 @@ function NotificationBell() {
 						{unreadCount > 0 && (
 							<button
 								type="button"
-								onClick={markAllRead}
+								onClick={handleMarkAll}
 								className="text-[11px] font-light text-black/45 transition hover:text-black">
 								모두 읽음
 							</button>
 						)}
 					</div>
 					<ul className="max-h-[380px] overflow-y-auto">
-						{notifications.length === 0 ? (
+						{server.enabled ? (
+								server.items.length === 0 ? (
+									<li className="px-4 py-8 text-center text-[13px] font-light text-black/40">
+										{server.loading
+											? "불러오는 중…"
+											: (server.error ?? "새로운 알림이 없어요.")}
+									</li>
+								) : (
+									server.items.map((sn) => (
+										<li key={sn.notificationId}>
+											<button
+												type="button"
+												onClick={() =>
+													handleClickServerNotification(
+														sn.notificationId,
+														sn.notificationType,
+														sn.referenceId,
+													)
+												}
+												className="flex w-full items-start gap-3 bg-brand/[0.06] px-4 py-3 text-left transition hover:bg-black/[0.03]">
+												<img
+													src={resolveAvatar(undefined, sn.title)}
+													alt=""
+													className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+												/>
+												<span className="min-w-0 flex-1">
+													<span className="flex items-center gap-1.5">
+														<span className="truncate text-[13px] font-semibold text-black">
+															{sn.title}
+														</span>
+														{sn.count > 1 && (
+															<span className="shrink-0 rounded-full bg-brand/10 px-1.5 text-[10px] font-semibold text-brand">
+																{sn.count}
+															</span>
+														)}
+														<span className="shrink-0 text-[10px] font-light text-black/35">
+															{formatNotifTime(sn.createdAt)}
+														</span>
+														<span className="ml-auto size-[7px] shrink-0 rounded-full bg-brand" />
+													</span>
+													<span className="mt-0.5 block truncate text-[12px] font-light text-black/55">
+														{sn.body}
+													</span>
+												</span>
+											</button>
+										</li>
+									))
+								)
+							) : notifications.length === 0 ? (
 							<li className="px-4 py-8 text-center text-[13px] font-light text-black/40">
 								새로운 알림이 없어요.
 							</li>
