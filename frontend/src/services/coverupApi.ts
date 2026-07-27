@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { api } from "./api";
 import { uploadImage } from "./uploadApi";
 import demoTattoo from "../assets/images/demo-tattoo.png";
 import { DEMO_MODE } from "../constants/config";
@@ -28,9 +28,9 @@ export async function requestCoverupRecommendation(params: {
 		COVERUP_UPLOAD_PURPOSE,
 	);
 
-	return apiFetch<CoverupResponse>("/coverups/recommendations", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ imageObjectKey }),
-	});
+	const { data } = await api.post<CoverupResponse>(
+		"/coverups/recommendations",
+		{ imageObjectKey },
+	);
+	return data;
 }
