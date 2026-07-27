@@ -1,4 +1,4 @@
-// TODO: 백엔드 타투이스트 스펙(GET /artists) 확정되면 동기화
+/** UI용 타투이스트 카드 (화면·목업) */
 export type Artist = {
 	id: number;
 	name: string;
@@ -11,8 +11,44 @@ export type Artist = {
 	address: string;
 	/** 작업 장르 태그 */
 	categories: string[];
-	/** 프로필 사진 URL (대표 작업물 기반, 없으면 기본 프로필) */
+	/** 프로필 사진 URL */
 	avatarUrl: string;
-	/** 대표 작업물 이미지 URL (없으면 placeholder) */
+	/** 대표 작업물 이미지 URL */
 	imageUrls: string[];
+};
+
+/* ─── Backend DTO (Swagger GET /artists) ─── */
+
+export type ArtistShopDto = {
+	shopName: string | null;
+	shopCity: string | null;
+	shopAddress: string | null;
+	shopPhone: string | null;
+	businessHours: string | null;
+};
+
+export type ArtistFeedPreviewDto = {
+	postId: number;
+	imageUrl: string;
+	likeCount: number;
+};
+
+export type ArtistItem = {
+	userId: number;
+	nickname: string;
+	profileImageUrl: string | null;
+	shop: ArtistShopDto | null;
+	approvalStatus: string;
+	popularity: number;
+	followerCount: number;
+	isFollowing: boolean;
+	isMe: boolean;
+	feedPreviews: ArtistFeedPreviewDto[];
+};
+
+export type FetchArtistsParams = {
+	shopCity?: string;
+	nickname?: string;
+	cursor?: string;
+	size?: number;
 };
