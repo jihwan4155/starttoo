@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { api } from "./api";
 import {
 	ALLOWED_IMAGE_TYPES,
 	MAX_IMAGE_SIZE,
@@ -8,14 +8,14 @@ import type {
 	PresignedUploadResponse,
 } from "../types/upload";
 
-export function createPresignedUpload(
+export async function createPresignedUpload(
 	params: PresignedUploadRequest,
 ): Promise<PresignedUploadResponse> {
-	return apiFetch<PresignedUploadResponse>("/uploads/presigned-url", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(params),
-	});
+	const { data } = await api.post<PresignedUploadResponse>(
+		"/uploads/presigned-url",
+		params,
+	);
+	return data;
 }
 
 /** Presigned URL을 발급받아 MinIO에 직접 업로드하고 objectKey를 반환 */
