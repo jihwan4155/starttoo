@@ -123,6 +123,39 @@ export async function reportPost(
 	return data;
 }
 
+/** GET /users/me/posts */
+export async function fetchMyPosts(
+	params?: FetchPostsParams & { status?: string },
+): Promise<CursorPage<PostResponse>> {
+	const { data } = await api.get<CursorPage<PostResponse>>("/users/me/posts", {
+		params,
+	});
+	return data;
+}
+
+/** GET /users/{userId}/posts */
+export async function fetchUserPosts(
+	userId: number,
+	params?: FetchPostsParams,
+): Promise<CursorPage<PostResponse>> {
+	const { data } = await api.get<CursorPage<PostResponse>>(
+		`/users/${userId}/posts`,
+		{ params },
+	);
+	return data;
+}
+
+/** GET /users/me/bookmarked-posts */
+export async function fetchBookmarkedPosts(
+	params?: FetchPostsParams,
+): Promise<CursorPage<PostResponse>> {
+	const { data } = await api.get<CursorPage<PostResponse>>(
+		"/users/me/bookmarked-posts",
+		{ params },
+	);
+	return data;
+}
+
 /* ─── Comments ─── */
 
 /** GET /posts/{postId}/comments */
