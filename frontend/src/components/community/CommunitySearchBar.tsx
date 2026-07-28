@@ -1,26 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { CameraIcon, CloseIcon, SearchIcon } from "./icons";
 import ActionButton from "../common/ActionButton";
+import ArchivePickerModal from "./ArchivePickerModal";
+import useRequireAuth from "../../hooks/useRequireAuth";
+import useRecentSearches from "../../hooks/queries/useRecentSearches";
+import { recentSearchesQueryKey } from "../../hooks/queries/useRecentSearches";
 import {
-	MOCK_CATEGORIES,
-	MOCK_RECENT_SEARCHES,
-	MOCK_SUGGESTIONS,
-} from "../../mocks/community";
+	deleteRecentSearch,
+	saveRecentSearch,
+} from "../../services/userApi";
+import { ApiError } from "../../services/api";
+import { SEARCH_CATEGORIES } from "../../constants/community";
+import useAuthStore from "../../store/useAuthStore";
 
-/** 커뮤니티 상단 검색 바 (추천 카테고리 · 최근 검색어 · 자동완성 · 사진 검색) */
+/** 커뮤니티 상단 검색 바 */
 export default function CommunitySearchBar() {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [value, setValue] = useState("");
 	const [isFocused, setFocused] = useState(false);
 	const [isCameraOpen, setCameraOpen] = useState(false);
-	// TODO: 최근 검색어 API(/users/me/recent-searches) 연동
-	const [recentSearches, setRecentSearches] = useState(MOCK_RECENT_SEARCHES);
+	const [isArchiveOpen, setArchiveOpen] = useState(false);
+	const accessToken = useAuthStore((s) => s.accessToken);
+	const { requireAuth } = useRequireAuth();
+	const { data: recentItems = [] } = useRecentSearches();
 
-	// 사진 검색 패널 바깥 클릭 시 닫기
 	useEffect(() => {
 		if (!isCameraOpen) return undefined;
 		const handleDown = (e: MouseEvent) => {
@@ -32,7 +41,6 @@ export default function CommunitySearchBar() {
 		return () => document.removeEventListener("mousedown", handleDown);
 	}, [isCameraOpen]);
 
-	// TODO: 이미지 검색 API 연동 — 현재는 업로드 시 그리드로 이동만
 	const handleImageSelected = (file: File) => {
 		if (!file.type.startsWith("image/")) return;
 		setCameraOpen(false);
@@ -52,21 +60,41 @@ export default function CommunitySearchBar() {
 	};
 
 	const suggestions = value.trim()
-		? MOCK_SUGGESTIONS.filter((s) =>
+		? SEARCH_CATEGORIES.filter((s) =>
 				s.toLowerCase().includes(value.trim().toLowerCase()),
 			)
 		: [];
 
+	const persistSearch = async (keyword: string) => {
+		if (!accessToken) return;
+		try {
+			await saveRecentSearch({ keyword });
+			await queryClient.invalidateQueries({ queryKey: recentSearchesQueryKey });
+		} catch {
+			// 최근 검색어 저장 실패는 검색 자체를 막지 않음
+		}
+	};
+
 	const submit = (term: string) => {
 		const keyword = term.trim();
 		if (!keyword) return;
-		setRecentSearches((prev) => [
-			keyword,
-			...prev.filter((item) => item !== keyword),
-		]);
+		void persistSearch(keyword);
 		setValue("");
 		setFocused(false);
 		navigate(`/posts/search?q=${encodeURIComponent(keyword)}`);
+	};
+
+	const handleDeleteRecent = async (recentSearchId: number) => {
+		try {
+			await deleteRecentSearch(recentSearchId);
+			await queryClient.invalidateQueries({ queryKey: recentSearchesQueryKey });
+		} catch (err) {
+			window.alert(
+				err instanceof ApiError
+					? err.message
+					: "최근 검색어 삭제에 실패했습니다.",
+			);
+		}
 	};
 
 	return (
@@ -110,7 +138,6 @@ export default function CommunitySearchBar() {
 				</button>
 			</form>
 
-			{/* 사진(카메라) 검색 패널 */}
 			{isCameraOpen && (
 				<div className="absolute left-0 right-0 top-[calc(100%+10px)] z-50 rounded-[14px] bg-white p-6 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
 					<div
@@ -123,6 +150,10 @@ export default function CommunitySearchBar() {
 							드래그 또는 클릭해 사진 업로드
 							<br />
 							JPG, JPEG, PNG, WEBP 형식 지원
+							<br />
+							<span className="text-[11px]">
+								(이미지 검색 API 준비 중 — 키워드 검색을 이용해 주세요)
+							</span>
 						</p>
 					</div>
 					<div className="mt-5 flex justify-center gap-4">
@@ -131,8 +162,13 @@ export default function CommunitySearchBar() {
 							onClick={() => fileInputRef.current?.click()}>
 							컴퓨터에서 선택
 						</ActionButton>
-						{/* TODO: 보관함 연동되면 보관함 선택 모달로 교체 */}
-						<ActionButton onClick={() => setCameraOpen(false)}>
+						<ActionButton
+							onClick={() =>
+								requireAuth(() => {
+									setCameraOpen(false);
+									setArchiveOpen(true);
+								})
+							}>
 							보관함에서 선택
 						</ActionButton>
 					</div>
@@ -149,7 +185,6 @@ export default function CommunitySearchBar() {
 			{isFocused && (
 				<div
 					className="absolute left-0 right-0 top-[calc(100%+10px)] z-50 rounded-[14px] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.15)]"
-					// input blur보다 먼저 실행돼 클릭이 무시되지 않도록 방지
 					onMouseDown={(e) => e.preventDefault()}>
 					{suggestions.length > 0 ? (
 						<ul>
@@ -171,7 +206,7 @@ export default function CommunitySearchBar() {
 								추천 카테고리
 							</p>
 							<div className="mt-2.5 flex flex-wrap gap-2">
-								{MOCK_CATEGORIES.map((category) => (
+								{SEARCH_CATEGORIES.map((category) => (
 									<button
 										key={category}
 										type="button"
@@ -185,25 +220,23 @@ export default function CommunitySearchBar() {
 							<p className="mt-5 text-[13px] font-semibold text-black">
 								최근 검색어
 							</p>
-							{recentSearches.length > 0 ? (
+							{accessToken && recentItems.length > 0 ? (
 								<ul className="mt-1.5">
-									{recentSearches.map((keyword) => (
+									{recentItems.map((item) => (
 										<li
-											key={keyword}
+											key={item.recentSearchId}
 											className="flex items-center justify-between">
 											<button
 												type="button"
-												onClick={() => submit(keyword)}
+												onClick={() => submit(item.keyword)}
 												className="flex-1 rounded-lg px-2 py-2 text-left text-[13px] font-light text-black transition hover:bg-black/5">
-												{keyword}
+												{item.keyword}
 											</button>
 											<button
 												type="button"
-												aria-label={`${keyword} 삭제`}
+												aria-label={`${item.keyword} 삭제`}
 												onClick={() =>
-													setRecentSearches((prev) =>
-														prev.filter((item) => item !== keyword),
-													)
+													void handleDeleteRecent(item.recentSearchId)
 												}
 												className="p-1.5 text-black/35 transition hover:text-black">
 												<CloseIcon size={13} />
@@ -213,13 +246,27 @@ export default function CommunitySearchBar() {
 								</ul>
 							) : (
 								<p className="mt-2 px-2 text-[13px] font-light text-black/40">
-									최근 검색어가 없어요.
+									{accessToken
+										? "최근 검색어가 없어요."
+										: "로그인하면 최근 검색어가 저장됩니다."}
 								</p>
 							)}
 						</>
 					)}
 				</div>
 			)}
+
+			<ArchivePickerModal
+				isOpen={isArchiveOpen}
+				onClose={() => setArchiveOpen(false)}
+				onSelect={(item) => {
+					const label =
+						item.primaryStyle?.trim() ||
+						item.secondaryStyle?.trim() ||
+						"보관함 도안";
+					submit(label);
+				}}
+			/>
 		</div>
 	);
 }

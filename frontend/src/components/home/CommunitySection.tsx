@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
-import { MOCK_EXPLORE_POSTS } from "../../mocks/community";
+import usePosts from "../../hooks/queries/usePosts";
 
-const PREVIEW_POSTS = MOCK_EXPLORE_POSTS.slice(0, 4);
-
+/** 홈 커뮤니티 미리보기 — GET /posts 최신 4건 */
 export default function CommunitySection() {
+	const { data } = usePosts({ size: 4, sort: "LATEST" });
+	const previewPosts = data?.pages[0]?.items ?? [];
+
 	return (
 		<section
 			id="community"
@@ -17,18 +19,29 @@ export default function CommunitySection() {
 			</p>
 
 			<div className="mt-10 flex gap-[34px]">
-				{PREVIEW_POSTS.map((post) => (
-					<img
-						key={post.id}
-						src={post.imageUrl ?? undefined}
-						alt={`${post.author.nickname}의 게시글`}
-						className="h-[200px] w-[200px] shrink-0 rounded-[10px] bg-[#D9D9D9] object-cover"
-					/>
-				))}
+				{previewPosts.length === 0
+					? Array.from({ length: 4 }).map((_, index) => (
+							<div
+								key={index}
+								className="h-[200px] w-[200px] shrink-0 rounded-[10px] bg-[#D9D9D9]"
+							/>
+						))
+					: previewPosts.map((post) => (
+							<Link
+								key={post.id}
+								to="/posts"
+								className="block shrink-0 transition hover:opacity-90">
+								<img
+									src={post.imageUrl ?? undefined}
+									alt={`${post.author.nickname}의 게시글`}
+									className="h-[200px] w-[200px] rounded-[10px] bg-[#D9D9D9] object-cover"
+								/>
+							</Link>
+						))}
 			</div>
 
 			<Link
-				to="/posts/search"
+				to="/posts"
 				className="mt-8 text-[16px] font-light text-black/60 transition hover:text-black">
 				→ 피드 보러가기
 			</Link>
