@@ -3,15 +3,21 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
 	BookmarkIcon,
+	ChevronIcon,
 	CloseIcon,
 	HeartIcon,
 	MoreIcon,
 } from "./icons";
 import useCommunityStore from "../../store/useCommunityStore";
 import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
+import useCommentReplies from "../../hooks/queries/useCommentReplies";
+import useComments from "../../hooks/queries/useComments";
+import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import DesignExtractResultModal from "./DesignExtractResultModal";
+import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
+import { getPostImageUrls } from "../../utils/mapPost";
 import type { Post, PostComment } from "../../types/community";
 
 function ExtractIcon() {
@@ -42,10 +48,23 @@ function CommentRow({
 	/** 프로필로 이동하기 전 모달을 닫기 위한 콜백 */
 	onNavigate?: () => void;
 }) {
-	// 댓글 좋아요는 새로고침해도 유지되도록 전역 스토어 사용
+	const [repliesOpen, setRepliesOpen] = useState(false);
 	const isLiked = useCommunityStore((s) => !!s.commentLiked[comment.id]);
 	const toggleCommentLike = useCommunityStore((s) => s.toggleCommentLike);
 	const { nickname, avatarUrl, profileTo } = useAuthorDisplay(comment.author);
+
+	const replyCount = comment.replyCount ?? 0;
+	const {
+		data: repliesPage,
+		isPending: isRepliesPending,
+		isError: isRepliesError,
+		refetch: refetchReplies,
+	} = useCommentReplies(repliesOpen && !isReply ? comment.id : undefined, {
+		size: 50,
+	});
+
+	const loadedReplies = repliesPage?.items ?? [];
+
 	return (
 		<div className={isReply ? "mt-3 pl-10" : "mt-4"}>
 			<div className="flex items-start gap-2.5">
@@ -74,6 +93,29 @@ function CommentRow({
 						<span>좋아요 {comment.likeCount + (isLiked ? 1 : 0)}</span>
 						{!isReply && <button type="button">답글 달기</button>}
 					</div>
+					{!isReply && replyCount > 0 && (
+						<button
+							type="button"
+							onClick={() => setRepliesOpen((open) => !open)}
+							className="mt-2 text-[12px] font-semibold text-black/50 transition hover:text-black/70">
+							{repliesOpen
+								? "답글 숨기기"
+								: `답글 ${replyCount}개 보기`}
+						</button>
+					)}
+					{repliesOpen && isRepliesPending && (
+						<p className="mt-2 text-[11px] text-black/40">
+							답글을 불러오는 중…
+						</p>
+					)}
+					{repliesOpen && isRepliesError && (
+						<button
+							type="button"
+							onClick={() => void refetchReplies()}
+							className="mt-2 text-[11px] font-semibold text-brand">
+							답글 다시 시도
+						</button>
+					)}
 				</div>
 				<button
 					type="button"
@@ -85,14 +127,15 @@ function CommentRow({
 					<HeartIcon size={14} filled={isLiked} />
 				</button>
 			</div>
-			{comment.replies?.map((reply) => (
-				<CommentRow
-					key={reply.id}
-					comment={reply}
-					isReply
-					onNavigate={onNavigate}
-				/>
-			))}
+			{repliesOpen &&
+				loadedReplies.map((reply) => (
+					<CommentRow
+						key={reply.id}
+						comment={reply}
+						isReply
+						onNavigate={onNavigate}
+					/>
+				))}
 		</div>
 	);
 }
@@ -103,12 +146,18 @@ type PostDetailModalProps = {
 };
 
 export default function PostDetailModal({
-	post,
+	post: seedPost,
 	onClose,
 }: PostDetailModalProps) {
 	const [commentInput, setCommentInput] = useState("");
 	const [isMenuOpen, setMenuOpen] = useState(false);
+	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
+
+	// GET /posts/{id} — 목록 데이터보다 단건이 우선 (이미지·카운트 최신화)
+	const { data: detailPost } = usePost(seedPost?.id);
+	const post = detailPost ?? seedPost;
+
 	// 좋아요·북마크·작성 댓글은 피드와 동기화되도록 전역 스토어 사용
 	const isLiked = useCommunityStore((s) => !!post && !!s.liked[post.id]);
 	const isBookmarked = useCommunityStore(
@@ -167,10 +216,30 @@ export default function PostDetailModal({
 		reset: resetExtract,
 	} = useDesignExtractMutation();
 
+	// GET /posts/{postId}/comments (auth 없이 조회 가능)
+	const {
+		data: commentsPage,
+		isPending: isCommentsPending,
+		isError: isCommentsError,
+		error: commentsError,
+		refetch: refetchComments,
+	} = useComments(post?.id, { size: 50, sort: "LATEST" });
+
 	if (!post) return null;
 
-	// const로 캡처해 onClick 클로저에서도 null 아님이 보장되도록 함
-	const postImageUrl = post.imageUrl;
+	const apiComments = commentsPage?.items ?? [];
+	const commentsErrorMessage =
+		commentsError instanceof ApiError
+			? commentsError.message
+			: "댓글을 불러오지 못했습니다.";
+
+	const imageUrls = getPostImageUrls(post);
+	const safeIndex =
+		imageUrls.length === 0
+			? 0
+			: Math.min(imageIndex, imageUrls.length - 1);
+	const postImageUrl = imageUrls[safeIndex] ?? null;
+	const hasMultipleImages = imageUrls.length > 1;
 
 	return createPortal(
 		<div
@@ -183,17 +252,58 @@ export default function PostDetailModal({
 				role="dialog"
 				aria-modal="true"
 				aria-label="게시글 상세">
-				{/* 좌: 이미지 */}
+				{/* 좌: 이미지 캐러셀 */}
 				<div className="group relative hidden min-h-[540px] flex-1 bg-black/90 sm:block">
 					{postImageUrl ? (
 						<img
 							src={postImageUrl}
-							alt={`${post.author.nickname}의 게시글`}
+							alt={`${post.author.nickname}의 게시글 ${safeIndex + 1}`}
 							className="h-full w-full object-contain"
 						/>
 					) : (
 						<div className="h-full w-full bg-[#D9D9D9]" />
 					)}
+
+					{hasMultipleImages && (
+						<>
+							<button
+								type="button"
+								aria-label="이전 사진"
+								disabled={safeIndex === 0}
+								onClick={() => setImageIndex((i) => Math.max(0, i - 1))}
+								className="absolute left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 disabled:opacity-30">
+								<ChevronIcon direction="left" size={16} />
+							</button>
+							<button
+								type="button"
+								aria-label="다음 사진"
+								disabled={safeIndex === imageUrls.length - 1}
+								onClick={() =>
+									setImageIndex((i) =>
+										Math.min(imageUrls.length - 1, i + 1),
+									)
+								}
+								className="absolute right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 disabled:opacity-30">
+								<ChevronIcon direction="right" size={16} />
+							</button>
+							<div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
+								{imageUrls.map((_, index) => (
+									<span
+										key={index}
+										className={`size-1.5 rounded-full transition ${
+											index === safeIndex
+												? "bg-white"
+												: "bg-white/40"
+										}`}
+									/>
+								))}
+							</div>
+							<span className="absolute right-4 top-4 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white">
+								{safeIndex + 1} / {imageUrls.length}
+							</span>
+						</>
+					)}
+
 					{/* 호버 시 노출되는 도안 추출 버튼 */}
 					{postImageUrl && (
 						<button
@@ -201,13 +311,18 @@ export default function PostDetailModal({
 							aria-label="도안 추출"
 							disabled={isExtracting}
 							onClick={() => extractDesign(postImageUrl)}
-							className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 group-hover:opacity-100">
+							className={`absolute right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 group-hover:opacity-100 ${
+								hasMultipleImages ? "bottom-10" : "bottom-4"
+							}`}>
 							<ExtractIcon />
 							{isExtracting ? "추출 중..." : "도안 추출"}
 						</button>
 					)}
 					{extractError && (
-						<p className="absolute bottom-16 right-4 rounded-lg bg-black/60 px-3 py-1.5 text-[12px] font-light text-white">
+						<p
+							className={`absolute right-4 rounded-lg bg-black/60 px-3 py-1.5 text-[12px] font-light text-white ${
+								hasMultipleImages ? "bottom-24" : "bottom-16"
+							}`}>
 							{extractError.message}
 						</p>
 					)}
@@ -302,14 +417,46 @@ export default function PostDetailModal({
 							</Link>
 							{post.caption}
 						</p>
-						{post.comments.map((comment) => (
-							<CommentRow
-								key={comment.id}
-								comment={comment}
-								onNavigate={onClose}
-							/>
-						))}
-						{/* 이 세션에서 작성한 댓글 */}
+
+						{isCommentsPending && (
+							<p className="mt-8 text-center text-[13px] text-black/40">
+								댓글을 불러오는 중…
+							</p>
+						)}
+
+						{isCommentsError && (
+							<div className="mt-8 flex flex-col items-center gap-3">
+								<p className="text-center text-[13px] text-black/60">
+									{commentsErrorMessage}
+								</p>
+								<button
+									type="button"
+									onClick={() => void refetchComments()}
+									className="rounded-full border border-black/20 px-4 py-1.5 text-[12px] font-semibold transition hover:bg-black/5">
+									다시 시도
+								</button>
+							</div>
+						)}
+
+						{!isCommentsPending &&
+							!isCommentsError &&
+							apiComments.length === 0 &&
+							!(myComments && myComments.length > 0) && (
+								<p className="mt-8 text-center text-[13px] text-black/40">
+									아직 댓글이 없습니다.
+								</p>
+							)}
+
+						{!isCommentsPending &&
+							apiComments.map((comment) => (
+								<CommentRow
+									key={comment.id}
+									comment={comment}
+									onNavigate={onClose}
+								/>
+							))}
+
+						{/* 이 세션에서 작성한 댓글 (작성 API 연동 전 로컬) */}
 						{myComments?.map((comment) => (
 							<CommentRow
 								key={comment.id}

@@ -95,6 +95,7 @@ const useCommunityStore = create<CommunityState>()(
 							},
 							createdAt: new Date().toISOString(),
 							imageUrl,
+							imageUrls: [imageUrl],
 							caption,
 							likeCount: 0,
 							commentCount: 0,
