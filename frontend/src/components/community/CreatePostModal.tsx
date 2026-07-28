@@ -2,12 +2,18 @@ import { useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { createPortal } from "react-dom";
 import ActionButton from "../common/ActionButton";
+import ArchivePickerModal from "./ArchivePickerModal";
 import ImageCropper from "./ImageCropper";
 import { CloseIcon } from "./icons";
-import useCommunityStore from "../../store/useCommunityStore";
-import useUserStore from "../../store/useUserStore";
+import useCreatePost from "../../hooks/mutations/useCreatePost";
+import useRequireAuth from "../../hooks/useRequireAuth";
+import useAuthStore from "../../store/useAuthStore";
+import { ApiError } from "../../services/api";
+import { dataUrlToFile } from "../../utils/dataUrlToFile";
 import { cropImageToDataUrl, DEFAULT_CROP } from "../../utils/image";
 import { resolveAvatar } from "../../utils/profile";
+import { urlToFile } from "../../utils/urlToFile";
+import type { ArchiveItem } from "../../types/archive";
 import type { CropState } from "../../utils/image";
 
 type Step = "select" | "crop" | "write";
@@ -102,9 +108,19 @@ export default function CreatePostModal({
 	const [crops, setCrops] = useState<Record<string, CropState>>({});
 	const [croppedUrls, setCroppedUrls] = useState<string[]>([]);
 	const [isCropping, setCropping] = useState(false);
-	const addPost = useCommunityStore((s) => s.addPost);
-	const nickname = useUserStore((s) => s.nickname);
-	const avatarUrl = useUserStore((s) => s.avatarUrl);
+	const [submitError, setSubmitError] = useState<string | null>(null);
+	const [isArchiveOpen, setArchiveOpen] = useState(false);
+	const { mutateAsync: createPostMutate, isPending: isCreatePending } =
+		useCreatePost();
+	const { isAuthenticated, requireAuth } = useRequireAuth();
+	const authUser = useAuthStore((s) => s.user);
+	const nickname = authUser?.nickname ?? "게스트";
+	const avatarUrl = resolveAvatar(
+		authUser && "profileImageUrl" in authUser
+			? authUser.profileImageUrl
+			: null,
+		nickname,
+	);
 
 	if (!isOpen) return null;
 
@@ -117,6 +133,7 @@ export default function CreatePostModal({
 		setCrops({});
 		setCroppedUrls([]);
 		setCropping(false);
+		setSubmitError(null);
 	};
 
 	const handleClose = () => {
@@ -132,6 +149,21 @@ export default function CreatePostModal({
 			.filter((file) => file.type.startsWith("image/"))
 			.map((file) => ({ file, url: URL.createObjectURL(file) }));
 		setImages((prev) => [...prev, ...next].slice(0, MAX_IMAGES));
+	};
+
+	const addArchiveItem = async (item: ArchiveItem) => {
+		try {
+			const imageUrl = item.designImageUrl || item.originalImageUrl;
+			const file = await urlToFile(imageUrl, `archive-${item.tattooId}.jpg`);
+			const url = URL.createObjectURL(file);
+			setImages((prev) => [...prev, { file, url }].slice(0, MAX_IMAGES));
+		} catch (err) {
+			window.alert(
+				err instanceof Error
+					? err.message
+					: "보관함 이미지를 불러오지 못했습니다.",
+			);
+		}
 	};
 
 	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -173,15 +205,26 @@ export default function CreatePostModal({
 		}
 	};
 
-	// 크롭·압축된 base64 저장 → localStorage 영속화로 새로고침해도 유지
-	// TODO: 백엔드 연동 시 presigned 업로드로 교체
-	const handleSubmit = () => {
-		if (isSubmitting || !croppedUrls[0]) return;
+	// presigned 업로드 → POST /posts
+	const handleSubmit = async () => {
+		if (isSubmitting || isCreatePending || !croppedUrls[0]) return;
+		if (!isAuthenticated) return;
 		setSubmitting(true);
+		setSubmitError(null);
 		try {
-			addPost(croppedUrls[0], caption.trim());
+			const files = croppedUrls.map((url, index) =>
+				dataUrlToFile(url, `post-${index + 1}.jpg`),
+			);
+			await createPostMutate({ files, caption: caption.trim() });
 			handleClose();
-		} catch {
+		} catch (err) {
+			setSubmitError(
+				err instanceof ApiError
+					? err.message
+					: err instanceof Error
+						? err.message
+						: "게시물 업로드에 실패했습니다.",
+			);
 			setSubmitting(false);
 		}
 	};
@@ -250,9 +293,9 @@ export default function CreatePostModal({
 						<button
 							type="button"
 							onClick={handleSubmit}
-							disabled={isSubmitting}
+							disabled={isSubmitting || isCreatePending}
 							className="absolute right-4 text-[14px] font-semibold text-brand transition hover:brightness-90 disabled:opacity-50">
-							{isSubmitting ? "올리는 중..." : "게시물 올리기"}
+							{isSubmitting || isCreatePending ? "올리는 중..." : "게시물 올리기"}
 						</button>
 					)}
 				</div>
@@ -319,7 +362,10 @@ export default function CreatePostModal({
 								컴퓨터에서 선택
 							</ActionButton>
 							{/* TODO: 보관함 연동되면 보관함 선택 모달로 교체 */}
-							<ActionButton>보관함에서 선택</ActionButton>
+							<ActionButton
+								onClick={() => requireAuth(() => setArchiveOpen(true))}>
+								보관함에서 선택
+							</ActionButton>
 						</div>
 					</div>
 				)}
@@ -408,6 +454,9 @@ export default function CreatePostModal({
 									{caption.length}/{MAX_CAPTION_LENGTH}
 								</span>
 							</div>
+							{submitError && (
+								<p className="mt-2 text-[12px] text-brand">{submitError}</p>
+							)}
 						</div>
 					</div>
 				)}
@@ -421,6 +470,12 @@ export default function CreatePostModal({
 					onChange={handleFileChange}
 				/>
 			</div>
+
+			<ArchivePickerModal
+				isOpen={isArchiveOpen}
+				onClose={() => setArchiveOpen(false)}
+				onSelect={(item) => void addArchiveItem(item)}
+			/>
 		</div>,
 		document.body,
 	);

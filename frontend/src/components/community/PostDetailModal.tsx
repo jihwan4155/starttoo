@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
@@ -8,13 +8,22 @@ import {
 	HeartIcon,
 	MoreIcon,
 } from "./icons";
-import useCommunityStore from "../../store/useCommunityStore";
+import useCreateComment from "../../hooks/mutations/useCreateComment";
+import useDeletePost from "../../hooks/mutations/useDeletePost";
 import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
+import useHidePost from "../../hooks/mutations/useHidePost";
+import useToggleCommentLike from "../../hooks/mutations/useToggleCommentLike";
+import useTogglePostBookmark from "../../hooks/mutations/useTogglePostBookmark";
+import useTogglePostLike from "../../hooks/mutations/useTogglePostLike";
 import useCommentReplies from "../../hooks/queries/useCommentReplies";
 import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import usePostEngagement from "../../hooks/usePostEngagement";
+import useRequireAuth from "../../hooks/useRequireAuth";
+import useCommunityStore from "../../store/useCommunityStore";
 import DesignExtractResultModal from "./DesignExtractResultModal";
+import ReportPostModal from "./ReportPostModal";
 import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import { getPostImageUrls } from "../../utils/mapPost";
@@ -39,18 +48,29 @@ function ExtractIcon() {
 }
 
 function CommentRow({
+	postId,
 	comment,
 	isReply = false,
+	rootCommentId,
 	onNavigate,
 }: {
+	postId: number;
 	comment: PostComment;
 	isReply?: boolean;
+	/** 답글일 때 최상위 댓글 ID (좋아요 캐시 갱신용) */
+	rootCommentId?: number;
 	/** 프로필로 이동하기 전 모달을 닫기 위한 콜백 */
 	onNavigate?: () => void;
 }) {
 	const [repliesOpen, setRepliesOpen] = useState(false);
-	const isLiked = useCommunityStore((s) => !!s.commentLiked[comment.id]);
-	const toggleCommentLike = useCommunityStore((s) => s.toggleCommentLike);
+	const [replyDraftOpen, setReplyDraftOpen] = useState(false);
+	const [replyInput, setReplyInput] = useState("");
+	const [replyError, setReplyError] = useState<string | null>(null);
+	const { requireAuth } = useRequireAuth();
+	const { mutate: toggleCommentLike, isPending: isCommentLikePending } =
+		useToggleCommentLike();
+	const { mutate: createReply, isPending: isReplyPending } = useCreateComment();
+	const isLiked = !!comment.liked;
 	const { nickname, avatarUrl, profileTo } = useAuthorDisplay(comment.author);
 
 	const replyCount = comment.replyCount ?? 0;
@@ -64,6 +84,35 @@ function CommentRow({
 	});
 
 	const loadedReplies = repliesPage?.items ?? [];
+
+	const handleReplySubmit = (e: FormEvent) => {
+		e.preventDefault();
+		const content = replyInput.trim();
+		if (!content || isReplyPending) return;
+		if (!requireAuth()) return;
+		setReplyError(null);
+		createReply(
+			{
+				postId,
+				content,
+				parentCommentId: comment.id,
+			},
+			{
+				onSuccess: () => {
+					setReplyInput("");
+					setReplyDraftOpen(false);
+					setRepliesOpen(true);
+				},
+				onError: (err) => {
+					setReplyError(
+						err instanceof ApiError
+							? err.message
+							: "답글 작성에 실패했습니다.",
+					);
+				},
+			},
+		);
+	};
 
 	return (
 		<div className={isReply ? "mt-3 pl-10" : "mt-4"}>
@@ -90,9 +139,42 @@ function CommentRow({
 					</p>
 					<div className="mt-1 flex items-center gap-3 text-[11px] font-light text-black/40">
 						<span>{formatTimeAgo(comment.createdAt)}</span>
-						<span>좋아요 {comment.likeCount + (isLiked ? 1 : 0)}</span>
-						{!isReply && <button type="button">답글 달기</button>}
+						<span>좋아요 {comment.likeCount}</span>
+						{!isReply && (
+							<button
+								type="button"
+								onClick={() => {
+									if (!requireAuth()) return;
+									setReplyDraftOpen((open) => !open);
+									setRepliesOpen(true);
+								}}
+								className="transition hover:text-black/60">
+								답글 달기
+							</button>
+						)}
 					</div>
+					{!isReply && replyDraftOpen && (
+						<form
+							onSubmit={handleReplySubmit}
+							className="mt-2 flex items-center gap-2">
+							<input
+								value={replyInput}
+								onChange={(e) => setReplyInput(e.target.value)}
+								placeholder="답글 달기..."
+								maxLength={1000}
+								className="min-w-0 flex-1 rounded-full border border-black/15 px-3 py-1.5 text-[12px] font-light outline-none placeholder:text-black/35 focus:border-brand/50"
+							/>
+							<button
+								type="submit"
+								disabled={!replyInput.trim() || isReplyPending}
+								className="shrink-0 rounded-full bg-brand px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40">
+								{isReplyPending ? "..." : "게시"}
+							</button>
+						</form>
+					)}
+					{replyError && (
+						<p className="mt-1 text-[11px] text-brand">{replyError}</p>
+					)}
 					{!isReply && replyCount > 0 && (
 						<button
 							type="button"
@@ -120,8 +202,29 @@ function CommentRow({
 				<button
 					type="button"
 					aria-label="댓글 좋아요"
-					onClick={() => toggleCommentLike(comment.id)}
-					className={`mt-1 transition ${
+					disabled={isCommentLikePending}
+					onClick={() =>
+						requireAuth(() =>
+							toggleCommentLike(
+								{
+									postId,
+									commentId: comment.id,
+									liked: isLiked,
+									rootCommentId: isReply ? rootCommentId : undefined,
+								},
+								{
+									onError: (err) => {
+										window.alert(
+											err instanceof ApiError
+												? err.message
+												: "댓글 좋아요 처리에 실패했습니다.",
+										);
+									},
+								},
+							),
+						)
+					}
+					className={`mt-1 transition disabled:opacity-50 ${
 						isLiked ? "text-brand" : "text-black/40 hover:text-brand"
 					}`}>
 					<HeartIcon size={14} filled={isLiked} />
@@ -131,8 +234,10 @@ function CommentRow({
 				loadedReplies.map((reply) => (
 					<CommentRow
 						key={reply.id}
+						postId={postId}
 						comment={reply}
 						isReply
+						rootCommentId={comment.id}
 						onNavigate={onNavigate}
 					/>
 				))}
@@ -150,27 +255,30 @@ export default function PostDetailModal({
 	onClose,
 }: PostDetailModalProps) {
 	const [commentInput, setCommentInput] = useState("");
+	const [commentError, setCommentError] = useState<string | null>(null);
 	const [isMenuOpen, setMenuOpen] = useState(false);
+	const [isReportOpen, setReportOpen] = useState(false);
 	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
+	const { requireAuth } = useRequireAuth();
+	const markHidden = useCommunityStore((s) => s.markHidden);
+	const setLiked = useCommunityStore((s) => s.setLiked);
+	const setBookmarked = useCommunityStore((s) => s.setBookmarked);
 
-	// GET /posts/{id} — 목록 데이터보다 단건이 우선 (이미지·카운트 최신화)
 	const { data: detailPost } = usePost(seedPost?.id);
 	const post = detailPost ?? seedPost;
 
-	// 좋아요·북마크·작성 댓글은 피드와 동기화되도록 전역 스토어 사용
-	const isLiked = useCommunityStore((s) => !!post && !!s.liked[post.id]);
-	const isBookmarked = useCommunityStore(
-		(s) => !!post && !!s.bookmarked[post.id],
-	);
-	const myComments = useCommunityStore((s) =>
-		post ? (s.extraComments[post.id] ?? null) : null,
-	);
-	const toggleLike = useCommunityStore((s) => s.toggleLike);
-	const toggleBookmark = useCommunityStore((s) => s.toggleBookmark);
-	const addComment = useCommunityStore((s) => s.addComment);
-	const deletePost = useCommunityStore((s) => s.deletePost);
-	const hidePost = useCommunityStore((s) => s.hidePost);
+	const emptyPost: Post = {
+		id: 0,
+		author: { nickname: "", isArtist: false },
+		createdAt: "",
+		imageUrl: null,
+		caption: "",
+		likeCount: 0,
+		commentCount: 0,
+		comments: [],
+	};
+	const { isLiked, isBookmarked } = usePostEngagement(post ?? emptyPost);
 	// 훅 규칙상 early return 이전에 호출 (post 없을 때는 빈 작성자로 안전 처리)
 	const {
 		nickname: authorName,
@@ -178,6 +286,21 @@ export default function PostDetailModal({
 		profileTo: authorProfileTo,
 		isMine,
 	} = useAuthorDisplay(post?.author ?? { nickname: "", isArtist: false });
+
+	const { mutate: toggleLike, isPending: isLikePending } = useTogglePostLike();
+	const { mutate: toggleBookmark, isPending: isBookmarkPending } =
+		useTogglePostBookmark();
+	const { mutate: createCommentMutate, isPending: isCommentPending } =
+		useCreateComment();
+	const { mutate: deletePostMutate } = useDeletePost();
+	const { mutate: hidePostMutate } = useHidePost();
+
+	// 상세 GET /posts/{id}는 liked/bookmarked를 반환 → 로컬 스토어와 동기화
+	useEffect(() => {
+		if (!detailPost) return;
+		setLiked(detailPost.id, !!detailPost.liked);
+		setBookmarked(detailPost.id, !!detailPost.bookmarked);
+	}, [detailPost, setLiked, setBookmarked]);
 
 	// 메뉴 바깥을 클릭하면 닫기 (PostCard와 동일 패턴)
 	useEffect(() => {
@@ -195,17 +318,37 @@ export default function PostDetailModal({
 	const handleDelete = () => {
 		if (!post) return;
 		setMenuOpen(false);
+		if (!requireAuth()) return;
 		if (window.confirm("이 게시글을 삭제할까요?")) {
-			deletePost(post.id);
-			onClose();
+			deletePostMutate(post.id, {
+				onSuccess: () => onClose(),
+				onError: (err) => {
+					window.alert(
+						err instanceof ApiError ? err.message : "삭제에 실패했습니다.",
+					);
+				},
+			});
 		}
 	};
 
 	const handleBlock = () => {
 		if (!post) return;
 		setMenuOpen(false);
-		hidePost(post.id);
-		onClose();
+		if (!requireAuth()) return;
+		hidePostMutate(
+			{ postId: post.id, hidden: false },
+			{
+				onSuccess: () => {
+					markHidden(post.id);
+					onClose();
+				},
+				onError: (err) => {
+					window.alert(
+						err instanceof ApiError ? err.message : "숨김 처리에 실패했습니다.",
+					);
+				},
+			},
+		);
 	};
 	// 도안 추출: 성공 시 결과 모달 표시. TODO: 내 보관함 저장 연동
 	const {
@@ -374,10 +517,13 @@ export default function PostDetailModal({
 										</button>
 									) : (
 										<>
-											{/* TODO: 신고 API 연동 */}
 											<button
 												type="button"
-												onClick={() => setMenuOpen(false)}
+												onClick={() => {
+													setMenuOpen(false);
+													if (!requireAuth()) return;
+													setReportOpen(true);
+												}}
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
 												신고
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
@@ -440,8 +586,7 @@ export default function PostDetailModal({
 
 						{!isCommentsPending &&
 							!isCommentsError &&
-							apiComments.length === 0 &&
-							!(myComments && myComments.length > 0) && (
+							apiComments.length === 0 && (
 								<p className="mt-8 text-center text-[13px] text-black/40">
 									아직 댓글이 없습니다.
 								</p>
@@ -451,19 +596,11 @@ export default function PostDetailModal({
 							apiComments.map((comment) => (
 								<CommentRow
 									key={comment.id}
+									postId={post.id}
 									comment={comment}
 									onNavigate={onClose}
 								/>
 							))}
-
-						{/* 이 세션에서 작성한 댓글 (작성 API 연동 전 로컬) */}
-						{myComments?.map((comment) => (
-							<CommentRow
-								key={comment.id}
-								comment={comment}
-								onNavigate={onClose}
-							/>
-						))}
 					</div>
 
 					<div className="border-t border-black/10 px-5 py-3">
@@ -471,32 +608,76 @@ export default function PostDetailModal({
 							<button
 								type="button"
 								aria-label="좋아요"
-								onClick={() => toggleLike(post.id)}
-								className={`flex items-center gap-1.5 ${
+								disabled={isLikePending}
+								onClick={() =>
+									requireAuth(() =>
+										toggleLike(
+											{ postId: post.id, liked: isLiked },
+											{
+												onError: (err) => {
+													window.alert(
+														err instanceof ApiError
+															? err.message
+															: "좋아요 처리에 실패했습니다.",
+													);
+												},
+											},
+										),
+									)
+								}
+								className={`flex items-center gap-1.5 disabled:opacity-50 ${
 									isLiked ? "text-brand" : ""
 								}`}>
 								<HeartIcon filled={isLiked} />
 								<span className="text-[13px] font-light">
-									{post.likeCount + (isLiked ? 1 : 0)}
+									{post.likeCount}
 								</span>
 							</button>
 							<button
 								type="button"
 								aria-label="북마크"
-								onClick={() => toggleBookmark(post.id)}
-								className={`ml-auto ${isBookmarked ? "text-brand" : ""}`}>
+								disabled={isBookmarkPending}
+								onClick={() =>
+									requireAuth(() =>
+										toggleBookmark(
+											{ postId: post.id, bookmarked: isBookmarked },
+											{
+												onError: (err) => {
+													window.alert(
+														err instanceof ApiError
+															? err.message
+															: "북마크 처리에 실패했습니다.",
+													);
+												},
+											},
+										),
+									)
+								}
+								className={`ml-auto disabled:opacity-50 ${isBookmarked ? "text-brand" : ""}`}>
 								<BookmarkIcon filled={isBookmarked} />
 							</button>
 						</div>
-						{/* TODO: 댓글 작성 API 연동 (현재는 스토어에만 추가) */}
 						<form
 							className="mt-3 flex items-center gap-2 rounded-full border border-black/15 py-1 pl-4 pr-1"
 							onSubmit={(e) => {
 								e.preventDefault();
 								const content = commentInput.trim();
-								if (!content) return;
-								addComment(post.id, content);
-								setCommentInput("");
+								if (!content || isCommentPending) return;
+								if (!requireAuth()) return;
+								setCommentError(null);
+								createCommentMutate(
+									{ postId: post.id, content },
+									{
+										onSuccess: () => setCommentInput(""),
+										onError: (err) => {
+											setCommentError(
+												err instanceof ApiError
+													? err.message
+													: "댓글 작성에 실패했습니다.",
+											);
+										},
+									},
+								);
 							}}>
 							<input
 								value={commentInput}
@@ -506,11 +687,14 @@ export default function PostDetailModal({
 							/>
 							<button
 								type="submit"
-								disabled={!commentInput.trim()}
+								disabled={!commentInput.trim() || isCommentPending}
 								className="rounded-full bg-brand px-4 py-1.5 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:opacity-40">
-								게시
+								{isCommentPending ? "..." : "게시"}
 							</button>
 						</form>
+						{commentError && (
+							<p className="mt-2 text-[12px] text-brand">{commentError}</p>
+						)}
 					</div>
 				</div>
 			</div>
@@ -518,6 +702,11 @@ export default function PostDetailModal({
 			<DesignExtractResultModal
 				result={extractResult ?? null}
 				onClose={resetExtract}
+			/>
+			<ReportPostModal
+				postId={post.id}
+				isOpen={isReportOpen}
+				onClose={() => setReportOpen(false)}
 			/>
 		</div>,
 		document.body,

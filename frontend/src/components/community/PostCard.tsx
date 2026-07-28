@@ -8,8 +8,16 @@ import {
 	ShareIcon,
 } from "./icons";
 import ArtistBadge from "../common/ArtistBadge";
-import useCommunityStore from "../../store/useCommunityStore";
+import ReportPostModal from "./ReportPostModal";
+import useDeletePost from "../../hooks/mutations/useDeletePost";
+import useHidePost from "../../hooks/mutations/useHidePost";
+import useTogglePostBookmark from "../../hooks/mutations/useTogglePostBookmark";
+import useTogglePostLike from "../../hooks/mutations/useTogglePostLike";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import usePostEngagement from "../../hooks/usePostEngagement";
+import useRequireAuth from "../../hooks/useRequireAuth";
+import useCommunityStore from "../../store/useCommunityStore";
+import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post } from "../../types/community";
 
@@ -20,25 +28,25 @@ type PostCardProps = {
 
 export default function PostCard({ post, onOpen }: PostCardProps) {
 	const [isMenuOpen, setMenuOpen] = useState(false);
+	const [isReportOpen, setReportOpen] = useState(false);
 	const menuRef = useRef<HTMLDivElement>(null);
-	// 좋아요·북마크는 상세 모달과 동기화되도록 전역 스토어 사용
-	const isLiked = useCommunityStore((s) => !!s.liked[post.id]);
-	const isBookmarked = useCommunityStore((s) => !!s.bookmarked[post.id]);
-	const toggleLike = useCommunityStore((s) => s.toggleLike);
-	const toggleBookmark = useCommunityStore((s) => s.toggleBookmark);
-	const deletePost = useCommunityStore((s) => s.deletePost);
-	const isHidden = useCommunityStore((s) => !!s.hiddenIds[post.id]);
-	const hidePost = useCommunityStore((s) => s.hidePost);
-	const unhidePost = useCommunityStore((s) => s.unhidePost);
-	// 상세 모달에서 작성한 댓글 수를 피드 카운트에 반영
-	const myCommentCount = useCommunityStore(
-		(s) => s.extraComments[post.id]?.length ?? 0,
-	);
+	const { requireAuth } = useRequireAuth();
+
+	const markHidden = useCommunityStore((s) => s.markHidden);
+
+	const { mutate: toggleLike, isPending: isLikePending } = useTogglePostLike();
+	const { mutate: toggleBookmark, isPending: isBookmarkPending } =
+		useTogglePostBookmark();
+	const { mutate: deletePostMutate, isPending: isDeletePending } =
+		useDeletePost();
+	const { mutate: hidePostMutate, isPending: isHidePending } = useHidePost();
+
+	const { isLiked, isBookmarked } = usePostEngagement(post);
+
 	const { nickname, avatarUrl, profileTo, isMine } = useAuthorDisplay(
 		post.author,
 	);
 
-	// 메뉴 바깥(화면 다른 곳)을 클릭하면 닫기
 	useEffect(() => {
 		if (!isMenuOpen) return;
 		const handleClickOutside = (event: MouseEvent) => {
@@ -52,34 +60,41 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 
 	const handleDelete = () => {
 		setMenuOpen(false);
-		if (window.confirm("이 게시글을 삭제할까요?")) {
-			deletePost(post.id);
-		}
+		if (!requireAuth()) return;
+		if (!window.confirm("이 게시글을 삭제할까요?")) return;
+		deletePostMutate(post.id, {
+			onError: (err) => {
+				window.alert(
+					err instanceof ApiError ? err.message : "삭제에 실패했습니다.",
+				);
+			},
+		});
 	};
 
 	const handleBlock = () => {
 		setMenuOpen(false);
-		hidePost(post.id);
+		if (!requireAuth()) return;
+		hidePostMutate(
+			{ postId: post.id, hidden: false },
+			{
+				onSuccess: () => markHidden(post.id),
+				onError: (err) => {
+					window.alert(
+						err instanceof ApiError ? err.message : "숨김 처리에 실패했습니다.",
+					);
+				},
+			},
+		);
 	};
 
-	// 차단(숨김) 상태 — 게시글 대신 숨김 안내 + 실행취소 버튼 노출
-	if (isHidden) {
-		return (
-			<article className="flex w-full flex-col items-center gap-6 rounded-[16px] border border-black/10 bg-white px-6 py-14">
-				<p className="text-[17px] font-bold text-black">게시물 숨김</p>
-				<button
-					type="button"
-					onClick={() => unhidePost(post.id)}
-					className="w-full rounded-full border border-black/80 py-3.5 text-center text-[16px] font-bold text-black transition hover:bg-black/5">
-					실행취소
-				</button>
-			</article>
-		);
-	}
+	const handleReport = () => {
+		setMenuOpen(false);
+		if (!requireAuth()) return;
+		setReportOpen(true);
+	};
 
 	return (
 		<article className="w-full">
-			{/* 작성자 헤더 */}
 			<div className="flex items-center gap-3">
 				<Link to={profileTo} aria-label={`${nickname} 프로필`}>
 					<img
@@ -110,11 +125,11 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					{isMenuOpen && (
 						<div className="absolute right-0 top-9 z-20 w-max min-w-[160px] overflow-hidden rounded-[10px] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
 							{isMine ? (
-								// TODO: 게시물 삭제 API 연동
 								<button
 									type="button"
 									onClick={handleDelete}
-									className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
+									disabled={isDeletePending}
+									className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5 disabled:opacity-50">
 									삭제
 									<span className="mt-0.5 block text-[11px] font-light text-black/40">
 										이 게시글을 삭제합니다
@@ -122,10 +137,9 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 								</button>
 							) : (
 								<>
-									{/* TODO: 신고/차단 API 연동 */}
 									<button
 										type="button"
-										onClick={() => setMenuOpen(false)}
+										onClick={handleReport}
 										className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
 										신고
 										<span className="mt-0.5 block text-[11px] font-light text-black/40">
@@ -135,7 +149,8 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 									<button
 										type="button"
 										onClick={handleBlock}
-										className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
+										disabled={isHidePending}
+										className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5 disabled:opacity-50">
 										차단
 										<span className="mt-0.5 block text-[11px] font-light text-black/40">
 											이 사용자 게시글 숨기기
@@ -148,13 +163,11 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 				</div>
 			</div>
 
-			{/* 이미지 */}
 			<button
 				type="button"
 				onClick={() => onOpen(post)}
 				className="mt-3 block w-full overflow-hidden rounded-[10px]"
 				aria-label="게시글 상세 보기">
-				{/* 높이를 뷰포트에 연동해 첫 화면에서 다음 게시물 사진이 살짝 보이도록 */}
 				{post.imageUrl ? (
 					<img
 						src={post.imageUrl}
@@ -166,19 +179,32 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 				)}
 			</button>
 
-			{/* 액션 바 */}
 			<div className="mt-3 flex items-center gap-4 text-black">
 				<button
 					type="button"
 					aria-label="좋아요"
-					onClick={() => toggleLike(post.id)}
-					className={`flex items-center gap-1.5 transition ${
+					disabled={isLikePending}
+					onClick={() =>
+						requireAuth(() =>
+							toggleLike(
+								{ postId: post.id, liked: isLiked },
+								{
+									onError: (err) => {
+										window.alert(
+											err instanceof ApiError
+												? err.message
+												: "좋아요 처리에 실패했습니다.",
+										);
+									},
+								},
+							),
+						)
+					}
+					className={`flex items-center gap-1.5 transition disabled:opacity-50 ${
 						isLiked ? "text-brand" : "hover:text-black/60"
 					}`}>
 					<HeartIcon filled={isLiked} />
-					<span className="text-[13px] font-light">
-						{post.likeCount + (isLiked ? 1 : 0)}
-					</span>
+					<span className="text-[13px] font-light">{post.likeCount}</span>
 				</button>
 				<button
 					type="button"
@@ -186,9 +212,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					onClick={() => onOpen(post)}
 					className="flex items-center gap-1.5 transition hover:text-black/60">
 					<CommentIcon />
-					<span className="text-[13px] font-light">
-						{post.commentCount + myCommentCount}
-					</span>
+					<span className="text-[13px] font-light">{post.commentCount}</span>
 				</button>
 				<button
 					type="button"
@@ -199,21 +223,42 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 				<button
 					type="button"
 					aria-label="북마크"
-					onClick={() => toggleBookmark(post.id)}
-					className={`ml-auto transition ${
+					disabled={isBookmarkPending}
+					onClick={() =>
+						requireAuth(() =>
+							toggleBookmark(
+								{ postId: post.id, bookmarked: isBookmarked },
+								{
+									onError: (err) => {
+										window.alert(
+											err instanceof ApiError
+												? err.message
+												: "북마크 처리에 실패했습니다.",
+										);
+									},
+								},
+							),
+						)
+					}
+					className={`ml-auto transition disabled:opacity-50 ${
 						isBookmarked ? "text-brand" : "hover:text-black/60"
 					}`}>
 					<BookmarkIcon filled={isBookmarked} />
 				</button>
 			</div>
 
-			{/* 캡션 */}
 			<p className="mt-2 line-clamp-2 text-[13px] font-light leading-5 text-black">
 				<Link to={profileTo} className="mr-2 font-semibold hover:underline">
 					{nickname}
 				</Link>
 				{post.caption}
 			</p>
+
+			<ReportPostModal
+				postId={post.id}
+				isOpen={isReportOpen}
+				onClose={() => setReportOpen(false)}
+			/>
 		</article>
 	);
 }
