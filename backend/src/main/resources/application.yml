@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: backend
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/tattoo_platform?serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:ssafy}
+    password: ${DB_PASSWORD:ssafy}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  jackson:
+    time-zone: UTC
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  profile:
+    default-image-key: ${DEFAULT_PROFILE_IMAGE_KEY:system/profile/default-profile.webp}
+  test-auth:
+    enabled: ${TEST_AUTH_ENABLED:false}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:local-development-only-secret-key-must-be-changed-before-deployment}
+      issuer: ${JWT_ISSUER:starttoo}
+      access-token-seconds: ${JWT_ACCESS_TOKEN_SECONDS:1800}
+      signup-token-seconds: ${JWT_SIGNUP_TOKEN_SECONDS:600}
+      refresh-token-seconds: ${JWT_REFRESH_TOKEN_SECONDS:2592000}
+  oauth:
+    allowed-redirect-uris: ${OAUTH_ALLOWED_REDIRECT_URIS:http://localhost:3000/oauth/callback,http://localhost:8080/oauth/callback}
+    kakao:
+      client-id: ${KAKAO_CLIENT_ID:}
+      client-secret: ${KAKAO_CLIENT_SECRET:}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+  storage:
+    bucket: ${MINIO_BUCKET:starttoo-images}
+    presigned-upload-seconds: ${MINIO_UPLOAD_URL_SECONDS:600}
+    presigned-download-seconds: ${MINIO_DOWNLOAD_URL_SECONDS:3600}
+  ar:
+    session-seconds: ${AR_SESSION_SECONDS:300}
+    connected-session-seconds: ${AR_CONNECTED_SESSION_SECONDS:1800}
+    mobile-capture-base-url: ${AR_MOBILE_CAPTURE_BASE_URL:http://localhost:3000/ar/capture}

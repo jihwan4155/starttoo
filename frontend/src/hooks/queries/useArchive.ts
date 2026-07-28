@@ -1,11 +1,11 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { fetchArchive } from "../../services/archiveApi";
+import { getArchive } from "../../services/archiveApi";
 import useAuthStore from "../../store/useAuthStore";
-import type { FetchArchiveParams } from "../../types/archive";
+import type { ArchivePageQuery } from "../../types/archive";
 
 export const archiveQueryKey = ["archive"] as const;
 
-type ArchiveParams = Omit<FetchArchiveParams, "cursor">;
+type ArchiveParams = Omit<ArchivePageQuery, "cursor">;
 
 /** GET /archive */
 export default function useArchive(params?: ArchiveParams) {
@@ -17,7 +17,7 @@ export default function useArchive(params?: ArchiveParams) {
 		enabled: Boolean(accessToken),
 		initialPageParam: undefined as string | undefined,
 		queryFn: ({ pageParam }) =>
-			fetchArchive({ size, cursor: pageParam }),
+			getArchive({ size, cursor: pageParam }),
 		getNextPageParam: (lastPage) =>
 			lastPage.hasNext && lastPage.nextCursor
 				? lastPage.nextCursor
