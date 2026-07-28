@@ -7,13 +7,14 @@ export const recentSearchesQueryKey = ["users", "me", "recent-searches"] as cons
 /** GET /users/me/recent-searches */
 export default function useRecentSearches() {
 	const accessToken = useAuthStore((s) => s.accessToken);
+	const userId = useAuthStore((s) => s.user?.userId);
 
 	return useQuery({
-		queryKey: recentSearchesQueryKey,
+		queryKey: [...recentSearchesQueryKey, userId],
 		queryFn: async () => {
 			const data = await fetchRecentSearches();
 			return data.items;
 		},
-		enabled: Boolean(accessToken),
+		enabled: Boolean(accessToken && userId),
 	});
 }

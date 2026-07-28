@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import defaultProfileImage from "../assets/images/default-profile.png";
+import type { MeResponse } from "../types/user";
+import { apiGenderToUi } from "../utils/userGender";
 
 export type Gender = "male" | "female" | null;
 
@@ -9,27 +10,34 @@ type UserState = {
 	birthDate: string;
 	gender: Gender;
 	avatarUrl: string | null;
-	setProfile: (profile: {
-		nickname: string;
-		birthDate: string;
-		gender: Gender;
-		avatarUrl: string | null;
-	}) => void;
+	/** GET /users/me 응답으로 로컬 표시 상태 동기화 */
+	syncFromMe: (me: MeResponse) => void;
+	clearProfile: () => void;
+};
+
+const emptyProfile = {
+	nickname: "",
+	birthDate: "",
+	gender: null as Gender,
+	avatarUrl: null as string | null,
 };
 
 /**
- * 현재 로그인한 사용자(목업) 정보. 마이페이지·게시글 작성 등에서 공유된다.
- * TODO: 백엔드 연동 시 GET/PATCH /users/me 로 교체
+ * 로그인 사용자 표시용 프로필 캐시.
+ * 서버 원본은 GET /users/me — useSyncMeProfile이 store에 반영한다.
  */
 const useUserStore = create<UserState>()(
 	persist(
 		(set) => ({
-			// 최초 가입 시 기본 프로필 이미지 (TODO: 로그인 연동 시 실제 가입 플로우로 교체)
-			nickname: "스누피",
-			birthDate: "2001-05-27",
-			gender: "female",
-			avatarUrl: defaultProfileImage,
-			setProfile: (profile) => set(profile),
+			...emptyProfile,
+			syncFromMe: (me) =>
+				set({
+					nickname: me.nickname,
+					birthDate: me.birthDate ?? "",
+					gender: apiGenderToUi(me.gender),
+					avatarUrl: me.profileImageUrl,
+				}),
+			clearProfile: () => set(emptyProfile),
 		}),
 		{ name: "starttoo-user" },
 	),

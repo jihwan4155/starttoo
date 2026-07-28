@@ -4,6 +4,7 @@ import ArtistBadge from "../components/common/ArtistBadge";
 import UnfollowConfirmModal from "../components/common/UnfollowConfirmModal";
 import PostDetailModal from "../components/community/PostDetailModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
+import MyPageShopInfo from "../components/mypage/MyPageShopInfo";
 import PostThumbnailGrid from "../components/mypage/PostThumbnailGrid";
 import useToggleFollow from "../hooks/mutations/useToggleFollow";
 import useUserPosts from "../hooks/queries/useUserPosts";
@@ -127,11 +128,6 @@ export default function ProfilePage() {
 											팔로잉 {profile.followingCount.toLocaleString()}명
 										</span>
 									</div>
-									{profile.artist?.shopAddress && (
-										<p className="mt-1 truncate text-[13px] font-light text-black/45">
-											{profile.artist.shopAddress}
-										</p>
-									)}
 								</div>
 							</div>
 
@@ -149,6 +145,10 @@ export default function ProfilePage() {
 								</button>
 							)}
 						</div>
+
+						{isArtist && (
+							<MyPageShopInfo artist={profile.artist} />
+						)}
 
 						<div className="mt-8">
 							{isPostsPending && (

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { setAccessToken, setUnauthorizedHandler } from "../services/api";
 import useCommunityStore from "./useCommunityStore";
+import useUserStore from "./useUserStore";
 import {
 	logout as logoutRequest,
 	testLogin as testLoginRequest,
@@ -36,18 +37,24 @@ const useAuthStore = create<AuthState>()(
 			user: null,
 
 			setSession: ({ accessToken, refreshToken, user }) => {
+				const prevUserId = get().user?.userId;
 				setAccessToken(accessToken);
+				const nextUser = user ?? get().user;
 				set({
 					accessToken,
 					refreshToken: refreshToken ?? null,
-					user: user ?? get().user,
+					user: nextUser,
 				});
+				if (nextUser?.userId != null && nextUser.userId !== prevUserId) {
+					useCommunityStore.getState().clearAll();
+				}
 			},
 
 			clearSession: () => {
 				setAccessToken(null);
 				set({ accessToken: null, refreshToken: null, user: null });
-				useCommunityStore.getState().clearEngagement();
+				useCommunityStore.getState().clearAll();
+				useUserStore.getState().clearProfile();
 			},
 
 			logout: async () => {

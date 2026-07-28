@@ -9,6 +9,7 @@ import HomePage from "./pages/HomePage";
 import AiPage from "./pages/AiPage";
 import MyPage from "./pages/MyPage";
 import MyPageEditPage from "./pages/MyPageEditPage";
+import ArtistProfileEditPage from "./pages/ArtistProfileEditPage";
 import ProfilePage from "./pages/ProfilePage";
 import SimulationsPage from "./pages/SimulationsPage";
 import TattooistPage from "./pages/TattooistPage";
@@ -38,6 +39,11 @@ export default function App() {
 					<Route path="/mypage" element={<MyPage />} />
 					{/* API: PATCH /users/me */}
 					<Route path="/mypage/edit" element={<MyPageEditPage />} />
+					{/* API: PATCH /artists/me */}
+					<Route
+						path="/mypage/artist/edit"
+						element={<ArtistProfileEditPage />}
+					/>
 					{/* API: GET /users/{nickname} */}
 					<Route path="/profile/:userId" element={<ProfilePage />} />
 					<Route path="*" element={<Navigate to="/" replace />} />

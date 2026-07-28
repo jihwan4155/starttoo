@@ -52,3 +52,27 @@ export type FetchArtistsParams = {
 	cursor?: string;
 	size?: number;
 };
+
+/** PATCH /artists/me 요청 */
+export type UpdateArtistRequest = {
+	shopName?: string;
+	shopCity?: string;
+	shopAddress?: string;
+	shopPhone?: string;
+	businessHours?: string;
+};
+
+/** PATCH /artists/me 응답 */
+export type ArtistProfileResponse = {
+	userId: number;
+	shopName: string | null;
+	shopCity: string | null;
+	shopAddress: string | null;
+	shopPhone: string | null;
+	businessHours: string | null;
+	popularity: number | null;
+	approvalStatus: string | null;
+	rejectionReason: string | null;
+	approvedAt: string | null;
+	updatedAt: string;
+};

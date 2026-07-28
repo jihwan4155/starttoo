@@ -13,11 +13,12 @@ type MyPostsParams = {
 /** GET /users/me/posts */
 export default function useMyPosts(params?: MyPostsParams) {
 	const accessToken = useAuthStore((s) => s.accessToken);
+	const userId = useAuthStore((s) => s.user?.userId);
 	const { size = 20, status = "ALL" } = params ?? {};
 
 	return useInfiniteQuery({
-		queryKey: [...myPostsQueryKey, { size, status }],
-		enabled: Boolean(accessToken),
+		queryKey: [...myPostsQueryKey, userId, { size, status }],
+		enabled: Boolean(accessToken && userId),
 		initialPageParam: undefined as string | undefined,
 		queryFn: async ({ pageParam }) => {
 			const page = await fetchMyPosts({
