@@ -10,11 +10,12 @@ type ArchiveParams = Omit<ArchivePageQuery, "cursor">;
 /** GET /archive */
 export default function useArchive(params?: ArchiveParams) {
 	const accessToken = useAuthStore((s) => s.accessToken);
+	const userId = useAuthStore((s) => s.user?.userId);
 	const { size = 30 } = params ?? {};
 
 	return useInfiniteQuery({
-		queryKey: [...archiveQueryKey, { size }],
-		enabled: Boolean(accessToken),
+		queryKey: [...archiveQueryKey, userId, { size }],
+		enabled: Boolean(accessToken && userId),
 		initialPageParam: undefined as string | undefined,
 		queryFn: ({ pageParam }) =>
 			getArchive({ size, cursor: pageParam }),

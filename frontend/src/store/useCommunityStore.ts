@@ -15,6 +15,7 @@ type CommunityState = {
 	setLiked: (postId: number, liked: boolean) => void;
 	setBookmarked: (postId: number, bookmarked: boolean) => void;
 	clearEngagement: () => void;
+	clearAll: () => void;
 };
 
 const useCommunityStore = create<CommunityState>()(
@@ -42,6 +43,7 @@ const useCommunityStore = create<CommunityState>()(
 					bookmarked: { ...state.bookmarked, [postId]: bookmarked },
 				})),
 			clearEngagement: () => set({ liked: {}, bookmarked: {} }),
+			clearAll: () => set({ hiddenIds: {}, liked: {}, bookmarked: {} }),
 		}),
 		{
 			name: "starttoo-community",

@@ -11,11 +11,12 @@ type BookmarkedPostsParams = Omit<FetchPostsParams, "cursor">;
 /** GET /users/me/bookmarked-posts */
 export default function useBookmarkedPosts(params?: BookmarkedPostsParams) {
 	const accessToken = useAuthStore((s) => s.accessToken);
+	const userId = useAuthStore((s) => s.user?.userId);
 	const { size = 20 } = params ?? {};
 
 	return useInfiniteQuery({
-		queryKey: [...bookmarkedPostsQueryKey, { size }],
-		enabled: Boolean(accessToken),
+		queryKey: [...bookmarkedPostsQueryKey, userId, { size }],
+		enabled: Boolean(accessToken && userId),
 		initialPageParam: undefined as string | undefined,
 		queryFn: async ({ pageParam }) => {
 			const page = await fetchBookmarkedPosts({
