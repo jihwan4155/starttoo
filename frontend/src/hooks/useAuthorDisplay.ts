@@ -1,3 +1,4 @@
+import useAuthStore from "../store/useAuthStore";
 import useUserStore from "../store/useUserStore";
 import type { PostAuthor } from "../types/community";
 import {
@@ -8,21 +9,29 @@ import {
 
 /**
  * 작성자 표시 정보(닉네임·아바타·프로필 경로)를 해석한다.
- * 내가 작성한 콘텐츠(isMe)는 프로필 스토어를 실시간으로 따라가므로,
- * 프로필을 수정하면 이미 올린 글/댓글에도 즉시 반영된다.
- * profileTo: 프로필 이미지·이름 클릭 시 이동할 경로 (내 콘텐츠면 마이페이지).
+ * 로그인 사용자와 author.userId가 일치하면 내 콘텐츠로 처리한다.
  */
 export default function useAuthorDisplay(author: PostAuthor) {
+	const authUser = useAuthStore((s) => s.user);
 	const myNickname = useUserStore((s) => s.nickname);
 	const myAvatar = useUserStore((s) => s.avatarUrl);
 
-	// isMe 플래그(신규 콘텐츠) 또는 현재 닉네임과 동일(과거 콘텐츠)하면 내 것으로 간주
-	const isMine = author.isMe || author.nickname === myNickname;
+	const isMine =
+		(authUser != null &&
+			author.userId != null &&
+			authUser.userId === author.userId) ||
+		author.isMe ||
+		author.nickname === myNickname;
 
 	if (isMine) {
+		const nickname = authUser?.nickname ?? myNickname;
+		const avatarUrl =
+			authUser && "profileImageUrl" in authUser && authUser.profileImageUrl
+				? authUser.profileImageUrl
+				: myAvatar || DEFAULT_PROFILE_IMAGE;
 		return {
-			nickname: myNickname,
-			avatarUrl: myAvatar || DEFAULT_PROFILE_IMAGE,
+			nickname,
+			avatarUrl,
 			profileTo: "/mypage",
 			isMine: true,
 		};
@@ -30,7 +39,7 @@ export default function useAuthorDisplay(author: PostAuthor) {
 	return {
 		nickname: author.nickname,
 		avatarUrl: resolveAvatar(author.avatarUrl, author.nickname),
-		profileTo: profilePath(author.nickname),
+		profileTo: author.userId != null ? profilePath(author.userId) : "/posts",
 		isMine: false,
 	};
 }

@@ -1,4 +1,5 @@
 export type PostAuthor = {
+	userId?: number;
 	nickname: string;
 	isArtist: boolean;
 	/** 작성자 프로필 이미지 (없으면 닉네임 기반 해석 → 기본 프로필) */
@@ -14,6 +15,10 @@ export type PostComment = {
 	/** 작성 시각 (ISO 문자열) — 표시할 땐 formatTimeAgo로 변환 */
 	createdAt: string;
 	likeCount: number;
+	/** 로그인 사용자 기준 좋아요 여부 (API liked) */
+	liked?: boolean;
+	/** 최상위 댓글 ID (답글일 때만) */
+	parentCommentId?: number | null;
 	/** 최상위 댓글의 답글 수 (API replyCount) */
 	replyCount?: number;
 	replies?: PostComment[];
@@ -32,6 +37,10 @@ export type Post = {
 	caption: string;
 	likeCount: number;
 	commentCount: number;
+	/** 로그인 사용자 기준 좋아요·북마크·숨김 (API) */
+	liked?: boolean;
+	bookmarked?: boolean;
+	hidden?: boolean;
 	comments: PostComment[];
 };
 

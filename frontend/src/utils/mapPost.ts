@@ -14,6 +14,7 @@ export function mapPostResponse(dto: PostResponse): Post {
 	return {
 		id: dto.postId,
 		author: {
+			userId: dto.author.userId,
 			nickname: dto.author.nickname,
 			isArtist: dto.author.role === "ARTIST",
 			avatarUrl: dto.author.profileImageUrl,
@@ -24,6 +25,9 @@ export function mapPostResponse(dto: PostResponse): Post {
 		caption: dto.content ?? "",
 		likeCount: dto.likeCount,
 		commentCount: dto.commentCount,
+		liked: dto.liked,
+		bookmarked: dto.bookmarked,
+		hidden: dto.hidden,
 		comments: [],
 	};
 }
@@ -35,7 +39,9 @@ export function mapCommentResponse(
 ): PostComment {
 	return {
 		id: dto.commentId,
+		parentCommentId: dto.parentCommentId,
 		author: {
+			userId: dto.author.userId,
 			nickname: dto.author.nickname,
 			isArtist: false,
 			avatarUrl: dto.author.profileImageUrl,
@@ -43,6 +49,7 @@ export function mapCommentResponse(
 		content: dto.content,
 		createdAt: dto.createdAt,
 		likeCount: dto.likeCount,
+		liked: dto.liked,
 		replyCount: dto.replyCount,
 		replies: replies ?? [],
 	};

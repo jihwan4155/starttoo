@@ -1,0 +1,19 @@
+import { useQuery } from "@tanstack/react-query";
+import { fetchRecentSearches } from "../../services/userApi";
+import useAuthStore from "../../store/useAuthStore";
+
+export const recentSearchesQueryKey = ["users", "me", "recent-searches"] as const;
+
+/** GET /users/me/recent-searches */
+export default function useRecentSearches() {
+	const accessToken = useAuthStore((s) => s.accessToken);
+
+	return useQuery({
+		queryKey: recentSearchesQueryKey,
+		queryFn: async () => {
+			const data = await fetchRecentSearches();
+			return data.items;
+		},
+		enabled: Boolean(accessToken),
+	});
+}

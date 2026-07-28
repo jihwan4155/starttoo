@@ -1,14 +1,32 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
-import { MOCK_EXPLORE_POSTS } from "../mocks/community";
+import usePosts from "../hooks/queries/usePosts";
+import { ApiError } from "../services/api";
 import type { Post } from "../types/community";
+import { filterPostsByKeyword } from "../utils/filterPosts";
 
-/** 커뮤니티 탐색·검색 결과 그리드 — 시연용 목업 (TODO: GET /posts/search 연동) */
+/** 커뮤니티 탐색·검색 — GET /posts + 클라이언트 필터 (POST /posts/search 501 대체) */
 export default function CommunitySearchPage() {
 	const [searchParams] = useSearchParams();
 	const keyword = searchParams.get("q") ?? "";
 	const [activePost, setActivePost] = useState<Post | null>(null);
+
+	const { data, isPending, isError, error } = usePosts({ size: 50, sort: "LATEST" });
+
+	const allPosts = useMemo(
+		() => data?.pages.flatMap((page) => page.items) ?? [],
+		[data?.pages],
+	);
+	const results = useMemo(
+		() => filterPostsByKeyword(allPosts, keyword),
+		[allPosts, keyword],
+	);
+
+	const errorMessage =
+		error instanceof ApiError
+			? error.message
+			: "게시글을 불러오지 못했습니다.";
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-6">
@@ -18,12 +36,32 @@ export default function CommunitySearchPage() {
 						<span className="font-semibold text-black">
 							&ldquo;{keyword}&rdquo;
 						</span>{" "}
-						검색 결과
+						검색 결과 {results.length}건
+					</p>
+				)}
+
+				{isPending && (
+					<p className="py-20 text-center text-[14px] text-black/40">
+						불러오는 중…
+					</p>
+				)}
+
+				{isError && (
+					<p className="py-20 text-center text-[14px] text-black/60">
+						{errorMessage}
+					</p>
+				)}
+
+				{!isPending && !isError && results.length === 0 && (
+					<p className="py-20 text-center text-[14px] text-black/40">
+						{keyword
+							? "검색 결과가 없습니다."
+							: "키워드를 입력해 검색해 보세요."}
 					</p>
 				)}
 
 				<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-					{MOCK_EXPLORE_POSTS.map((post) => (
+					{results.map((post) => (
 						<button
 							key={post.id}
 							type="button"
@@ -42,7 +80,6 @@ export default function CommunitySearchPage() {
 				</div>
 			</div>
 
-			{/* key: 게시글이 바뀔 때 좋아요·입력 상태가 남지 않도록 리마운트 */}
 			<PostDetailModal
 				key={activePost?.id}
 				post={activePost}

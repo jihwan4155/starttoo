@@ -39,7 +39,7 @@ export default function App() {
 					{/* API: PATCH /users/me */}
 					<Route path="/mypage/edit" element={<MyPageEditPage />} />
 					{/* API: GET /users/{nickname} */}
-					<Route path="/profile/:nickname" element={<ProfilePage />} />
+					<Route path="/profile/:userId" element={<ProfilePage />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Route>
 			</Routes>

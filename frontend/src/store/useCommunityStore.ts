@@ -1,150 +1,57 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Post, PostComment } from "../types/community";
-import useUserStore from "./useUserStore";
 
 /**
- * 커뮤니티 좋아요·북마크·작성 댓글·작성 게시물 상태 (피드 ↔ 상세 모달 동기화)
- * persist로 localStorage에 저장되어 새로고침해도 유지된다.
- * TODO: 백엔드 연동 시 API 뮤테이션 + 쿼리 무효화로 교체
+ * 커뮤니티 UI 로컬 상태.
+ * - hiddenIds: 차단(숨김) 직후 UI
+ * - liked/bookmarked: GET /posts 피드는 liked 미반영 → mutation·상세 조회 결과를 persist
  */
 type CommunityState = {
+	hiddenIds: Record<number, boolean>;
 	liked: Record<number, boolean>;
 	bookmarked: Record<number, boolean>;
-	/** 댓글 좋아요 (댓글 id별) */
-	commentLiked: Record<number, boolean>;
-	/** 사용자가 이 세션에서 작성한 댓글 (게시글 id별) */
-	extraComments: Record<number, PostComment[]>;
-	/** 사용자가 이 세션에서 올린 게시물 (피드 맨 위에 노출) */
-	myPosts: Post[];
-	/** 삭제한 게시물 id (목업 게시물도 피드에서 숨기기 위해 사용) */
-	deletedIds: Record<number, boolean>;
-	/** 차단(숨김)한 게시물 id — 실행취소로 되돌릴 수 있음 */
-	hiddenIds: Record<number, boolean>;
-	toggleLike: (postId: number) => void;
-	toggleBookmark: (postId: number) => void;
-	toggleCommentLike: (commentId: number) => void;
-	addComment: (postId: number, content: string) => void;
-	addPost: (imageUrl: string, caption: string) => void;
-	deletePost: (postId: number) => void;
-	hidePost: (postId: number) => void;
-	unhidePost: (postId: number) => void;
+	markHidden: (postId: number) => void;
+	clearHidden: (postId: number) => void;
+	setLiked: (postId: number, liked: boolean) => void;
+	setBookmarked: (postId: number, bookmarked: boolean) => void;
+	clearEngagement: () => void;
 };
 
 const useCommunityStore = create<CommunityState>()(
 	persist(
 		(set) => ({
+			hiddenIds: {},
 			liked: {},
 			bookmarked: {},
-			commentLiked: {},
-			extraComments: {},
-			myPosts: [],
-			deletedIds: {},
-			hiddenIds: {},
-			toggleLike: (postId) =>
-				set((state) => ({
-					liked: { ...state.liked, [postId]: !state.liked[postId] },
-				})),
-			toggleBookmark: (postId) =>
-				set((state) => ({
-					bookmarked: {
-						...state.bookmarked,
-						[postId]: !state.bookmarked[postId],
-					},
-				})),
-			// TODO: 댓글 좋아요 API 연동
-			toggleCommentLike: (commentId) =>
-				set((state) => ({
-					commentLiked: {
-						...state.commentLiked,
-						[commentId]: !state.commentLiked[commentId],
-					},
-				})),
-			addComment: (postId, content) =>
-				set((state) => ({
-					extraComments: {
-						...state.extraComments,
-						[postId]: [
-							...(state.extraComments[postId] ?? []),
-							{
-								id: Date.now(),
-								author: {
-									nickname: useUserStore.getState().nickname,
-									isArtist: false,
-									avatarUrl: useUserStore.getState().avatarUrl,
-									isMe: true,
-								},
-								content,
-								createdAt: new Date().toISOString(),
-								likeCount: 0,
-							},
-						],
-					},
-				})),
-			// TODO: 게시물 작성 API(POST /posts) 연동
-			addPost: (imageUrl, caption) =>
-				set((state) => ({
-					myPosts: [
-						{
-							id: Date.now(),
-							author: {
-								nickname: useUserStore.getState().nickname,
-								isArtist: false,
-								avatarUrl: useUserStore.getState().avatarUrl,
-								isMe: true,
-							},
-							createdAt: new Date().toISOString(),
-							imageUrl,
-							imageUrls: [imageUrl],
-							caption,
-							likeCount: 0,
-							commentCount: 0,
-							comments: [],
-						},
-						...state.myPosts,
-					],
-				})),
-			// TODO: 게시물 삭제 API(DELETE /posts/:id) 연동
-			deletePost: (postId) =>
-				set((state) => ({
-					myPosts: state.myPosts.filter((post) => post.id !== postId),
-					deletedIds: { ...state.deletedIds, [postId]: true },
-				})),
-			// TODO: 차단 API 연동 — 우선 프론트에서 숨김 처리(실행취소 가능)
-			hidePost: (postId) =>
+			markHidden: (postId) =>
 				set((state) => ({
 					hiddenIds: { ...state.hiddenIds, [postId]: true },
 				})),
-			unhidePost: (postId) =>
+			clearHidden: (postId) =>
 				set((state) => {
 					const next = { ...state.hiddenIds };
 					delete next[postId];
 					return { hiddenIds: next };
 				}),
+			setLiked: (postId, liked) =>
+				set((state) => ({
+					liked: { ...state.liked, [postId]: liked },
+				})),
+			setBookmarked: (postId, bookmarked) =>
+				set((state) => ({
+					bookmarked: { ...state.bookmarked, [postId]: bookmarked },
+				})),
+			clearEngagement: () => set({ liked: {}, bookmarked: {} }),
 		}),
 		{
 			name: "starttoo-community",
-			version: 1,
-			// v0(timeAgo 문자열) → v1(createdAt ISO) 이관 — id가 Date.now()라 작성 시각으로 복원
+			version: 3,
 			migrate: (persisted) => {
-				const state = persisted as CommunityState;
-				const toCreatedAt = <T extends { id: number; createdAt?: string }>(
-					item: T,
-				) => ({
-					...item,
-					createdAt: item.createdAt ?? new Date(item.id).toISOString(),
-				});
+				const state = persisted as Partial<CommunityState>;
 				return {
-					...state,
-					deletedIds: state.deletedIds ?? {},
 					hiddenIds: state.hiddenIds ?? {},
-					commentLiked: state.commentLiked ?? {},
-					extraComments: Object.fromEntries(
-						Object.entries(state.extraComments ?? {}).map(
-							([postId, comments]) => [postId, comments.map(toCreatedAt)],
-						),
-					),
-					myPosts: (state.myPosts ?? []).map(toCreatedAt),
+					liked: state.liked ?? {},
+					bookmarked: state.bookmarked ?? {},
 				};
 			},
 		},

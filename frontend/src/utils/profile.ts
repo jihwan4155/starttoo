@@ -24,7 +24,12 @@ export function resolveAvatar(
 	);
 }
 
-/** 닉네임 → 상세 프로필 경로 (특수문자·한글 대응 위해 인코딩) */
-export function profilePath(nickname: string): string {
-	return `/profile/${encodeURIComponent(nickname)}`;
+/** userId → 상세 프로필 경로 (number). mock/DM 등 nickname만 있을 때는 문자열 전달 가능 */
+export function profilePath(userId: number): string;
+export function profilePath(nickname: string): string;
+export function profilePath(userIdOrNickname: number | string): string {
+	if (typeof userIdOrNickname === "number") {
+		return `/profile/${userIdOrNickname}`;
+	}
+	return `/profile/${encodeURIComponent(userIdOrNickname)}`;
 }
