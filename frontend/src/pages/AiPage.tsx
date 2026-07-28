@@ -6,6 +6,11 @@ import ResultSection from "../components/ai/ResultSection";
 import SaveConfirmModal from "../components/ai/SaveConfirmModal";
 import StyleInputForm from "../components/ai/StyleInputForm";
 import { MAX_REFERENCE_IMAGES } from "../components/ai/constants";
+import { saveToArchive } from "../services/archiveApi";
+
+// 데모 스탠드인: 시드에 존재하는 실제 AI 도안 tattooId (백엔드 저장 검증용)
+// TODO: AI 생성(POST /ai/generations) 연동 시 생성 응답의 tattooId로 교체
+const DEMO_TATTOO_IDS = [6, 9, 12];
 
 export default function AiPage() {
 	const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -14,7 +19,11 @@ export default function AiPage() {
 	const [hasGenerated, setHasGenerated] = useState(false);
 	const [inputOpen, setInputOpen] = useState(true);
 	const [resultOpen, setResultOpen] = useState(false);
-	const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+	const [generatedResults, setGeneratedResults] = useState<
+		{ imageUrl: string; tattooId: number }[]
+	>([]);
+	const [saving, setSaving] = useState(false);
+	const [saveError, setSaveError] = useState<string | null>(null);
 	const [selectedResultIndices, setSelectedResultIndices] = useState<number[]>(
 		[],
 	);
@@ -71,13 +80,43 @@ export default function AiPage() {
 		setHasGenerated(true);
 		setInputOpen(false);
 		setResultOpen(true);
-		setGeneratedImages([demoTattoo]);
+		setGeneratedResults([
+			{ imageUrl: demoTattoo, tattooId: DEMO_TATTOO_IDS[0] },
+		]);
 		setSelectedResultIndices([0]);
+		setSaveError(null);
 	}, [canGenerate]);
 
 	const handleGenerateMore = useCallback(() => {
-		setGeneratedImages((prev) => [...prev, demoTattoo]);
+		setGeneratedResults((prev) => [
+			...prev,
+			{
+				imageUrl: demoTattoo,
+				tattooId: DEMO_TATTOO_IDS[prev.length % DEMO_TATTOO_IDS.length],
+			},
+		]);
 	}, []);
+
+	const handleSave = useCallback(async () => {
+		const tattooIds = selectedResultIndices
+			.map((index) => generatedResults[index]?.tattooId)
+			.filter((id): id is number => typeof id === "number");
+		if (tattooIds.length === 0) {
+			return;
+		}
+		setSaving(true);
+		setSaveError(null);
+		try {
+			await Promise.all(tattooIds.map((id) => saveToArchive(id)));
+			setShowSaveModal(true);
+		} catch (err) {
+			setSaveError(
+				err instanceof Error ? err.message : "저장에 실패했습니다.",
+			);
+		} finally {
+			setSaving(false);
+		}
+	}, [selectedResultIndices, generatedResults]);
 
 	const inputForm = (
 		<StyleInputForm
@@ -116,12 +155,14 @@ export default function AiPage() {
 						isOpen={resultOpen}
 						onToggle={() => setResultOpen((prev) => !prev)}>
 						<ResultSection
-							generatedImages={generatedImages}
+							generatedImages={generatedResults.map((r) => r.imageUrl)}
 							selectedIndices={selectedResultIndices}
 							onToggleSelect={handleToggleResultSelect}
 							onZoom={setDetailImage}
 							onGenerateMore={handleGenerateMore}
-							onSave={() => setShowSaveModal(true)}
+							onSave={handleSave}
+							saving={saving}
+							saveError={saveError}
 						/>
 					</AccordionSection>
 				)}

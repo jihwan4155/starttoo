@@ -5,6 +5,8 @@ type ResultSectionProps = {
 	onZoom: (imageUrl: string) => void;
 	onGenerateMore: () => void;
 	onSave: () => void;
+	saving?: boolean;
+	saveError?: string | null;
 };
 
 function ZoomIcon() {
@@ -29,6 +31,8 @@ export default function ResultSection({
 	onZoom,
 	onGenerateMore,
 	onSave,
+	saving = false,
+	saveError = null,
 }: ResultSectionProps) {
 	return (
 		<div className="px-8 py-10">
@@ -82,10 +86,17 @@ export default function ResultSection({
 				<button
 					type="button"
 					onClick={onSave}
-					className="inline-flex h-[52px] min-w-[180px] items-center justify-center rounded-[50px] bg-brand px-6 text-[18px] font-semibold text-white transition hover:brightness-95">
-					도안 저장하기
+					disabled={saving || selectedIndices.length === 0}
+					className="inline-flex h-[52px] min-w-[180px] items-center justify-center rounded-[50px] bg-brand px-6 text-[18px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50">
+					{saving ? "저장 중…" : "도안 저장하기"}
 				</button>
 			</div>
+
+			{saveError && (
+				<p className="mt-4 text-center text-[14px] text-red-500">
+					{saveError}
+				</p>
+			)}
 		</div>
 	);
 }

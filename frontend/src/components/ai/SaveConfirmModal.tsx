@@ -42,11 +42,12 @@ export default function SaveConfirmModal({ onClose }: SaveConfirmModalProps) {
 				</p>
 
 				<div className="mt-10 flex items-center justify-center gap-4">
-					<button
-						type="button"
+					<Link
+						to="/mypage?tab=designs"
+						onClick={onClose}
 						className="inline-flex h-[52px] min-w-[140px] items-center justify-center rounded-[50px] border border-black bg-white px-6 text-[18px] font-semibold text-black transition hover:bg-gray-50">
 						보관함 가기
-					</button>
+					</Link>
 					<Link
 						to="/simulations"
 						onClick={onClose}
