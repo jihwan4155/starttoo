@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:backend;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+app:
+  profile:
+    default-image-key: system/profile/default-profile.webp
+  security:
+    jwt:
+      secret: local-test-only-secret-key-that-is-long-enough-for-hs256
+      issuer: starttoo-test
+      access-token-seconds: 1800
+      signup-token-seconds: 600
+      refresh-token-seconds: 2592000
+  oauth:
+    allowed-redirect-uris: http://localhost/oauth/callback
+    kakao:
+      client-id: test
+      client-secret: test
+    google:
+      client-id: test
+      client-secret: test
+  storage:
+    bucket: test
+    presigned-upload-seconds: 600
+    presigned-download-seconds: 3600
+  ar:
+    session-seconds: 300
+    connected-session-seconds: 1800
+    mobile-capture-base-url: http://localhost/ar/capture
