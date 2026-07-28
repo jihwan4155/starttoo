@@ -89,7 +89,7 @@ export default function TattooistPage() {
 							className="flex flex-col gap-4 rounded-[20px] bg-white p-6 shadow-sm">
 							<div className="flex items-center gap-4">
 								<Link
-									to={profilePath(artist.name)}
+									to={profilePath(artist.id)}
 									aria-label={`${artist.name} 프로필`}>
 									<img
 										src={resolveAvatar(artist.avatarUrl, artist.name)}
@@ -100,7 +100,7 @@ export default function TattooistPage() {
 								<div className="min-w-0 flex-1">
 									<p className="flex items-center gap-1.5">
 										<Link
-											to={profilePath(artist.name)}
+											to={profilePath(artist.id)}
 											className="truncate text-[16px] font-bold text-black hover:underline">
 											{artist.name}
 										</Link>
