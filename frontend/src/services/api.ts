@@ -1,4 +1,8 @@
-import axios, { type AxiosError, type AxiosInstance } from "axios";
+import axios, {
+	type AxiosError,
+	type AxiosInstance,
+	type InternalAxiosRequestConfig,
+} from "axios";
 
 export const API_BASE_URL: string =
 	import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/v1";
@@ -17,6 +21,10 @@ export class ApiError extends Error {
 	}
 }
 
+type AuthRetryConfig = InternalAxiosRequestConfig & {
+	_retryWithoutAuth?: boolean;
+};
+
 /** 공통 axios 인스턴스 — baseURL·JSON 헤더를 기본 설정 */
 export const api: AxiosInstance = axios.create({
 	baseURL: API_BASE_URL,
@@ -24,10 +32,15 @@ export const api: AxiosInstance = axios.create({
 });
 
 // 로그인 후 토큰을 주입할 수 있도록 모듈 레벨에 보관.
-// TODO: 인증 스토어에서 로그인/토큰 재발급 시 setAccessToken 호출
 let accessToken: string | null = null;
 export function setAccessToken(token: string | null): void {
 	accessToken = token;
+}
+
+/** 401(만료·무효 토큰) 시 세션 초기화 — useAuthStore에서 등록 */
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: () => void): void {
+	onUnauthorized = handler;
 }
 
 // 모든 요청에 Authorization 헤더 자동 첨부
@@ -41,7 +54,25 @@ api.interceptors.request.use((config) => {
 // 응답 에러를 기존 ApiError 형태로 통일 (호출부의 catch 로직 유지)
 api.interceptors.response.use(
 	(response) => response,
-	(error: AxiosError<{ status: number; code: string; message: string }>) => {
+	async (error: AxiosError<{ status: number; code: string; message: string }>) => {
+		const config = error.config as AuthRetryConfig | undefined;
+
+		// 공개 GET만 토큰 없이 재시도 (POST/PUT/PATCH/DELETE는 재시도해도 401)
+		if (
+			error.response?.status === 401 &&
+			accessToken &&
+			config &&
+			!config._retryWithoutAuth &&
+			(config.method?.toLowerCase() === "get" ||
+				config.method?.toLowerCase() === "head")
+		) {
+			setAccessToken(null);
+			onUnauthorized?.();
+			config._retryWithoutAuth = true;
+			delete config.headers.Authorization;
+			return api.request(config);
+		}
+
 		if (error.response) {
 			const body = error.response.data;
 			const code = body?.code ?? "UNKNOWN";
@@ -51,7 +82,6 @@ api.interceptors.response.use(
 				new ApiError(error.response.status, code, message),
 			);
 		}
-		// 응답 자체가 없는 경우(네트워크 오류·타임아웃 등)
 		return Promise.reject(
 			new ApiError(0, "NETWORK", "서버에 연결할 수 없습니다."),
 		);

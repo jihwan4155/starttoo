@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { setAccessToken } from "../services/api";
+import { setAccessToken, setUnauthorizedHandler } from "../services/api";
+import useCommunityStore from "./useCommunityStore";
 import {
 	logout as logoutRequest,
 	testLogin as testLoginRequest,
@@ -46,6 +47,7 @@ const useAuthStore = create<AuthState>()(
 			clearSession: () => {
 				setAccessToken(null);
 				set({ accessToken: null, refreshToken: null, user: null });
+				useCommunityStore.getState().clearEngagement();
 			},
 
 			logout: async () => {
@@ -83,5 +85,9 @@ const useAuthStore = create<AuthState>()(
 		},
 	),
 );
+
+setUnauthorizedHandler(() => {
+	useAuthStore.getState().clearSession();
+});
 
 export default useAuthStore;
