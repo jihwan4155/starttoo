@@ -275,9 +275,11 @@ export default function TopNav() {
 						to="/mypage"
 						aria-label="마이페이지"
 						className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
-						{avatarUrl && (
-							<img src={avatarUrl} alt="" className="size-full object-cover" />
-						)}
+						<img
+							src={resolveAvatar(avatarUrl)}
+							alt=""
+							className="size-full object-cover"
+						/>
 					</Link>
 				</div>
 			</div>

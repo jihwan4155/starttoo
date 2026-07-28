@@ -1,11 +1,44 @@
 import { api } from "./api";
 import type {
 	FollowResponse,
+	MeResponse,
+	ProfileImageRequest,
+	ProfileImageResponse,
 	PublicProfileResponse,
 	RecentSearchItem,
 	RecentSearchListResponse,
 	RecentSearchRequest,
+	UpdateMeRequest,
+	UpdateMeResponse,
 } from "../types/user";
+
+/** GET /users/me */
+export async function fetchMe(): Promise<MeResponse> {
+	const { data } = await api.get<MeResponse>("/users/me");
+	return data;
+}
+
+/** PATCH /users/me */
+export async function updateMe(body: UpdateMeRequest): Promise<UpdateMeResponse> {
+	const { data } = await api.patch<UpdateMeResponse>("/users/me", body);
+	return data;
+}
+
+/** PUT /users/me/profile-image */
+export async function updateProfileImage(
+	body: ProfileImageRequest,
+): Promise<ProfileImageResponse> {
+	const { data } = await api.put<ProfileImageResponse>(
+		"/users/me/profile-image",
+		body,
+	);
+	return data;
+}
+
+/** DELETE /users/me/profile-image */
+export async function removeProfileImage(): Promise<void> {
+	await api.delete("/users/me/profile-image");
+}
 
 /** GET /users/{userId} */
 export async function fetchUserProfile(
