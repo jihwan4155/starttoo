@@ -13,6 +13,7 @@ import ArtistProfileEditPage from "./pages/ArtistProfileEditPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import SimulationsPage from "./pages/SimulationsPage";
+import ArJoinPage from "./pages/ArJoinPage";
 import TattooistPage from "./pages/TattooistPage";
 
 export default function App() {
@@ -20,6 +21,8 @@ export default function App() {
 		<BrowserRouter>
 			<ScrollToTop />
 			<Routes>
+				{/* 폰이 QR로 진입하는 AR 화면 — 앱 셸 없이 풀스크린 */}
+				<Route path="/simulations/ar/:sessionId" element={<ArJoinPage />} />
 				<Route element={<MainLayout />}>
 					<Route path="/" element={<HomePage />} />
 					{/* API: POST /ai/generations */}
