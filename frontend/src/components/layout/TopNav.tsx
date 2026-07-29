@@ -1,28 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
 import topnavGrain from "../../assets/images/topnav-grain.png";
 import ArtistSearchBar from "../artist/ArtistSearchBar";
 import CommunitySearchBar from "../community/CommunitySearchBar";
+import NotificationListItem from "../notifications/NotificationListItem";
+import SystemNotificationModal from "../notifications/SystemNotificationModal";
+import useNotificationPreview from "../../hooks/queries/useNotificationPreview";
+import {
+	useMarkAllNotificationsRead,
+} from "../../hooks/mutations/useMarkNotificationsRead";
+import useNotificationAction from "../../hooks/useNotificationAction";
 import useUserStore from "../../store/useUserStore";
-import useDmStore from "../../store/useDmStore";
+import useAuthStore from "../../store/useAuthStore";
 import useNotificationStore from "../../store/useNotificationStore";
-import { useServerNotifications } from "../../hooks/useServerNotifications";
+import useDmStore from "../../store/useDmStore";
+import type { NotificationItem } from "../../types/notification";
 import { resolveAvatar } from "../../utils/profile";
-
-/** ISO 시각을 알림 목록용 짧은 표기로 변환 (오늘이면 HH:MM, 아니면 M/D) */
-function formatNotifTime(iso: string): string {
-	const d = new Date(iso);
-	if (Number.isNaN(d.getTime())) return "";
-	const now = new Date();
-	const sameDay =
-		d.getFullYear() === now.getFullYear() &&
-		d.getMonth() === now.getMonth() &&
-		d.getDate() === now.getDate();
-	return sameDay
-		? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-		: `${d.getMonth() + 1}/${d.getDate()}`;
-}
 
 function BellIcon() {
 	return (
@@ -56,18 +50,26 @@ function SettingIcon() {
 function NotificationBell() {
 	const navigate = useNavigate();
 	const [open, setOpen] = useState(false);
+	const [systemModalItem, setSystemModalItem] =
+		useState<NotificationItem | null>(null);
 	const wrapRef = useRef<HTMLDivElement>(null);
+	const accessToken = useAuthStore((s) => s.accessToken);
 	const notifications = useNotificationStore((s) => s.notifications);
-	const markAllRead = useNotificationStore((s) => s.markAllRead);
+	const markAllReadMock = useNotificationStore((s) => s.markAllRead);
 	const openRoom = useDmStore((s) => s.openRoom);
 
-	// 로그인 상태면 서버 알림(API), 아니면 목업 스토어로 폴백
-	const server = useServerNotifications();
-	const mockUnread = notifications.filter((n) => !n.read).length;
-	// 뱃지: 메시지 기준 unreadCount(21) · 목록: 묶음 행(items, 6줄)
-	const unreadCount = server.enabled ? server.unreadCount : mockUnread;
+	const { data: preview, isLoading, error } = useNotificationPreview();
+	const { mutate: markAllRead } = useMarkAllNotificationsRead();
+	const handleServerNotification = useNotificationAction({
+		onSystemOpen: (item) => setSystemModalItem(item),
+	});
 
-	// 바깥 클릭 / ESC 시 닫기
+	const serverEnabled = Boolean(accessToken);
+	const serverItems = preview?.items ?? [];
+	const serverUnreadCount = preview?.unreadCount ?? 0;
+	const mockUnread = notifications.filter((n) => !n.read).length;
+	const unreadCount = serverEnabled ? serverUnreadCount : mockUnread;
+
 	useEffect(() => {
 		if (!open) return undefined;
 		const onDown = (e: MouseEvent) => {
@@ -84,33 +86,35 @@ function NotificationBell() {
 		};
 	}, [open]);
 
-	const handleClickNotification = (roomId: number) => {
-		openRoom(roomId); // 방 열기 + 읽음 처리 + 관련 알림 읽음
-		setOpen(false);
-		navigate("/dm");
-	};
-
-	// 서버 알림 클릭: NEW_DM은 해당 방으로 이동, 그 외는 읽음 처리만
-	const handleClickServerNotification = (
-		notificationId: number,
-		type: string,
-		referenceId: number | null,
-	) => {
-		void server.markOne(notificationId);
-		setOpen(false);
-		if (type === "NEW_DM" && referenceId != null) {
-			openRoom(referenceId);
+	const handleClickMockNotification = useCallback(
+		(roomId: number) => {
+			openRoom(roomId);
+			setOpen(false);
 			navigate("/dm");
-		}
-	};
+		},
+		[navigate, openRoom],
+	);
+
+	const handleClickServerNotification = useCallback(
+		async (item: NotificationItem) => {
+			setOpen(false);
+			await handleServerNotification(item);
+		},
+		[handleServerNotification],
+	);
 
 	const handleMarkAll = () => {
-		if (server.enabled) void server.markAll();
-		else markAllRead();
+		if (serverEnabled) markAllRead({ items: serverItems });
+		else markAllReadMock();
 	};
 
 	return (
 		<div ref={wrapRef} className="relative">
+			<SystemNotificationModal
+				item={systemModalItem}
+				isOpen={systemModalItem != null}
+				onClose={() => setSystemModalItem(null)}
+			/>
 			<button
 				type="button"
 				aria-label="알림"
@@ -119,7 +123,7 @@ function NotificationBell() {
 				<BellIcon />
 				{unreadCount > 0 && (
 					<span className="absolute -right-1.5 -top-1.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-brand px-1 text-[9px] font-semibold leading-none text-white">
-						{unreadCount}
+						{unreadCount > 99 ? "99+" : unreadCount}
 					</span>
 				)}
 			</button>
@@ -137,56 +141,28 @@ function NotificationBell() {
 							</button>
 						)}
 					</div>
+
 					<ul className="max-h-[380px] overflow-y-auto">
-						{server.enabled ? (
-								server.items.length === 0 ? (
-									<li className="px-4 py-8 text-center text-[13px] font-light text-black/40">
-										{server.loading
-											? "불러오는 중…"
-											: (server.error ?? "새로운 알림이 없어요.")}
-									</li>
-								) : (
-									server.items.map((sn) => (
-										<li key={sn.notificationId}>
-											<button
-												type="button"
-												onClick={() =>
-													handleClickServerNotification(
-														sn.notificationId,
-														sn.notificationType,
-														sn.referenceId,
-													)
-												}
-												className="flex w-full items-start gap-3 bg-brand/[0.06] px-4 py-3 text-left transition hover:bg-black/[0.03]">
-												<img
-													src={resolveAvatar(undefined, sn.title)}
-													alt=""
-													className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
-												/>
-												<span className="min-w-0 flex-1">
-													<span className="flex items-center gap-1.5">
-														<span className="truncate text-[13px] font-semibold text-black">
-															{sn.title}
-														</span>
-														{sn.count > 1 && (
-															<span className="shrink-0 rounded-full bg-brand/10 px-1.5 text-[10px] font-semibold text-brand">
-																{sn.count}
-															</span>
-														)}
-														<span className="shrink-0 text-[10px] font-light text-black/35">
-															{formatNotifTime(sn.createdAt)}
-														</span>
-														<span className="ml-auto size-[7px] shrink-0 rounded-full bg-brand" />
-													</span>
-													<span className="mt-0.5 block truncate text-[12px] font-light text-black/55">
-														{sn.body}
-													</span>
-												</span>
-											</button>
-										</li>
-									))
-								)
-							) : notifications.length === 0 ? (
+						{serverEnabled ? (
+							serverItems.length === 0 ? (
+								<li className="px-4 py-8 text-center text-[13px] font-light text-black/40">
+									{isLoading
+										? "불러오는 중…"
+										: (error?.message ?? "새로운 알림이 없어요.")}
+								</li>
+							) : (
+								serverItems.map((item) => (
+									<NotificationListItem
+										key={item.notificationId}
+										item={item}
+										compact
+										onClick={(target) =>
+											void handleClickServerNotification(target)
+										}
+									/>
+								))
+							)
+						) : notifications.length === 0 ? (
 							<li className="px-4 py-8 text-center text-[13px] font-light text-black/40">
 								새로운 알림이 없어요.
 							</li>
@@ -195,15 +171,15 @@ function NotificationBell() {
 								<li key={n.id}>
 									<button
 										type="button"
-										onClick={() => handleClickNotification(n.roomId)}
+										onClick={() => handleClickMockNotification(n.roomId)}
 										className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-black/[0.03] ${
 											n.read ? "" : "bg-brand/[0.06]"
 										}`}>
 										<img
-										src={resolveAvatar(undefined, n.title)}
-										alt=""
-										className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
-									/>
+											src={resolveAvatar(undefined, n.title)}
+											alt=""
+											className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+										/>
 										<span className="min-w-0 flex-1">
 											<span className="flex items-center gap-1.5">
 												<span className="truncate text-[13px] font-semibold text-black">
@@ -225,6 +201,17 @@ function NotificationBell() {
 							))
 						)}
 					</ul>
+
+					{serverEnabled && (
+						<div className="border-t border-black/10 px-4 py-3 text-center">
+							<Link
+								to="/notifications"
+								onClick={() => setOpen(false)}
+								className="text-[13px] font-semibold text-brand transition hover:underline">
+								알림 전체 보기
+							</Link>
+						</div>
+					)}
 				</div>
 			)}
 		</div>
@@ -233,7 +220,6 @@ function NotificationBell() {
 
 export default function TopNav() {
 	const { pathname } = useLocation();
-	// 피드 검색·타투이스트 페이지에서만 상단 검색 바 노출
 	const showSearch = pathname.startsWith("/posts/search");
 	const showArtistSearch = pathname.startsWith("/artists");
 	const avatarUrl = useUserStore((s) => s.avatarUrl);
@@ -245,7 +231,6 @@ export default function TopNav() {
 				background: `url(${topnavGrain}) center / 100% 100% no-repeat, linear-gradient(90.22deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 80, 38, 0.7) 100.62%), #FFFFFF`,
 			}}>
 			<div className="relative z-10 flex h-full items-center justify-between pl-[12px] pr-7">
-				{/* 검색 드롭다운이 잘리지 않도록 header 대신 로고에서만 클리핑 */}
 				<Link
 					to="/"
 					className="flex h-[60px] items-center overflow-hidden"
