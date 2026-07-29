@@ -1,26 +1,134 @@
-version: '3.8'
-
 services:
-  # 1. 백엔드
   backend:
     build: ./backend
-    container_name: test_backend
+    container_name: starttoo-backend
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-local-development-only-secret-key-must-be-changed-before-deployment}
+      DB_URL: jdbc:postgresql://postgres:5432/tattoo_platform
+      DB_USERNAME: ${DB_USERNAME:-ssafy}
+      DB_PASSWORD: ${DB_PASSWORD:-ssafy}
+      # 실제 ERD 스키마가 아직 없어서 엔티티 기준으로 테이블을 자동 생성하게 함.
+      # 진짜 스키마(database/*.sql)가 postgres용으로 준비되면 validate로 되돌리고 이 줄은 지운다.
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/v1/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    # 개발 중 직접 접근용. 운영에서는 nginx만 외부 노출하고 이 매핑은 제거해도 된다.
     ports:
       - "8080:8080"
-    restart: always
 
-  # 2. 프론트엔드
   frontend:
     build: ./frontend
-    container_name: test_frontend
-    ports:
-      - "3000:3000"
-    restart: always
+    container_name: starttoo-frontend
+    restart: unless-stopped
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # 3. AI 
   ai:
     build: ./ai
-    container_name: test_ai
+    container_name: starttoo-ai
+    restart: unless-stopped
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: starttoo-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: starttoo-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-starttoo}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required, set it in .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - starttoo-net
+    # 관리 UI, 개발 중에만 필요하면 유지
     ports:
-      - "8000:8000"
-    restart: always
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: starttoo-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx/reverse-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    # 8989는 Gerrit이 이미 쓰고 있어서 못 씀. 지금은 서버 내부 검증용으로만 8080에 매핑.
+    # 실제 외부 공개는 443 + TLS 인증서 준비된 뒤 별도로 정리한다.
+    ports:
+      - "8081:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+    networks:
+      - starttoo-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: starttoo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tattoo_platform
+      POSTGRES_USER: ${DB_USERNAME:-ssafy}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ssafy}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ssafy} -d tattoo_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  starttoo-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  rabbitmq-data:
+  postgres-data:
