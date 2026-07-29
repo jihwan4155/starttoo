@@ -9,6 +9,7 @@ import {
 	MoreIcon,
 } from "./icons";
 import useCreateComment from "../../hooks/mutations/useCreateComment";
+import useDeleteComment from "../../hooks/mutations/useDeleteComment";
 import useDeletePost from "../../hooks/mutations/useDeletePost";
 import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
 import useHidePost from "../../hooks/mutations/useHidePost";
@@ -24,6 +25,9 @@ import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
 import DesignExtractResultModal from "./DesignExtractResultModal";
 import ReportPostModal from "./ReportPostModal";
+import EditPostModal from "./EditPostModal";
+import DeletePostModal from "./DeletePostModal";
+import DeleteCommentModal from "./DeleteCommentModal";
 import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import { getPostImageUrls } from "../../utils/mapPost";
@@ -66,12 +70,19 @@ function CommentRow({
 	const [replyDraftOpen, setReplyDraftOpen] = useState(false);
 	const [replyInput, setReplyInput] = useState("");
 	const [replyError, setReplyError] = useState<string | null>(null);
+	const [isCommentMenuOpen, setCommentMenuOpen] = useState(false);
+	const [isDeleteCommentOpen, setDeleteCommentOpen] = useState(false);
+	const commentMenuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
 	const { mutate: toggleCommentLike, isPending: isCommentLikePending } =
 		useToggleCommentLike();
 	const { mutate: createReply, isPending: isReplyPending } = useCreateComment();
+	const { mutate: deleteCommentMutate, isPending: isDeleteCommentPending } =
+		useDeleteComment();
 	const isLiked = !!comment.liked;
-	const { nickname, avatarUrl, profileTo } = useAuthorDisplay(comment.author);
+	const { nickname, avatarUrl, profileTo, isMine } = useAuthorDisplay(
+		comment.author,
+	);
 
 	const replyCount = comment.replyCount ?? 0;
 	const {
@@ -84,6 +95,46 @@ function CommentRow({
 	});
 
 	const loadedReplies = repliesPage?.items ?? [];
+
+	useEffect(() => {
+		if (!isCommentMenuOpen) return;
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				commentMenuRef.current &&
+				!commentMenuRef.current.contains(event.target as Node)
+			) {
+				setCommentMenuOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, [isCommentMenuOpen]);
+
+	const handleDeleteComment = () => {
+		setCommentMenuOpen(false);
+		setDeleteCommentOpen(true);
+	};
+
+	const confirmDeleteComment = () => {
+		if (!requireAuth()) return;
+		deleteCommentMutate(
+			{
+				postId,
+				commentId: comment.id,
+				rootCommentId: isReply ? rootCommentId : undefined,
+			},
+			{
+				onSuccess: () => setDeleteCommentOpen(false),
+				onError: (err) => {
+					window.alert(
+						err instanceof ApiError
+							? err.message
+							: "댓글 삭제에 실패했습니다.",
+					);
+				},
+			},
+		);
+	};
 
 	const handleReplySubmit = (e: FormEvent) => {
 		e.preventDefault();
@@ -115,7 +166,7 @@ function CommentRow({
 	};
 
 	return (
-		<div className={isReply ? "mt-3 pl-10" : "mt-4"}>
+		<div className={`group/comment ${isReply ? "mt-3 pl-10" : "mt-4"}`}>
 			<div className="flex items-start gap-2.5">
 				<Link
 					to={profileTo}
@@ -199,36 +250,62 @@ function CommentRow({
 						</button>
 					)}
 				</div>
-				<button
-					type="button"
-					aria-label="댓글 좋아요"
-					disabled={isCommentLikePending}
-					onClick={() =>
-						requireAuth(() =>
-							toggleCommentLike(
-								{
-									postId,
-									commentId: comment.id,
-									liked: isLiked,
-									rootCommentId: isReply ? rootCommentId : undefined,
-								},
-								{
-									onError: (err) => {
-										window.alert(
-											err instanceof ApiError
-												? err.message
-												: "댓글 좋아요 처리에 실패했습니다.",
-										);
+				<div className="flex shrink-0 flex-col items-center gap-1">
+					<button
+						type="button"
+						aria-label="댓글 좋아요"
+						disabled={isCommentLikePending}
+						onClick={() =>
+							requireAuth(() =>
+								toggleCommentLike(
+									{
+										postId,
+										commentId: comment.id,
+										liked: isLiked,
+										rootCommentId: isReply ? rootCommentId : undefined,
 									},
-								},
-							),
-						)
-					}
-					className={`mt-1 transition disabled:opacity-50 ${
-						isLiked ? "text-brand" : "text-black/40 hover:text-brand"
-					}`}>
-					<HeartIcon size={14} filled={isLiked} />
-				</button>
+									{
+										onError: (err) => {
+											window.alert(
+												err instanceof ApiError
+													? err.message
+													: "댓글 좋아요 처리에 실패했습니다.",
+											);
+										},
+									},
+								),
+							)
+						}
+						className={`transition disabled:opacity-50 ${
+							isLiked ? "text-brand" : "text-black/40 hover:text-brand"
+						}`}>
+						<HeartIcon size={14} filled={isLiked} />
+					</button>
+					{isMine && (
+						<div className="relative" ref={commentMenuRef}>
+							<button
+								type="button"
+								aria-label="댓글 메뉴"
+								onClick={() => setCommentMenuOpen((open) => !open)}
+								className="flex size-6 items-center justify-center rounded-full text-black/35 opacity-70 transition hover:bg-black/5 hover:text-black/60 group-hover/comment:opacity-100">
+								<MoreIcon size={14} />
+							</button>
+							{isCommentMenuOpen && (
+								<div className="absolute right-0 top-7 z-30 w-max min-w-[140px] overflow-hidden rounded-[10px] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+									<button
+										type="button"
+										onClick={handleDeleteComment}
+										className="block w-full px-4 py-2.5 text-left text-[12px] text-brand transition hover:bg-black/5">
+										삭제
+										<span className="mt-0.5 block text-[10px] font-light text-black/40">
+											댓글을 삭제합니다
+										</span>
+									</button>
+								</div>
+							)}
+						</div>
+					)}
+				</div>
 			</div>
 			{repliesOpen &&
 				loadedReplies.map((reply) => (
@@ -241,6 +318,13 @@ function CommentRow({
 						onNavigate={onNavigate}
 					/>
 				))}
+			<DeleteCommentModal
+				isOpen={isDeleteCommentOpen}
+				content={comment.content}
+				onClose={() => setDeleteCommentOpen(false)}
+				onConfirm={confirmDeleteComment}
+				isPending={isDeleteCommentPending}
+			/>
 		</div>
 	);
 }
@@ -258,10 +342,11 @@ export default function PostDetailModal({
 	const [commentError, setCommentError] = useState<string | null>(null);
 	const [isMenuOpen, setMenuOpen] = useState(false);
 	const [isReportOpen, setReportOpen] = useState(false);
+	const [isEditOpen, setEditOpen] = useState(false);
+	const [isDeleteOpen, setDeleteOpen] = useState(false);
 	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
-	const markHidden = useCommunityStore((s) => s.markHidden);
 	const setLiked = useCommunityStore((s) => s.setLiked);
 	const setBookmarked = useCommunityStore((s) => s.setBookmarked);
 
@@ -292,7 +377,7 @@ export default function PostDetailModal({
 		useTogglePostBookmark();
 	const { mutate: createCommentMutate, isPending: isCommentPending } =
 		useCreateComment();
-	const { mutate: deletePostMutate } = useDeletePost();
+	const { mutate: deletePostMutate, isPending: isDeletePending } = useDeletePost();
 	const { mutate: hidePostMutate } = useHidePost();
 
 	// 상세 GET /posts/{id}는 liked/bookmarked를 반환 → 로컬 스토어와 동기화
@@ -315,33 +400,43 @@ export default function PostDetailModal({
 	}, [isMenuOpen]);
 
 	// 삭제 시 스토어에서 제거되면 모달을 닫아 사라진 게시글이 남지 않게 한다.
+	const handleEdit = () => {
+		if (!post) return;
+		setMenuOpen(false);
+		if (!requireAuth()) return;
+		setEditOpen(true);
+	};
+
 	const handleDelete = () => {
 		if (!post) return;
 		setMenuOpen(false);
 		if (!requireAuth()) return;
-		if (window.confirm("이 게시글을 삭제할까요?")) {
-			deletePostMutate(post.id, {
-				onSuccess: () => onClose(),
-				onError: (err) => {
-					window.alert(
-						err instanceof ApiError ? err.message : "삭제에 실패했습니다.",
-					);
-				},
-			});
-		}
+		setDeleteOpen(true);
+	};
+
+	const confirmDelete = () => {
+		if (!post) return;
+		deletePostMutate(post.id, {
+			onSuccess: () => {
+				setDeleteOpen(false);
+				onClose();
+			},
+			onError: (err) => {
+				window.alert(
+					err instanceof ApiError ? err.message : "삭제에 실패했습니다.",
+				);
+			},
+		});
 	};
 
 	const handleBlock = () => {
 		if (!post) return;
 		setMenuOpen(false);
 		if (!requireAuth()) return;
+		onClose();
 		hidePostMutate(
 			{ postId: post.id, hidden: false },
 			{
-				onSuccess: () => {
-					markHidden(post.id);
-					onClose();
-				},
 				onError: (err) => {
 					window.alert(
 						err instanceof ApiError ? err.message : "숨김 처리에 실패했습니다.",
@@ -506,15 +601,26 @@ export default function PostDetailModal({
 							{isMenuOpen && (
 								<div className="absolute right-0 top-9 z-20 w-max min-w-[160px] overflow-hidden rounded-[10px] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
 									{isMine ? (
-										<button
-											type="button"
-											onClick={handleDelete}
-											className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
-											삭제
-											<span className="mt-0.5 block text-[11px] font-light text-black/40">
-												이 게시글을 삭제합니다
-											</span>
-										</button>
+										<>
+											<button
+												type="button"
+												onClick={handleEdit}
+												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
+												수정
+												<span className="mt-0.5 block text-[11px] font-light text-black/40">
+													게시글 내용을 수정합니다
+												</span>
+											</button>
+											<button
+												type="button"
+												onClick={handleDelete}
+												className="block w-full whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
+												삭제
+												<span className="mt-0.5 block text-[11px] font-light text-black/40">
+													이 게시글을 삭제합니다
+												</span>
+											</button>
+										</>
 									) : (
 										<>
 											<button
@@ -707,6 +813,19 @@ export default function PostDetailModal({
 				postId={post.id}
 				isOpen={isReportOpen}
 				onClose={() => setReportOpen(false)}
+			/>
+			<EditPostModal
+				post={post}
+				isOpen={isEditOpen}
+				onClose={() => setEditOpen(false)}
+			/>
+			<DeletePostModal
+				isOpen={isDeleteOpen}
+				caption={post.caption}
+				imageUrl={postImageUrl}
+				onClose={() => setDeleteOpen(false)}
+				onConfirm={confirmDelete}
+				isPending={isDeletePending}
 			/>
 		</div>,
 		document.body,

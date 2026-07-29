@@ -7,9 +7,10 @@ import type {
 
 /** Swagger PostResponse → UI Post */
 export function mapPostResponse(dto: PostResponse): Post {
-	const imageUrls = [...dto.images]
-		.sort((a, b) => a.displayOrder - b.displayOrder)
-		.map((image) => image.imageUrl);
+	const sortedImages = [...dto.images].sort(
+		(a, b) => a.displayOrder - b.displayOrder,
+	);
+	const imageUrls = sortedImages.map((image) => image.imageUrl);
 
 	return {
 		id: dto.postId,
@@ -22,6 +23,7 @@ export function mapPostResponse(dto: PostResponse): Post {
 		createdAt: dto.createdAt,
 		imageUrl: imageUrls[0] ?? null,
 		imageUrls,
+		postImageIds: sortedImages.map((image) => image.postImageId),
 		caption: dto.content ?? "",
 		likeCount: dto.likeCount,
 		commentCount: dto.commentCount,

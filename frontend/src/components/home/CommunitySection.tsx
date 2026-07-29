@@ -1,10 +1,17 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import usePosts from "../../hooks/queries/usePosts";
+import useHiddenIdsForUser from "../../hooks/useHiddenIdsForUser";
+import { filterVisiblePosts } from "../../utils/filterPosts";
 
 /** 홈 커뮤니티 미리보기 — GET /posts 최신 4건 */
 export default function CommunitySection() {
 	const { data } = usePosts({ size: 4, sort: "LATEST" });
-	const previewPosts = data?.pages[0]?.items ?? [];
+	const hiddenIds = useHiddenIdsForUser();
+	const previewPosts = useMemo(() => {
+		const items = data?.pages[0]?.items ?? [];
+		return filterVisiblePosts(items, hiddenIds);
+	}, [data?.pages, hiddenIds]);
 
 	return (
 		<section
