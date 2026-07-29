@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
 import usePosts from "../hooks/queries/usePosts";
+import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
 import { ApiError } from "../services/api";
 import type { Post } from "../types/community";
-import { filterPostsByKeyword } from "../utils/filterPosts";
+import { filterPostsByKeyword, filterVisiblePosts } from "../utils/filterPosts";
 
 /** 커뮤니티 탐색·검색 — GET /posts + 클라이언트 필터 (POST /posts/search 501 대체) */
 export default function CommunitySearchPage() {
@@ -13,11 +14,12 @@ export default function CommunitySearchPage() {
 	const [activePost, setActivePost] = useState<Post | null>(null);
 
 	const { data, isPending, isError, error } = usePosts({ size: 50, sort: "LATEST" });
+	const hiddenIds = useHiddenIdsForUser();
 
-	const allPosts = useMemo(
-		() => data?.pages.flatMap((page) => page.items) ?? [],
-		[data?.pages],
-	);
+	const allPosts = useMemo(() => {
+		const items = data?.pages.flatMap((page) => page.items) ?? [];
+		return filterVisiblePosts(items, hiddenIds);
+	}, [data?.pages, hiddenIds]);
 	const results = useMemo(
 		() => filterPostsByKeyword(allPosts, keyword),
 		[allPosts, keyword],

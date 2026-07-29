@@ -46,14 +46,14 @@ const useAuthStore = create<AuthState>()(
 					user: nextUser,
 				});
 				if (nextUser?.userId != null && nextUser.userId !== prevUserId) {
-					useCommunityStore.getState().clearAll();
+					useCommunityStore.getState().clearEngagement();
 				}
 			},
 
 			clearSession: () => {
 				setAccessToken(null);
 				set({ accessToken: null, refreshToken: null, user: null });
-				useCommunityStore.getState().clearAll();
+				useCommunityStore.getState().clearEngagement();
 				useUserStore.getState().clearProfile();
 			},
 

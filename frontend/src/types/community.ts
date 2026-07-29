@@ -34,6 +34,8 @@ export type Post = {
 	imageUrl: string | null;
 	/** displayOrder 순 전체 이미지. 없으면 imageUrl 한 장만 사용 */
 	imageUrls?: string[];
+	/** PATCH /posts 시 retainedPostImageIds용 */
+	postImageIds?: number[];
 	caption: string;
 	likeCount: number;
 	commentCount: number;
