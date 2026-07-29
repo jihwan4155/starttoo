@@ -1,61 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
 import useAuthStore from "../store/useAuthStore";
+import useNotificationPreview from "./queries/useNotificationPreview";
 import {
-	getUnreadPreview,
-	markAllNotificationsRead,
-	markNotificationRead,
-} from "../services/notificationApi";
-import type { NotificationItem } from "../types/notification";
+	useMarkAllNotificationsRead,
+	useMarkNotificationRead,
+} from "./mutations/useMarkNotificationsRead";
 
 /**
- * 서버 알림(GET /notifications/unread/preview) 연동 훅.
- * - 로그인(accessToken) 상태에서만 조회한다.
- * - 뱃지 숫자는 unreadCount(메시지 기준), 목록은 items(방/건별 묶음 행)를 사용한다.
+ * @deprecated TopNav·NotificationsPage는 react-query 훅을 직접 사용합니다.
+ * 하위 호환용 래퍼.
  */
 export function useServerNotifications() {
 	const accessToken = useAuthStore((s) => s.accessToken);
-	const enabled = Boolean(accessToken);
+	const { data, isLoading, error, refetch } = useNotificationPreview();
+	const { mutateAsync: markOneAsync } = useMarkNotificationRead();
+	const { mutateAsync: markAllAsync } = useMarkAllNotificationsRead();
 
-	const [items, setItems] = useState<NotificationItem[]>([]);
-	const [unreadCount, setUnreadCount] = useState(0);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
-	const refetch = useCallback(async () => {
-		if (!enabled) {
-			setItems([]);
-			setUnreadCount(0);
-			return;
-		}
-		setLoading(true);
-		setError(null);
-		try {
-			const res = await getUnreadPreview();
-			setItems(res.items);
-			setUnreadCount(res.unreadCount);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "알림을 불러오지 못했습니다.");
-		} finally {
-			setLoading(false);
-		}
-	}, [enabled]);
-
-	useEffect(() => {
-		refetch();
-	}, [refetch]);
-
-	const markAll = useCallback(async () => {
-		await markAllNotificationsRead();
-		await refetch();
-	}, [refetch]);
-
-	const markOne = useCallback(
-		async (notificationId: number) => {
-			await markNotificationRead(notificationId);
+	return {
+		enabled: Boolean(accessToken),
+		items: data?.items ?? [],
+		unreadCount: data?.unreadCount ?? 0,
+		loading: isLoading,
+		error: error?.message ?? null,
+		refetch: async () => {
 			await refetch();
 		},
-		[refetch],
-	);
-
-	return { enabled, items, unreadCount, loading, error, refetch, markAll, markOne };
+		markAll: markAllAsync,
+		markOne: markOneAsync,
+	};
 }

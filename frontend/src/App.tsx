@@ -10,6 +10,7 @@ import AiPage from "./pages/AiPage";
 import MyPage from "./pages/MyPage";
 import MyPageEditPage from "./pages/MyPageEditPage";
 import ArtistProfileEditPage from "./pages/ArtistProfileEditPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import SimulationsPage from "./pages/SimulationsPage";
 import TattooistPage from "./pages/TattooistPage";
@@ -33,6 +34,8 @@ export default function App() {
 					<Route path="/posts/search" element={<CommunitySearchPage />} />
 					{/* API: GET /dm/rooms */}
 					<Route path="/dm" element={<DmPage />} />
+					{/* API: GET /notifications/unread */}
+					<Route path="/notifications" element={<NotificationsPage />} />
 					{/* API: GET /artists */}
 					<Route path="/artists" element={<TattooistPage />} />
 					{/* API: GET /users/me */}
