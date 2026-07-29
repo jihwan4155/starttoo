@@ -5,7 +5,15 @@ services:
     restart: unless-stopped
     environment:
       JWT_SECRET: ${JWT_SECRET:-local-development-only-secret-key-must-be-changed-before-deployment}
-      # DB_URL / DB_USERNAME / DB_PASSWORD 등은 PostgreSQL 전환·ERD 확정 후 추가 예정
+      DB_URL: jdbc:postgresql://postgres:5432/tattoo_platform
+      DB_USERNAME: ${DB_USERNAME:-ssafy}
+      DB_PASSWORD: ${DB_PASSWORD:-ssafy}
+      # 실제 ERD 스키마가 아직 없어서 엔티티 기준으로 테이블을 자동 생성하게 함.
+      # 진짜 스키마(database/*.sql)가 postgres용으로 준비되면 validate로 되돌리고 이 줄은 지운다.
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - starttoo-net
     healthcheck:
@@ -25,7 +33,7 @@ services:
     networks:
       - starttoo-net
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -84,9 +92,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./nginx/reverse-proxy.conf:/etc/nginx/conf.d/default.conf:ro
-    # AWS 서버 UFW가 22/443/8989만 허용 -> 8989로 매핑. 443/TLS는 별도 작업에서 구성
+    # 8989는 Gerrit이 이미 쓰고 있어서 못 씀. 지금은 서버 내부 검증용으로만 8080에 매핑.
+    # 실제 외부 공개는 443 + TLS 인증서 준비된 뒤 별도로 정리한다.
     ports:
-      - "8989:80"
+      - "8081:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -97,8 +106,23 @@ services:
     networks:
       - starttoo-net
 
-  # DB(PostgreSQL 예정) 서비스는 ERD/드라이버 확정 후 추가한다.
-  # backend가 mysql-connector-j를 쓰는 동안은 여기 연결해도 실제로는 동작하지 않는다.
+  postgres:
+    image: postgres:16-alpine
+    container_name: starttoo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tattoo_platform
+      POSTGRES_USER: ${DB_USERNAME:-ssafy}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ssafy}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ssafy} -d tattoo_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   starttoo-net:
@@ -107,3 +131,4 @@ networks:
 volumes:
   redis-data:
   rabbitmq-data:
+  postgres-data:
