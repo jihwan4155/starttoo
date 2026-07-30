@@ -54,6 +54,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/v1/artists", "/v1/artists/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/users/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/users/*/posts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/users/*/collections").permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/v1/users/*/followers",

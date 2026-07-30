@@ -4,6 +4,7 @@ import com.starttoo.backend.admin.application.AdminService;
 import com.starttoo.backend.artist.application.ArtistService;
 import com.starttoo.backend.auth.application.AuthService;
 import com.starttoo.backend.collection.application.CollectionService;
+import com.starttoo.backend.collection.application.CollectionWriteService;
 import com.starttoo.backend.comment.application.CommentService;
 import com.starttoo.backend.dm.application.DmService;
 import com.starttoo.backend.media.application.MediaImageRegistrationService;
@@ -48,7 +49,7 @@ class TransactionBoundaryTest {
                 ref(CommentService.class, "create"),
                 ref(CommentService.class, "delete"),
                 ref(CommentService.class, "setLike"),
-                ref(CollectionService.class, "create"),
+                ref(CollectionWriteService.class, "create"),
                 ref(CollectionService.class, "delete"),
                 ref(CollectionService.class, "setArchive"),
                 ref(PreferenceScoreService.class, "survey"),
