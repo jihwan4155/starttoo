@@ -22,13 +22,20 @@ public final class DmDtos {
 
     public record RoomResponse(
             Long dmRoomSeq,
-            Integer partnerSeq,
-            String partnerNickname,
+            PartnerSummary partner,
             boolean active,
             boolean notificationEnabled,
             long unreadCount,
             String lastMessagePreview,
             OffsetDateTime lastMessageDttm
+    ) {
+    }
+
+    public record PartnerSummary(
+            Integer userSeq,
+            String nickname,
+            Long profileImageSeq,
+            String profileImageUrl
     ) {
     }
 
@@ -52,9 +59,10 @@ public final class DmDtos {
             DmMessageType messageType,
             String textContent,
             Long imageSeq,
+            String imageUrl,
             OffsetDateTime readDttm,
-            OffsetDateTime regDttm,
-            boolean deleted
+            boolean deleted,
+            OffsetDateTime regDttm
     ) {
     }
 

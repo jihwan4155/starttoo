@@ -11,19 +11,26 @@ import com.starttoo.backend.dm.domain.DmRoom;
 import com.starttoo.backend.dm.domain.DmRoomParticipant;
 import com.starttoo.backend.dm.domain.DmRoomParticipantRepository;
 import com.starttoo.backend.dm.domain.DmRoomRepository;
+import com.starttoo.backend.media.application.MediaService;
+import com.starttoo.backend.media.domain.Image;
 import com.starttoo.backend.media.domain.ImageRepository;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.notification.domain.NotificationType;
 import com.starttoo.backend.user.application.UserService;
+import com.starttoo.backend.user.domain.AccountStatus;
+import com.starttoo.backend.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +40,7 @@ public class DmService {
     private final DmRoomParticipantRepository participantRepository;
     private final DmMessageRepository messageRepository;
     private final ImageRepository imageRepository;
+    private final MediaService mediaService;
     private final UserService userService;
     private final NotificationService notificationService;
     private final DmRealtimeEventPublisher realtimeEventPublisher;
@@ -43,7 +51,10 @@ public class DmService {
         if (userSeq.equals(partnerSeq)) {
             throw BusinessException.of(ErrorCode.INVALID_REQUEST);
         }
-        userService.find(partnerSeq);
+        User partner = userService.find(partnerSeq);
+        if (partner.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw BusinessException.of(ErrorCode.USER_NOT_FOUND);
+        }
         ensureNotBlocked(userSeq, partnerSeq);
         Integer user1 = Math.min(userSeq, partnerSeq);
         Integer user2 = Math.max(userSeq, partnerSeq);
@@ -61,16 +72,24 @@ public class DmService {
                 """, roomSeq, user1, roomSeq, user2);
         DmRoom room = roomRepository.findById(roomSeq)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.DM_ROOM_NOT_FOUND));
-        participant(room.getDmRoomSeq(), userSeq).reactivate();
+        DmRoomParticipant currentParticipant = participant(room.getDmRoomSeq(), userSeq);
+        currentParticipant.reactivate();
+        markVisibleMessagesRead(room, userSeq, currentParticipant);
         return roomResponse(room, userSeq);
     }
 
     @Transactional(readOnly = true)
-    public List<DmDtos.RoomResponse> rooms(Integer userSeq) {
-        return jdbcTemplate.query("""
+    public CursorPageResponse<DmDtos.RoomResponse> rooms(
+            Integer userSeq,
+            String cursor,
+            int size
+    ) {
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        RoomCursor decoded = decodeRoomCursor(cursor);
+        List<RoomRow> rows = jdbcTemplate.query("""
                 WITH rooms_for_user AS (
                     SELECT r.dm_room_seq,
-                           r.last_message_dttm,
+                           r.reg_dttm,
                            p.is_active,
                            p.is_notification_enabled,
                            p.last_hidden_message_seq,
@@ -78,58 +97,106 @@ public class DmService {
                                 THEN r.user2_seq
                                 ELSE r.user1_seq
                            END AS partner_seq
-                      FROM dm_room_participants p
+                     FROM dm_room_participants p
                       JOIN dm_rooms r ON r.dm_room_seq = p.dm_room_seq
                      WHERE p.user_seq = ?
                        AND p.is_active = TRUE
+                ),
+                room_details AS (
+                    SELECT room.dm_room_seq,
+                           room.partner_seq,
+                           partner.nickname AS partner_nickname,
+                           partner.profile_image_seq,
+                           profile_image.object_key AS profile_object_key,
+                           room.is_active,
+                           room.is_notification_enabled,
+                           latest.last_message_preview,
+                           latest.last_message_dttm,
+                           COALESCE(latest.last_message_dttm, room.reg_dttm) AS sort_dttm,
+                           (
+                               SELECT COUNT(*)
+                                 FROM dm_messages message
+                                WHERE message.dm_room_seq = room.dm_room_seq
+                                  AND message.sender_seq <> ?
+                                  AND message.read_dttm IS NULL
+                                  AND message.is_deleted = FALSE
+                                  AND (
+                                      room.last_hidden_message_seq IS NULL
+                                      OR message.dm_message_seq > room.last_hidden_message_seq
+                                  )
+                           ) AS unread_count
+                      FROM rooms_for_user room
+                      JOIN users partner ON partner.user_seq = room.partner_seq
+                      LEFT JOIN images profile_image
+                        ON profile_image.image_seq = partner.profile_image_seq
+                       AND profile_image.is_deleted = FALSE
+                      LEFT JOIN LATERAL (
+                          SELECT CASE
+                                     WHEN message.is_deleted THEN '삭제된 메시지'
+                                     WHEN message.text_content IS NOT NULL
+                                         THEN message.text_content
+                                     ELSE '이미지'
+                                 END AS last_message_preview,
+                                 message.reg_dttm AS last_message_dttm
+                            FROM dm_messages message
+                           WHERE message.dm_room_seq = room.dm_room_seq
+                             AND (
+                                 room.last_hidden_message_seq IS NULL
+                                 OR message.dm_message_seq > room.last_hidden_message_seq
+                             )
+                           ORDER BY message.dm_message_seq DESC
+                           LIMIT 1
+                      ) latest ON TRUE
                 )
-                SELECT room.dm_room_seq,
-                       room.partner_seq,
-                       partner.nickname AS partner_nickname,
-                       room.is_active,
-                       room.is_notification_enabled,
-                       room.last_message_dttm,
-                       (
-                           SELECT COUNT(*)
-                             FROM dm_messages message
-                            WHERE message.dm_room_seq = room.dm_room_seq
-                              AND message.sender_seq <> ?
-                              AND message.read_dttm IS NULL
-                              AND message.is_deleted = FALSE
-                              AND (
-                                  room.last_hidden_message_seq IS NULL
-                                  OR message.dm_message_seq > room.last_hidden_message_seq
-                              )
-                       ) AS unread_count,
-                       (
-                           SELECT CASE
-                                      WHEN message.is_deleted THEN '삭제된 메시지'
-                                      WHEN message.text_content IS NOT NULL
-                                          THEN message.text_content
-                                      ELSE '이미지'
-                                  END
-                             FROM dm_messages message
-                            WHERE message.dm_room_seq = room.dm_room_seq
-                              AND (
-                                  room.last_hidden_message_seq IS NULL
-                                  OR message.dm_message_seq > room.last_hidden_message_seq
-                              )
-                            ORDER BY message.dm_message_seq DESC
-                            LIMIT 1
-                       ) AS last_message_preview
-                  FROM rooms_for_user room
-                  JOIN users partner ON partner.user_seq = room.partner_seq
-                 ORDER BY room.dm_room_seq DESC
-                """, (rs, rowNum) -> new DmDtos.RoomResponse(
-                rs.getLong("dm_room_seq"),
-                rs.getInt("partner_seq"),
-                rs.getString("partner_nickname"),
-                rs.getBoolean("is_active"),
-                rs.getBoolean("is_notification_enabled"),
-                rs.getLong("unread_count"),
-                rs.getString("last_message_preview"),
-                rs.getObject("last_message_dttm", OffsetDateTime.class)
-        ), userSeq, userSeq, userSeq);
+                SELECT *
+                  FROM room_details
+                 WHERE (
+                     CAST(? AS TIMESTAMPTZ) IS NULL
+                     OR sort_dttm < CAST(? AS TIMESTAMPTZ)
+                     OR (
+                         sort_dttm = CAST(? AS TIMESTAMPTZ)
+                         AND dm_room_seq < ?
+                     )
+                 )
+                 ORDER BY sort_dttm DESC, dm_room_seq DESC
+                 LIMIT ?
+                """, (rs, rowNum) -> {
+            DmDtos.RoomResponse response = new DmDtos.RoomResponse(
+                    rs.getLong("dm_room_seq"),
+                    new DmDtos.PartnerSummary(
+                            rs.getInt("partner_seq"),
+                            rs.getString("partner_nickname"),
+                            rs.getObject("profile_image_seq", Long.class),
+                            downloadUrl(rs.getString("profile_object_key"))
+                    ),
+                    rs.getBoolean("is_active"),
+                    rs.getBoolean("is_notification_enabled"),
+                    rs.getLong("unread_count"),
+                    rs.getString("last_message_preview"),
+                    rs.getObject("last_message_dttm", OffsetDateTime.class)
+            );
+            return new RoomRow(
+                    rs.getObject("sort_dttm", OffsetDateTime.class),
+                    rs.getLong("dm_room_seq"),
+                    response
+            );
+        },
+                userSeq, userSeq, userSeq,
+                decoded == null ? null : decoded.sortDttm(),
+                decoded == null ? null : decoded.sortDttm(),
+                decoded == null ? null : decoded.sortDttm(),
+                decoded == null ? null : decoded.roomSeq(),
+                safeSize + 1
+        );
+        boolean hasNext = rows.size() > safeSize;
+        List<RoomRow> page = hasNext ? rows.subList(0, safeSize) : rows;
+        List<DmDtos.RoomResponse> items = page.stream()
+                .map(RoomRow::response)
+                .toList();
+        String nextCursor = hasNext
+                ? encodeRoomCursor(page.get(page.size() - 1))
+                : null;
+        return CursorPageResponse.of(items, nextCursor, hasNext);
     }
 
     @Transactional
@@ -141,8 +208,9 @@ public class DmService {
         DmRoom room = room(roomSeq, userSeq);
         Integer partnerSeq = room.partnerOf(userSeq);
         ensureNotBlocked(userSeq, partnerSeq);
+        Image attachedImage = null;
         if (request.imageSeq() != null) {
-            imageRepository.findByImageSeqAndDeletedFalse(request.imageSeq())
+            attachedImage = imageRepository.findByImageSeqAndDeletedFalse(request.imageSeq())
                     .filter(image -> image.getRegUsrSeq().equals(userSeq))
                     .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
         }
@@ -180,9 +248,9 @@ public class DmService {
                     notificationBody(text)
             );
         }
-        DmDtos.MessageResponse response = messageResponse(message);
-        // 변경: 이벤트는 트랜잭션 안에서 등록하고 실제 전송은 AFTER_COMMIT에서 수행한다.
+        DmDtos.MessageResponse response = messageResponse(message, attachedImage);
         realtimeEventPublisher.messageCreated(partnerSeq, response);
+        realtimeEventPublisher.messageCreated(userSeq, response);
         return response;
     }
 
@@ -215,9 +283,10 @@ public class DmService {
         Map<Long, DmMessage> byId = new HashMap<>();
         messageRepository.findAllById(page)
                 .forEach(value -> byId.put(value.getDmMessageSeq(), value));
-        List<DmDtos.MessageResponse> items = page.stream()
-                .map(id -> messageResponse(java.util.Objects.requireNonNull(byId.get(id))))
+        List<DmMessage> messages = page.stream()
+                .map(id -> Objects.requireNonNull(byId.get(id)))
                 .toList();
+        List<DmDtos.MessageResponse> items = messageResponses(messages);
         String next = hasNext ? page.get(page.size() - 1).toString() : null;
         return CursorPageResponse.of(items, next, hasNext);
     }
@@ -225,14 +294,31 @@ public class DmService {
     @Transactional
     public int markRead(Integer userSeq, Long roomSeq) {
         DmRoom room = room(roomSeq, userSeq);
+        DmRoomParticipant currentParticipant = participant(roomSeq, userSeq);
+        return markVisibleMessagesRead(room, userSeq, currentParticipant);
+    }
+
+    private int markVisibleMessagesRead(
+            DmRoom room,
+            Integer userSeq,
+            DmRoomParticipant currentParticipant
+    ) {
         OffsetDateTime readDttm = OffsetDateTime.now();
-        int changedMessages = messageRepository.markRoomRead(roomSeq, userSeq, readDttm);
-        // 변경: 메시지 읽음과 같은 트랜잭션에서 해당 방의 NEW_DM 알림도 읽음 처리한다.
-        int changedNotifications = notificationService.readDmRoom(userSeq, roomSeq, readDttm);
+        int changedMessages = messageRepository.markRoomRead(
+                room.getDmRoomSeq(),
+                userSeq,
+                currentParticipant.getLastHiddenMessageSeq(),
+                readDttm
+        );
+        int changedNotifications = notificationService.readDmRoom(
+                userSeq,
+                room.getDmRoomSeq(),
+                readDttm
+        );
         if (changedMessages > 0 || changedNotifications > 0) {
             realtimeEventPublisher.messagesRead(
                     room.partnerOf(userSeq),
-                    roomSeq,
+                    room.getDmRoomSeq(),
                     userSeq,
                     readDttm,
                     changedMessages
@@ -272,53 +358,92 @@ public class DmService {
     private DmDtos.RoomResponse roomResponse(DmRoom room, Integer userSeq) {
         DmRoomParticipant participant = participant(room.getDmRoomSeq(), userSeq);
         Integer partnerSeq = room.partnerOf(userSeq);
-        String nickname = jdbcTemplate.queryForObject(
-                "SELECT nickname FROM users WHERE user_seq = ?",
-                String.class,
-                partnerSeq
-        );
-        Long unread = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*)
-                  FROM dm_messages
-                 WHERE dm_room_seq = ?
-                   AND sender_seq <> ?
-                   AND read_dttm IS NULL
-                   AND is_deleted = FALSE
-                   AND (CAST(? AS BIGINT) IS NULL OR dm_message_seq > ?)
-                """, Long.class,
+        RoomDetails details = jdbcTemplate.queryForObject("""
+                SELECT partner.nickname,
+                       partner.profile_image_seq,
+                       profile_image.object_key AS profile_object_key,
+                       (
+                           SELECT COUNT(*)
+                             FROM dm_messages message
+                            WHERE message.dm_room_seq = ?
+                              AND message.sender_seq <> ?
+                              AND message.read_dttm IS NULL
+                              AND message.is_deleted = FALSE
+                              AND (CAST(? AS BIGINT) IS NULL OR message.dm_message_seq > ?)
+                       ) AS unread_count,
+                       latest.last_message_preview,
+                       latest.last_message_dttm
+                  FROM users partner
+                  LEFT JOIN images profile_image
+                    ON profile_image.image_seq = partner.profile_image_seq
+                   AND profile_image.is_deleted = FALSE
+                  LEFT JOIN LATERAL (
+                      SELECT CASE
+                                 WHEN message.is_deleted THEN '삭제된 메시지'
+                                 WHEN message.text_content IS NOT NULL THEN message.text_content
+                                 ELSE '이미지'
+                             END AS last_message_preview,
+                             message.reg_dttm AS last_message_dttm
+                        FROM dm_messages message
+                       WHERE message.dm_room_seq = ?
+                         AND (CAST(? AS BIGINT) IS NULL OR message.dm_message_seq > ?)
+                       ORDER BY message.dm_message_seq DESC
+                       LIMIT 1
+                  ) latest ON TRUE
+                 WHERE partner.user_seq = ?
+                """, (rs, rowNum) -> new RoomDetails(
+                rs.getString("nickname"),
+                rs.getObject("profile_image_seq", Long.class),
+                rs.getString("profile_object_key"),
+                rs.getLong("unread_count"),
+                rs.getString("last_message_preview"),
+                rs.getObject("last_message_dttm", OffsetDateTime.class)
+        ),
                 room.getDmRoomSeq(),
                 userSeq,
                 participant.getLastHiddenMessageSeq(),
-                participant.getLastHiddenMessageSeq()
-        );
-        String preview = jdbcTemplate.query("""
-                SELECT CASE WHEN is_deleted THEN '삭제된 메시지'
-                            WHEN text_content IS NOT NULL THEN text_content
-                            ELSE '이미지'
-                       END
-                  FROM dm_messages
-                 WHERE dm_room_seq = ?
-                   AND (CAST(? AS BIGINT) IS NULL OR dm_message_seq > ?)
-                 ORDER BY dm_message_seq DESC
-                 LIMIT 1
-                """, rs -> rs.next() ? rs.getString(1) : null,
+                participant.getLastHiddenMessageSeq(),
                 room.getDmRoomSeq(),
                 participant.getLastHiddenMessageSeq(),
-                participant.getLastHiddenMessageSeq()
+                participant.getLastHiddenMessageSeq(),
+                partnerSeq
         );
+        Objects.requireNonNull(details);
         return new DmDtos.RoomResponse(
                 room.getDmRoomSeq(),
-                partnerSeq,
-                nickname,
+                new DmDtos.PartnerSummary(
+                        partnerSeq,
+                        details.nickname(),
+                        details.profileImageSeq(),
+                        downloadUrl(details.profileObjectKey())
+                ),
                 participant.isActive(),
                 participant.isNotificationEnabled(),
-                unread == null ? 0 : unread,
-                preview,
-                room.getLastMessageDttm()
+                details.unreadCount(),
+                details.lastMessagePreview(),
+                details.lastMessageDttm()
         );
     }
 
-    private DmDtos.MessageResponse messageResponse(DmMessage message) {
+    private List<DmDtos.MessageResponse> messageResponses(List<DmMessage> messages) {
+        List<Long> imageSeqs = messages.stream()
+                .filter(message -> !message.isDeleted())
+                .map(DmMessage::getImageSeq)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, Image> images = new HashMap<>();
+        imageRepository.findAllById(imageSeqs).forEach(image -> {
+            if (!image.isDeleted()) {
+                images.put(image.getImageSeq(), image);
+            }
+        });
+        return messages.stream()
+                .map(message -> messageResponse(message, images.get(message.getImageSeq())))
+                .toList();
+    }
+
+    private DmDtos.MessageResponse messageResponse(DmMessage message, Image image) {
         return new DmDtos.MessageResponse(
                 message.getDmMessageSeq(),
                 message.getDmRoomSeq(),
@@ -326,10 +451,43 @@ public class DmService {
                 message.getMessageType(),
                 message.isDeleted() ? null : message.getTextContent(),
                 message.isDeleted() ? null : message.getImageSeq(),
+                message.isDeleted() || image == null ? null : mediaService.downloadUrl(image),
                 message.getReadDttm(),
-                message.getRegDttm(),
-                message.isDeleted()
+                message.isDeleted(),
+                message.getRegDttm()
         );
+    }
+
+    private String downloadUrl(String objectKey) {
+        return objectKey == null ? null : mediaService.downloadUrl(objectKey);
+    }
+
+    private RoomCursor decodeRoomCursor(String cursor) {
+        if (cursor == null) {
+            return null;
+        }
+        try {
+            String decoded = new String(
+                    Base64.getUrlDecoder().decode(cursor),
+                    StandardCharsets.UTF_8
+            );
+            String[] values = decoded.split("\\|", -1);
+            if (values.length != 2) {
+                throw BusinessException.of(ErrorCode.INVALID_CURSOR);
+            }
+            return new RoomCursor(
+                    OffsetDateTime.parse(values[0]),
+                    Long.parseLong(values[1])
+            );
+        } catch (RuntimeException exception) {
+            throw BusinessException.of(ErrorCode.INVALID_CURSOR);
+        }
+    }
+
+    private String encodeRoomCursor(RoomRow row) {
+        String value = row.sortDttm() + "|" + row.roomSeq();
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(value.getBytes(StandardCharsets.UTF_8));
     }
 
     private String notificationBody(String text) {
@@ -367,5 +525,25 @@ public class DmService {
         if (blocked) {
             throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
+    }
+
+    private record RoomRow(
+            OffsetDateTime sortDttm,
+            Long roomSeq,
+            DmDtos.RoomResponse response
+    ) {
+    }
+
+    private record RoomCursor(OffsetDateTime sortDttm, Long roomSeq) {
+    }
+
+    private record RoomDetails(
+            String nickname,
+            Long profileImageSeq,
+            String profileObjectKey,
+            long unreadCount,
+            String lastMessagePreview,
+            OffsetDateTime lastMessageDttm
+    ) {
     }
 }
