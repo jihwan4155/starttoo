@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import ScrollToTop from "./components/layout/ScrollToTop";
+import OrbitLoader from "./components/orbit-loader/OrbitLoader";
+import { useAppReady } from "./hooks/useAppReady";
 import CommunityPage from "./pages/CommunityPage";
 import CommunitySearchPage from "./pages/CommunitySearchPage";
 import CoverUpPage from "./pages/CoverUpPage";
@@ -17,8 +20,21 @@ import ArJoinPage from "./pages/ArJoinPage";
 import TattooistPage from "./pages/TattooistPage";
 
 export default function App() {
+	// 앱 진입 시 로고 공전 로딩 화면 → load 완료 후 페이드아웃하고 메인으로
+	const { ready } = useAppReady({ minMs: 900 });
+	const [showLoader, setShowLoader] = useState(true);
+
 	return (
 		<BrowserRouter>
+			{showLoader && (
+				<OrbitLoader
+					visible={!ready}
+					label={null}
+					durationMs={3000}
+					size={200}
+					onExited={() => setShowLoader(false)}
+				/>
+			)}
 			<ScrollToTop />
 			<Routes>
 				{/* 폰이 QR로 진입하는 AR 화면 — 앱 셸 없이 풀스크린 */}
