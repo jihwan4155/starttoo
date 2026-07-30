@@ -22,7 +22,7 @@ import static com.starttoo.backend.auth.api.AuthDtos.*;
 @RestController
 @RequestMapping("/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "Auth", description = "OAuth 로그인, 가입, 휴대폰 인증, 토큰")
+@Tag(name = "Auth", description = "OAuth login, signup, phone verification, and tokens")
 public class AuthController {
 
     private final AuthService authService;
@@ -30,12 +30,12 @@ public class AuthController {
 
     @PostMapping("/social/login")
     @Operation(
-            summary = "소셜 로그인 또는 가입 토큰 발급",
+            summary = "Social login with OAuth authorization code",
             description = """
-                    Google 또는 Kakao 액세스 토큰을 제공자 API로 검증하여 불변 subject를 얻는다.
-                    이미 연결된 OAuth 계정이면 마지막 로그인 시각을 갱신하고 ACTIVE 계정에 대한
-                    액세스·리프레시 토큰을 발급한다. 연결 계정이 없으면 users 행을 만들지 않고,
-                    제공자와 subject가 서명된 단기 가입 토큰만 반환한다.
+                    Exchanges the frontend OAuth authorization code for a provider access token,
+                    loads the Google or Kakao subject, and issues Starttoo tokens for an existing
+                    active account. If the OAuth account is not linked yet, returns a short-lived
+                    signup token without creating a users row.
                     """
     )
     public ApiResponse<SocialLoginResponse> socialLogin(
@@ -46,14 +46,12 @@ public class AuthController {
 
     @PostMapping("/signup")
     @Operation(
-            summary = "통합 계정 가입 또는 OAuth 추가 연결",
+            summary = "Create unified account or link OAuth account",
             description = """
-                    가입 토큰과 Redis의 일회성 휴대폰 인증 토큰을 검증·소비한다.
-                    같은 활성 휴대폰 번호의 회원이 있으면 신규 users 행을 만들지 않고 OAuth 계정만
-                    연결한다. 없으면 users, user_oauth_accounts, 최초 ACTIVE 상태 이력을 하나의
-                    DB 트랜잭션으로 저장한 뒤 토큰을 발급한다. 닉네임·전화번호·provider subject
-                    중복이 발생하면 DB 변경은 롤백된다. 신규 users 커밋이 성공한 뒤에만 계정
-                    자동완성·검색 Redis 인덱스를 증분 갱신한다.
+                    Validates and consumes a signup token and one-time phone verification token.
+                    If a user with the same active phone number exists, only links the OAuth
+                    account. Otherwise creates users, user_oauth_accounts, and the initial ACTIVE
+                    status history in one database transaction.
                     """
     )
     public ApiResponse<TokenResponse> signup(@Valid @RequestBody SignupRequest request) {
@@ -62,11 +60,10 @@ public class AuthController {
 
     @PostMapping("/token/refresh")
     @Operation(
-            summary = "액세스·리프레시 토큰 회전",
+            summary = "Rotate access and refresh tokens",
             description = """
-                    전달받은 리프레시 토큰을 SHA-256 해시로 조회한다. 만료·폐기 여부와 회원 상태를
-                    확인한 후 기존 토큰 폐기와 새 토큰 쌍 저장을 같은 DB 트랜잭션에서 수행한다.
-                    이미 사용되었거나 만료된 토큰은 재사용할 수 없다.
+                    Looks up the refresh token by SHA-256 hash, verifies expiry and account status,
+                    revokes the old token, and stores a new token pair in one database transaction.
                     """
     )
     public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
@@ -75,14 +72,11 @@ public class AuthController {
 
     @PostMapping("/logout")
     @Operation(
-            summary = "로그아웃 및 현재 기기 푸시 해제",
+            summary = "Logout and deactivate current device push token",
             description = """
-                    원문 토큰은 저장하지 않고 SHA-256 해시로 찾는다. 아직 폐기되지 않은 토큰이면
-                    폐기 시각을 기록한다. 리프레시 토큰에 deviceSeq가 연결되어 있으면 같은
-                    트랜잭션에서 userDevices.isActive=false로 바꾸어 로그아웃 후 이전 계정의
-                    FCM 알림이 기기로 가지 않게 한다. 클라이언트는 보유 토큰 삭제와 WebSocket
-                    연결 종료도 함께 수행해야 한다. 이미 없거나 폐기된 토큰에 대한 반복 호출은
-                    성공으로 처리하는 멱등 로그아웃이다.
+                    Revokes the refresh token by hash. If the token is linked to a device, the
+                    device is deactivated in the same transaction so previous account notifications
+                    are no longer delivered to that device.
                     """
     )
     public ApiResponse<Boolean> logout(@Valid @RequestBody LogoutRequest request) {
@@ -92,12 +86,10 @@ public class AuthController {
 
     @PostMapping("/phone/verifications")
     @Operation(
-            summary = "휴대폰 인증번호 요청",
+            summary = "Request phone verification code",
             description = """
-                    입력값의 하이픈과 공백을 제거하고 현재 정책에 따라 한국 E.164 번호로
-                    정규화한다. 6자리 코드를 발급하여 Redis에 3분간 저장하고 운영 환경에서는
-                    SMS 게이트웨이로 전송한다. local 프로필에서는 실제 발송 대신 debugCode를
-                    응답하여 테스트할 수 있다.
+                    Normalizes a Korean phone number, stores a 6-digit code in Redis for 3 minutes,
+                    and sends it through the configured SMS gateway.
                     """
     )
     public ApiResponse<PhoneVerificationService.VerificationRequested> requestPhoneVerification(
@@ -108,10 +100,10 @@ public class AuthController {
 
     @PostMapping("/phone/verifications/confirm")
     @Operation(
-            summary = "휴대폰 인증번호 확인",
+            summary = "Confirm phone verification code",
             description = """
-                    Redis에 저장된 요청 ID와 6자리 코드를 검증한다. 성공하면 기존 코드를 즉시
-                    삭제하고 가입에서 한 번만 소비할 수 있는 휴대폰 인증 토큰을 10분간 발급한다.
+                    Validates the request id and 6-digit code from Redis, deletes the code on
+                    success, and returns a one-time phone verification token for signup.
                     """
     )
     public ApiResponse<PhoneVerificationService.VerificationConfirmed> confirmPhoneVerification(
@@ -122,16 +114,15 @@ public class AuthController {
 
     @GetMapping("/nicknames/availability")
     @Operation(
-            summary = "닉네임 사용 가능 여부",
+            summary = "Check nickname availability",
             description = """
-                    한글 완성형, 영문 대소문자, 숫자로 구성된 2~20자 닉네임인지 검증한다.
-                    PostgreSQL 일반 VARCHAR 비교를 사용하므로 영문 대소문자를 구분하며,
-                    소프트 삭제되지 않은 회원 사이의 중복 여부를 반환한다.
+                    Validates that the nickname is 2-20 Korean letters, English letters, or digits,
+                    then returns whether it is available among non-deleted users.
                     """
     )
     public ApiResponse<NicknameAvailabilityResponse> nicknameAvailability(
             @RequestParam
-            @Pattern(regexp = "^[가-힣A-Za-z0-9]{2,20}$")
+            @Pattern(regexp = "^[\\uAC00-\\uD7A3A-Za-z0-9]{2,20}$")
             String nickname
     ) {
         return ApiResponse.of(new NicknameAvailabilityResponse(

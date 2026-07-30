@@ -5,6 +5,9 @@ import com.starttoo.backend.common.config.OAuthProperties;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -22,8 +25,9 @@ public class OAuthSubjectResolver {
         this.properties = properties;
     }
 
-    public OAuthSubject resolve(String provider, String accessToken) {
+    public OAuthSubject resolve(String provider, String authorizationCode, String redirectUri) {
         String normalized = provider.toUpperCase(Locale.ROOT);
+        String accessToken = exchangeAuthorizationCode(normalized, authorizationCode, redirectUri);
         String uri = switch (normalized) {
             case "GOOGLE" -> properties.google().userInfoUri();
             case "KAKAO" -> properties.kakao().userInfoUri();
@@ -47,6 +51,49 @@ public class OAuthSubjectResolver {
                     "OAuth 제공자의 회원 식별자를 확인하지 못했습니다."
             );
         }
+    }
+
+    private String exchangeAuthorizationCode(
+            String provider,
+            String authorizationCode,
+            String redirectUri
+    ) {
+        OAuthProperties.Provider config = providerConfig(provider);
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "authorization_code");
+        form.add("client_id", config.clientId());
+        form.add("code", authorizationCode);
+        form.add("redirect_uri", redirectUri);
+        if (hasText(config.clientSecret())) {
+            form.add("client_secret", config.clientSecret());
+        }
+
+        try {
+            JsonNode response = restClient.post()
+                    .uri(config.tokenUri())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(JsonNode.class);
+            return text(response, "access_token");
+        } catch (RestClientException | NullPointerException exception) {
+            throw new BusinessException(
+                    ErrorCode.OAUTH_AUTHENTICATION_FAILED,
+                    "OAuth authorization code exchange failed."
+            );
+        }
+    }
+
+    private OAuthProperties.Provider providerConfig(String provider) {
+        return switch (provider) {
+            case "GOOGLE" -> properties.google();
+            case "KAKAO" -> properties.kakao();
+            default -> throw BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER);
+        };
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String text(JsonNode node, String field) {
