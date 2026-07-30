@@ -1,0 +1,239 @@
+package com.starttoo.backend.post.api;
+
+import com.starttoo.backend.common.api.ApiResponse;
+import com.starttoo.backend.common.api.CursorPageResponse;
+import com.starttoo.backend.common.config.OptionalAuth;
+import com.starttoo.backend.common.security.SecurityUtils;
+import com.starttoo.backend.post.application.PostService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@Validated
+@RequestMapping("/v1/posts")
+@RequiredArgsConstructor
+@Tag(name = "Posts", description = "게시물, 반응, 체류 점수, 신고")
+public class PostController {
+
+    private final PostService postService;
+
+    @PostMapping
+    @Operation(
+            summary = "게시물과 이미지 연결 등록",
+            description = """
+                    중복되지 않은 1~10개의 imageSeq를 입력 순서대로 처리한다. 각 이미지가 현재
+                    회원 소유인지 확인한다. 현재 모델 연동 전 단계이므로 타투 여부 판별·분석
+                    호출은 비활성화되어 있고, API·트랜잭션 검증용 고정 분류값(OTHER, LINE,
+                    BLACK, subject=타투)을 사용한다. tattoos·subjects 연결, PUBLISHED 게시물,
+                    postImages 생성을 하나의 DB 트랜잭션으로 처리하므로 어느 이미지라도 실패하면
+                    전체 등록이 롤백된다. 모델 연결 후에는 모든 이미지가 타투 판별을 통과한
+                    경우에만 같은 트랜잭션의 저장 단계를 진행한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.PostResponse> create(
+            @Valid @RequestBody PostDtos.CreatePostRequest request
+    ) {
+        return ApiResponse.of(postService.create(SecurityUtils.currentUserSeq(), request));
+    }
+
+    @GetMapping
+    @OptionalAuth
+    @Operation(
+            summary = "게시물 피드",
+            description = """
+                    postSeq 내림차순 커서로 PUBLISHED이면서 소프트 삭제되지 않은 게시물만 반환한다.
+                    authorSeq가 있으면 특정 작성자로 필터링한다. 로그인한 조회자에게는 양방향 차단
+                    관계와 관심 없음으로 숨긴 게시물을 제외하고 좋아요·북마크 상태를 계산한다.
+                    비로그인 조회도 가능하다.
+                    """
+    )
+    public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> list(
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
+            @RequestParam(required = false) Integer authorSeq,
+            Authentication authentication
+    ) {
+        return ApiResponse.of(postService.list(
+                cursor,
+                size,
+                authorSeq,
+                optionalUserSeq(authentication)
+        ));
+    }
+
+    @GetMapping("/{postSeq}")
+    @OptionalAuth
+    @Operation(
+            summary = "게시물 상세",
+            description = """
+                    PUBLISHED 상태의 활성 게시물과 순서가 보장된 이미지·tattooSeq를 반환한다.
+                    로그인한 조회자와 작성자 사이에 차단 관계가 있으면 존재하지 않는 게시물처럼
+                    처리하며, 조회자의 좋아요·북마크 상태를 포함한다.
+                    """
+    )
+    public ApiResponse<PostDtos.PostResponse> get(
+            @PathVariable Long postSeq,
+            Authentication authentication
+    ) {
+        return ApiResponse.of(postService.get(postSeq, optionalUserSeq(authentication)));
+    }
+
+    @PatchMapping("/{postSeq}")
+    @Operation(
+            summary = "게시물 내용 수정",
+            description = """
+                    작성자만 게시물 본문을 수정할 수 있다. 이미지와 분석 결과는 이 API에서
+                    교체하지 않으며, 본문과 수정자·수정 시각만 하나의 트랜잭션에서 갱신한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.PostResponse> update(
+            @PathVariable Long postSeq,
+            @Valid @RequestBody PostDtos.UpdatePostRequest request
+    ) {
+        return ApiResponse.of(postService.update(
+                SecurityUtils.currentUserSeq(),
+                postSeq,
+                request
+        ));
+    }
+
+    @DeleteMapping("/{postSeq}")
+    @Operation(
+            summary = "게시물 작성자 삭제",
+            description = """
+                    작성자만 삭제할 수 있다. postStatus를 DELETED로 바꾸고 isDeleted=true,
+                    modUsrSeq=작성자로 기록하는 소프트 삭제다. 일반 조회는 PUBLISHED만 노출하므로
+                    삭제 즉시 피드와 상세에서 제외된다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<Boolean> delete(@PathVariable Long postSeq) {
+        postService.delete(SecurityUtils.currentUserSeq(), postSeq);
+        return ApiResponse.of(true);
+    }
+
+    @PutMapping("/{postSeq}/like")
+    @Operation(
+            summary = "게시물 좋아요 상태 설정",
+            description = """
+                    enabled=true이면 postLikes를 ON CONFLICT DO NOTHING으로 생성하고, 실제 신규
+                    생성된 경우에만 게시물 likeCount를 원자적 증감식으로 +1 한다. 동시에 게시물
+                    이미지의 주 스타일·색상 취향 점수를 가산하고 작성자 알림을 저장한다.
+                    enabled=false이면 관계 삭제, count -1, 취향 점수 역산을 수행한다. 모든 DB
+                    변경은 하나의 트랜잭션이며 동일 상태 반복 요청은 점수를 중복 반영하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> like(
+            @PathVariable Long postSeq,
+            @RequestParam(defaultValue = "true") boolean enabled
+    ) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setLike(SecurityUtils.currentUserSeq(), postSeq, enabled)
+        ));
+    }
+
+    @PutMapping("/{postSeq}/bookmark")
+    @Operation(
+            summary = "게시물 북마크 상태 설정",
+            description = """
+                    북마크 행을 멱등하게 생성하거나 삭제한다. 실제 상태가 바뀐 경우에만 게시물의
+                    주 스타일·색상 취향 점수를 가산 또는 역산하며 관계와 점수 변경은 같은
+                    트랜잭션에서 처리한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> bookmark(
+            @PathVariable Long postSeq,
+            @RequestParam(defaultValue = "true") boolean enabled
+    ) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setBookmark(SecurityUtils.currentUserSeq(), postSeq, enabled)
+        ));
+    }
+
+    @PutMapping("/{postSeq}/not-interested")
+    @Operation(
+            summary = "관심 없는 게시물 상태 설정",
+            description = """
+                    enabled=true이면 사용자별 숨김 관계를 생성하여 이후 피드에서 제외하고 해당
+                    게시물의 주 스타일·색상 취향 점수에 음수 가중치를 반영한다. 해제하면 숨김
+                    관계를 삭제하고 기존 감점을 역산한다. 동일 상태 반복은 추가 점수를 만들지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> notInterested(
+            @PathVariable Long postSeq,
+            @RequestParam(defaultValue = "true") boolean enabled
+    ) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setNotInterested(SecurityUtils.currentUserSeq(), postSeq, enabled)
+        ));
+    }
+
+    @PostMapping("/{postSeq}/dwell")
+    @Operation(
+            summary = "게시물 체류시간 점수 반영",
+            description = """
+                    프론트엔드가 계산한 체류 초를 3초 미만, 3~9초, 10~29초, 30초 이상의 구간으로
+                    점수화한다. 원본 체류시간이나 사용자×게시물 통계 행은 저장하지 않고 게시물의
+                    주 스타일·색상 누적 점수만 즉시 갱신한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<Boolean> dwell(
+            @PathVariable Long postSeq,
+            @Valid @RequestBody PostDtos.DwellRequest request
+    ) {
+        postService.recordDwell(SecurityUtils.currentUserSeq(), postSeq, request.seconds());
+        return ApiResponse.of(true);
+    }
+
+    @PostMapping("/{postSeq}/reports")
+    @Operation(
+            summary = "게시물 신고",
+            description = """
+                    PUBLISHED 게시물에 회원당 한 번만 신고할 수 있다. PENDING 신고 행 생성과
+                    posts.reportCount의 원자적 증가를 같은 트랜잭션에서 처리한다. 관리자가
+                    ACCEPTED로 처리하기 전까지 게시물 노출 상태는 바뀌지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<Long> report(
+            @PathVariable Long postSeq,
+            @Valid @RequestBody PostDtos.ReportRequest request
+    ) {
+        return ApiResponse.of(postService.report(
+                SecurityUtils.currentUserSeq(),
+                postSeq,
+                request
+        ));
+    }
+
+    private Integer optionalUserSeq(Authentication authentication) {
+        if (authentication instanceof JwtAuthenticationToken jwt) {
+            return Integer.valueOf(jwt.getToken().getSubject());
+        }
+        return null;
+    }
+}

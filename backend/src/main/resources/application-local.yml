@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+app:
+  test-auth:
+    enabled: true
+  firebase:
+    enabled: false
+  ai:
+    enabled: false
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    com.starttoo.backend: DEBUG
