@@ -20,6 +20,7 @@ class RequiredRequestFieldValidationTest {
         var collection = new CollectionDtos.CreateCollectionRequest(
                 1L, "front", null, null, null, null, null
         );
+        var archiveState = new CollectionDtos.ArchiveStateRequest(null);
         var simulation = new AiDtos.SimulationRequest(
                 1L, 2L, "front", null, null, null, null, null
         );
@@ -27,6 +28,7 @@ class RequiredRequestFieldValidationTest {
         var dwell = new PostDtos.DwellRequest(null);
 
         assertThat(validator.validate(collection)).hasSize(5);
+        assertThat(validator.validate(archiveState)).hasSize(1);
         assertThat(validator.validate(simulation)).hasSize(5);
         assertThat(validator.validate(dmNotification)).hasSize(1);
         assertThat(validator.validate(dwell)).hasSize(1);

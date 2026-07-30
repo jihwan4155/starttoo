@@ -2,11 +2,14 @@ package com.starttoo.backend.collection.api;
 
 import com.starttoo.backend.collection.application.CollectionService;
 import com.starttoo.backend.common.api.ApiResponse;
+import com.starttoo.backend.common.api.CursorPageResponse;
 import com.starttoo.backend.common.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,7 +19,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -98,31 +100,44 @@ public class CollectionController {
     @Operation(
             summary = "내 타투 도안 보관함",
             description = """
-                    userArchive에 저장된 tattooSeq를 저장 시각 역순으로 반환한다. 보관함은
-                    tattooDesigns에 관리자가 등록한 도안만 포함할 수 있으며 컬렉션과 별개다.
+                    현재 회원의 보관함을 보관 시각과 tattooSeq 내림차순 커서로 조회한다.
+                    활성 tattooDesigns, tattoos, images만 반환하며 도안 이미지 URL은 DB에
+                    저장된 MinIO objectKey로 단기 Presigned GET URL을 생성해 제공한다.
+                    subjects가 없으면 빈 배열을 반환한다.
                     """
     )
-    public ApiResponse<List<Long>> archive() {
-        return ApiResponse.of(collectionService.archive(SecurityUtils.currentUserSeq()));
+    public ApiResponse<CursorPageResponse<CollectionDtos.TattooDesignItem>> archive(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String cursor,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        return ApiResponse.of(collectionService.archive(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
     }
 
     @PutMapping("/archive/{tattooSeq}")
     @Operation(
             summary = "타투 도안 보관 상태 설정",
             description = """
-                    enabled=true이면 활성 tattooDesigns에 존재하는지 확인하면서 보관 관계를
-                    멱등하게 생성한다. 대상이 보관 가능한 도안이 아니면 상태 충돌이다.
-                    enabled=false이면 회원의 보관 관계만 삭제하며 원본 타투는 변경하지 않는다.
+                    요청 body의 enabled를 최종 상태 명령으로 처리한다. enabled=true이면
+                    활성 tattoos와 tattooDesigns 존재를 확인하고 userArchive를 멱등하게
+                    생성한다. enabled=false이면 현재 회원의 보관 관계만 삭제한다.
+                    실제 상태가 전환된 경우에만 같은 트랜잭션에서 주 스타일·색상 취향 점수를
+                    증감 또는 역산하며, 동일 상태 반복 요청은 점수를 중복 변경하지 않고 성공한다.
                     """
     )
-    public ApiResponse<Boolean> archive(
+    public ApiResponse<CollectionDtos.ArchiveStateResponse> archive(
             @PathVariable Long tattooSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
+            @Valid @RequestBody CollectionDtos.ArchiveStateRequest request
     ) {
-        return ApiResponse.of(collectionService.setArchive(
-                SecurityUtils.currentUserSeq(),
-                tattooSeq,
-                enabled
+        return ApiResponse.of(new CollectionDtos.ArchiveStateResponse(
+                collectionService.setArchive(
+                        SecurityUtils.currentUserSeq(),
+                        tattooSeq,
+                        request.enabled()
+                )
         ));
     }
 }

@@ -128,12 +128,16 @@ public class MediaService {
     }
 
     public String downloadUrl(Image image) {
+        return downloadUrl(image.getObjectKey());
+    }
+
+    public String downloadUrl(String objectKey) {
         try {
             return minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.GET)
                             .bucket(properties.bucket())
-                            .object(image.getObjectKey())
+                            .object(objectKey)
                             .expiry(
                                     Math.toIntExact(properties.downloadExpiry().toSeconds()),
                                     TimeUnit.SECONDS
