@@ -80,6 +80,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private Limit resolveLimit(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (HttpMethod.POST.matches(request.getMethod())
+                && "/v1/auth/phone/verifications".equals(uri)) {
+            return new Limit(
+                    properties.phoneVerificationRequestCapacity(),
+                    properties.phoneVerificationRequestWindow(),
+                    "phone-verification-request"
+            );
+        }
+        if (HttpMethod.POST.matches(request.getMethod())
+                && "/v1/auth/phone/verifications/confirm".equals(uri)) {
+            return new Limit(
+                    properties.phoneVerificationConfirmCapacity(),
+                    properties.phoneVerificationConfirmWindow(),
+                    "phone-verification-confirm"
+            );
+        }
+
         boolean mutation = !HttpMethod.GET.matches(request.getMethod())
                 && !HttpMethod.HEAD.matches(request.getMethod())
                 && !HttpMethod.OPTIONS.matches(request.getMethod());

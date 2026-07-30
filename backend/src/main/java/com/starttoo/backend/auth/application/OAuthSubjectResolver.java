@@ -5,14 +5,16 @@ import com.starttoo.backend.common.config.OAuthProperties;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.Locale;
+import java.util.concurrent.TimeoutException;
 
 @Component
 public class OAuthSubjectResolver {
@@ -25,9 +27,11 @@ public class OAuthSubjectResolver {
         this.properties = properties;
     }
 
-    public OAuthSubject resolve(String provider, String authorizationCode, String redirectUri) {
+    public OAuthSubject resolve(String provider, String accessToken) {
+        if (provider == null) {
+            throw BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER);
+        }
         String normalized = provider.toUpperCase(Locale.ROOT);
-        String accessToken = exchangeAuthorizationCode(normalized, authorizationCode, redirectUri);
         String uri = switch (normalized) {
             case "GOOGLE" -> properties.google().userInfoUri();
             case "KAKAO" -> properties.kakao().userInfoUri();
@@ -45,55 +49,20 @@ public class OAuthSubjectResolver {
                 default -> throw BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER);
             };
             return new OAuthSubject(normalized, subject);
-        } catch (RestClientException | NullPointerException exception) {
-            throw new BusinessException(
-                    ErrorCode.OAUTH_AUTHENTICATION_FAILED,
-                    "OAuth 제공자의 회원 식별자를 확인하지 못했습니다."
-            );
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            if (status == 400 || status == 401 || status == 403) {
+                throw BusinessException.of(ErrorCode.OAUTH_AUTHENTICATION_FAILED);
+            }
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+        } catch (ResourceAccessException exception) {
+            if (hasTimeoutCause(exception)) {
+                throw BusinessException.of(ErrorCode.PROCESSING_TIMEOUT);
+            }
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+        } catch (RestClientException exception) {
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
         }
-    }
-
-    private String exchangeAuthorizationCode(
-            String provider,
-            String authorizationCode,
-            String redirectUri
-    ) {
-        OAuthProperties.Provider config = providerConfig(provider);
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "authorization_code");
-        form.add("client_id", config.clientId());
-        form.add("code", authorizationCode);
-        form.add("redirect_uri", redirectUri);
-        if (hasText(config.clientSecret())) {
-            form.add("client_secret", config.clientSecret());
-        }
-
-        try {
-            JsonNode response = restClient.post()
-                    .uri(config.tokenUri())
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(form)
-                    .retrieve()
-                    .body(JsonNode.class);
-            return text(response, "access_token");
-        } catch (RestClientException | NullPointerException exception) {
-            throw new BusinessException(
-                    ErrorCode.OAUTH_AUTHENTICATION_FAILED,
-                    "OAuth authorization code exchange failed."
-            );
-        }
-    }
-
-    private OAuthProperties.Provider providerConfig(String provider) {
-        return switch (provider) {
-            case "GOOGLE" -> properties.google();
-            case "KAKAO" -> properties.kakao();
-            default -> throw BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER);
-        };
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 
     private String text(JsonNode node, String field) {
@@ -101,6 +70,19 @@ public class OAuthSubjectResolver {
             throw BusinessException.of(ErrorCode.OAUTH_AUTHENTICATION_FAILED);
         }
         return node.get(field).asText();
+    }
+
+    private boolean hasTimeoutCause(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SocketTimeoutException
+                    || current instanceof HttpTimeoutException
+                    || current instanceof TimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     public record OAuthSubject(String providerCode, String providerSubject) {

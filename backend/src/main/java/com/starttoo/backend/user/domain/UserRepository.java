@@ -15,6 +15,11 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     boolean existsByNicknameAndDeletedFalse(String nickname);
 
+    boolean existsByNicknameAndAccountStatusAndDeletedFalse(
+            String nickname,
+            AccountStatus accountStatus
+    );
+
     boolean existsByPhoneNumberAndDeletedFalse(String phoneNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

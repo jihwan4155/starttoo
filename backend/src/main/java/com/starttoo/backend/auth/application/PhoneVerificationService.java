@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -55,7 +56,11 @@ public class PhoneVerificationService {
             smsGateway.sendVerificationCode(phoneNumber, code);
         }
         redisTemplate.opsForValue().set(codeKey(requestId), phoneNumber + ":" + code, CODE_TTL);
-        return new VerificationRequested(requestId, CODE_TTL.toSeconds(), local ? code : null);
+        return new VerificationRequested(
+                requestId,
+                Instant.now().plus(CODE_TTL),
+                local ? code : null
+        );
     }
 
     public VerificationConfirmed confirm(String requestId, String code) {
@@ -69,7 +74,7 @@ public class PhoneVerificationService {
         if (phoneNumber == null || phoneNumber.isBlank()) {
             throw BusinessException.of(ErrorCode.PHONE_VERIFICATION_FAILED);
         }
-        return new VerificationConfirmed(token, phoneNumber, VERIFIED_TTL.toSeconds());
+        return new VerificationConfirmed(token, Instant.now().plus(VERIFIED_TTL));
     }
 
     public String consume(String verificationToken) {
@@ -95,13 +100,12 @@ public class PhoneVerificationService {
                 : value.substring(0, 4) + "****" + value.substring(value.length() - 3);
     }
 
-    public record VerificationRequested(String requestId, long expiresInSeconds, String debugCode) {
+    public record VerificationRequested(String requestId, Instant expiresAt, String debugCode) {
     }
 
     public record VerificationConfirmed(
             String phoneVerificationToken,
-            String phoneNumber,
-            long expiresInSeconds
+            Instant expiresAt
     ) {
     }
 }
