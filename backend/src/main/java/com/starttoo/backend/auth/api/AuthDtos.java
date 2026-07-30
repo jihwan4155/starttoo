@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class AuthDtos {
 
@@ -40,6 +41,11 @@ public final class AuthDtos {
             @NotBlank
             @Pattern(regexp = "^[가-힣A-Za-z0-9]{2,20}$")
             String nickname,
+            @Schema(description = "가입 요청 역할", example = "ARTIST",
+                    allowableValues = {"USER", "ARTIST"})
+            @NotBlank
+            @Pattern(regexp = "USER|ARTIST")
+            String requestedRole,
             @Schema(description = "선택 생년월일", example = "1998-05-21")
             LocalDate birthDate,
             @Schema(description = "선택 성별 코드", example = "M",
@@ -86,6 +92,12 @@ public final class AuthDtos {
     }
 
     public record NicknameAvailabilityResponse(String nickname, boolean available) {
+    }
+
+    public record NicknameSuggestionsResponse(
+            @Schema(description = "추천 시점에 활성 회원과 중복되지 않은 닉네임")
+            List<String> items
+    ) {
     }
 
     public record LocalLoginRequest(
