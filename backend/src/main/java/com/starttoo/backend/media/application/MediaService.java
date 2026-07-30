@@ -132,8 +132,13 @@ public class MediaService {
     }
 
     public String downloadUrl(String objectKey) {
+        return presignedDownload(objectKey).url();
+    }
+
+    public PresignedDownload presignedDownload(String objectKey) {
+        OffsetDateTime expiresAt = OffsetDateTime.now().plus(properties.downloadExpiry());
         try {
-            return minioClient.getPresignedObjectUrl(
+            String url = minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.GET)
                             .bucket(properties.bucket())
@@ -144,9 +149,13 @@ public class MediaService {
                             )
                             .build()
             );
+            return new PresignedDownload(url, expiresAt);
         } catch (Exception exception) {
             throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
         }
+    }
+
+    public record PresignedDownload(String url, OffsetDateTime expiresAt) {
     }
 
     private MediaDtos.ImageResponse response(Image image) {
