@@ -5,24 +5,36 @@ services:
     restart: unless-stopped
     environment:
       JWT_SECRET: ${JWT_SECRET:-local-development-only-secret-key-must-be-changed-before-deployment}
-      DB_URL: jdbc:postgresql://postgres:5432/tattoo_platform
-      DB_USERNAME: ${DB_USERNAME:-ssafy}
-      DB_PASSWORD: ${DB_PASSWORD:-ssafy}
-      # 실제 ERD 스키마가 아직 없어서 엔티티 기준으로 테이블을 자동 생성하게 함.
-      # 진짜 스키마(database/*.sql)가 postgres용으로 준비되면 validate로 되돌리고 이 줄은 지운다.
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-starttoo}
+      DB_USERNAME: ${POSTGRES_USER:-starttoo}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-starttoo-local-password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-starttoo}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-starttoo-local-secret}
+      MINIO_BUCKET: ${MINIO_BUCKET:-starttoo}
+      AI_BASE_URL: ${AI_BASE_URL:-http://ai:8000}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      FIREBASE_ENABLED: ${FIREBASE_ENABLED:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     networks:
       - starttoo-net
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/v1/actuator/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 40s
-    # 개발 중 직접 접근용. 운영에서는 nginx만 외부 노출하고 이 매핑은 제거해도 된다.
     ports:
       - "8080:8080"
 
@@ -53,35 +65,37 @@ services:
       start_period: 10s
 
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:latest
     container_name: starttoo-redis
     restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
       - redis-data:/data
     networks:
       - starttoo-net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG && redis-cli FT._LIST >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: starttoo-rabbitmq
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: starttoo-minio
     restart: unless-stopped
+    command: server /data --console-address ":9001"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-starttoo}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required, set it in .env}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-starttoo}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-starttoo-local-secret}
     volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
+      - minio-data:/data
     networks:
       - starttoo-net
-    # 관리 UI, 개발 중에만 필요하면 유지
     ports:
-      - "15672:15672"
+      - "9000:9000"
+      - "9001:9001"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -91,7 +105,6 @@ services:
     container_name: starttoo-nginx
     restart: unless-stopped
     volumes:
-      # 절대경로라 Jenkins(Docker outside of Docker)에서 배포해도 정상 동작한다.
       - /etc/letsencrypt:/etc/letsencrypt:ro
     ports:
       - "80:80"
@@ -111,15 +124,15 @@ services:
     container_name: starttoo-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: tattoo_platform
-      POSTGRES_USER: ${DB_USERNAME:-ssafy}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-ssafy}
+      POSTGRES_DB: ${POSTGRES_DB:-starttoo}
+      POSTGRES_USER: ${POSTGRES_USER:-starttoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-starttoo-local-password}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - starttoo-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ssafy} -d tattoo_platform"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-starttoo} -d ${POSTGRES_DB:-starttoo}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -130,5 +143,5 @@ networks:
 
 volumes:
   redis-data:
-  rabbitmq-data:
+  minio-data:
   postgres-data:
