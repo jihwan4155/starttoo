@@ -15,6 +15,7 @@ import UploadDropzoneActions from "../components/simulation/UploadDropzoneAction
 import { useImageUpload } from "../components/simulation/useImageUpload";
 import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import MyDesignsModal from "../components/simulation/MyDesignsModal";
+import { useBodyScan } from "../components/simulation/useBodyScan";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 function ChevronLeftIcon() {
@@ -52,8 +53,8 @@ const STEP_COPY: Record<SimulationTab, Record<number, string>> = {
 		3: "폰에서 캡처한 결과를 확인하고 저장하세요",
 	},
 	image: {
-		1: "원하는 이미지 도안을 올려주세요",
-		2: "시착해 볼 신체 사진을 선택하세요",
+		1: "시착해 볼 신체 사진을 선택하세요",
+		2: "원하는 이미지 도안을 올려주세요",
 		3: "타투를 배치하고 완성된 결과를 확인하세요",
 	},
 };
@@ -81,10 +82,18 @@ export default function SimulationsPage() {
 		tab === "ar" ? setArStep : setImageStep;
 	const maxStep = MAX_STEP[tab];
 	// 변경: 이미지(3D)는 각 입력이 완료된 뒤에만 다음 단계로 이동한다.
+	// STEP1 신체 사진 → STEP2 도안 순서.
 	const canAdvance =
 		tab !== "image" ||
-		(step === 1 && Boolean(designUpload.preview)) ||
-		(step === 2 && Boolean(bodyPhotoUpload.preview));
+		(step === 1 && Boolean(bodyPhotoUpload.preview)) ||
+		(step === 2 && Boolean(designUpload.preview));
+
+	// 신체 사진 선택 후 도안을 고르는 동안(STEP2~) 백그라운드에서
+	// 인물 마스크·3D 굴곡을 미리 스캔한다.
+	const bodyScan = useBodyScan(
+		bodyPhotoUpload.preview,
+		tab === "image" && imageStep >= 2,
+	);
 
 	const handleNext = () => {
 		if (!canAdvance) return;
@@ -184,25 +193,25 @@ export default function SimulationsPage() {
 
 							<UploadDropzoneBox
 								visible={tab === "image" && step === 1}
-								inputRef={designUpload.inputRef}
-								preview={designUpload.preview}
-								onPick={designUpload.openPicker}
-								onChange={designUpload.handleChange}
-								onDrop={designUpload.handleDrop}
-							/>
-							<UploadDropzoneBox
-								visible={tab === "image" && step === 2}
 								inputRef={bodyPhotoUpload.inputRef}
 								preview={bodyPhotoUpload.preview}
 								onPick={bodyPhotoUpload.openPicker}
 								onChange={bodyPhotoUpload.handleChange}
 								onDrop={bodyPhotoUpload.handleDrop}
 							/>
-							{/* 3D 시뮬레이션: 진입 즉시 AI 파이프라인 실행 → 배치·바램·저장을 한 화면에서 */}
+							<UploadDropzoneBox
+								visible={tab === "image" && step === 2}
+								inputRef={designUpload.inputRef}
+								preview={designUpload.preview}
+								onPick={designUpload.openPicker}
+								onChange={designUpload.handleChange}
+								onDrop={designUpload.handleDrop}
+							/>
+							{/* 3D 시뮬레이션: 백그라운드 스캔 결과로 도안 배치·저장을 한 화면에서 */}
 							{tab === "image" && step === 3 && (
 								<Simulation3DStep
 									designUrl={designUpload.preview}
-									photoUrl={bodyPhotoUpload.preview}
+									scan={bodyScan}
 								/>
 							)}
 						</div>
@@ -239,15 +248,15 @@ export default function SimulationsPage() {
 
 				{tab === "image" && step === 1 && (
 					<UploadDropzoneActions
-						showLibraryButton
-						onPick={designUpload.openPicker}
-						onPickLibrary={() => setMyDesignsOpen(true)}
+						onPick={bodyPhotoUpload.openPicker}
+						hint="내 사진을 사용하면 실제로 내 피부에 어떻게 보일지 확인할 수 있어요"
 					/>
 				)}
 				{tab === "image" && step === 2 && (
 					<UploadDropzoneActions
-						onPick={bodyPhotoUpload.openPicker}
-						hint="내 사진을 사용하면 실제로 내 피부에 어떻게 보일지 확인할 수 있어요"
+						showLibraryButton
+						onPick={designUpload.openPicker}
+						onPickLibrary={() => setMyDesignsOpen(true)}
 					/>
 				)}
 			</div>
