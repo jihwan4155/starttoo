@@ -9,7 +9,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -164,5 +166,23 @@ public class AuthController {
                 nickname,
                 authService.nicknameAvailable(nickname)
         ));
+    }
+
+    @GetMapping("/phones/availability")
+    @Operation(
+            summary = "휴대폰 번호 사용 가능 여부",
+            description = """
+                    하이픈과 공백을 제거하고 한국 모바일 E.164 형식으로 정규화한 뒤 탈퇴하지
+                    않은 회원의 전화번호와 비교한다. 탈퇴 회원 번호는 재사용할 수 있지만
+                    정지·강퇴 회원 번호는 예약한다. IP와 번호별 Rate Limit을 적용하고 최종
+                    유일성은 가입 트랜잭션의 부분 UNIQUE 인덱스로 다시 검증한다.
+                    """
+    )
+    public ApiResponse<PhoneAvailabilityResponse> phoneAvailability(
+            @RequestParam
+            @NotBlank @Size(max = 30)
+            String phoneNumber
+    ) {
+        return ApiResponse.of(authService.phoneAvailability(phoneNumber));
     }
 }

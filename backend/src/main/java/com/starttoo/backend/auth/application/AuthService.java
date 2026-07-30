@@ -62,6 +62,7 @@ public class AuthService {
     private final JwtProperties jwtProperties;
     private final JdbcTemplate jdbcTemplate;
     private final RefreshTokenHasher refreshTokenHasher;
+    private final PhoneNumberNormalizer phoneNumberNormalizer;
     private final SearchIndexEventPublisher searchIndexEventPublisher;
     private final DeviceService deviceService;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -112,7 +113,11 @@ public class AuthService {
 
         OffsetDateTime now = OffsetDateTime.now();
         try {
-            var existingUser = userRepository.findByPhoneNumberAndDeletedFalse(phoneNumber);
+            var existingUser =
+                    userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                            phoneNumber,
+                            AccountStatus.WITHDRAWN
+                    );
             if (existingUser.isPresent()) {
                 User user = existingUser.get();
                 assertUsable(user);
@@ -127,7 +132,10 @@ public class AuthService {
                         .build());
                 return issue(user, null);
             }
-            if (userRepository.existsByNicknameAndDeletedFalse(request.nickname())) {
+            if (userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
+                    request.nickname(),
+                    AccountStatus.WITHDRAWN
+            )) {
                 throw BusinessException.of(ErrorCode.DUPLICATE_NICKNAME);
             }
             User user = userRepository.saveAndFlush(User.builder()
@@ -219,7 +227,10 @@ public class AuthService {
         if (nickname == null || !nickname.matches("^[가-힣A-Za-z0-9]{2,20}$")) {
             throw BusinessException.of(ErrorCode.INVALID_REQUEST);
         }
-        return !userRepository.existsByNicknameAndDeletedFalse(nickname);
+        return !userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
+                nickname,
+                AccountStatus.WITHDRAWN
+        );
     }
 
     public List<String> nicknameSuggestions(int count) {
@@ -234,14 +245,24 @@ public class AuthService {
             String base = NICKNAME_BASES.get(attempt % NICKNAME_BASES.size());
             int suffix = Math.floorMod(seed + attempt * 37, 10_000);
             String candidate = base + suffix;
-            if (!userRepository.existsByNicknameAndAccountStatusAndDeletedFalse(
+            if (!userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
                     candidate,
-                    AccountStatus.ACTIVE
+                    AccountStatus.WITHDRAWN
             )) {
                 suggestions.add(candidate);
             }
         }
         return new ArrayList<>(suggestions);
+    }
+
+    public AuthDtos.PhoneAvailabilityResponse phoneAvailability(String phoneNumber) {
+        String normalized = phoneNumberNormalizer.normalizeKorean(phoneNumber);
+        boolean available =
+                !userRepository.existsByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                        normalized,
+                        AccountStatus.WITHDRAWN
+                );
+        return new AuthDtos.PhoneAvailabilityResponse(normalized, available);
     }
 
     private AuthDtos.TokenResponse issue(User user, Long deviceSeq) {

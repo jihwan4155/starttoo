@@ -22,4 +22,10 @@ class PhoneNumberNormalizerTest {
         assertThatThrownBy(() -> normalizer.normalizeKorean("010-12"))
                 .isInstanceOf(BusinessException.class);
     }
+
+    @Test
+    void rejectsNonKoreanE164Number() {
+        assertThatThrownBy(() -> normalizer.normalizeKorean("+14155552671"))
+                .isInstanceOf(BusinessException.class);
+    }
 }

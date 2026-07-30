@@ -66,11 +66,17 @@ public class LocalTestAuthController {
                     "userSeq가 없으면 nickname과 phoneNumber가 필요합니다."
             );
         }
-        if (userRepository.existsByNicknameAndDeletedFalse(request.nickname())) {
+        if (userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
+                request.nickname(),
+                AccountStatus.WITHDRAWN
+        )) {
             throw BusinessException.of(ErrorCode.DUPLICATE_NICKNAME);
         }
         String phone = phoneNumberNormalizer.normalizeKorean(request.phoneNumber());
-        if (userRepository.existsByPhoneNumberAndDeletedFalse(phone)) {
+        if (userRepository.existsByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                phone,
+                AccountStatus.WITHDRAWN
+        )) {
             throw BusinessException.of(ErrorCode.DUPLICATE_PHONE_NUMBER);
         }
         OffsetDateTime now = OffsetDateTime.now();
