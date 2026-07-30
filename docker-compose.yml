@@ -90,10 +90,12 @@ services:
     build: ./nginx
     container_name: starttoo-nginx
     restart: unless-stopped
-    # 8989는 Gerrit이 이미 쓰고 있어서 못 씀. 지금은 서버 내부 검증용으로만 8081에 매핑.
-    # 실제 외부 공개는 443 + TLS 인증서 준비된 뒤 별도로 정리한다.
+    volumes:
+      # 절대경로라 Jenkins(Docker outside of Docker)에서 배포해도 정상 동작한다.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     ports:
-      - "8081:80"
+      - "80:80"
+      - "443:443"
     depends_on:
       backend:
         condition: service_healthy
