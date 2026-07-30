@@ -28,15 +28,14 @@ export default function BodyPartStep({
 					selected === "arm" ? "ring-4 ring-inset ring-brand" : ""
 				}`}
 			/>
-			<button
-				type="button"
-				onClick={() => onSelect("back")}
-				aria-pressed={selected === "back"}
-				aria-label="등 선택"
-				className={`absolute inset-y-0 right-0 w-1/2 rounded-r-[16px] transition ${
-					selected === "back" ? "ring-4 ring-inset ring-brand" : ""
-				}`}
-			/>
+			{/* 현재 AR은 '팔'만 지원 — 등은 준비 중으로 비활성 */}
+			<div
+				aria-label="등 (준비 중)"
+				className="absolute inset-y-0 right-0 flex w-1/2 cursor-not-allowed items-end justify-center rounded-r-[16px] bg-black/[0.04]">
+				<span className="mb-4 rounded-full bg-black/60 px-3 py-1 text-[12px] font-semibold text-white">
+					준비 중
+				</span>
+			</div>
 		</div>
 	);
 }

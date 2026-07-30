@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-starttoo}
+      POSTGRES_USER: ${POSTGRES_USER:-starttoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-starttoo-local-password}
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-starttoo} -d ${POSTGRES_DB:-starttoo}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis/redis-stack-server:latest
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG && redis-cli FT._LIST >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-starttoo}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-starttoo-local-secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

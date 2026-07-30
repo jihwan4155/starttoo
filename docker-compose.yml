@@ -1,26 +1,149 @@
-version: '3.8'
-
 services:
-  # 1. 백엔드
   backend:
     build: ./backend
-    container_name: test_backend
+    container_name: starttoo-backend
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-local-development-only-secret-key-must-be-changed-before-deployment}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-starttoo}
+      DB_USERNAME: ${POSTGRES_USER:-starttoo}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-starttoo-local-password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-starttoo}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-starttoo-local-secret}
+      MINIO_BUCKET: ${MINIO_BUCKET:-starttoo}
+      AI_BASE_URL: ${AI_BASE_URL:-http://ai:8000}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      FIREBASE_ENABLED: ${FIREBASE_ENABLED:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     ports:
       - "8080:8080"
-    restart: always
 
-  # 2. 프론트엔드
   frontend:
     build: ./frontend
-    container_name: test_frontend
-    ports:
-      - "3000:3000"
-    restart: always
+    container_name: starttoo-frontend
+    restart: unless-stopped
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # 3. AI 
   ai:
     build: ./ai
-    container_name: test_ai
+    container_name: starttoo-ai
+    restart: unless-stopped
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: starttoo-redis
+    restart: unless-stopped
+    # protected-mode가 켜져있으면 비밀번호 없이는 컨테이너 밖(backend 포함)에서 오는 연결을 다 거부한다.
+    # redis는 외부에 포트를 노출하지 않아 내부 docker 네트워크에서만 접근 가능하므로 비활성화한다.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--protected-mode", "no"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG && redis-cli FT._LIST >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: starttoo-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-starttoo}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-starttoo-local-secret}
+    volumes:
+      - minio-data:/data
+    networks:
+      - starttoo-net
     ports:
-      - "8000:8000"
-    restart: always
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    build: ./nginx
+    container_name: starttoo-nginx
+    restart: unless-stopped
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+    networks:
+      - starttoo-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: starttoo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-starttoo}
+      POSTGRES_USER: ${POSTGRES_USER:-starttoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-starttoo-local-password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-starttoo} -d ${POSTGRES_DB:-starttoo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  starttoo-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  minio-data:
+  postgres-data:

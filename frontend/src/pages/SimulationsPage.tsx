@@ -1,4 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
+import { useSearchParams } from "react-router-dom";
 import SimulationTabs, {
 	type SimulationTab,
 } from "../components/simulation/SimulationTabs";
@@ -7,13 +8,14 @@ import BodyPartStep, {
 	type BodyPart,
 } from "../components/simulation/BodyPartStep";
 import CameraConnectStep from "../components/simulation/CameraConnectStep";
-import DesignSelectStep from "../components/simulation/DesignSelectStep";
+import ArResultStep from "../components/simulation/ArResultStep";
+import ArCustomizeScreen from "../components/simulation/ArCustomizeScreen";
 import UploadDropzoneBox from "../components/simulation/UploadDropzoneBox";
 import UploadDropzoneActions from "../components/simulation/UploadDropzoneActions";
 import { useImageUpload } from "../components/simulation/useImageUpload";
 import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import MyDesignsModal from "../components/simulation/MyDesignsModal";
-import PhotoPreviewModal from "../components/simulation/PhotoPreviewModal";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 function ChevronLeftIcon() {
 	return (
@@ -47,7 +49,7 @@ const STEP_COPY: Record<SimulationTab, Record<number, string>> = {
 	ar: {
 		1: "적용해 볼 신체 부위를 선택하세요",
 		2: "스마트폰으로 카메라를 연결하세요",
-		3: "원하는 타투를 선택하여 확인해보세요",
+		3: "폰에서 캡처한 결과를 확인하고 저장하세요",
 	},
 	image: {
 		1: "원하는 이미지 도안을 올려주세요",
@@ -59,13 +61,17 @@ const STEP_COPY: Record<SimulationTab, Record<number, string>> = {
 const MAX_STEP: Record<SimulationTab, number> = { ar: 3, image: 3 };
 
 export default function SimulationsPage() {
-	const [tab, setTab] = useState<SimulationTab>("image");
+	const [searchParams] = useSearchParams();
+	// QR/링크로 ?mode=ar 진입 시 실시간(AR) 탭을 바로 선택
+	const [tab, setTab] = useState<SimulationTab>(
+		searchParams.get("mode") === "ar" ? "ar" : "image"
+	);
 	const [arStep, setArStep] = useState(1);
 	const [imageStep, setImageStep] = useState(1);
 	const [bodyPart, setBodyPart] = useState<BodyPart | null>(null);
-	const [designIndex, setDesignIndex] = useState(0);
 	const [myDesignsOpen, setMyDesignsOpen] = useState(false);
-	const [previewOpen, setPreviewOpen] = useState(false);
+	const [captureUrl, setCaptureUrl] = useState<string | null>(null);
+	const isMobile = useIsMobile();
 
 	const designUpload = useImageUpload();
 	const bodyPhotoUpload = useImageUpload();
@@ -86,8 +92,20 @@ export default function SimulationsPage() {
 	};
 	const handleBack = () => setStep((current) => Math.max(1, current - 1));
 
-	// 이미지(3D) 마지막 단계에서는 상단 제목·설명·탭 박스를 숨겨 결과 화면에 집중
-	const hideHeader = tab === "image" && step === maxStep;
+	// 모바일 AR 커스텀 단계 — QR 없이 폰에서 직접 카메라+합성+캡처
+	const mobileArLive = isMobile && tab === "ar" && step === 3;
+
+	// AR 단계 설명 (모바일은 QR 없이 직접 카메라)
+	const mobileArCopy: Record<number, string> = {
+		1: "적용해 볼 신체 부위를 선택하세요",
+		2: "카메라를 연결하세요",
+		3: "실시간으로 확인하고 저장하세요",
+	};
+	const stepDescription =
+		tab === "ar" && isMobile ? mobileArCopy[step] : STEP_COPY[tab][step];
+
+	// 이미지(3D) 마지막 단계·모바일 AR 라이브에서는 상단을 숨겨 화면에 집중
+	const hideHeader = (tab === "image" && step === maxStep) || mobileArLive;
 
 	return (
 		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
@@ -107,76 +125,103 @@ export default function SimulationsPage() {
 					</>
 				)}
 
-				<StepHeading step={step} description={STEP_COPY[tab][step]} />
+				{!mobileArLive && (
+					<StepHeading step={step} description={stepDescription} />
+				)}
 
-				{/* grid-rows-[minmax(0,1fr)]: 행이 콘텐츠 크기로 늘어나 STEP 문구를 덮지 않게 가용 높이로 고정 */}
-				<div className="mt-4 grid min-h-0 flex-1 grid-cols-[100px_1fr_100px] grid-rows-[minmax(0,1fr)] gap-6">
-					<button
-						type="button"
-						onClick={handleBack}
-						aria-label="이전"
-						className={`flex items-center justify-self-end gap-1.5 whitespace-nowrap text-[19px] font-semibold text-black/40 transition hover:text-black/60 ${
-							step === 1 ? "invisible" : ""
-						}`}>
-						<ChevronLeftIcon />
-						이전
-					</button>
-
-					<div className="flex min-w-0 min-h-0 items-center justify-center">
-						{tab === "ar" && step === 1 && (
-							<BodyPartStep selected={bodyPart} onSelect={setBodyPart} />
-						)}
-						{tab === "ar" && step === 2 && <CameraConnectStep />}
-						{tab === "ar" && step === 3 && (
-							<DesignSelectStep
-								selectedIndex={designIndex}
-								onSelect={setDesignIndex}
-								onAddDesign={() => setMyDesignsOpen(true)}
-								onCapture={() => setPreviewOpen(true)}
-							/>
-						)}
-
-						<UploadDropzoneBox
-							visible={tab === "image" && step === 1}
-							inputRef={designUpload.inputRef}
-							preview={designUpload.preview}
-							onPick={designUpload.openPicker}
-							onChange={designUpload.handleChange}
-							onDrop={designUpload.handleDrop}
-						/>
-						<UploadDropzoneBox
-							visible={tab === "image" && step === 2}
-							inputRef={bodyPhotoUpload.inputRef}
-							preview={bodyPhotoUpload.preview}
-							onPick={bodyPhotoUpload.openPicker}
-							onChange={bodyPhotoUpload.handleChange}
-							onDrop={bodyPhotoUpload.handleDrop}
-						/>
-						{/* 3D 시뮬레이션: 진입 즉시 AI 파이프라인 실행 → 배치·바램·저장을 한 화면에서 */}
-						{tab === "image" && step === 3 && (
-							<Simulation3DStep
-								designUrl={designUpload.preview}
-								photoUrl={bodyPhotoUpload.preview}
-							/>
-						)}
+				{mobileArLive ? (
+					/* 모바일 AR 라이브 — 전체 폭, 화살표 없이 (도안+옵션+캡처) */
+					<div className="mt-3 flex min-h-0 flex-1 flex-col">
+						<button
+							type="button"
+							onClick={() => setArStep(2)}
+							className="mb-2 flex shrink-0 items-center gap-1 self-start text-[15px] font-semibold text-black/40">
+							<ChevronLeftIcon />
+							이전
+						</button>
+						<div className="flex min-h-0 flex-1 justify-center overflow-y-auto">
+							<ArCustomizeScreen onCapture={setCaptureUrl} />
+						</div>
 					</div>
+				) : (
+					/* grid-rows-[minmax(0,1fr)]: 행이 콘텐츠 크기로 늘어나 STEP 문구를 덮지 않게 가용 높이로 고정 */
+					<div className="mt-4 grid min-h-0 flex-1 grid-cols-[44px_1fr_44px] grid-rows-[minmax(0,1fr)] gap-2 sm:grid-cols-[100px_1fr_100px] sm:gap-6">
+						<button
+							type="button"
+							onClick={handleBack}
+							aria-label="이전"
+							className={`flex items-center justify-self-end gap-1.5 whitespace-nowrap text-[19px] font-semibold text-black/40 transition hover:text-black/60 ${
+								step === 1 ? "invisible" : ""
+							}`}>
+							<ChevronLeftIcon />
+							<span className="hidden sm:inline">이전</span>
+						</button>
 
-					<button
-						type="button"
-						onClick={handleNext}
-						disabled={!canAdvance}
-						aria-label="다음"
-						className={`flex items-center justify-self-start gap-1.5 whitespace-nowrap text-[19px] font-extrabold transition ${
-							canAdvance
-								? "text-brand hover:brightness-90"
-								: "cursor-not-allowed text-black/20"
-						} ${
-							step === maxStep ? "invisible" : ""
-						}`}>
-						다음
-						<ChevronRightIcon />
-					</button>
-				</div>
+						<div className="flex min-w-0 min-h-0 items-center justify-center">
+							{tab === "ar" && step === 1 && (
+								<BodyPartStep selected={bodyPart} onSelect={setBodyPart} />
+							)}
+							{tab === "ar" &&
+								step === 2 &&
+								(isMobile ? (
+									<div className="flex flex-col items-center gap-4 text-center">
+										<p className="text-[14px] font-light text-black/60">
+											준비되면 카메라를 연결하세요
+										</p>
+										<button
+											type="button"
+											onClick={() => setArStep(3)}
+											className="rounded-full bg-brand px-8 py-3 text-[16px] font-semibold text-white transition hover:brightness-95">
+											카메라 연결
+										</button>
+									</div>
+								) : (
+									<CameraConnectStep />
+								))}
+							{tab === "ar" && step === 3 && (
+								<ArResultStep onRestart={() => setArStep(1)} />
+							)}
+
+							<UploadDropzoneBox
+								visible={tab === "image" && step === 1}
+								inputRef={designUpload.inputRef}
+								preview={designUpload.preview}
+								onPick={designUpload.openPicker}
+								onChange={designUpload.handleChange}
+								onDrop={designUpload.handleDrop}
+							/>
+							<UploadDropzoneBox
+								visible={tab === "image" && step === 2}
+								inputRef={bodyPhotoUpload.inputRef}
+								preview={bodyPhotoUpload.preview}
+								onPick={bodyPhotoUpload.openPicker}
+								onChange={bodyPhotoUpload.handleChange}
+								onDrop={bodyPhotoUpload.handleDrop}
+							/>
+							{/* 3D 시뮬레이션: 진입 즉시 AI 파이프라인 실행 → 배치·바램·저장을 한 화면에서 */}
+							{tab === "image" && step === 3 && (
+								<Simulation3DStep
+									designUrl={designUpload.preview}
+									photoUrl={bodyPhotoUpload.preview}
+								/>
+							)}
+						</div>
+
+						<button
+							type="button"
+							onClick={handleNext}
+							disabled={!canAdvance}
+							aria-label="다음"
+							className={`flex items-center justify-self-start gap-1.5 whitespace-nowrap text-[19px] font-extrabold transition ${
+								canAdvance
+									? "text-brand hover:brightness-90"
+									: "cursor-not-allowed text-black/20"
+							} ${step === maxStep ? "invisible" : ""}`}>
+							<span className="hidden sm:inline">다음</span>
+							<ChevronRightIcon />
+						</button>
+					</div>
+				)}
 
 				{tab === "ar" && step === 1 && (
 					<p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/50">
@@ -184,7 +229,7 @@ export default function SimulationsPage() {
 					</p>
 				)}
 
-				{tab === "ar" && step === 2 && (
+				{tab === "ar" && step === 2 && !isMobile && (
 					<p className="mt-2 shrink-0 text-center text-[14px] font-light leading-5 text-black/50">
 						기본 카메라 앱으로 QR코드를 비추면
 						<br />
@@ -217,11 +262,38 @@ export default function SimulationsPage() {
 					}}
 				/>
 			)}
-			{previewOpen && (
-				<PhotoPreviewModal
-					title="사진 미리보기"
-					onClose={() => setPreviewOpen(false)}
-				/>
+
+			{/* 모바일 캡처 결과 — 미리보기 + 기기 저장 */}
+			{captureUrl && (
+				<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-neutral-950/95 px-6 text-center backdrop-blur">
+					<div className="w-56 overflow-hidden rounded-[16px] ring-1 ring-white/15">
+						<img
+							src={captureUrl}
+							alt="캡처 결과"
+							className="w-full object-cover"
+						/>
+					</div>
+					<div>
+						<p className="text-[18px] font-bold text-white">캡처 완료!</p>
+						<p className="mt-1 text-[14px] font-light text-white/60">
+							이미지를 기기에 저장하세요.
+						</p>
+					</div>
+					<div className="flex flex-col items-center gap-3">
+						<a
+							href={captureUrl}
+							download="starttoo-tattoo.png"
+							className="rounded-full bg-brand px-8 py-3 text-[16px] font-semibold text-white transition hover:brightness-95">
+							기기에 저장
+						</a>
+						<button
+							type="button"
+							onClick={() => setCaptureUrl(null)}
+							className="text-[14px] font-semibold text-white/60">
+							다시 촬영하기
+						</button>
+					</div>
+				</div>
 			)}
 		</div>
 	);

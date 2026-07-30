@@ -1,13 +1,13 @@
 spring:
   application:
-    name: backend
-
+    name: starttoo-backend
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/tattoo_platform?serverTimezone=UTC&characterEncoding=UTF-8}
-    username: ${DB_USERNAME:ssafy}
-    password: ${DB_PASSWORD:ssafy}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/starttoo}
+    username: ${DB_USERNAME:starttoo}
+    password: ${DB_PASSWORD:starttoo-local-password}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
   jpa:
     open-in-view: false
     hibernate:
@@ -16,59 +16,108 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
-
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
   jackson:
-    time-zone: UTC
-
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 100MB
+    default-property-inclusion: non_null
 
 server:
   port: ${SERVER_PORT:8080}
-  servlet:
-    context-path: /v1
+  forward-headers-strategy: framework
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
 springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+    path: /v3/api-docs
   swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
-  api-docs:
-    path: /v3/api-docs
 
 app:
-  profile:
-    default-image-key: ${DEFAULT_PROFILE_IMAGE_KEY:system/profile/default-profile.webp}
-  test-auth:
-    enabled: ${TEST_AUTH_ENABLED:false}
-  security:
-    jwt:
-      secret: ${JWT_SECRET:local-development-only-secret-key-must-be-changed-before-deployment}
-      issuer: ${JWT_ISSUER:starttoo}
-      access-token-seconds: ${JWT_ACCESS_TOKEN_SECONDS:1800}
-      signup-token-seconds: ${JWT_SIGNUP_TOKEN_SECONDS:600}
-      refresh-token-seconds: ${JWT_REFRESH_TOKEN_SECONDS:2592000}
+  jwt:
+    issuer: starttoo
+    secret: ${JWT_SECRET:local-development-secret-key-change-me-1234567890}
+    access-token-ttl: 30m
+    signup-token-ttl: 10m
+    refresh-token-ttl: 30d
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:starttoo}
+    secret-key: ${MINIO_SECRET_KEY:starttoo-local-secret}
+    bucket: ${MINIO_BUCKET:starttoo}
+    max-image-bytes: ${MAX_IMAGE_BYTES:15728640}
+    upload-expiry: 10m
+    download-expiry: 10m
   oauth:
-    allowed-redirect-uris: ${OAUTH_ALLOWED_REDIRECT_URIS:http://localhost:3000/oauth/callback,http://localhost:8080/oauth/callback}
-    kakao:
-      client-id: ${KAKAO_CLIENT_ID:}
-      client-secret: ${KAKAO_CLIENT_SECRET:}
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       client-secret: ${GOOGLE_CLIENT_SECRET:}
-  storage:
-    bucket: ${MINIO_BUCKET:starttoo-images}
-    presigned-upload-seconds: ${MINIO_UPLOAD_URL_SECONDS:600}
-    presigned-download-seconds: ${MINIO_DOWNLOAD_URL_SECONDS:3600}
-  ar:
-    session-seconds: ${AR_SESSION_SECONDS:300}
-    connected-session-seconds: ${AR_CONNECTED_SESSION_SECONDS:1800}
-    mobile-capture-base-url: ${AR_MOBILE_CAPTURE_BASE_URL:http://localhost:3000/ar/capture}
+      token-uri: https://oauth2.googleapis.com/token
+      user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
+    kakao:
+      client-id: ${KAKAO_CLIENT_ID:}
+      client-secret: ${KAKAO_CLIENT_SECRET:}
+      token-uri: https://kauth.kakao.com/oauth/token
+      user-info-uri: https://kapi.kakao.com/v2/user/me
+  sms:
+    webhook-url: ${SMS_WEBHOOK_URL:}
+    api-key: ${SMS_API_KEY:}
+  firebase:
+    # 변경: 로컬 기본값은 비활성화다. 운영에서는 서비스 계정 또는 ADC를 제공한다.
+    enabled: ${FIREBASE_ENABLED:false}
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+    project-id: ${FIREBASE_PROJECT_ID:}
+  ai:
+    # 모델 서버 계약 확정 전까지 외부 호출은 코드에서 비활성화되어 있다.
+    enabled: ${AI_ENABLED:false}
+    base-url: ${AI_BASE_URL:http://localhost:8000}
+    tattoo-detection-path: /v1/tattoos/detect
+    tattoo-analysis-path: /v1/tattoos/analyze
+    generation-path: /v1/generations
+    coverup-path: /v1/coverups
+    simulation-path: /v1/simulations
+  rate-limit:
+    default-capacity: ${RATE_LIMIT_DEFAULT_CAPACITY:60}
+    default-window: ${RATE_LIMIT_DEFAULT_WINDOW:1m}
+    mutation-capacity: ${RATE_LIMIT_MUTATION_CAPACITY:20}
+    mutation-window: ${RATE_LIMIT_MUTATION_WINDOW:1m}
+  search:
+    log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
+    count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}
+    autocomplete-refresh-delay: ${SEARCH_AUTOCOMPLETE_REFRESH_DELAY:600000}
+    reconciliation-cron: "${SEARCH_RECONCILIATION_CRON:0 0 4 * * *}"
+  preference:
+    survey: 5.0
+    post-like: 2.0
+    post-bookmark: 3.0
+    collection: 4.0
+    search-click: 0.5
+    not-interested: -2.0
+    dwell-short: 0.1
+    dwell-medium: 0.5
+    dwell-long: 1.0
+
+logging:
+  level:
+    root: INFO
+    com.starttoo.backend: INFO
