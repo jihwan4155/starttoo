@@ -17,6 +17,7 @@ import {
 	type TattooTransform,
 } from "./inkproof/image-engine";
 import { loadImage, type BodyScanResult } from "./useBodyScan";
+import OrbitLoader from "../orbit-loader/OrbitLoader";
 
 type InteractionMode = "idle" | "drag" | "scale" | "rotate";
 
@@ -421,13 +422,6 @@ export default function Simulation3DStep({
 	}
 
 	const errorMessage = designError ?? scan.error;
-	// 스캔 진행률 + 도안 준비 상태를 합쳐 준비 화면에 표시한다.
-	const preparingLabel =
-		scan.status !== "ready"
-			? scan.label || "신체 사진을 분석하는 중"
-			: "도안을 준비하는 중";
-	const preparingProgress =
-		scan.status !== "ready" ? scan.progress : tattooImage ? 100 : 92;
 
 	return (
 		<div className="flex size-full min-h-0 flex-col items-center gap-3">
@@ -451,27 +445,8 @@ export default function Simulation3DStep({
 				)}
 
 				{!ready && !errorMessage && (
-					<div className="absolute inset-0 flex items-center justify-center rounded-[12px] bg-black/55">
-						<div className="w-[290px] rounded-xl bg-white px-5 py-4 shadow-lg">
-							<p className="mb-3 text-[12px] font-semibold text-black/55">
-								시뮬레이션을 준비하고 있어요
-							</p>
-							<div className="flex items-center gap-2">
-								<span className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-								<span className="text-[13px] font-semibold text-black">
-									{preparingLabel}
-								</span>
-								<span className="ml-auto font-mono text-[10px] text-brand">
-									{Math.round(preparingProgress)}%
-								</span>
-							</div>
-							<div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-black/10">
-								<div
-									className="h-full rounded-full bg-brand transition-[width]"
-									style={{ width: `${Math.round(preparingProgress)}%` }}
-								/>
-							</div>
-						</div>
+					<div className="absolute inset-0 flex items-center justify-center rounded-[12px] bg-[#f0f0ec]/55 backdrop-blur-[3px]">
+						<OrbitLoader inline size={180} label={null} durationMs={3000} />
 					</div>
 				)}
 
