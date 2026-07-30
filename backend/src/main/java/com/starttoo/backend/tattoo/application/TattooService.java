@@ -41,13 +41,12 @@ public class TattooService {
 
         /*
          * TODO(model-integration)
-         * 모델 서버 계약이 확정되면 아래 흐름을 복구한다.
-         * 1) image의 MinIO 단기 다운로드 URL 발급
-         * 2) 타투 여부 판별이 true인 경우에만 분석 모델 호출
-         * 3) 분석 결과 코드와 subject를 검증한 뒤 저장
+         * 모델 서버 계약이 확정되면 PostService의 트랜잭션 진입 전에 아래 흐름을 수행한다.
+         * 1) 모든 이미지 소유권 검증 및 MinIO 단기 다운로드 URL 발급
+         * 2) 모든 이미지의 타투 여부 판별
+         * 3) 전부 통과한 경우 분석하고 결과를 이 저장 단계로 전달
          *
-         * TattooModelClient.Analysis analysis =
-         *         modelClient.analyze(mediaService.downloadUrl(image));
+         * 외부 모델 호출 중에는 DB 트랜잭션이나 row lock을 유지하지 않는다.
          */
         TattooModelClient.Analysis analysis = temporaryAnalysis();
 

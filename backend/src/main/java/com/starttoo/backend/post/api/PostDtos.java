@@ -1,6 +1,6 @@
 package com.starttoo.backend.post.api;
 
-import com.starttoo.backend.post.domain.PostStatus;
+import com.starttoo.backend.user.domain.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -35,17 +35,25 @@ public final class PostDtos {
     public record PostImageResponse(
             Long postImageSeq,
             Long imageSeq,
+            String imageUrl,
             Long tattooSeq,
             short displayOrder
     ) {
     }
 
+    public record UserSummary(
+            Integer userSeq,
+            String nickname,
+            UserRole role,
+            Long profileImageSeq,
+            String profileImageUrl
+    ) {
+    }
+
     public record PostResponse(
             Long postSeq,
-            Integer authorSeq,
-            String authorNickname,
+            UserSummary author,
             String content,
-            PostStatus postStatus,
             int likeCount,
             int commentCount,
             List<PostImageResponse> images,
@@ -57,6 +65,12 @@ public final class PostDtos {
     }
 
     public record StateResponse(boolean enabled) {
+    }
+
+    public record StateRequest(
+            @Schema(description = "설정할 최종 관계 상태", example = "true")
+            @NotNull Boolean enabled
+    ) {
     }
 
     public record DwellRequest(
@@ -72,5 +86,17 @@ public final class PostDtos {
             @Schema(description = "선택 상세 신고 사유", example = "타인의 작업물을 무단 도용했습니다.")
             @Size(max = 1000) String reasonDetail
     ) {
+    }
+
+    public record ReportResponse(
+            Long reportSeq,
+            ReportStatus reportStatus
+    ) {
+    }
+
+    public enum ReportStatus {
+        PENDING,
+        ACCEPTED,
+        REJECTED
     }
 }

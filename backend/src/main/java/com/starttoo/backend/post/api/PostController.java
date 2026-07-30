@@ -45,7 +45,8 @@ public class PostController {
                     BLACK, subject=타투)을 사용한다. tattoos·subjects 연결, PUBLISHED 게시물,
                     postImages 생성을 하나의 DB 트랜잭션으로 처리하므로 어느 이미지라도 실패하면
                     전체 등록이 롤백된다. 모델 연결 후에는 모든 이미지가 타투 판별을 통과한
-                    경우에만 같은 트랜잭션의 저장 단계를 진행한다.
+                    경우에만 같은 트랜잭션의 저장 단계를 진행한다. 응답의 작성자 프로필과 게시물
+                    이미지 URL은 저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -63,7 +64,7 @@ public class PostController {
                     postSeq 내림차순 커서로 PUBLISHED이면서 소프트 삭제되지 않은 게시물만 반환한다.
                     authorSeq가 있으면 특정 작성자로 필터링한다. 로그인한 조회자에게는 양방향 차단
                     관계와 관심 없음으로 숨긴 게시물을 제외하고 좋아요·북마크 상태를 계산한다.
-                    비로그인 조회도 가능하다.
+                    비로그인 조회도 가능하다. 이미지 URL은 단기 Presigned GET URL이다.
                     """
     )
     public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> list(
@@ -80,6 +81,66 @@ public class PostController {
         ));
     }
 
+    @GetMapping("/me")
+    @Operation(
+            summary = "내 게시물 목록",
+            description = """
+                    현재 회원이 작성한 PUBLISHED 활성 게시물만 postSeq 내림차순 커서로 반환한다.
+                    작성자·이미지·관계 상태는 공통 Post DTO를 사용한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> mine(
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        return ApiResponse.of(postService.mine(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
+    }
+
+    @GetMapping("/bookmarked")
+    @Operation(
+            summary = "북마크한 게시물 목록",
+            description = """
+                    현재 회원의 북마크 저장 시각과 postSeq 내림차순의 안정적인 커서로 조회한다.
+                    PUBLISHED 활성 게시물만 반환하며 차단 관계와 관심 없음 게시물을 제외한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> bookmarked(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        return ApiResponse.of(postService.bookmarked(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
+    }
+
+    @GetMapping("/following")
+    @Operation(
+            summary = "팔로잉 게시물 피드",
+            description = """
+                    현재 회원이 팔로우하는 활성 회원의 PUBLISHED 게시물을 postSeq 내림차순
+                    커서로 반환한다. 차단 관계와 관심 없음 게시물은 제외한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> following(
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        return ApiResponse.of(postService.following(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
+    }
+
     @GetMapping("/{postSeq}")
     @OptionalAuth
     @Operation(
@@ -87,7 +148,8 @@ public class PostController {
             description = """
                     PUBLISHED 상태의 활성 게시물과 순서가 보장된 이미지·tattooSeq를 반환한다.
                     로그인한 조회자와 작성자 사이에 차단 관계가 있으면 존재하지 않는 게시물처럼
-                    처리하며, 조회자의 좋아요·북마크 상태를 포함한다.
+                    처리하며, 조회자의 관심 없음 게시물도 제외한다. 조회자의 좋아요·북마크 상태와
+                    작성자 프로필·게시물 이미지의 단기 Presigned GET URL을 포함한다.
                     """
     )
     public ApiResponse<PostDtos.PostResponse> get(
@@ -146,10 +208,14 @@ public class PostController {
     )
     public ApiResponse<PostDtos.StateResponse> like(
             @PathVariable Long postSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
+            @Valid @RequestBody PostDtos.StateRequest request
     ) {
         return ApiResponse.of(new PostDtos.StateResponse(
-                postService.setLike(SecurityUtils.currentUserSeq(), postSeq, enabled)
+                postService.setLike(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        request.enabled()
+                )
         ));
     }
 
@@ -165,10 +231,14 @@ public class PostController {
     )
     public ApiResponse<PostDtos.StateResponse> bookmark(
             @PathVariable Long postSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
+            @Valid @RequestBody PostDtos.StateRequest request
     ) {
         return ApiResponse.of(new PostDtos.StateResponse(
-                postService.setBookmark(SecurityUtils.currentUserSeq(), postSeq, enabled)
+                postService.setBookmark(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        request.enabled()
+                )
         ));
     }
 
@@ -184,10 +254,14 @@ public class PostController {
     )
     public ApiResponse<PostDtos.StateResponse> notInterested(
             @PathVariable Long postSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
+            @Valid @RequestBody PostDtos.StateRequest request
     ) {
         return ApiResponse.of(new PostDtos.StateResponse(
-                postService.setNotInterested(SecurityUtils.currentUserSeq(), postSeq, enabled)
+                postService.setNotInterested(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        request.enabled()
+                )
         ));
     }
 
@@ -219,7 +293,7 @@ public class PostController {
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<Long> report(
+    public ApiResponse<PostDtos.ReportResponse> report(
             @PathVariable Long postSeq,
             @Valid @RequestBody PostDtos.ReportRequest request
     ) {
