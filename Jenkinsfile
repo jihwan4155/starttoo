@@ -8,23 +8,19 @@ pipeline {
     }
 
     stages {
-        stage('Prepare env') {
-            steps {
-                withCredentials([file(credentialsId: 'starttoo-env-file', variable: 'ENV_FILE')]) {
-                    sh 'cp "$ENV_FILE" .env'
-                }
-            }
-        }
-
         stage('Build') {
             steps {
-                sh 'docker compose build'
+                withCredentials([file(credentialsId: 'starttoo-env-file', variable: 'ENV_FILE')]) {
+                    sh 'docker compose --env-file "$ENV_FILE" build'
+                }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh 'docker compose up -d'
+                withCredentials([file(credentialsId: 'starttoo-env-file', variable: 'ENV_FILE')]) {
+                    sh 'docker compose --env-file "$ENV_FILE" up -d'
+                }
             }
         }
     }
