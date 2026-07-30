@@ -30,11 +30,11 @@ public class NotificationController {
 
     @GetMapping
     @Operation(
-            summary = "내 알림 목록",
+            summary = "내 미확인 알림 목록",
             description = """
-                    receiverSeq가 현재 회원인 알림을 notificationSeq 내림차순 커서로 조회한다.
-                    현재 구현은 읽음·미읽음 알림을 모두 반환하며 각 항목의 read와 readDttm으로
-                    상태를 구분한다.
+                    receiverSeq가 현재 회원이고 isRead=false인 알림만 notificationSeq
+                    내림차순 커서로 조회한다. size=10을 사용하면 미확인 알림 Top 10과
+                    동일하며 결과가 없으면 items=[]를 반환한다.
                     """
     )
     public ApiResponse<CursorPageResponse<NotificationDtos.NotificationResponse>> list(
@@ -48,14 +48,17 @@ public class NotificationController {
         ));
     }
 
-    @GetMapping("/unread-count")
+    @GetMapping("/unread-counts")
     @Operation(
-            summary = "읽지 않은 알림 수",
-            description = "현재 회원의 read=false 알림 개수를 집계하여 반환한다."
+            summary = "타입별 미확인 알림 수",
+            description = """
+                    현재 회원의 isRead=false 알림을 한 번의 GROUP BY 조회로 집계한다.
+                    total은 byType 값의 합이며 알림이 없는 타입도 0으로 모두 포함한다.
+                    """
     )
-    public ApiResponse<NotificationDtos.UnreadCount> unreadCount() {
-        return ApiResponse.of(new NotificationDtos.UnreadCount(
-                notificationService.unreadCount(SecurityUtils.currentUserSeq())
+    public ApiResponse<NotificationDtos.UnreadCounts> unreadCounts() {
+        return ApiResponse.of(notificationService.unreadCounts(
+                SecurityUtils.currentUserSeq()
         ));
     }
 
@@ -65,7 +68,7 @@ public class NotificationController {
             description = """
                     현재 회원이 수신한 알림인지 확인하고 read=true와 최초 readDttm을 기록한다.
                     다른 회원의 알림은 존재하지 않는 리소스처럼 처리하며 이미 읽은 알림은
-                    현재 상태를 그대로 반환한다.
+                    성공으로 처리하는 멱등 명령이다.
                     """
     )
     public ApiResponse<NotificationDtos.NotificationResponse> read(
