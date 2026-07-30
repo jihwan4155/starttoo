@@ -54,7 +54,11 @@ public class AuthService {
     @Transactional
     public AuthDtos.SocialLoginResponse socialLogin(AuthDtos.SocialLoginRequest request) {
         OAuthSubjectResolver.OAuthSubject subject =
-                subjectResolver.resolve(request.provider(), request.accessToken());
+                subjectResolver.resolve(
+                        request.provider(),
+                        request.authorizationCode(),
+                        request.redirectUri()
+                );
         OAuthProvider provider = provider(subject.providerCode());
         return oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(
