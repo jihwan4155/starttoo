@@ -21,10 +21,15 @@ public interface DmMessageRepository extends JpaRepository<DmMessage, Long> {
                and m.senderSeq <> :readerSeq
                and m.readDttm is null
                and m.deleted = false
+               and (
+                   :lastHiddenMessageSeq is null
+                   or m.dmMessageSeq > :lastHiddenMessageSeq
+               )
             """)
     int markRoomRead(
             @Param("roomSeq") Long roomSeq,
             @Param("readerSeq") Integer readerSeq,
+            @Param("lastHiddenMessageSeq") Long lastHiddenMessageSeq,
             @Param("readDttm") OffsetDateTime readDttm
     );
 }

@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @Validated
 @RequestMapping("/v1/dm")
@@ -42,6 +40,9 @@ public class DmController {
                     두 userSeq를 작은 값·큰 값 순으로 정규화하여 동일한 두 회원 사이에 방이 하나만
                     존재하게 한다. 기존 방이면 새 행을 만들지 않고 요청자의 참여 상태를 활성화하며,
                     신규 방이면 두 참여자와 기본 알림 enabled=true를 같은 트랜잭션에서 생성한다.
+                    실제 채팅방 진입으로 간주하여 요청자가 아직 읽지 않은 상대 메시지와 이 방의
+                    NEW_DM 알림도 같은 트랜잭션에서 읽음 처리한다. 상대 프로필 이미지 URL은
+                    저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
                     """
     )
     public ApiResponse<DmDtos.RoomResponse> createRoom(
@@ -57,13 +58,22 @@ public class DmController {
     @Operation(
             summary = "내 활성 채팅방 목록",
             description = """
-                    현재 참여자의 isActive=true인 방만 최신 방 순으로 반환한다. 상대 닉네임,
-                    마지막 메시지 미리보기, 방을 나가기 전에 숨긴 메시지 이후의 미읽음 수,
-                    현재 방별 알림 설정을 조합한다.
+                    현재 참여자의 isActive=true인 방만 숨김 기준 이후의 최신 메시지 시각과
+                    dmRoomSeq 내림차순의 안정적인 커서로 반환한다. 상대 프로필, 마지막 메시지
+                    미리보기, 방을 나가기 전에 숨긴 메시지 이후의 미읽음 수, 현재 방별 알림
+                    설정을 조합한다. 프로필 이미지 URL은 저장된 MinIO object key로 생성한
+                    단기 Presigned GET URL이다.
                     """
     )
-    public ApiResponse<List<DmDtos.RoomResponse>> rooms() {
-        return ApiResponse.of(dmService.rooms(SecurityUtils.currentUserSeq()));
+    public ApiResponse<CursorPageResponse<DmDtos.RoomResponse>> rooms(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "30") @Min(1) @Max(100) int size
+    ) {
+        return ApiResponse.of(dmService.rooms(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
     }
 
     @PostMapping("/rooms/{roomSeq}/messages")
@@ -94,7 +104,8 @@ public class DmController {
             description = """
                     방 참여자만 조회할 수 있다. dmMessageSeq 내림차순 커서를 사용하며 현재 사용자가
                     마지막으로 나갈 때 기록한 lastHiddenMessageSeq 이하의 과거 메시지는 제외한다.
-                    삭제 메시지는 행을 유지하되 본문·이미지를 null로 반환한다.
+                    삭제 메시지는 행을 유지하되 본문·이미지 seq·이미지 URL을 null로 반환한다.
+                    이미지 URL은 DB에 저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
                     """
     )
     public ApiResponse<CursorPageResponse<DmDtos.MessageResponse>> messages(
