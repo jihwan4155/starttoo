@@ -27,10 +27,10 @@ public class MediaController {
     @Operation(
             summary = "업로드용 presigned PUT URL 발급",
             description = """
-                    파일명 확장자와 contentType을 jpg/jpeg/png/webp로 제한한다. 백엔드가 회원
-                    경로와 UUID를 포함한 MinIO objectKey를 생성하고, 클라이언트가 Content-Type
-                    헤더와 함께 직접 PUT할 수 있는 단기 URL을 반환한다. 이 단계에서는 images
-                    행을 만들지 않는다.
+                    purpose, 파일 크기, 파일명 확장자와 contentType 일치를 검증한다. 백엔드가
+                    users/{userSeq}/{purpose}/{uuid}.{extension} MinIO objectKey를 생성하고,
+                    클라이언트가 Content-Type 헤더와 함께 직접 PUT할 수 있는 단기 URL을
+                    반환한다. 이 단계에서는 images 행을 만들지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -44,10 +44,12 @@ public class MediaController {
     @Operation(
             summary = "업로드 완료 확인 및 images 등록",
             description = """
-                    objectKey가 현재 회원에게 발급된 users/{userSeq}/ 경로인지 먼저 확인한다.
-                    MinIO stat으로 객체 존재, 크기, 실제 Content-Type을 검증한 뒤 중복되지 않은
-                    경우에만 images 행을 저장한다. presign 호출만 하고 업로드하지 않은 키는
-                    등록할 수 없다.
+                    objectKey의 회원·purpose·UUID·확장자 구조를 확인하고 MinIO stat으로 객체
+                    존재, 실제 크기와 Content-Type 일치를 검증한다. 검증과 다운로드 URL 발급을
+                    트랜잭션 없이 마친 후에만 짧은 images 등록 트랜잭션을 시작한다. DB 등록
+                    실패로 남은 객체는 users/{userSeq}/{purpose}/ 아래에서 images.object_key가
+                    없고 lastModified가 cleanup 실행 시각 - app.minio.upload-expiry보다 오래된
+                    경우 orphan cleanup 대상으로 본다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
