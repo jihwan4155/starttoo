@@ -68,7 +68,9 @@ services:
     image: redis/redis-stack-server:latest
     container_name: starttoo-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    # protected-mode가 켜져있으면 비밀번호 없이는 컨테이너 밖(backend 포함)에서 오는 연결을 다 거부한다.
+    # redis는 외부에 포트를 노출하지 않아 내부 docker 네트워크에서만 접근 가능하므로 비활성화한다.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--protected-mode", "no"]
     volumes:
       - redis-data:/data
     networks:
