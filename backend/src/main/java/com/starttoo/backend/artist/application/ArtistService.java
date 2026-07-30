@@ -7,6 +7,7 @@ import com.starttoo.backend.artist.domain.VerificationStatus;
 import com.starttoo.backend.common.api.CursorPageResponse;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
+import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.search.application.SearchIndexEventPublisher;
 import com.starttoo.backend.user.domain.User;
 import com.starttoo.backend.user.domain.UserRole;
@@ -29,6 +30,7 @@ public class ArtistService {
     private final UserService userService;
     private final JdbcTemplate jdbcTemplate;
     private final SearchIndexEventPublisher searchIndexEventPublisher;
+    private final MediaService mediaService;
 
     @Transactional(readOnly = true)
     public ArtistDtos.ArtistProfile get(Integer userSeq, boolean requireVerified) {
@@ -120,6 +122,7 @@ public class ArtistService {
                 SELECT a.user_seq,
                        u.nickname,
                        u.profile_image_seq,
+                       i.object_key AS profile_object_key,
                        a.shop_name,
                        a.shop_city,
                        a.shop_address,
@@ -130,12 +133,16 @@ public class ArtistService {
                        COALESCE(f.followers, 0) AS follower_count
                   FROM artists a
                   JOIN users u ON u.user_seq = a.user_seq
+                  LEFT JOIN images i
+                    ON i.image_seq = u.profile_image_seq
+                   AND i.is_deleted = FALSE
                   LEFT JOIN (
                       SELECT following_seq, COUNT(*) AS followers
                         FROM user_follows GROUP BY following_seq
                   ) f ON f.following_seq = a.user_seq
                  WHERE a.verification_status = 'VERIFIED'
                    AND a.is_deleted = FALSE
+                   AND u.role = 'ARTIST'
                    AND u.account_status = 'ACTIVE'
                    AND u.is_deleted = FALSE
                    AND (CAST(? AS VARCHAR) IS NULL OR a.shop_city = ?)
@@ -159,6 +166,7 @@ public class ArtistService {
                             userSeq,
                             rs.getString("nickname"),
                             rs.getObject("profile_image_seq", Long.class),
+                            downloadUrl(rs.getString("profile_object_key")),
                             rs.getString("shop_name"),
                             rs.getString("shop_city"),
                             rs.getString("shop_address"),
@@ -191,6 +199,7 @@ public class ArtistService {
                 user.getUserSeq(),
                 user.getNickname(),
                 user.getProfileImageSeq(),
+                profileImageUrl(user.getProfileImageSeq()),
                 artist.getShopName(),
                 artist.getShopCity(),
                 artist.getShopAddress(),
@@ -200,6 +209,22 @@ public class ArtistService {
                 followerCount,
                 artist.getRegDttm()
         );
+    }
+
+    private String profileImageUrl(Long profileImageSeq) {
+        if (profileImageSeq == null) {
+            return null;
+        }
+        List<String> objectKeys = jdbcTemplate.queryForList("""
+                SELECT object_key
+                  FROM images
+                 WHERE image_seq = ? AND is_deleted = FALSE
+                """, String.class, profileImageSeq);
+        return objectKeys.isEmpty() ? null : downloadUrl(objectKeys.get(0));
+    }
+
+    private String downloadUrl(String objectKey) {
+        return objectKey == null ? null : mediaService.downloadUrl(objectKey);
     }
 
     private record Row(

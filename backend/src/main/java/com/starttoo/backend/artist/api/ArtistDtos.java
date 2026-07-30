@@ -17,6 +17,7 @@ public final class ArtistDtos {
             Integer userSeq,
             String nickname,
             Long profileImageSeq,
+            String profileImageUrl,
             String shopName,
             String shopCity,
             String shopAddress,
