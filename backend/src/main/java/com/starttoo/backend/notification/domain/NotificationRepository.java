@@ -14,8 +14,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Integer receiverSeq
     );
 
-    long countByReceiverSeqAndReadFalse(Integer receiverSeq);
-
     @Modifying
     @Query("""
             update Notification n
