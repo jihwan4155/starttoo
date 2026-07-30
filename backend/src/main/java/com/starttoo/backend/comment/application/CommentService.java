@@ -7,6 +7,7 @@ import com.starttoo.backend.comment.domain.CommentStatus;
 import com.starttoo.backend.common.api.CursorPageResponse;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
+import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -35,6 +37,7 @@ public class CommentService {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final NotificationService notificationService;
+    private final MediaService mediaService;
 
     @Transactional
     public CommentDtos.CommentResponse create(
@@ -56,6 +59,9 @@ public class CommentService {
                     || parent.isDeleted()
                     || parent.getParentCommentSeq() != null) {
                 throw BusinessException.of(ErrorCode.INVALID_REQUEST);
+            }
+            if (blocked(userSeq, parent.getAuthorSeq())) {
+                throw BusinessException.of(ErrorCode.COMMENT_NOT_FOUND);
             }
         }
         OffsetDateTime now = OffsetDateTime.now();
@@ -99,27 +105,43 @@ public class CommentService {
         }
         int safeSize = Math.min(Math.max(size, 1), 100);
         List<Long> ids = jdbcTemplate.queryForList("""
-                SELECT comment_seq
-                  FROM comments
-                 WHERE post_seq = ?
-                   AND comment_status = 'PUBLISHED'
-                   AND is_deleted = FALSE
-                   AND (CAST(? AS BIGINT) IS NULL OR comment_seq > ?)
+                SELECT c.comment_seq
+                  FROM comments c
+                 WHERE c.post_seq = ?
+                   AND c.parent_comment_seq IS NULL
                    AND (
-                       CAST(? AS INTEGER) IS NULL OR NOT EXISTS (
-                           SELECT 1
-                             FROM user_blocks user_block
-                            WHERE (
-                                user_block.blocker_seq = ?
-                                AND user_block.blocked_seq = comments.author_seq
-                            )
-                               OR (
-                                user_block.blocker_seq = comments.author_seq
-                                AND user_block.blocked_seq = ?
-                            )
+                       (
+                           c.comment_status = 'PUBLISHED'
+                           AND c.is_deleted = FALSE
+                       )
+                       OR (
+                           c.comment_status = 'DELETED'
+                           AND c.is_deleted = TRUE
+                           AND EXISTS (
+                               SELECT 1
+                                 FROM comments reply
+                                WHERE reply.parent_comment_seq = c.comment_seq
+                                  AND reply.comment_status = 'PUBLISHED'
+                                  AND reply.is_deleted = FALSE
+                           )
                        )
                    )
-                 ORDER BY comment_seq
+                   AND (CAST(? AS BIGINT) IS NULL OR c.comment_seq > ?)
+                   AND (
+                       CAST(? AS INTEGER) IS NULL OR NOT EXISTS (
+                            SELECT 1
+                              FROM user_blocks user_block
+                             WHERE (
+                                 user_block.blocker_seq = ?
+                                 AND user_block.blocked_seq = c.author_seq
+                             )
+                                OR (
+                                 user_block.blocker_seq = c.author_seq
+                                 AND user_block.blocked_seq = ?
+                             )
+                        )
+                   )
+                 ORDER BY c.comment_seq
                  LIMIT ?
                 """, Long.class,
                 postSeq,
@@ -127,17 +149,67 @@ public class CommentService {
                 viewerSeq, viewerSeq, viewerSeq,
                 safeSize + 1
         );
-        boolean hasNext = ids.size() > safeSize;
-        List<Long> page = hasNext ? ids.subList(0, safeSize) : ids;
-        Map<Long, Comment> byId = new HashMap<>();
-        commentRepository.findAllById(page)
-                .forEach(value -> byId.put(value.getCommentSeq(), value));
-        List<Comment> comments = page.stream()
-                .map(id -> java.util.Objects.requireNonNull(byId.get(id)))
-                .toList();
-        List<CommentDtos.CommentResponse> items = responses(comments, viewerSeq);
-        String next = hasNext ? page.get(page.size() - 1).toString() : null;
-        return CursorPageResponse.of(items, next, hasNext);
+        return page(ids, safeSize, viewerSeq);
+    }
+
+    @Transactional(readOnly = true)
+    public CursorPageResponse<CommentDtos.CommentResponse> replies(
+            Long parentCommentSeq,
+            Long cursor,
+            int size,
+            Integer viewerSeq
+    ) {
+        Comment parent = find(parentCommentSeq);
+        if (parent.getParentCommentSeq() != null) {
+            throw BusinessException.of(ErrorCode.INVALID_REQUEST);
+        }
+        if (parent.getCommentStatus() == CommentStatus.HIDDEN) {
+            throw BusinessException.of(ErrorCode.COMMENT_NOT_FOUND);
+        }
+        Post post = postRepository
+                .findByPostSeqAndPostStatus(parent.getPostSeq(), PostStatus.PUBLISHED)
+                .filter(value -> !value.isDeleted())
+                .orElseThrow(() -> BusinessException.of(ErrorCode.POST_NOT_FOUND));
+        if (viewerSeq != null && (
+                blocked(viewerSeq, post.getAuthorSeq())
+                        || blocked(viewerSeq, parent.getAuthorSeq())
+        )) {
+            throw BusinessException.of(ErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        List<Long> ids = jdbcTemplate.queryForList("""
+                SELECT c.comment_seq
+                  FROM comments c
+                 WHERE c.post_seq = ?
+                   AND c.parent_comment_seq = ?
+                   AND c.comment_status = 'PUBLISHED'
+                   AND c.is_deleted = FALSE
+                   AND (CAST(? AS BIGINT) IS NULL OR c.comment_seq > ?)
+                   AND (
+                       CAST(? AS INTEGER) IS NULL OR NOT EXISTS (
+                           SELECT 1
+                             FROM user_blocks user_block
+                            WHERE (
+                                user_block.blocker_seq = ?
+                                AND user_block.blocked_seq = c.author_seq
+                            )
+                               OR (
+                                user_block.blocker_seq = c.author_seq
+                                AND user_block.blocked_seq = ?
+                            )
+                       )
+                   )
+                 ORDER BY c.comment_seq
+                 LIMIT ?
+                """, Long.class,
+                parent.getPostSeq(),
+                parentCommentSeq,
+                cursor, cursor,
+                viewerSeq, viewerSeq, viewerSeq,
+                safeSize + 1
+        );
+        return page(ids, safeSize, viewerSeq);
     }
 
     @Transactional
@@ -153,9 +225,22 @@ public class CommentService {
 
     @Transactional
     public void delete(Integer userSeq, Long commentSeq) {
-        Comment comment = owned(commentSeq, userSeq);
-        comment.delete(userSeq);
-        postRepository.addCommentCount(comment.getPostSeq(), -1);
+        Comment comment = find(commentSeq);
+        if (!comment.getAuthorSeq().equals(userSeq)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
+        if (comment.isDeleted()) {
+            return;
+        }
+        int changed = commentRepository.softDelete(
+                commentSeq,
+                userSeq,
+                userSeq,
+                OffsetDateTime.now()
+        );
+        if (changed > 0) {
+            postRepository.addCommentCount(comment.getPostSeq(), -1);
+        }
     }
 
     @Transactional
@@ -207,6 +292,24 @@ public class CommentService {
         return responses(List.of(comment), viewerSeq).get(0);
     }
 
+    private CursorPageResponse<CommentDtos.CommentResponse> page(
+            List<Long> ids,
+            int size,
+            Integer viewerSeq
+    ) {
+        boolean hasNext = ids.size() > size;
+        List<Long> page = hasNext ? ids.subList(0, size) : ids;
+        Map<Long, Comment> byId = new HashMap<>();
+        commentRepository.findAllById(page)
+                .forEach(value -> byId.put(value.getCommentSeq(), value));
+        List<Comment> comments = page.stream()
+                .map(id -> Objects.requireNonNull(byId.get(id)))
+                .toList();
+        List<CommentDtos.CommentResponse> items = responses(comments, viewerSeq);
+        String next = hasNext ? page.get(page.size() - 1).toString() : null;
+        return CursorPageResponse.of(items, next, hasNext);
+    }
+
     private List<CommentDtos.CommentResponse> responses(
             List<Comment> comments,
             Integer viewerSeq
@@ -215,41 +318,106 @@ public class CommentService {
             return List.of();
         }
         Set<Integer> authorSeqs = comments.stream()
+                .filter(comment -> !comment.isDeleted())
                 .map(Comment::getAuthorSeq)
                 .collect(java.util.stream.Collectors.toSet());
-        Map<Integer, String> nicknames = new HashMap<>();
-        namedParameterJdbcTemplate.query("""
-                SELECT user_seq, nickname
-                  FROM users
-                 WHERE user_seq IN (:authorSeqs)
-                """, new MapSqlParameterSource("authorSeqs", authorSeqs), rs -> {
-            nicknames.put(rs.getInt("user_seq"), rs.getString("nickname"));
-        });
+        Map<Integer, CommentDtos.CommentAuthor> authors = authors(authorSeqs);
 
-        List<Long> commentSeqs = comments.stream().map(Comment::getCommentSeq).toList();
-        Set<Long> liked = viewerSeq == null
+        List<Long> visibleCommentSeqs = comments.stream()
+                .filter(comment -> !comment.isDeleted())
+                .map(Comment::getCommentSeq)
+                .toList();
+        Set<Long> liked = viewerSeq == null || visibleCommentSeqs.isEmpty()
                 ? Set.of()
                 : new HashSet<>(namedParameterJdbcTemplate.queryForList("""
                         SELECT comment_seq
                           FROM comment_likes
                          WHERE user_seq = :userSeq
-                           AND comment_seq IN (:commentSeqs)
+                            AND comment_seq IN (:commentSeqs)
                         """, new MapSqlParameterSource()
                         .addValue("userSeq", viewerSeq)
-                        .addValue("commentSeqs", commentSeqs), Long.class));
-        return comments.stream().map(comment -> new CommentDtos.CommentResponse(
-                comment.getCommentSeq(),
-                comment.getPostSeq(),
-                comment.getAuthorSeq(),
-                nicknames.get(comment.getAuthorSeq()),
-                comment.getParentCommentSeq(),
-                comment.getContent(),
-                comment.getLikeCount(),
-                comment.getCommentStatus(),
-                liked.contains(comment.getCommentSeq()),
-                comment.getRegDttm(),
-                comment.getModDttm()
-        )).toList();
+                        .addValue("commentSeqs", visibleCommentSeqs), Long.class));
+        Map<Long, Integer> replyCounts = replyCounts(comments);
+
+        return comments.stream().map(comment -> {
+            boolean deleted = comment.isDeleted()
+                    || comment.getCommentStatus() == CommentStatus.DELETED;
+            return new CommentDtos.CommentResponse(
+                    comment.getCommentSeq(),
+                    comment.getPostSeq(),
+                    deleted ? null : authors.get(comment.getAuthorSeq()),
+                    comment.getParentCommentSeq(),
+                    deleted ? null : comment.getContent(),
+                    deleted ? 0 : comment.getLikeCount(),
+                    comment.getParentCommentSeq() == null
+                            ? replyCounts.getOrDefault(comment.getCommentSeq(), 0)
+                            : 0,
+                    !deleted && liked.contains(comment.getCommentSeq()),
+                    deleted,
+                    comment.getRegDttm(),
+                    comment.getModDttm()
+            );
+        }).toList();
+    }
+
+    private Map<Integer, CommentDtos.CommentAuthor> authors(Set<Integer> authorSeqs) {
+        if (authorSeqs.isEmpty()) {
+            return Map.of();
+        }
+        List<AuthorRow> rows = namedParameterJdbcTemplate.query("""
+                SELECT u.user_seq,
+                       u.nickname,
+                       u.profile_image_seq,
+                       i.object_key AS profile_object_key
+                  FROM users u
+                  LEFT JOIN images i
+                    ON i.image_seq = u.profile_image_seq
+                   AND i.is_deleted = FALSE
+                 WHERE u.user_seq IN (:authorSeqs)
+                """, new MapSqlParameterSource("authorSeqs", authorSeqs), (rs, rowNum) ->
+                new AuthorRow(
+                        rs.getInt("user_seq"),
+                        rs.getString("nickname"),
+                        rs.getObject("profile_image_seq", Long.class),
+                        rs.getString("profile_object_key")
+                ));
+        Map<Integer, CommentDtos.CommentAuthor> authors = new HashMap<>();
+        for (AuthorRow row : rows) {
+            authors.put(row.userSeq(), new CommentDtos.CommentAuthor(
+                    row.userSeq(),
+                    row.nickname(),
+                    row.profileImageSeq(),
+                    row.profileObjectKey() == null
+                            ? null
+                            : mediaService.downloadUrl(row.profileObjectKey())
+            ));
+        }
+        return authors;
+    }
+
+    private Map<Long, Integer> replyCounts(List<Comment> comments) {
+        List<Long> topLevelSeqs = comments.stream()
+                .filter(comment -> comment.getParentCommentSeq() == null)
+                .map(Comment::getCommentSeq)
+                .toList();
+        if (topLevelSeqs.isEmpty()) {
+            return Map.of();
+        }
+        List<ReplyCountRow> rows = namedParameterJdbcTemplate.query("""
+                SELECT parent_comment_seq, COUNT(*) AS reply_count
+                  FROM comments
+                 WHERE parent_comment_seq IN (:commentSeqs)
+                   AND comment_status = 'PUBLISHED'
+                   AND is_deleted = FALSE
+                 GROUP BY parent_comment_seq
+                """, new MapSqlParameterSource("commentSeqs", topLevelSeqs), (rs, rowNum) ->
+                new ReplyCountRow(
+                        rs.getLong("parent_comment_seq"),
+                        rs.getInt("reply_count")
+                ));
+        Map<Long, Integer> counts = new HashMap<>();
+        rows.forEach(row -> counts.put(row.commentSeq(), row.replyCount()));
+        return counts;
     }
 
     private Comment find(Long commentSeq) {
@@ -276,5 +444,16 @@ public class CommentService {
                         OR (blocker_seq = ? AND blocked_seq = ?)
                 )
                 """, Boolean.class, viewerSeq, authorSeq, authorSeq, viewerSeq));
+    }
+
+    private record AuthorRow(
+            Integer userSeq,
+            String nickname,
+            Long profileImageSeq,
+            String profileObjectKey
+    ) {
+    }
+
+    private record ReplyCountRow(Long commentSeq, int replyCount) {
     }
 }

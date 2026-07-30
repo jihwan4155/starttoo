@@ -61,11 +61,11 @@ public class CommentController {
     @GetMapping("/posts/{postSeq}/comments")
     @OptionalAuth
     @Operation(
-            summary = "댓글·답글 목록",
+            summary = "최상위 댓글 목록",
             description = """
-                    commentSeq 오름차순 커서를 사용하여 PUBLISHED 활성 댓글을 평면 목록으로
-                    반환한다. 각 항목의 parentCommentSeq로 댓글과 답글을 구분한다. 로그인한
-                    조회자에게는 댓글별 likedByMe를 계산하고 비로그인 조회도 허용한다.
+                    commentSeq 오름차순 커서를 사용하여 최상위 댓글만 반환한다. 활성 답글이 있는
+                    삭제 댓글은 author와 content를 숨긴 tombstone으로 유지하고 각 항목에는 활성
+                    답글 수 replyCount를 포함한다. 로그인 조회자는 likedByMe를 계산한다.
                     """
     )
     public ApiResponse<CursorPageResponse<CommentDtos.CommentResponse>> list(
@@ -78,6 +78,28 @@ public class CommentController {
                 ? Integer.valueOf(jwt.getToken().getSubject())
                 : null;
         return ApiResponse.of(commentService.list(postSeq, cursor, size, viewer));
+    }
+
+    @GetMapping("/comments/{commentSeq}/replies")
+    @OptionalAuth
+    @Operation(
+            summary = "댓글 답글 목록",
+            description = """
+                    지정한 최상위 댓글을 부모로 갖는 활성 1단계 답글만 commentSeq 오름차순
+                    커서로 반환한다. 삭제된 최상위 tombstone의 답글도 조회할 수 있으며 답글의
+                    replyCount는 항상 0이다. 로그인 조회자는 likedByMe를 계산한다.
+                    """
+    )
+    public ApiResponse<CursorPageResponse<CommentDtos.CommentResponse>> replies(
+            @PathVariable Long commentSeq,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "30") @Min(1) @Max(100) int size,
+            Authentication authentication
+    ) {
+        Integer viewer = authentication instanceof JwtAuthenticationToken jwt
+                ? Integer.valueOf(jwt.getToken().getSubject())
+                : null;
+        return ApiResponse.of(commentService.replies(commentSeq, cursor, size, viewer));
     }
 
     @PatchMapping("/comments/{commentSeq}")
@@ -106,6 +128,7 @@ public class CommentController {
             description = """
                     작성자만 삭제할 수 있다. 댓글 상태와 isDeleted를 변경하는 소프트 삭제이며,
                     posts.commentCount를 원자적으로 -1 한다. 두 변경은 같은 트랜잭션에 포함된다.
+                    최상위 댓글의 답글은 삭제하지 않으며 반복 삭제는 성공한다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -127,10 +150,14 @@ public class CommentController {
     )
     public ApiResponse<CommentDtos.LikeState> like(
             @PathVariable Long commentSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
+            @Valid @RequestBody CommentDtos.LikeStateRequest request
     ) {
         return ApiResponse.of(new CommentDtos.LikeState(
-                commentService.setLike(SecurityUtils.currentUserSeq(), commentSeq, enabled)
+                commentService.setLike(
+                        SecurityUtils.currentUserSeq(),
+                        commentSeq,
+                        request.enabled()
+                )
         ));
     }
 }

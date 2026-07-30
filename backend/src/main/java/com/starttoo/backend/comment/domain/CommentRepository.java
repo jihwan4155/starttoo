@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
@@ -13,4 +14,22 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Modifying
     @Query("update Comment c set c.likeCount = c.likeCount + :delta where c.commentSeq = :commentSeq and c.likeCount + :delta >= 0")
     int addLikeCount(@Param("commentSeq") Long commentSeq, @Param("delta") int delta);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Comment c
+               set c.commentStatus = com.starttoo.backend.comment.domain.CommentStatus.DELETED,
+                   c.deleted = true,
+                   c.modUsrSeq = :modifierSeq,
+                   c.modDttm = :modifiedDttm
+             where c.commentSeq = :commentSeq
+               and c.authorSeq = :authorSeq
+               and c.deleted = false
+            """)
+    int softDelete(
+            @Param("commentSeq") Long commentSeq,
+            @Param("authorSeq") Integer authorSeq,
+            @Param("modifierSeq") Integer modifierSeq,
+            @Param("modifiedDttm") OffsetDateTime modifiedDttm
+    );
 }
