@@ -37,6 +37,7 @@ public enum ErrorCode {
     DUPLICATE_PHONE_NUMBER(HttpStatus.CONFLICT, "이미 가입된 휴대폰 번호입니다."),
     DUPLICATE_REACTION(HttpStatus.CONFLICT, "이미 적용된 상태입니다."),
     STATE_CONFLICT(HttpStatus.CONFLICT, "현재 상태에서는 요청을 처리할 수 없습니다."),
+    NOT_TATTOO_IMAGE(HttpStatus.UNPROCESSABLE_ENTITY, "타투 이미지가 아닙니다."),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
     UPSTREAM_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 처리에 실패했습니다."),
     PROCESSING_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "외부 서비스 처리 시간이 초과되었습니다."),

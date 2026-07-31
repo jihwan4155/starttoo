@@ -30,7 +30,7 @@ public class TattooModelClient {
                     .retrieve()
                     .body(Detection.class);
             if (detection == null || !detection.isTattoo()) {
-                throw new BusinessException(ErrorCode.INVALID_FILE, "타투 이미지가 아닙니다.");
+                throw BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE);
             }
             Analysis result = restClient.post()
                     .uri(properties.tattooAnalysisPath())
