@@ -15,8 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -48,32 +46,6 @@ public class ArtistController {
         return ApiResponse.of(artistService.list(cursor, size, city));
     }
 
-    @GetMapping("/{userSeq}")
-    @Operation(
-            summary = "인증 아티스트 공개 프로필",
-            description = """
-                    요청한 회원의 삭제되지 않은 아티스트 확장 정보와 현재 회원 정보, 팔로워 수를
-                    조합한다. 일반 공개 조회에서는 verificationStatus가 VERIFIED가 아니면
-                    존재하지 않는 리소스처럼 처리한다.
-                    """
-    )
-    public ApiResponse<ArtistDtos.ArtistProfile> get(@PathVariable Integer userSeq) {
-        return ApiResponse.of(artistService.get(userSeq, true));
-    }
-
-    @GetMapping("/me/profile")
-    @Operation(
-            summary = "내 아티스트 프로필과 심사 상태",
-            description = """
-                    본인의 프로필은 UNVERIFIED, PENDING, REJECTED 상태도 조회할 수 있다.
-                    아직 아티스트 확장 프로필을 작성하지 않았다면 찾을 수 없음으로 응답한다.
-                    """,
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    public ApiResponse<ArtistDtos.ArtistProfile> me() {
-        return ApiResponse.of(artistService.get(SecurityUtils.currentUserSeq(), false));
-    }
-
     @PatchMapping("/me/profile")
     @Operation(
             summary = "아티스트 프로필 작성·수정",
@@ -90,19 +62,4 @@ public class ArtistController {
         return ApiResponse.of(artistService.update(SecurityUtils.currentUserSeq(), request));
     }
 
-    @PostMapping("/me/verification")
-    @Operation(
-            summary = "아티스트 인증 심사 요청",
-            description = """
-                    먼저 아티스트 프로필이 존재해야 한다. UNVERIFIED 또는 REJECTED 상태만
-                    PENDING으로 전환할 수 있으며, 이미 PENDING 또는 VERIFIED이면 상태 충돌로
-                    처리한다.
-                    """,
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    public ApiResponse<ArtistDtos.ArtistProfile> submit(
-            @Valid @RequestBody ArtistDtos.VerificationRequest request
-    ) {
-        return ApiResponse.of(artistService.submit(SecurityUtils.currentUserSeq()));
-    }
 }

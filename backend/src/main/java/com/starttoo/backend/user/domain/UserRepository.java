@@ -11,16 +11,15 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<User> findByUserSeqAndDeletedFalse(Integer userSeq);
 
-    Optional<User> findByPhoneNumberAndDeletedFalse(String phoneNumber);
-
-    boolean existsByNicknameAndDeletedFalse(String nickname);
-
-    boolean existsByNicknameAndAccountStatusAndDeletedFalse(
-            String nickname,
-            AccountStatus accountStatus
+    Optional<User> findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+            String phoneNumber,
+            AccountStatus excludedStatus
     );
 
-    boolean existsByPhoneNumberAndDeletedFalse(String phoneNumber);
+    boolean existsByNicknameAndAccountStatusNotAndDeletedFalse(
+            String nickname,
+            AccountStatus excludedStatus
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

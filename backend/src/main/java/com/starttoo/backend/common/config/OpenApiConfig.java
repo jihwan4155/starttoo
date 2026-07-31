@@ -51,8 +51,8 @@ public class OpenApiConfig {
                                 성공 응답은 `data`로 감싸며 실패 응답은 `status`, `code`,
                                 `message`, `timestamp`와 선택적인 필드 오류를 반환합니다.
                                 각 API 설명에는 데이터 검증과 트랜잭션 처리 범위를 함께 기재합니다.
-                                현재 타투 판별·분석·생성 모델 호출은 비활성화되어 있으며, 모델
-                                의존 API는 소유권·입력·DB 원자성 검증이 가능한 임시 응답을 사용합니다.
+                                타투 판별·분석은 AI 연동이 활성화되면 이미지의 단기 Presigned GET
+                                URL로 모델을 호출하고, 비활성화된 환경에서는 명시적 Stub을 사용합니다.
                                 DM은 REST로 DB 트랜잭션을 확정한 뒤 `/ws` STOMP 연결의 개인
                                 목적지로 실시간 전달합니다. WebSocket 구독 계약은 README와
                                 `docs/API_SPEC.md`에 별도로 기재되어 있습니다.
@@ -82,10 +82,26 @@ public class OpenApiConfig {
             if (isMutation(handlerMethod)) {
                 addError(responses, "409", "중복 요청 또는 현재 상태와 충돌");
             }
-            if (usesExternalService(handlerMethod)) {
-                addError(responses, "502", "OAuth, SMS 또는 MinIO 처리 실패");
-                addError(responses, "503", "필수 외부 서비스가 설정되지 않았거나 일시적으로 사용 불가");
+            if (usesMinio(handlerMethod)) {
+                addError(responses, "503", "MinIO 연결 장애 또는 저장소 사용 불가");
+                if (handlerMethod.getMethod().getName().equals("presign")) {
+                    addError(responses, "413", "요청 파일 크기가 설정된 최대값을 초과함");
+                }
+                if (handlerMethod.getMethod().getName().equals("complete")) {
+                    addError(responses, "404", "업로드 완료할 MinIO 객체가 없음");
+                    addError(responses, "413", "실제 업로드 파일 크기가 설정된 최대값을 초과함");
+                    addError(responses, "415", "object key 확장자와 실제 Content-Type이 일치하지 않음");
+                }
+            } else if (usesExternalService(handlerMethod)) {
+                addError(responses, "502", "OAuth 외부 서비스 처리 실패");
+                addError(responses, "503", "OAuth 외부 서비스가 일시적으로 사용 불가");
                 addError(responses, "504", "외부 서비스 처리 시간 초과");
+            }
+            if (usesTattooAnalysis(handlerMethod)) {
+                addError(responses, "422", "업로드한 이미지가 타투 이미지가 아님");
+                addError(responses, "502", "타투 판별 또는 분석 모델 처리 실패");
+                addError(responses, "503", "이미지 저장소를 일시적으로 사용할 수 없음");
+                addError(responses, "504", "타투 판별 또는 분석 모델 처리 시간 초과");
             }
             if (handlerMethod.getBeanType().getSimpleName().equals("SearchController")) {
                 addError(responses, "503", "Redis 검색 인덱스를 일시적으로 사용할 수 없음");
@@ -130,9 +146,22 @@ public class OpenApiConfig {
     ) {
         String controller = handlerMethod.getBeanType().getSimpleName();
         String method = handlerMethod.getMethod().getName();
-        return controller.equals("MediaController")
-                || controller.equals("AuthController")
-                && (method.equals("socialLogin") || method.equals("requestPhoneVerification"));
+        return controller.equals("AuthController")
+                && method.equals("socialLogin");
+    }
+
+    private boolean usesMinio(org.springframework.web.method.HandlerMethod handlerMethod) {
+        return handlerMethod.getBeanType().getSimpleName().equals("MediaController");
+    }
+
+    private boolean usesTattooAnalysis(
+            org.springframework.web.method.HandlerMethod handlerMethod
+    ) {
+        String controller = handlerMethod.getBeanType().getSimpleName();
+        String method = handlerMethod.getMethod().getName();
+        return method.equals("create")
+                && (controller.equals("CollectionController")
+                || controller.equals("PostController"));
     }
 
     private boolean usesRecentSearchMutation(

@@ -10,9 +10,7 @@ public record RateLimitProperties(
         Duration defaultWindow,
         long mutationCapacity,
         Duration mutationWindow,
-        long phoneVerificationRequestCapacity,
-        Duration phoneVerificationRequestWindow,
-        long phoneVerificationConfirmCapacity,
-        Duration phoneVerificationConfirmWindow
+        long phoneAvailabilityCapacity,
+        Duration phoneAvailabilityWindow
 ) {
 }

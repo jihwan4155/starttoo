@@ -8,7 +8,6 @@ public record PreferenceProperties(
         double postLike,
         double postBookmark,
         double collection,
-        double searchClick,
         double notInterested,
         double dwellShort,
         double dwellMedium,

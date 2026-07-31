@@ -9,14 +9,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/v1/devices")
@@ -43,18 +40,6 @@ public class DeviceController {
             @Valid @RequestBody DeviceDtos.RegisterDeviceRequest request
     ) {
         return ApiResponse.of(deviceService.register(SecurityUtils.currentUserSeq(), request));
-    }
-
-    @GetMapping
-    @Operation(
-            summary = "내 등록 기기 목록",
-            description = """
-                    현재 회원에게 연결된 활성·비활성 기기를 모두 최신 seq 순으로 반환한다.
-                    보안을 위해 실제 pushToken은 응답에 포함하지 않는다.
-                    """
-    )
-    public ApiResponse<List<DeviceDtos.DeviceResponse>> list() {
-        return ApiResponse.of(deviceService.list(SecurityUtils.currentUserSeq()));
     }
 
     @DeleteMapping("/{deviceSeq}")

@@ -56,12 +56,12 @@ public class AuthService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final PhoneVerificationService phoneVerificationService;
     private final SignupTokenConsumer signupTokenConsumer;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final JdbcTemplate jdbcTemplate;
     private final RefreshTokenHasher refreshTokenHasher;
+    private final PhoneNumberNormalizer phoneNumberNormalizer;
     private final SearchIndexEventPublisher searchIndexEventPublisher;
     private final DeviceService deviceService;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -95,11 +95,11 @@ public class AuthService {
     @Transactional
     public AuthDtos.TokenResponse signup(AuthDtos.SignupRequest request) {
         UserRole requestedRole = requestedRole(request.requestedRole());
-        Jwt signupJwt = signupTokenConsumer.consume(request.signupToken());
+        Jwt signupJwt = signupTokenConsumer.validate(request.signupToken());
         String providerCode = signupJwt.getClaimAsString("provider");
         String providerSubject = signupJwt.getSubject();
         OAuthProvider provider = provider(providerCode);
-        String phoneNumber = phoneVerificationService.consume(request.phoneVerificationToken());
+        String phoneNumber = phoneNumberNormalizer.normalizeKorean(request.phoneNumber());
 
         if (oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(
@@ -112,22 +112,18 @@ public class AuthService {
 
         OffsetDateTime now = OffsetDateTime.now();
         try {
-            var existingUser = userRepository.findByPhoneNumberAndDeletedFalse(phoneNumber);
+            var existingUser =
+                    userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                            phoneNumber,
+                            AccountStatus.WITHDRAWN
+                    );
             if (existingUser.isPresent()) {
-                User user = existingUser.get();
-                assertUsable(user);
-                oauthAccountRepository.saveAndFlush(UserOAuthAccount.builder()
-                        .userSeq(user.getUserSeq())
-                        .oauthProviderSeq(provider.getOauthProviderSeq())
-                        .providerSubject(providerSubject)
-                        .lastLoginDttm(now)
-                        .regDttm(now)
-                        .modDttm(now)
-                        .deleted(false)
-                        .build());
-                return issue(user, null);
+                throw BusinessException.of(ErrorCode.DUPLICATE_PHONE_NUMBER);
             }
-            if (userRepository.existsByNicknameAndDeletedFalse(request.nickname())) {
+            if (userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
+                    request.nickname(),
+                    AccountStatus.WITHDRAWN
+            )) {
                 throw BusinessException.of(ErrorCode.DUPLICATE_NICKNAME);
             }
             User user = userRepository.saveAndFlush(User.builder()
@@ -174,7 +170,9 @@ public class AuthService {
                     ) VALUES (?, NULL, 'ACTIVE', 'SIGNUP', ?)
                     """, user.getUserSeq(), user.getUserSeq());
             searchIndexEventPublisher.accountChanged(user.getUserSeq());
-            return issue(user, null);
+            AuthDtos.TokenResponse response = issue(user, null);
+            signupTokenConsumer.consumeAfterCommit(signupJwt);
+            return response;
         } catch (DataIntegrityViolationException exception) {
             throw BusinessException.of(ErrorCode.DUPLICATE_RESOURCE);
         }
@@ -209,17 +207,14 @@ public class AuthService {
                 });
     }
 
-    @Transactional
-    public AuthDtos.TokenResponse issueForLocalUser(User user) {
-        assertUsable(user);
-        return issue(user, null);
-    }
-
     public boolean nicknameAvailable(String nickname) {
         if (nickname == null || !nickname.matches("^[가-힣A-Za-z0-9]{2,20}$")) {
             throw BusinessException.of(ErrorCode.INVALID_REQUEST);
         }
-        return !userRepository.existsByNicknameAndDeletedFalse(nickname);
+        return !userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
+                nickname,
+                AccountStatus.WITHDRAWN
+        );
     }
 
     public List<String> nicknameSuggestions(int count) {
@@ -234,14 +229,41 @@ public class AuthService {
             String base = NICKNAME_BASES.get(attempt % NICKNAME_BASES.size());
             int suffix = Math.floorMod(seed + attempt * 37, 10_000);
             String candidate = base + suffix;
-            if (!userRepository.existsByNicknameAndAccountStatusAndDeletedFalse(
+            if (!userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
                     candidate,
-                    AccountStatus.ACTIVE
+                    AccountStatus.WITHDRAWN
             )) {
                 suggestions.add(candidate);
             }
         }
         return new ArrayList<>(suggestions);
+    }
+
+    public AuthDtos.PhoneAvailabilityResponse phoneAvailability(String phoneNumber) {
+        String normalized = phoneNumberNormalizer.normalizeKorean(phoneNumber);
+        return userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                        normalized,
+                        AccountStatus.WITHDRAWN
+                )
+                .map(user -> new AuthDtos.PhoneAvailabilityResponse(
+                        normalized,
+                        false,
+                        providerCode(user.getUserSeq())
+                ))
+                .orElseGet(() -> new AuthDtos.PhoneAvailabilityResponse(
+                        normalized,
+                        true,
+                        null
+                ));
+    }
+
+    private String providerCode(Integer userSeq) {
+        UserOAuthAccount account = oauthAccountRepository
+                .findFirstByUserSeqAndDeletedFalseOrderByUserOauthAccountSeqAsc(userSeq)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.STATE_CONFLICT));
+        return providerRepository.findById(account.getOauthProviderSeq())
+                .map(OAuthProvider::getProviderCode)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.STATE_CONFLICT));
     }
 
     private AuthDtos.TokenResponse issue(User user, Long deviceSeq) {

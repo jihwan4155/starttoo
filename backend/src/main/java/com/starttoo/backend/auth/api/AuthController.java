@@ -2,14 +2,15 @@ package com.starttoo.backend.auth.api;
 
 import com.starttoo.backend.auth.application.AuthService;
 import com.starttoo.backend.auth.application.OAuthLoginService;
-import com.starttoo.backend.auth.application.PhoneVerificationService;
 import com.starttoo.backend.common.api.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,22 +26,28 @@ import static com.starttoo.backend.auth.api.AuthDtos.*;
 @RestController
 @RequestMapping("/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "Auth", description = "OAuth 로그인, 가입, 휴대폰 인증, 토큰")
+@Tag(name = "Auth", description = "OAuth 로그인, 통합 계정 가입, 토큰")
 public class AuthController {
 
     private final AuthService authService;
     private final OAuthLoginService oauthLoginService;
-    private final PhoneVerificationService phoneVerificationService;
 
     @PostMapping("/social/login")
     @Operation(
             summary = "소셜 로그인 또는 가입 토큰 발급",
             description = """
-                    Google 또는 Kakao 액세스 토큰을 제공자 API로 검증하여 불변 subject를 얻는다.
+                    accessToken 또는 authorizationCode 중 하나로 Google·Kakao 계정을 검증한다.
+                    네이티브 앱 SDK는 액세스 토큰을 직접 발급받으므로 accessToken을 보낸다.
+                    웹은 카카오 JavaScript SDK가 브라우저에 액세스 토큰을 주지 않으므로
+                    authorizationCode와 redirectUri를 보내고, 서버가 제공자 토큰 엔드포인트에서
+                    액세스 토큰으로 교환한다. 교환에 필요한 클라이언트 키는 서버에만 둔다.
+                    확보한 액세스 토큰을 제공자 API로 검증해 불변 subject를 얻는다.
                     이미 연결된 OAuth 계정이면 마지막 로그인 시각을 갱신하고 ACTIVE 계정에 대한
                     액세스·리프레시 토큰을 발급한다. 연결 계정이 없으면 users 행을 만들지 않고,
                     제공자와 subject가 서명된 단기 가입 토큰만 반환한다.
-                    토큰 거부와 subject 누락은 401, 제공자 장애는 502, 시간 초과는 504로 구분한다.
+                    두 자격 증명을 함께 보내거나 모두 비우면 400, 만료·재사용된 코드와
+                    redirect_uri 불일치, 토큰 거부와 subject 누락은 401,
+                    제공자 키 미설정은 503, 제공자 장애는 502, 시간 초과는 504로 구분한다.
                     """
     )
     public ApiResponse<SocialLoginResponse> socialLogin(
@@ -51,15 +58,17 @@ public class AuthController {
 
     @PostMapping("/signup")
     @Operation(
-            summary = "통합 계정 가입 또는 OAuth 추가 연결",
+            summary = "단일 OAuth 통합 계정 가입",
             description = """
-                    가입 토큰과 Redis의 일회성 휴대폰 인증 토큰을 검증·소비한다.
-                    같은 활성 휴대폰 번호의 회원이 있으면 신규 users 행을 만들지 않고 OAuth 계정만
-                    연결한다. 없으면 users, user_oauth_accounts, 최초 ACTIVE 상태 이력을 하나의
-                    DB 트랜잭션으로 저장한 뒤 토큰을 발급한다. ARTIST 가입도 users.role은 USER로
-                    만들고 artists 확장 행을 UNVERIFIED로 생성한다. ADMIN 가입은 허용하지 않는다.
-                    닉네임·전화번호·provider subject 중복이 발생하면 DB 변경은 롤백된다. 신규 users
-                    커밋이 성공한 뒤에만 계정 자동완성·검색 Redis 인덱스를 증분 갱신한다.
+                    가입 토큰을 검증하고 요청의 한국 휴대폰 번호를 +82 E.164로 정규화한다.
+                    이미 가입된 활성 휴대폰 번호에는 다른 OAuth 계정을 추가 연결하지 않고
+                    DUPLICATE_PHONE_NUMBER를 반환한다. 사용 가능한 번호이면 users,
+                    user_oauth_accounts, 최초 ACTIVE 상태 이력을 하나의 DB 트랜잭션으로 저장한 뒤
+                    토큰을 발급한다. ARTIST 가입도 users.role은 USER로 만들고 artists 확장 행을
+                    UNVERIFIED로 생성한다. ADMIN 가입은 허용하지 않는다. 닉네임·전화번호·provider
+                    subject 중복이 발생하면 DB 변경은 롤백된다.
+                    가입 토큰은 DB 커밋이 성공한 뒤에만 Redis에서 소비 처리하며, 신규 users 검색
+                    인덱스도 커밋 후 갱신한다.
                     """
     )
     public ApiResponse<TokenResponse> signup(@Valid @RequestBody SignupRequest request) {
@@ -94,37 +103,6 @@ public class AuthController {
     public ApiResponse<Boolean> logout(@Valid @RequestBody LogoutRequest request) {
         authService.logout(request.refreshToken());
         return ApiResponse.of(true);
-    }
-
-    @PostMapping("/phone/verifications")
-    @Operation(
-            summary = "휴대폰 인증번호 요청",
-            description = """
-                    입력값의 하이픈과 공백을 제거하고 현재 정책에 따라 한국 E.164 번호로
-                    정규화한다. 6자리 코드를 발급하여 Redis에 3분간 저장하고 운영 환경에서는
-                    SMS 게이트웨이로 전송한다. local 프로필에서는 실제 발송 대신 debugCode를
-                    응답하여 테스트할 수 있다. 이 경로에는 별도의 강한 IP Rate Limit을 적용한다.
-                    """
-    )
-    public ApiResponse<PhoneVerificationService.VerificationRequested> requestPhoneVerification(
-            @Valid @RequestBody PhoneVerificationRequest request
-    ) {
-        return ApiResponse.of(phoneVerificationService.request(request.phoneNumber()));
-    }
-
-    @PostMapping("/phone/verifications/confirm")
-    @Operation(
-            summary = "휴대폰 인증번호 확인",
-            description = """
-                    Redis에 저장된 요청 ID와 6자리 코드를 검증한다. 성공하면 기존 코드를 즉시
-                    삭제하고 가입에서 한 번만 소비할 수 있는 휴대폰 인증 토큰을 10분간 발급한다.
-                    이 경로에는 인증번호 요청과 분리된 강한 IP Rate Limit을 적용한다.
-                    """
-    )
-    public ApiResponse<PhoneVerificationService.VerificationConfirmed> confirmPhoneVerification(
-            @Valid @RequestBody PhoneVerificationConfirmRequest request
-    ) {
-        return ApiResponse.of(phoneVerificationService.confirm(request.requestId(), request.code()));
     }
 
     @GetMapping("/nicknames/suggestions")
@@ -164,5 +142,25 @@ public class AuthController {
                 nickname,
                 authService.nicknameAvailable(nickname)
         ));
+    }
+
+    @GetMapping("/phones/availability")
+    @Operation(
+            summary = "휴대폰 번호 사용 가능 여부",
+            description = """
+                    하이픈과 공백을 제거하고 한국 모바일 E.164 형식으로 정규화한 뒤 탈퇴하지
+                    않은 회원의 전화번호와 비교한다. 미가입 번호이면 available=true와
+                    provider=null을 반환한다. 가입된 번호이면 available=false와 해당 계정의
+                    OAuth provider 코드(GOOGLE 또는 KAKAO)를 반환한다. 탈퇴 회원 번호는 재사용할
+                    수 있지만 정지·강퇴 회원 번호는 예약한다. IP와 번호별 Rate Limit을 적용하고
+                    최종 유일성은 가입 트랜잭션의 부분 UNIQUE 인덱스로 다시 검증한다.
+                    """
+    )
+    public ApiResponse<PhoneAvailabilityResponse> phoneAvailability(
+            @RequestParam
+            @NotBlank @Size(max = 30)
+            String phoneNumber
+    ) {
+        return ApiResponse.of(authService.phoneAvailability(phoneNumber));
     }
 }

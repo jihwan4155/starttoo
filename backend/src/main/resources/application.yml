@@ -62,6 +62,7 @@ app:
     refresh-token-ttl: 30d
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY:starttoo}
     secret-key: ${MINIO_SECRET_KEY:starttoo-local-secret}
     bucket: ${MINIO_BUCKET:starttoo}
@@ -79,16 +80,13 @@ app:
       client-secret: ${KAKAO_CLIENT_SECRET:}
       token-uri: https://kauth.kakao.com/oauth/token
       user-info-uri: https://kapi.kakao.com/v2/user/me
-  sms:
-    webhook-url: ${SMS_WEBHOOK_URL:}
-    api-key: ${SMS_API_KEY:}
   firebase:
     # 변경: 로컬 기본값은 비활성화다. 운영에서는 서비스 계정 또는 ADC를 제공한다.
     enabled: ${FIREBASE_ENABLED:false}
     credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
     project-id: ${FIREBASE_PROJECT_ID:}
   ai:
-    # 모델 서버 계약 확정 전까지 외부 호출은 코드에서 비활성화되어 있다.
+    # false면 타투 판별·분석에 명시적 Stub을 사용한다.
     enabled: ${AI_ENABLED:false}
     base-url: ${AI_BASE_URL:http://localhost:8000}
     tattoo-detection-path: /v1/tattoos/detect
@@ -96,15 +94,15 @@ app:
     generation-path: /v1/generations
     coverup-path: /v1/coverups
     simulation-path: /v1/simulations
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   rate-limit:
     default-capacity: ${RATE_LIMIT_DEFAULT_CAPACITY:60}
     default-window: ${RATE_LIMIT_DEFAULT_WINDOW:1m}
     mutation-capacity: ${RATE_LIMIT_MUTATION_CAPACITY:20}
     mutation-window: ${RATE_LIMIT_MUTATION_WINDOW:1m}
-    phone-verification-request-capacity: ${RATE_LIMIT_PHONE_REQUEST_CAPACITY:5}
-    phone-verification-request-window: ${RATE_LIMIT_PHONE_REQUEST_WINDOW:1m}
-    phone-verification-confirm-capacity: ${RATE_LIMIT_PHONE_CONFIRM_CAPACITY:10}
-    phone-verification-confirm-window: ${RATE_LIMIT_PHONE_CONFIRM_WINDOW:1m}
+    phone-availability-capacity: ${RATE_LIMIT_PHONE_AVAILABILITY_CAPACITY:5}
+    phone-availability-window: ${RATE_LIMIT_PHONE_AVAILABILITY_WINDOW:1m}
   search:
     log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}
@@ -115,7 +113,6 @@ app:
     post-like: 2.0
     post-bookmark: 3.0
     collection: 4.0
-    search-click: 0.5
     not-interested: -2.0
     dwell-short: 0.1
     dwell-medium: 0.5

@@ -85,15 +85,19 @@ public class User {
 
     public void updateProfile(
             String nickname,
-            Long profileImageSeq,
             LocalDate birthDate,
             String gender,
             Integer modifierSeq
     ) {
         this.nickname = nickname;
-        this.profileImageSeq = profileImageSeq;
         this.birthDate = birthDate;
         this.gender = gender;
+        this.modUsrSeq = modifierSeq;
+        this.modDttm = OffsetDateTime.now();
+    }
+
+    public void replaceProfileImage(Long profileImageSeq, Integer modifierSeq) {
+        this.profileImageSeq = profileImageSeq;
         this.modUsrSeq = modifierSeq;
         this.modDttm = OffsetDateTime.now();
     }

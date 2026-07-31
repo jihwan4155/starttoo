@@ -39,13 +39,13 @@ public class PostController {
     @Operation(
             summary = "게시물과 이미지 연결 등록",
             description = """
-                    중복되지 않은 1~10개의 imageSeq를 입력 순서대로 처리한다. 각 이미지가 현재
-                    회원 소유인지 확인한다. 현재 모델 연동 전 단계이므로 타투 여부 판별·분석
-                    호출은 비활성화되어 있고, API·트랜잭션 검증용 고정 분류값(OTHER, LINE,
-                    BLACK, subject=타투)을 사용한다. tattoos·subjects 연결, PUBLISHED 게시물,
-                    postImages 생성을 하나의 DB 트랜잭션으로 처리하므로 어느 이미지라도 실패하면
-                    전체 등록이 롤백된다. 모델 연결 후에는 모든 이미지가 타투 판별을 통과한
-                    경우에만 같은 트랜잭션의 저장 단계를 진행한다.
+                    중복되지 않은 1~10개의 imageSeq가 현재 회원 소유인지 확인하고 각 이미지의
+                    타투 판별·분석이 동기로 모두 끝날 때까지 기다린다. 이 외부 모델 호출 동안에는
+                    DB 쓰기 트랜잭션을 열지 않는다. 모든 이미지가 검증을 통과한 뒤에만
+                    tattoos·subjects 연결, PUBLISHED 게시물과 postImages를 하나의 짧은 DB
+                    트랜잭션으로 저장한다. 어느 이미지 검증 또는 저장이라도 실패하면 게시물은
+                    생성되지 않는다. 응답은 DB 커밋 후 반환하며 이미지 URL은 저장된 MinIO
+                    object key로 생성한 단기 Presigned GET URL이다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -63,7 +63,7 @@ public class PostController {
                     postSeq 내림차순 커서로 PUBLISHED이면서 소프트 삭제되지 않은 게시물만 반환한다.
                     authorSeq가 있으면 특정 작성자로 필터링한다. 로그인한 조회자에게는 양방향 차단
                     관계와 관심 없음으로 숨긴 게시물을 제외하고 좋아요·북마크 상태를 계산한다.
-                    비로그인 조회도 가능하다.
+                    비로그인 조회도 가능하다. 이미지 URL은 단기 Presigned GET URL이다.
                     """
     )
     public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> list(
@@ -80,6 +80,66 @@ public class PostController {
         ));
     }
 
+    @GetMapping("/me")
+    @Operation(
+            summary = "내 게시물 목록",
+            description = """
+                    현재 회원이 작성한 PUBLISHED 활성 게시물만 postSeq 내림차순 커서로 반환한다.
+                    작성자·이미지·관계 상태는 공통 Post DTO를 사용한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> mine(
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        return ApiResponse.of(postService.mine(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
+    }
+
+    @GetMapping("/bookmarked")
+    @Operation(
+            summary = "북마크한 게시물 목록",
+            description = """
+                    현재 회원의 북마크 저장 시각과 postSeq 내림차순의 안정적인 커서로 조회한다.
+                    PUBLISHED 활성 게시물만 반환하며 차단 관계와 관심 없음 게시물을 제외한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> bookmarked(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        return ApiResponse.of(postService.bookmarked(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
+    }
+
+    @GetMapping("/following")
+    @Operation(
+            summary = "팔로잉 게시물 피드",
+            description = """
+                    현재 회원이 팔로우하는 활성 회원의 PUBLISHED 게시물을 postSeq 내림차순
+                    커서로 반환한다. 차단 관계와 관심 없음 게시물은 제외한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> following(
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        return ApiResponse.of(postService.following(
+                SecurityUtils.currentUserSeq(),
+                cursor,
+                size
+        ));
+    }
+
     @GetMapping("/{postSeq}")
     @OptionalAuth
     @Operation(
@@ -87,7 +147,8 @@ public class PostController {
             description = """
                     PUBLISHED 상태의 활성 게시물과 순서가 보장된 이미지·tattooSeq를 반환한다.
                     로그인한 조회자와 작성자 사이에 차단 관계가 있으면 존재하지 않는 게시물처럼
-                    처리하며, 조회자의 좋아요·북마크 상태를 포함한다.
+                    처리하며, 조회자의 관심 없음 게시물도 제외한다. 조회자의 좋아요·북마크 상태와
+                    작성자 프로필·게시물 이미지의 단기 Presigned GET URL을 포함한다.
                     """
     )
     public ApiResponse<PostDtos.PostResponse> get(
@@ -102,7 +163,9 @@ public class PostController {
             summary = "게시물 내용 수정",
             description = """
                     작성자만 게시물 본문을 수정할 수 있다. 이미지와 분석 결과는 이 API에서
-                    교체하지 않으며, 본문과 수정자·수정 시각만 하나의 트랜잭션에서 갱신한다.
+                    교체하지 않으며, 본문과 수정자·수정 시각만 부분 UPDATE한다. likeCount,
+                    commentCount, reportCount는 갱신 대상에 포함하지 않아 동시 증감 결과를
+                    덮어쓰지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -122,8 +185,9 @@ public class PostController {
             summary = "게시물 작성자 삭제",
             description = """
                     작성자만 삭제할 수 있다. postStatus를 DELETED로 바꾸고 isDeleted=true,
-                    modUsrSeq=작성자로 기록하는 소프트 삭제다. 일반 조회는 PUBLISHED만 노출하므로
-                    삭제 즉시 피드와 상세에서 제외된다.
+                    modUsrSeq=작성자로 기록하는 부분 UPDATE 방식의 소프트 삭제다. 세 카운터 열은
+                    갱신하지 않으며, 일반 조회는 PUBLISHED만 노출하므로 삭제 즉시 피드와 상세에서
+                    제외된다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -134,60 +198,122 @@ public class PostController {
 
     @PutMapping("/{postSeq}/like")
     @Operation(
-            summary = "게시물 좋아요 상태 설정",
+            summary = "게시물 좋아요",
             description = """
-                    enabled=true이면 postLikes를 ON CONFLICT DO NOTHING으로 생성하고, 실제 신규
-                    생성된 경우에만 게시물 likeCount를 원자적 증감식으로 +1 한다. 동시에 게시물
-                    이미지의 주 스타일·색상 취향 점수를 가산하고 작성자 알림을 저장한다.
-                    enabled=false이면 관계 삭제, count -1, 취향 점수 역산을 수행한다. 모든 DB
-                    변경은 하나의 트랜잭션이며 동일 상태 반복 요청은 점수를 중복 반영하지 않는다.
+                    postLikes를 ON CONFLICT DO NOTHING으로 생성하고, 실제 신규 생성된 경우에만
+                    게시물 likeCount를 원자적 증감식으로 +1 한다. 동시에 게시물 이미지의 주
+                    스타일·색상 취향 점수를 가산하고 작성자 알림을 저장한다. 모든 DB 변경은
+                    하나의 트랜잭션이며 반복 요청은 카운트와 점수를 중복 반영하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<PostDtos.StateResponse> like(
-            @PathVariable Long postSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
-    ) {
+    public ApiResponse<PostDtos.StateResponse> like(@PathVariable Long postSeq) {
         return ApiResponse.of(new PostDtos.StateResponse(
-                postService.setLike(SecurityUtils.currentUserSeq(), postSeq, enabled)
+                postService.setLike(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{postSeq}/like")
+    @Operation(
+            summary = "게시물 좋아요 해제",
+            description = """
+                    postLikes 관계를 멱등하게 삭제한다. 실제 삭제된 경우에만 게시물 likeCount를
+                    원자적으로 -1 하고 게시물 이미지의 주 스타일·색상 취향 점수를 역산한다.
+                    모든 DB 변경은 하나의 트랜잭션이며 반복 요청은 카운트와 점수를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> unlike(@PathVariable Long postSeq) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setLike(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        false
+                )
         ));
     }
 
     @PutMapping("/{postSeq}/bookmark")
     @Operation(
-            summary = "게시물 북마크 상태 설정",
+            summary = "게시물 북마크",
             description = """
-                    북마크 행을 멱등하게 생성하거나 삭제한다. 실제 상태가 바뀐 경우에만 게시물의
-                    주 스타일·색상 취향 점수를 가산 또는 역산하며 관계와 점수 변경은 같은
-                    트랜잭션에서 처리한다.
+                    북마크 행을 멱등하게 생성한다. 실제로 새 관계가 생성된 경우에만 게시물의
+                    주 스타일·색상 취향 점수를 가산하며 관계와 점수 변경은 같은 트랜잭션에서
+                    처리한다. 반복 요청은 점수를 중복 반영하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<PostDtos.StateResponse> bookmark(
-            @PathVariable Long postSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
-    ) {
+    public ApiResponse<PostDtos.StateResponse> bookmark(@PathVariable Long postSeq) {
         return ApiResponse.of(new PostDtos.StateResponse(
-                postService.setBookmark(SecurityUtils.currentUserSeq(), postSeq, enabled)
+                postService.setBookmark(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{postSeq}/bookmark")
+    @Operation(
+            summary = "게시물 북마크 해제",
+            description = """
+                    북마크 행을 멱등하게 삭제한다. 실제로 관계가 삭제된 경우에만 게시물의
+                    주 스타일·색상 취향 점수를 역산하며 관계와 점수 변경은 같은 트랜잭션에서
+                    처리한다. 반복 요청은 점수를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> removeBookmark(@PathVariable Long postSeq) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setBookmark(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        false
+                )
         ));
     }
 
     @PutMapping("/{postSeq}/not-interested")
     @Operation(
-            summary = "관심 없는 게시물 상태 설정",
+            summary = "관심 없는 게시물 설정",
             description = """
-                    enabled=true이면 사용자별 숨김 관계를 생성하여 이후 피드에서 제외하고 해당
-                    게시물의 주 스타일·색상 취향 점수에 음수 가중치를 반영한다. 해제하면 숨김
-                    관계를 삭제하고 기존 감점을 역산한다. 동일 상태 반복은 추가 점수를 만들지 않는다.
+                    사용자별 숨김 관계를 멱등하게 생성하여 이후 피드에서 제외한다. 실제로 새
+                    관계가 생성된 경우에만 게시물의 주 스타일·색상 취향 점수에 음수 가중치를
+                    반영하며 반복 요청은 추가 점수를 만들지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<PostDtos.StateResponse> notInterested(
-            @PathVariable Long postSeq,
-            @RequestParam(defaultValue = "true") boolean enabled
-    ) {
+    public ApiResponse<PostDtos.StateResponse> notInterested(@PathVariable Long postSeq) {
         return ApiResponse.of(new PostDtos.StateResponse(
-                postService.setNotInterested(SecurityUtils.currentUserSeq(), postSeq, enabled)
+                postService.setNotInterested(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{postSeq}/not-interested")
+    @Operation(
+            summary = "관심 없는 게시물 설정 해제",
+            description = """
+                    사용자별 숨김 관계를 멱등하게 삭제하여 게시물이 다시 피드 후보가 되도록 한다.
+                    실제로 관계가 삭제된 경우에만 기존 취향 점수 감점을 역산하며 반복 요청은
+                    점수를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> clearNotInterested(@PathVariable Long postSeq) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setNotInterested(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        false
+                )
         ));
     }
 
@@ -219,7 +345,7 @@ public class PostController {
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<Long> report(
+    public ApiResponse<PostDtos.ReportResponse> report(
             @PathVariable Long postSeq,
             @Valid @RequestBody PostDtos.ReportRequest request
     ) {

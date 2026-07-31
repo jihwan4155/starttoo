@@ -4,15 +4,15 @@ import com.starttoo.backend.admin.application.AdminService;
 import com.starttoo.backend.artist.application.ArtistService;
 import com.starttoo.backend.auth.application.AuthService;
 import com.starttoo.backend.collection.application.CollectionService;
+import com.starttoo.backend.collection.application.CollectionWriteService;
 import com.starttoo.backend.comment.application.CommentService;
 import com.starttoo.backend.dm.application.DmService;
-import com.starttoo.backend.media.application.MediaService;
+import com.starttoo.backend.media.application.MediaImageRegistrationService;
 import com.starttoo.backend.notification.application.DeviceService;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.post.application.PostService;
+import com.starttoo.backend.post.application.PostWriteService;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
-import com.starttoo.backend.search.application.SearchService;
-import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.user.application.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,12 +34,9 @@ class TransactionBoundaryTest {
                 ref(UserService.class, "withdraw"),
                 ref(UserService.class, "setFollow"),
                 ref(UserService.class, "setBlock"),
-                ref(ArtistService.class, "decide"),
-                ref(AdminService.class, "changeAccountStatus"),
-                ref(AdminService.class, "decideReport"),
+                ref(ArtistService.class, "update"),
                 ref(AdminService.class, "restoreExpiredSuspensions"),
-                ref(TattooService.class, "process"),
-                ref(PostService.class, "create"),
+                ref(PostWriteService.class, "create"),
                 ref(PostService.class, "setLike"),
                 ref(PostService.class, "setBookmark"),
                 ref(PostService.class, "setNotInterested"),
@@ -48,18 +45,16 @@ class TransactionBoundaryTest {
                 ref(CommentService.class, "create"),
                 ref(CommentService.class, "delete"),
                 ref(CommentService.class, "setLike"),
-                ref(CollectionService.class, "create"),
+                ref(CollectionWriteService.class, "create"),
                 ref(CollectionService.class, "delete"),
                 ref(CollectionService.class, "setArchive"),
                 ref(PreferenceScoreService.class, "survey"),
-                ref(SearchService.class, "recordPostSearchClick"),
                 ref(DmService.class, "createRoom"),
                 ref(DmService.class, "send"),
                 ref(DmService.class, "markRead"),
                 ref(DmService.class, "leave"),
                 ref(DmService.class, "notification"),
-                ref(DmService.class, "deleteMessage"),
-                ref(MediaService.class, "complete"),
+                ref(MediaImageRegistrationService.class, "register"),
                 ref(DeviceService.class, "register"),
                 ref(DeviceService.class, "deactivate"),
                 ref(DeviceService.class, "deactivateForLogout"),

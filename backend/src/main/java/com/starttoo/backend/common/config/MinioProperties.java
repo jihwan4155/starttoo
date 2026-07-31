@@ -7,6 +7,7 @@ import java.time.Duration;
 @ConfigurationProperties(prefix = "app.minio")
 public record MinioProperties(
         String endpoint,
+        String publicEndpoint,
         String accessKey,
         String secretKey,
         String bucket,

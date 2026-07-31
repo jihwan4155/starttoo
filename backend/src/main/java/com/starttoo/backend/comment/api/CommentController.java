@@ -17,7 +17,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -102,26 +101,6 @@ public class CommentController {
         return ApiResponse.of(commentService.replies(commentSeq, cursor, size, viewer));
     }
 
-    @PatchMapping("/comments/{commentSeq}")
-    @Operation(
-            summary = "댓글 내용 수정",
-            description = """
-                    작성자만 활성 댓글의 내용을 수정할 수 있다. 내용, modDttm, modUsrSeq가 같은
-                    트랜잭션에서 갱신되며 부모 관계와 게시물 연결은 변경하지 않는다.
-                    """,
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    public ApiResponse<CommentDtos.CommentResponse> update(
-            @PathVariable Long commentSeq,
-            @Valid @RequestBody CommentDtos.UpdateCommentRequest request
-    ) {
-        return ApiResponse.of(commentService.update(
-                SecurityUtils.currentUserSeq(),
-                commentSeq,
-                request
-        ));
-    }
-
     @DeleteMapping("/comments/{commentSeq}")
     @Operation(
             summary = "댓글 작성자 삭제",
@@ -139,24 +118,40 @@ public class CommentController {
 
     @PutMapping("/comments/{commentSeq}/like")
     @Operation(
-            summary = "댓글 좋아요 상태 설정",
+            summary = "댓글 좋아요",
             description = """
-                    enabled=true이면 좋아요 관계를 멱등하게 생성하고 실제 신규 생성일 때만
-                    comment.likeCount를 원자적으로 +1 하며 작성자 알림을 저장한다.
-                    enabled=false이면 관계 삭제와 count -1을 수행한다. 관계·카운트·알림은 같은
-                    트랜잭션으로 묶이며 동일 상태 반복 요청은 카운트를 중복 변경하지 않는다.
+                    좋아요 관계를 멱등하게 생성하고 실제 신규 생성일 때만 comment.likeCount를
+                    원자적으로 +1 하며 작성자 알림을 저장한다. 관계·카운트·알림은 같은
+                    트랜잭션으로 묶이며 반복 요청은 카운트를 중복 변경하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<CommentDtos.LikeState> like(
-            @PathVariable Long commentSeq,
-            @Valid @RequestBody CommentDtos.LikeStateRequest request
-    ) {
+    public ApiResponse<CommentDtos.LikeState> like(@PathVariable Long commentSeq) {
         return ApiResponse.of(new CommentDtos.LikeState(
                 commentService.setLike(
                         SecurityUtils.currentUserSeq(),
                         commentSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/comments/{commentSeq}/like")
+    @Operation(
+            summary = "댓글 좋아요 해제",
+            description = """
+                    좋아요 관계를 멱등하게 삭제하고 실제 삭제된 경우에만 comment.likeCount를
+                    원자적으로 -1 한다. 관계와 카운트 변경은 같은 트랜잭션으로 묶이며 반복 요청은
+                    카운트를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CommentDtos.LikeState> unlike(@PathVariable Long commentSeq) {
+        return ApiResponse.of(new CommentDtos.LikeState(
+                commentService.setLike(
+                        SecurityUtils.currentUserSeq(),
+                        commentSeq,
+                        false
                 )
         ));
     }

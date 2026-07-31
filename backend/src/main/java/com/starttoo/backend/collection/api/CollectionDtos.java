@@ -33,40 +33,20 @@ public final class CollectionDtos {
     ) {
     }
 
-    public record UpdatePlacementRequest(
-            @Schema(description = "표준 신체 뷰", example = "front")
-            @NotBlank @Size(max = 10) String bodyView,
-            @Schema(description = "0~1 정규화 X 좌표", example = "0.42")
-            @NotNull @DecimalMin("0.0") @DecimalMax("1.0") Double positionX,
-            @Schema(description = "0~1 정규화 Y 좌표", example = "0.35")
-            @NotNull @DecimalMin("0.0") @DecimalMax("1.0") Double positionY,
-            @Schema(description = "0보다 큰 배율", example = "0.8")
-            @NotNull @DecimalMin(value = "0.0", inclusive = false) Double scaleRatio,
-            @Schema(description = "-180~180도 회전", example = "-15")
-            @NotNull @DecimalMin("-180.0") @DecimalMax("180.0") Double rotationDegree,
-            @Schema(description = "좌우 뒤집기 여부", example = "false")
-            @NotNull Boolean flipped
-    ) {
-    }
-
     public record CollectionResponse(
             Long collectionSeq,
+            Integer ownerSeq,
             Long tattooSeq,
             Long imageSeq,
+            @Schema(description = "원본 이미지의 단기 Presigned GET URL")
+            String imageUrl,
             String bodyView,
             double positionX,
             double positionY,
             double scaleRatio,
             double rotationDegree,
             boolean flipped,
-            OffsetDateTime regDttm,
-            OffsetDateTime modDttm
-    ) {
-    }
-
-    public record ArchiveStateRequest(
-            @Schema(description = "최종 보관 상태", example = "true", allowableValues = {"true", "false"})
-            @NotNull Boolean enabled
+            OffsetDateTime regDttm
     ) {
     }
 

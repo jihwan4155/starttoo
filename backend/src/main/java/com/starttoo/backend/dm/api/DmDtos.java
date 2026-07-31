@@ -85,7 +85,6 @@ public final class DmDtos {
             Integer readerSeq,
             OffsetDateTime readDttm,
             Integer changedMessageCount,
-            Long deletedMessageSeq,
             OffsetDateTime occurredDttm
     ) {
         public static RealtimeEvent messageCreated(MessageResponse message) {
@@ -94,7 +93,6 @@ public final class DmDtos {
                     RealtimeEventType.MESSAGE_CREATED,
                     message.dmRoomSeq(),
                     message,
-                    null,
                     null,
                     null,
                     null,
@@ -116,21 +114,6 @@ public final class DmDtos {
                     readerSeq,
                     readDttm,
                     changedMessageCount,
-                    null,
-                    OffsetDateTime.now()
-            );
-        }
-
-        public static RealtimeEvent messageDeleted(Long roomSeq, Long messageSeq) {
-            return new RealtimeEvent(
-                    UUID.randomUUID().toString(),
-                    RealtimeEventType.MESSAGE_DELETED,
-                    roomSeq,
-                    null,
-                    null,
-                    null,
-                    null,
-                    messageSeq,
                     OffsetDateTime.now()
             );
         }
@@ -138,7 +121,6 @@ public final class DmDtos {
 
     public enum RealtimeEventType {
         MESSAGE_CREATED,
-        MESSAGES_READ,
-        MESSAGE_DELETED
+        MESSAGES_READ
     }
 }

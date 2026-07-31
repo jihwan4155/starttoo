@@ -343,18 +343,6 @@ public class DmService {
         return enabled;
     }
 
-    @Transactional
-    public void deleteMessage(Integer userSeq, Long roomSeq, Long messageSeq) {
-        DmRoom room = room(roomSeq, userSeq);
-        DmMessage message = messageRepository.findByDmMessageSeqAndDmRoomSeq(messageSeq, roomSeq)
-                .orElseThrow(() -> BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND));
-        if (!message.getSenderSeq().equals(userSeq)) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN);
-        }
-        message.delete(userSeq);
-        realtimeEventPublisher.messageDeleted(room.partnerOf(userSeq), roomSeq, messageSeq);
-    }
-
     private DmDtos.RoomResponse roomResponse(DmRoom room, Integer userSeq) {
         DmRoomParticipant participant = participant(room.getDmRoomSeq(), userSeq);
         Integer partnerSeq = room.partnerOf(userSeq);

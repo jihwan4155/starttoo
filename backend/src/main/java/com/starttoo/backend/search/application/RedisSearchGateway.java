@@ -288,11 +288,17 @@ public class RedisSearchGateway {
                 "DIALECT", "2"
         );
         List<ScoredDocument> documents = new ArrayList<>();
-        collectDocumentKeys(result, documentPrefix, documents, new LinkedHashSet<>(), limit);
+        collectScoredDocuments(
+                result,
+                documentPrefix,
+                documents,
+                new LinkedHashSet<>(),
+                limit
+        );
         return documents;
     }
 
-    private void collectDocumentKeys(
+    private void collectScoredDocuments(
             Object value,
             String documentPrefix,
             List<ScoredDocument> documents,
@@ -302,19 +308,62 @@ public class RedisSearchGateway {
         if (documents.size() >= limit) {
             return;
         }
-        String key = rawString(value);
-        if (key != null && key.startsWith(documentPrefix) && seen.add(key)) {
-            documents.add(new ScoredDocument(key, 0));
-            return;
-        }
         if (value instanceof List<?> values) {
-            for (Object nested : values) {
-                collectDocumentKeys(nested, documentPrefix, documents, seen, limit);
+            for (int index = 0; index < values.size(); index++) {
+                Object nested = values.get(index);
+                String key = rawString(nested);
+                if (key != null && key.startsWith(documentPrefix) && seen.add(key)) {
+                    double score = scoreAfter(values, index);
+                    documents.add(new ScoredDocument(key, score));
+                } else {
+                    collectScoredDocuments(
+                            nested,
+                            documentPrefix,
+                            documents,
+                            seen,
+                            limit
+                    );
+                }
                 if (documents.size() >= limit) {
                     return;
                 }
             }
         }
+    }
+
+    private double scoreAfter(List<?> values, int keyIndex) {
+        if (keyIndex + 1 < values.size()) {
+            double direct = rawScore(values.get(keyIndex + 1));
+            if (direct != 0) {
+                return direct;
+            }
+        }
+        for (int index = keyIndex + 1; index + 1 < values.size(); index++) {
+            if ("score".equals(rawString(values.get(index)))) {
+                return rawScore(values.get(index + 1));
+            }
+        }
+        return 0;
+    }
+
+    private double rawScore(Object value) {
+        String raw = rawString(value);
+        if (raw != null) {
+            try {
+                return Double.parseDouble(raw);
+            } catch (NumberFormatException ignored) {
+                // Some Redis drivers wrap each result pair in a nested list.
+            }
+        }
+        if (value instanceof List<?> values) {
+            for (Object nested : values) {
+                double score = rawScore(nested);
+                if (score != 0) {
+                    return score;
+                }
+            }
+        }
+        return 0;
     }
 
     private Integer documentId(String prefix, String key) {

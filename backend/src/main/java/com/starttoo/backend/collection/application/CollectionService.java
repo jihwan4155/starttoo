@@ -7,11 +7,17 @@ import com.starttoo.backend.common.api.CursorPageResponse;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
+import com.starttoo.backend.media.domain.Image;
+import com.starttoo.backend.media.domain.ImageRepository;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
 import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.tattoo.domain.Tattoo;
 import com.starttoo.backend.tattoo.domain.TattooRepository;
 import com.starttoo.backend.tattoo.domain.TattooSourceType;
+import com.starttoo.backend.user.domain.AccountStatus;
+import com.starttoo.backend.user.domain.User;
+import com.starttoo.backend.user.domain.UserRepository;
+import com.starttoo.backend.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -23,9 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,85 +38,149 @@ public class CollectionService {
     private final TattooCollectionRepository collectionRepository;
     private final TattooRepository tattooRepository;
     private final TattooService tattooService;
+    private final CollectionWriteService collectionWriteService;
     private final PreferenceScoreService preferenceScoreService;
+    private final ImageRepository imageRepository;
+    private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MediaService mediaService;
 
-    @Transactional
     public CollectionDtos.CollectionResponse create(
             Integer userSeq,
             CollectionDtos.CreateCollectionRequest request
     ) {
-        Tattoo tattoo = tattooService.process(
-                userSeq,
-                request.imageSeq(),
-                TattooSourceType.USER_COLLECTION
+        TattooService.PreparedTattoo prepared =
+                tattooService.prepare(userSeq, request.imageSeq());
+        CollectionWriteService.CreatedCollection created =
+                collectionWriteService.create(userSeq, request, prepared);
+        return response(
+                created.collection(),
+                created.tattoo().getImageSeq(),
+                prepared.objectKey()
         );
-        OffsetDateTime now = OffsetDateTime.now();
-        TattooCollection collection = collectionRepository.save(TattooCollection.builder()
-                .userSeq(userSeq)
-                .tattooSeq(tattoo.getTattooSeq())
-                .bodyView(request.bodyView())
-                .positionX(request.positionX())
-                .positionY(request.positionY())
-                .scaleRatio(request.scaleRatio())
-                .rotationDegree(request.rotationDegree())
-                .flipped(request.flipped())
-                .regDttm(now)
-                .modDttm(now)
-                .deleted(false)
-                .build());
-        preferenceScoreService.applyCollection(userSeq, tattoo.getTattooSeq(), true);
-        return response(collection, tattoo.getImageSeq());
     }
 
-    @Transactional(readOnly = true)
-    public List<CollectionDtos.CollectionResponse> list(Integer userSeq) {
-        List<TattooCollection> collections = collectionRepository
-                .findAllByUserSeqAndDeletedFalseOrderByCollectionSeqDesc(userSeq);
-        Map<Long, Tattoo> tattoos = new HashMap<>();
-        tattooRepository.findAllById(
-                collections.stream().map(TattooCollection::getTattooSeq).toList()
-        ).stream()
-                .filter(value -> !value.isDeleted())
-                .forEach(value -> tattoos.put(value.getTattooSeq(), value));
-        return collections.stream().map(collection -> {
-            Tattoo tattoo = tattoos.get(collection.getTattooSeq());
-            if (tattoo == null) {
-                throw BusinessException.of(ErrorCode.TATTOO_NOT_FOUND);
-            }
-            return response(collection, tattoo.getImageSeq());
-        }).toList();
-    }
-
-    @Transactional
-    public CollectionDtos.CollectionResponse update(
+    public CursorPageResponse<CollectionDtos.CollectionResponse> list(
             Integer userSeq,
-            Long collectionSeq,
-            CollectionDtos.UpdatePlacementRequest request
+            Long cursor,
+            int size
     ) {
-        TattooCollection collection = findOwned(userSeq, collectionSeq);
-        collection.updatePlacement(
-                request.bodyView(),
-                request.positionX(),
-                request.positionY(),
-                request.scaleRatio(),
-                request.rotationDegree(),
-                request.flipped()
-        );
-        Tattoo tattoo = tattooRepository.findByTattooSeqAndDeletedFalse(collection.getTattooSeq())
-                .orElseThrow(() -> BusinessException.of(ErrorCode.TATTOO_NOT_FOUND));
-        return response(collection, tattoo.getImageSeq());
+        return collectionPage(userSeq, cursor, size);
+    }
+
+    public CursorPageResponse<CollectionDtos.CollectionResponse> byUser(
+            Integer ownerSeq,
+            Integer viewerSeq,
+            Long cursor,
+            int size
+    ) {
+        publicOwner(ownerSeq, viewerSeq);
+        return collectionPage(ownerSeq, cursor, size);
     }
 
     @Transactional
     public void delete(Integer userSeq, Long collectionSeq) {
         TattooCollection collection = findOwned(userSeq, collectionSeq);
+        Tattoo tattoo = tattooRepository
+                .findByTattooSeqAndDeletedFalse(collection.getTattooSeq())
+                .filter(value -> value.getSourceType() == TattooSourceType.USER_COLLECTION)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.TATTOO_NOT_FOUND));
         preferenceScoreService.applyCollection(userSeq, collection.getTattooSeq(), false);
         collection.softDelete();
-        tattooRepository.findByTattooSeqAndDeletedFalse(collection.getTattooSeq())
-                .ifPresent(Tattoo::softDelete);
+        tattoo.softDelete();
+    }
+
+    private CursorPageResponse<CollectionDtos.CollectionResponse> collectionPage(
+            Integer ownerSeq,
+            Long cursor,
+            int size
+    ) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("ownerSeq", ownerSeq, Types.INTEGER)
+                .addValue("cursor", cursor, Types.BIGINT)
+                .addValue("limit", safeSize + 1, Types.INTEGER);
+        List<CollectionRow> rows = namedParameterJdbcTemplate.query("""
+                SELECT collection.collection_seq,
+                       collection.user_seq AS owner_seq,
+                       collection.tattoo_seq,
+                       tattoo.image_seq,
+                       image.object_key AS image_object_key,
+                       collection.body_view,
+                       collection.position_x,
+                       collection.position_y,
+                       collection.scale_ratio,
+                       collection.rotation_degree,
+                       collection.is_flipped,
+                       collection.reg_dttm
+                  FROM tattoo_collections collection
+                  JOIN tattoos tattoo
+                    ON tattoo.tattoo_seq = collection.tattoo_seq
+                   AND tattoo.source_type = 'USER_COLLECTION'
+                   AND tattoo.is_deleted = FALSE
+                  JOIN images image
+                    ON image.image_seq = tattoo.image_seq
+                   AND image.is_deleted = FALSE
+                 WHERE collection.user_seq = :ownerSeq
+                   AND collection.is_deleted = FALSE
+                   AND (:cursor IS NULL OR collection.collection_seq < :cursor)
+                 ORDER BY collection.collection_seq DESC
+                 LIMIT :limit
+                """, parameters, (rs, rowNum) -> new CollectionRow(
+                rs.getLong("collection_seq"),
+                rs.getInt("owner_seq"),
+                rs.getLong("tattoo_seq"),
+                rs.getLong("image_seq"),
+                rs.getString("image_object_key"),
+                rs.getString("body_view"),
+                rs.getDouble("position_x"),
+                rs.getDouble("position_y"),
+                rs.getDouble("scale_ratio"),
+                rs.getDouble("rotation_degree"),
+                rs.getBoolean("is_flipped"),
+                rs.getObject("reg_dttm", OffsetDateTime.class)
+        ));
+        boolean hasNext = rows.size() > safeSize;
+        List<CollectionRow> page = hasNext ? rows.subList(0, safeSize) : rows;
+        List<CollectionDtos.CollectionResponse> items = page.stream()
+                .map(row -> new CollectionDtos.CollectionResponse(
+                        row.collectionSeq(),
+                        row.ownerSeq(),
+                        row.tattooSeq(),
+                        row.imageSeq(),
+                        mediaService.downloadUrl(row.imageObjectKey()),
+                        row.bodyView(),
+                        row.positionX(),
+                        row.positionY(),
+                        row.scaleRatio(),
+                        row.rotationDegree(),
+                        row.flipped(),
+                        row.regDttm()
+                ))
+                .toList();
+        String nextCursor = hasNext
+                ? page.get(page.size() - 1).collectionSeq().toString()
+                : null;
+        return CursorPageResponse.of(items, nextCursor, hasNext);
+    }
+
+    private User publicOwner(Integer ownerSeq, Integer viewerSeq) {
+        User owner = userRepository.findByUserSeqAndDeletedFalse(ownerSeq)
+                .filter(value -> value.getAccountStatus() == AccountStatus.ACTIVE)
+                .filter(value -> value.getRole() != UserRole.ADMIN)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.USER_NOT_FOUND));
+        if (viewerSeq != null && Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT EXISTS(
+                    SELECT 1
+                      FROM user_blocks
+                     WHERE (blocker_seq = ? AND blocked_seq = ?)
+                        OR (blocker_seq = ? AND blocked_seq = ?)
+                )
+                """, Boolean.class, viewerSeq, ownerSeq, ownerSeq, viewerSeq))) {
+            throw BusinessException.of(ErrorCode.USER_NOT_FOUND);
+        }
+        return owner;
     }
 
     @Transactional
@@ -285,20 +353,38 @@ public class CollectionService {
 
     private CollectionDtos.CollectionResponse response(
             TattooCollection collection,
-            Long imageSeq
+            Long imageSeq,
+            String imageObjectKey
     ) {
         return new CollectionDtos.CollectionResponse(
                 collection.getCollectionSeq(),
+                collection.getUserSeq(),
                 collection.getTattooSeq(),
                 imageSeq,
+                mediaService.downloadUrl(imageObjectKey),
                 collection.getBodyView(),
                 collection.getPositionX(),
                 collection.getPositionY(),
                 collection.getScaleRatio(),
                 collection.getRotationDegree(),
                 collection.isFlipped(),
-                collection.getRegDttm(),
-                collection.getModDttm()
+                collection.getRegDttm()
         );
+    }
+
+    private record CollectionRow(
+            Long collectionSeq,
+            Integer ownerSeq,
+            Long tattooSeq,
+            Long imageSeq,
+            String imageObjectKey,
+            String bodyView,
+            double positionX,
+            double positionY,
+            double scaleRatio,
+            double rotationDegree,
+            boolean flipped,
+            OffsetDateTime regDttm
+    ) {
     }
 }

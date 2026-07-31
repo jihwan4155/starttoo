@@ -1,5 +1,6 @@
 package com.starttoo.backend.realtime.config;
 
+import com.starttoo.backend.common.config.CorsProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -15,14 +16,12 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final CorsProperties corsProperties;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(
-                        "http://localhost:*",
-                        "https://*.starttoo.com"
-                );
+                .setAllowedOriginPatterns(corsProperties.allowedOrigins().toArray(new String[0]));
     }
 
     @Override

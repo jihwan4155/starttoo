@@ -9,17 +9,22 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RateLimitFilterTest {
 
     @Test
-    void phoneVerificationEndpointsUseSeparateStrongerLimits() throws Exception {
+    void phoneAvailabilityUsesStrongIpAndHashedNumberBuckets() throws Exception {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         ApiErrorWriter errorWriter = mock(ApiErrorWriter.class);
         FilterChain chain = mock(FilterChain.class);
@@ -28,46 +33,48 @@ class RateLimitFilterTest {
                 anyList(),
                 any()
         )).thenReturn(1L);
-        RateLimitProperties properties = new RateLimitProperties(
+        RateLimitFilter filter = new RateLimitFilter(
+                redisTemplate,
+                properties(),
+                errorWriter
+        );
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("GET", "/v1/auth/phones/availability");
+        request.setRemoteAddr("127.0.0.1");
+        request.setParameter("phoneNumber", "010-1234-5678");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getHeader("X-RateLimit-Limit")).isEqualTo("5");
+        verify(redisTemplate, times(2)).execute(
+                any(RedisScript.class),
+                anyList(),
+                eq("60000")
+        );
+        @SuppressWarnings("rawtypes")
+        org.mockito.ArgumentCaptor<List> keys =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(redisTemplate, times(2)).execute(
+                any(RedisScript.class),
+                keys.capture(),
+                any()
+        );
+        assertThat(keys.getAllValues().toString())
+                .contains("rate-limit:ip:127.0.0.1:phone-availability")
+                .contains("rate-limit:phone:")
+                .doesNotContain("01012345678")
+                .doesNotContain("+821012345678");
+    }
+
+    private RateLimitProperties properties() {
+        return new RateLimitProperties(
                 60,
                 Duration.ofMinutes(1),
                 20,
                 Duration.ofMinutes(1),
                 5,
-                Duration.ofMinutes(1),
-                10,
                 Duration.ofMinutes(1)
         );
-        RateLimitFilter filter = new RateLimitFilter(
-                redisTemplate,
-                properties,
-                errorWriter
-        );
-
-        MockHttpServletResponse requestResponse = execute(
-                filter,
-                chain,
-                "/v1/auth/phone/verifications"
-        );
-        MockHttpServletResponse confirmResponse = execute(
-                filter,
-                chain,
-                "/v1/auth/phone/verifications/confirm"
-        );
-
-        assertThat(requestResponse.getHeader("X-RateLimit-Limit")).isEqualTo("5");
-        assertThat(confirmResponse.getHeader("X-RateLimit-Limit")).isEqualTo("10");
-    }
-
-    private MockHttpServletResponse execute(
-            RateLimitFilter filter,
-            FilterChain chain,
-            String uri
-    ) throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", uri);
-        request.setRemoteAddr("127.0.0.1");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(request, response, chain);
-        return response;
     }
 }

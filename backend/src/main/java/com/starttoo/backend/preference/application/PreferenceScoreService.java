@@ -31,11 +31,6 @@ public class PreferenceScoreService {
     }
 
     @Transactional
-    public void applySearchClick(Integer userSeq, Long postSeq) {
-        applyPost(userSeq, postSeq, properties.searchClick());
-    }
-
-    @Transactional
     public void applyNotInterested(Integer userSeq, Long postSeq, boolean enabled) {
         applyPost(
                 userSeq,
@@ -99,11 +94,10 @@ public class PreferenceScoreService {
             new LinkedHashSet<>(request.colorSeqs()).forEach(color ->
                     add(userSeq, null, color, properties.survey()));
         }
-        return get(userSeq);
+        return preferences(userSeq);
     }
 
-    @Transactional(readOnly = true)
-    public PreferenceDtos.Preferences get(Integer userSeq) {
+    private PreferenceDtos.Preferences preferences(Integer userSeq) {
         List<PreferenceDtos.Score> primary = jdbcTemplate.query("""
                 SELECT primary_style_seq, score
                   FROM user_primary_style_preferences
@@ -127,7 +121,7 @@ public class PreferenceScoreService {
 
     private void applyPost(Integer userSeq, Long postSeq, double delta) {
         List<TattooClassification> values = jdbcTemplate.query("""
-                SELECT DISTINCT t.primary_style_seq, t.color_seq
+                SELECT t.primary_style_seq, t.color_seq
                   FROM post_images pi
                   JOIN tattoos t ON t.image_seq = pi.image_seq
                  WHERE pi.post_seq = ? AND t.is_deleted = FALSE
@@ -135,7 +129,16 @@ public class PreferenceScoreService {
                 rs.getInt("primary_style_seq"),
                 rs.getObject("color_seq", Integer.class)
         ), postSeq);
-        values.forEach(value -> add(userSeq, value.primaryStyleSeq(), value.colorSeq(), delta));
+        values.stream()
+                .map(TattooClassification::primaryStyleSeq)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .forEach(styleSeq -> add(userSeq, styleSeq, null, delta));
+        values.stream()
+                .map(TattooClassification::colorSeq)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .forEach(colorSeq -> add(userSeq, null, colorSeq, delta));
     }
 
     private void add(Integer userSeq, Integer primaryStyleSeq, Integer colorSeq, double delta) {

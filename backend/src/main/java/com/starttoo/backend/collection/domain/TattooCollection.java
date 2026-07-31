@@ -60,23 +60,6 @@ public class TattooCollection {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
-    public void updatePlacement(
-            String bodyView,
-            double positionX,
-            double positionY,
-            double scaleRatio,
-            double rotationDegree,
-            boolean flipped
-    ) {
-        this.bodyView = bodyView;
-        this.positionX = positionX;
-        this.positionY = positionY;
-        this.scaleRatio = scaleRatio;
-        this.rotationDegree = rotationDegree;
-        this.flipped = flipped;
-        this.modDttm = OffsetDateTime.now();
-    }
-
     public void softDelete() {
         this.deleted = true;
         this.modDttm = OffsetDateTime.now();

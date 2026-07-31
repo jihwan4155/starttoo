@@ -1,7 +1,8 @@
 package com.starttoo.backend.auth.api;
 
-import com.starttoo.backend.user.domain.UserRole;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -19,10 +20,41 @@ public final class AuthDtos {
             @Schema(description = "OAuth 제공자 코드", example = "KAKAO",
                     allowableValues = {"GOOGLE", "KAKAO"})
             @NotBlank @Size(max = 20) String provider,
-            @Schema(description = "프론트엔드가 OAuth 제공자에서 받은 액세스 토큰",
+            @Schema(description = """
+                    네이티브 앱 SDK가 발급받은 제공자 액세스 토큰.
+                    authorizationCode와 둘 중 하나만 보낸다.""",
                     example = "provider-access-token")
-            @NotBlank @Size(max = 4096) String accessToken
+            @Size(max = 4096) String accessToken,
+            @Schema(description = """
+                    웹 프론트엔드가 제공자 동의 화면에서 받은 authorization code.
+                    카카오 JavaScript SDK는 액세스 토큰을 브라우저에 주지 않으므로 웹은 이 값을 사용한다.
+                    서버가 redirectUri와 함께 제공자 토큰 엔드포인트로 교환한다.""",
+                    example = "authorization-code")
+            @Size(max = 4096) String authorizationCode,
+            @Schema(description = """
+                    authorizationCode를 발급받을 때 사용한 redirect_uri.
+                    제공자가 인가 시점의 값과 대조하므로 정확히 같아야 한다. code 방식에서만 필수.""",
+                    example = "https://localhost:5173/auth/kakao/callback")
+            @Size(max = 2048) String redirectUri
     ) {
+
+        @JsonIgnore
+        @Schema(hidden = true)
+        @AssertTrue(message = "accessToken 또는 authorizationCode 중 하나만 제공해야 합니다.")
+        public boolean isExactlyOneCredentialPresent() {
+            return hasText(accessToken) ^ hasText(authorizationCode);
+        }
+
+        @JsonIgnore
+        @Schema(hidden = true)
+        @AssertTrue(message = "authorizationCode를 사용할 때는 redirectUri가 필요합니다.")
+        public boolean isRedirectUriPresentWithCode() {
+            return !hasText(authorizationCode) || hasText(redirectUri);
+        }
+
+        private static boolean hasText(String value) {
+            return value != null && !value.isBlank();
+        }
     }
 
     public record SocialLoginResponse(
@@ -35,8 +67,9 @@ public final class AuthDtos {
     public record SignupRequest(
             @Schema(description = "소셜 로그인에서 signupRequired=true일 때 받은 단기 토큰")
             @NotBlank @Size(max = 4096) String signupToken,
-            @Schema(description = "휴대폰 인증 확인 API에서 받은 일회성 토큰")
-            @NotBlank @Size(max = 100) String phoneVerificationToken,
+            @Schema(description = "한국 휴대폰 번호. 하이픈·공백 제거 후 +82 E.164로 정규화",
+                    example = "010-1234-5678")
+            @NotBlank @Size(max = 30) String phoneNumber,
             @Schema(description = "공백·특수문자 없는 대소문자 구분 닉네임", example = "검은장미1")
             @NotBlank
             @Pattern(regexp = "^[가-힣A-Za-z0-9]{2,20}$")
@@ -76,22 +109,18 @@ public final class AuthDtos {
     ) {
     }
 
-    public record PhoneVerificationRequest(
-            @Schema(description = "한국 휴대폰 번호. 하이픈·공백은 제거 후 +82 E.164로 저장",
-                    example = "010-1234-5678")
-            @NotBlank @Size(max = 30) String phoneNumber
-    ) {
-    }
-
-    public record PhoneVerificationConfirmRequest(
-            @Schema(description = "인증번호 요청에서 받은 요청 ID")
-            @NotBlank @Size(max = 64) String requestId,
-            @Schema(description = "6자리 인증번호", example = "123456")
-            @NotBlank @Pattern(regexp = "^[0-9]{6}$") String code
-    ) {
-    }
-
     public record NicknameAvailabilityResponse(String nickname, boolean available) {
+    }
+
+    public record PhoneAvailabilityResponse(
+            String normalizedPhoneNumber,
+            @Schema(description = "신규 가입에 사용할 수 있는 번호인지 여부")
+            boolean available,
+            @Schema(description = "가입된 번호일 때 연결된 OAuth provider 코드",
+                    allowableValues = {"GOOGLE", "KAKAO"},
+                    nullable = true)
+            String provider
+    ) {
     }
 
     public record NicknameSuggestionsResponse(
@@ -100,15 +129,4 @@ public final class AuthDtos {
     ) {
     }
 
-    public record LocalLoginRequest(
-            @Schema(description = "기존 로컬 테스트 회원. 없으면 아래 신규 회원 필드가 필요")
-            Integer userSeq,
-            @Schema(description = "신규 테스트 회원 닉네임", example = "테스트유저1")
-            @Pattern(regexp = "^[가-힣A-Za-z0-9]{2,20}$") String nickname,
-            @Schema(description = "신규 테스트 회원 한국 휴대폰 번호", example = "01012345678")
-            @Size(max = 30) String phoneNumber,
-            @Schema(description = "테스트할 역할", example = "USER")
-            UserRole role
-    ) {
-    }
 }

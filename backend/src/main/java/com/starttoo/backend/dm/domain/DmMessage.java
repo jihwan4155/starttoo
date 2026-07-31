@@ -66,9 +66,4 @@ public class DmMessage {
         }
     }
 
-    public void delete(Integer modifierSeq) {
-        this.deleted = true;
-        this.modUsrSeq = modifierSeq;
-        this.modDttm = OffsetDateTime.now();
-    }
 }

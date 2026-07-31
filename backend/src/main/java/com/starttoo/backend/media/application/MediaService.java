@@ -12,6 +12,8 @@ import io.minio.Http;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
+import io.minio.StatObjectResponse;
+import io.minio.errors.ErrorResponseException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -31,10 +35,17 @@ import java.util.concurrent.TimeUnit;
 public class MediaService {
 
     private static final Set<String> EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
+    private static final Pattern OBJECT_KEY_PATTERN = Pattern.compile(
+            "^users/(\\d+)/(profile|post|dm|collection|extraction)/"
+                    + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                    + "\\.(jpg|png|webp)$"
+    );
 
     private final MinioClient minioClient;
+    private final MinioClient minioPresignClient;
     private final MinioProperties properties;
     private final ImageRepository imageRepository;
+    private final MediaImageRegistrationService imageRegistrationService;
 
     @PostConstruct
     void ensureBucket() {
@@ -49,17 +60,19 @@ public class MediaService {
             Integer userSeq,
             MediaDtos.PresignUploadRequest request
     ) {
-        ensureBucketOrThrow();
+        validateRequestedSize(request.fileSize());
         String extension = extension(request.originalFilename());
-        String objectKey = "users/%d/%d/%s.%s".formatted(
+        validateContentType(extension, request.contentType(), ErrorCode.INVALID_FILE);
+        ensureBucketOrThrow();
+        String objectKey = "users/%d/%s/%s.%s".formatted(
                 userSeq,
-                System.currentTimeMillis(),
+                request.purpose().name().toLowerCase(Locale.ROOT),
                 UUID.randomUUID(),
                 extension
         );
         int expiry = Math.toIntExact(properties.uploadExpiry().toSeconds());
         try {
-            String url = minioClient.getPresignedObjectUrl(
+            String url = minioPresignClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.PUT)
                             .bucket(properties.bucket())
@@ -71,60 +84,46 @@ public class MediaService {
                     objectKey,
                     url,
                     Map.of("Content-Type", request.contentType()),
-                    expiry
+                            expiry
             );
         } catch (Exception exception) {
-            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 
-    @Transactional
     public MediaDtos.ImageResponse complete(
             Integer userSeq,
             MediaDtos.CompleteUploadRequest request
     ) {
+        String expectedContentType = validateOwnedObjectKey(userSeq, request.objectKey());
         ensureBucketOrThrow();
-        if (!request.objectKey().startsWith("users/" + userSeq + "/")) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN);
-        }
-        imageRepository.findByObjectKeyAndDeletedFalse(request.objectKey())
-                .ifPresent(image -> {
-                    throw BusinessException.of(ErrorCode.DUPLICATE_RESOURCE);
-                });
+        StatObjectResponse stat;
         try {
-            var stat = minioClient.statObject(StatObjectArgs.builder()
+            stat = minioClient.statObject(StatObjectArgs.builder()
                     .bucket(properties.bucket())
                     .object(request.objectKey())
                     .build());
-            if (stat.size() <= 0 || stat.size() > properties.maxImageBytes()) {
-                throw new BusinessException(ErrorCode.INVALID_FILE, "이미지 크기가 허용 범위를 벗어났습니다.");
+        } catch (ErrorResponseException exception) {
+            if (isMissingObject(exception)) {
+                throw BusinessException.of(ErrorCode.UPLOAD_OBJECT_NOT_FOUND);
             }
-            if (stat.contentType() == null
-                    || !stat.contentType().matches("image/(jpeg|png|webp)")) {
-                throw new BusinessException(ErrorCode.INVALID_FILE, "지원하지 않는 이미지 미디어 타입입니다.");
-            }
-        } catch (BusinessException exception) {
-            throw exception;
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
         } catch (Exception exception) {
-            throw new BusinessException(ErrorCode.INVALID_FILE, "업로드된 객체를 확인할 수 없습니다.");
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
         }
-        OffsetDateTime now = OffsetDateTime.now();
-        Image image = imageRepository.save(Image.builder()
-                .objectKey(request.objectKey())
-                .regDttm(now)
-                .regUsrSeq(userSeq)
-                .modDttm(now)
-                .modUsrSeq(userSeq)
-                .deleted(false)
-                .build());
-        return response(image);
-    }
+        if (stat.size() <= 0) {
+            throw BusinessException.of(ErrorCode.INVALID_FILE);
+        }
+        if (stat.size() > properties.maxImageBytes()) {
+            throw BusinessException.of(ErrorCode.FILE_TOO_LARGE);
+        }
+        if (!expectedContentType.equals(stat.contentType())) {
+            throw BusinessException.of(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
+        }
 
-    @Transactional(readOnly = true)
-    public MediaDtos.ImageResponse get(Long imageSeq) {
-        Image image = imageRepository.findByImageSeqAndDeletedFalse(imageSeq)
-                .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
-        return response(image);
+        PresignedDownload download = presignedDownload(request.objectKey());
+        Image image = imageRegistrationService.register(userSeq, request.objectKey());
+        return response(image, download);
     }
 
     public String downloadUrl(Image image) {
@@ -132,8 +131,13 @@ public class MediaService {
     }
 
     public String downloadUrl(String objectKey) {
+        return presignedDownload(objectKey).url();
+    }
+
+    public PresignedDownload presignedDownload(String objectKey) {
+        OffsetDateTime expiresAt = OffsetDateTime.now().plus(properties.downloadExpiry());
         try {
-            return minioClient.getPresignedObjectUrl(
+            String url = minioPresignClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.GET)
                             .bucket(properties.bucket())
@@ -144,21 +148,32 @@ public class MediaService {
                             )
                             .build()
             );
+            return new PresignedDownload(url, expiresAt);
         } catch (Exception exception) {
-            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 
+    public record PresignedDownload(String url, OffsetDateTime expiresAt) {
+    }
+
     private MediaDtos.ImageResponse response(Image image) {
+        return response(image, presignedDownload(image.getObjectKey()));
+    }
+
+    private MediaDtos.ImageResponse response(Image image, PresignedDownload download) {
         return new MediaDtos.ImageResponse(
                 image.getImageSeq(),
                 image.getObjectKey(),
-                downloadUrl(image),
+                download.url(),
                 image.getRegDttm()
         );
     }
 
     private String extension(String filename) {
+        if (filename.contains("/") || filename.contains("\\")) {
+            throw BusinessException.of(ErrorCode.INVALID_FILE);
+        }
         int index = filename.lastIndexOf('.');
         String value = index < 0 ? "" : filename.substring(index + 1).toLowerCase(Locale.ROOT);
         if (!EXTENSIONS.contains(value)) {
@@ -167,11 +182,58 @@ public class MediaService {
         return value.equals("jpeg") ? "jpg" : value;
     }
 
+    private void validateRequestedSize(Long fileSize) {
+        if (fileSize == null || fileSize <= 0) {
+            throw BusinessException.of(ErrorCode.INVALID_FILE);
+        }
+        if (fileSize > properties.maxImageBytes()) {
+            throw BusinessException.of(ErrorCode.FILE_TOO_LARGE);
+        }
+    }
+
+    private String validateOwnedObjectKey(Integer userSeq, String objectKey) {
+        if (!objectKey.startsWith("users/" + userSeq + "/")) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
+        Matcher matcher = OBJECT_KEY_PATTERN.matcher(objectKey);
+        if (!matcher.matches() || !matcher.group(1).equals(userSeq.toString())) {
+            throw BusinessException.of(ErrorCode.INVALID_FILE);
+        }
+        return contentType(matcher.group(3));
+    }
+
+    private void validateContentType(
+            String extension,
+            String contentType,
+            ErrorCode mismatchError
+    ) {
+        if (!contentType(extension).equals(contentType)) {
+            throw BusinessException.of(mismatchError);
+        }
+    }
+
+    private String contentType(String extension) {
+        return switch (extension) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "webp" -> "image/webp";
+            default -> throw BusinessException.of(ErrorCode.INVALID_FILE);
+        };
+    }
+
+    private boolean isMissingObject(ErrorResponseException exception) {
+        if (exception.errorResponse() == null) {
+            return false;
+        }
+        String code = exception.errorResponse().code();
+        return "NoSuchKey".equals(code) || "NoSuchObject".equals(code);
+    }
+
     private void ensureBucketOrThrow() {
         try {
             ensureBucketExists();
         } catch (Exception exception) {
-            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 
