@@ -196,71 +196,121 @@ public class PostController {
 
     @PutMapping("/{postSeq}/like")
     @Operation(
-            summary = "게시물 좋아요 상태 설정",
+            summary = "게시물 좋아요",
             description = """
-                    enabled=true이면 postLikes를 ON CONFLICT DO NOTHING으로 생성하고, 실제 신규
-                    생성된 경우에만 게시물 likeCount를 원자적 증감식으로 +1 한다. 동시에 게시물
-                    이미지의 주 스타일·색상 취향 점수를 가산하고 작성자 알림을 저장한다.
-                    enabled=false이면 관계 삭제, count -1, 취향 점수 역산을 수행한다. 모든 DB
-                    변경은 하나의 트랜잭션이며 동일 상태 반복 요청은 점수를 중복 반영하지 않는다.
+                    postLikes를 ON CONFLICT DO NOTHING으로 생성하고, 실제 신규 생성된 경우에만
+                    게시물 likeCount를 원자적 증감식으로 +1 한다. 동시에 게시물 이미지의 주
+                    스타일·색상 취향 점수를 가산하고 작성자 알림을 저장한다. 모든 DB 변경은
+                    하나의 트랜잭션이며 반복 요청은 카운트와 점수를 중복 반영하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<PostDtos.StateResponse> like(
-            @PathVariable Long postSeq,
-            @Valid @RequestBody PostDtos.StateRequest request
-    ) {
+    public ApiResponse<PostDtos.StateResponse> like(@PathVariable Long postSeq) {
         return ApiResponse.of(new PostDtos.StateResponse(
                 postService.setLike(
                         SecurityUtils.currentUserSeq(),
                         postSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{postSeq}/like")
+    @Operation(
+            summary = "게시물 좋아요 해제",
+            description = """
+                    postLikes 관계를 멱등하게 삭제한다. 실제 삭제된 경우에만 게시물 likeCount를
+                    원자적으로 -1 하고 게시물 이미지의 주 스타일·색상 취향 점수를 역산한다.
+                    모든 DB 변경은 하나의 트랜잭션이며 반복 요청은 카운트와 점수를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> unlike(@PathVariable Long postSeq) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setLike(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        false
                 )
         ));
     }
 
     @PutMapping("/{postSeq}/bookmark")
     @Operation(
-            summary = "게시물 북마크 상태 설정",
+            summary = "게시물 북마크",
             description = """
-                    북마크 행을 멱등하게 생성하거나 삭제한다. 실제 상태가 바뀐 경우에만 게시물의
-                    주 스타일·색상 취향 점수를 가산 또는 역산하며 관계와 점수 변경은 같은
-                    트랜잭션에서 처리한다.
+                    북마크 행을 멱등하게 생성한다. 실제로 새 관계가 생성된 경우에만 게시물의
+                    주 스타일·색상 취향 점수를 가산하며 관계와 점수 변경은 같은 트랜잭션에서
+                    처리한다. 반복 요청은 점수를 중복 반영하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<PostDtos.StateResponse> bookmark(
-            @PathVariable Long postSeq,
-            @Valid @RequestBody PostDtos.StateRequest request
-    ) {
+    public ApiResponse<PostDtos.StateResponse> bookmark(@PathVariable Long postSeq) {
         return ApiResponse.of(new PostDtos.StateResponse(
                 postService.setBookmark(
                         SecurityUtils.currentUserSeq(),
                         postSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{postSeq}/bookmark")
+    @Operation(
+            summary = "게시물 북마크 해제",
+            description = """
+                    북마크 행을 멱등하게 삭제한다. 실제로 관계가 삭제된 경우에만 게시물의
+                    주 스타일·색상 취향 점수를 역산하며 관계와 점수 변경은 같은 트랜잭션에서
+                    처리한다. 반복 요청은 점수를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> removeBookmark(@PathVariable Long postSeq) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setBookmark(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        false
                 )
         ));
     }
 
     @PutMapping("/{postSeq}/not-interested")
     @Operation(
-            summary = "관심 없는 게시물 상태 설정",
+            summary = "관심 없는 게시물 설정",
             description = """
-                    enabled=true이면 사용자별 숨김 관계를 생성하여 이후 피드에서 제외하고 해당
-                    게시물의 주 스타일·색상 취향 점수에 음수 가중치를 반영한다. 해제하면 숨김
-                    관계를 삭제하고 기존 감점을 역산한다. 동일 상태 반복은 추가 점수를 만들지 않는다.
+                    사용자별 숨김 관계를 멱등하게 생성하여 이후 피드에서 제외한다. 실제로 새
+                    관계가 생성된 경우에만 게시물의 주 스타일·색상 취향 점수에 음수 가중치를
+                    반영하며 반복 요청은 추가 점수를 만들지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<PostDtos.StateResponse> notInterested(
-            @PathVariable Long postSeq,
-            @Valid @RequestBody PostDtos.StateRequest request
-    ) {
+    public ApiResponse<PostDtos.StateResponse> notInterested(@PathVariable Long postSeq) {
         return ApiResponse.of(new PostDtos.StateResponse(
                 postService.setNotInterested(
                         SecurityUtils.currentUserSeq(),
                         postSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{postSeq}/not-interested")
+    @Operation(
+            summary = "관심 없는 게시물 설정 해제",
+            description = """
+                    사용자별 숨김 관계를 멱등하게 삭제하여 게시물이 다시 피드 후보가 되도록 한다.
+                    실제로 관계가 삭제된 경우에만 기존 취향 점수 감점을 역산하며 반복 요청은
+                    점수를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<PostDtos.StateResponse> clearNotInterested(@PathVariable Long postSeq) {
+        return ApiResponse.of(new PostDtos.StateResponse(
+                postService.setNotInterested(
+                        SecurityUtils.currentUserSeq(),
+                        postSeq,
+                        false
                 )
         ));
     }

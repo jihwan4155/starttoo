@@ -2,7 +2,6 @@ package com.starttoo.backend.comment.api;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -40,12 +39,6 @@ public final class CommentDtos {
             String nickname,
             Long profileImageSeq,
             String profileImageUrl
-    ) {
-    }
-
-    public record LikeStateRequest(
-            @Schema(description = "최종 좋아요 상태", example = "true")
-            @NotNull Boolean enabled
     ) {
     }
 

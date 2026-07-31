@@ -50,12 +50,6 @@ public final class CollectionDtos {
     ) {
     }
 
-    public record ArchiveStateRequest(
-            @Schema(description = "최종 보관 상태", example = "true", allowableValues = {"true", "false"})
-            @NotNull Boolean enabled
-    ) {
-    }
-
     public record ArchiveStateResponse(
             @Schema(description = "적용된 최종 보관 상태", example = "true")
             boolean enabled

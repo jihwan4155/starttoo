@@ -118,24 +118,40 @@ public class CommentController {
 
     @PutMapping("/comments/{commentSeq}/like")
     @Operation(
-            summary = "댓글 좋아요 상태 설정",
+            summary = "댓글 좋아요",
             description = """
-                    enabled=true이면 좋아요 관계를 멱등하게 생성하고 실제 신규 생성일 때만
-                    comment.likeCount를 원자적으로 +1 하며 작성자 알림을 저장한다.
-                    enabled=false이면 관계 삭제와 count -1을 수행한다. 관계·카운트·알림은 같은
-                    트랜잭션으로 묶이며 동일 상태 반복 요청은 카운트를 중복 변경하지 않는다.
+                    좋아요 관계를 멱등하게 생성하고 실제 신규 생성일 때만 comment.likeCount를
+                    원자적으로 +1 하며 작성자 알림을 저장한다. 관계·카운트·알림은 같은
+                    트랜잭션으로 묶이며 반복 요청은 카운트를 중복 변경하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<CommentDtos.LikeState> like(
-            @PathVariable Long commentSeq,
-            @Valid @RequestBody CommentDtos.LikeStateRequest request
-    ) {
+    public ApiResponse<CommentDtos.LikeState> like(@PathVariable Long commentSeq) {
         return ApiResponse.of(new CommentDtos.LikeState(
                 commentService.setLike(
                         SecurityUtils.currentUserSeq(),
                         commentSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/comments/{commentSeq}/like")
+    @Operation(
+            summary = "댓글 좋아요 해제",
+            description = """
+                    좋아요 관계를 멱등하게 삭제하고 실제 삭제된 경우에만 comment.likeCount를
+                    원자적으로 -1 한다. 관계와 카운트 변경은 같은 트랜잭션으로 묶이며 반복 요청은
+                    카운트를 중복 변경하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<CommentDtos.LikeState> unlike(@PathVariable Long commentSeq) {
+        return ApiResponse.of(new CommentDtos.LikeState(
+                commentService.setLike(
+                        SecurityUtils.currentUserSeq(),
+                        commentSeq,
+                        false
                 )
         ));
     }
