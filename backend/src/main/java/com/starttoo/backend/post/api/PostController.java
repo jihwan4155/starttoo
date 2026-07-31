@@ -39,14 +39,13 @@ public class PostController {
     @Operation(
             summary = "게시물과 이미지 연결 등록",
             description = """
-                    중복되지 않은 1~10개의 imageSeq를 입력 순서대로 처리한다. 각 이미지가 현재
-                    회원 소유인지 확인한다. 현재 모델 연동 전 단계이므로 타투 여부 판별·분석
-                    호출은 비활성화되어 있고, API·트랜잭션 검증용 고정 분류값(OTHER, LINE,
-                    BLACK, subject=타투)을 사용한다. tattoos·subjects 연결, PUBLISHED 게시물,
-                    postImages 생성을 하나의 DB 트랜잭션으로 처리하므로 어느 이미지라도 실패하면
-                    전체 등록이 롤백된다. 모델 연결 후에는 모든 이미지가 타투 판별을 통과한
-                    경우에만 같은 트랜잭션의 저장 단계를 진행한다. 응답의 작성자 프로필과 게시물
-                    이미지 URL은 저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
+                    중복되지 않은 1~10개의 imageSeq가 현재 회원 소유인지 확인하고 각 이미지의
+                    타투 판별·분석이 동기로 모두 끝날 때까지 기다린다. 이 외부 모델 호출 동안에는
+                    DB 쓰기 트랜잭션을 열지 않는다. 모든 이미지가 검증을 통과한 뒤에만
+                    tattoos·subjects 연결, PUBLISHED 게시물과 postImages를 하나의 짧은 DB
+                    트랜잭션으로 저장한다. 어느 이미지 검증 또는 저장이라도 실패하면 게시물은
+                    생성되지 않는다. 응답은 DB 커밋 후 반환하며 이미지 URL은 저장된 MinIO
+                    object key로 생성한 단기 Presigned GET URL이다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -164,7 +163,9 @@ public class PostController {
             summary = "게시물 내용 수정",
             description = """
                     작성자만 게시물 본문을 수정할 수 있다. 이미지와 분석 결과는 이 API에서
-                    교체하지 않으며, 본문과 수정자·수정 시각만 하나의 트랜잭션에서 갱신한다.
+                    교체하지 않으며, 본문과 수정자·수정 시각만 부분 UPDATE한다. likeCount,
+                    commentCount, reportCount는 갱신 대상에 포함하지 않아 동시 증감 결과를
+                    덮어쓰지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -184,8 +185,9 @@ public class PostController {
             summary = "게시물 작성자 삭제",
             description = """
                     작성자만 삭제할 수 있다. postStatus를 DELETED로 바꾸고 isDeleted=true,
-                    modUsrSeq=작성자로 기록하는 소프트 삭제다. 일반 조회는 PUBLISHED만 노출하므로
-                    삭제 즉시 피드와 상세에서 제외된다.
+                    modUsrSeq=작성자로 기록하는 부분 UPDATE 방식의 소프트 삭제다. 세 카운터 열은
+                    갱신하지 않으며, 일반 조회는 PUBLISHED만 노출하므로 삭제 즉시 피드와 상세에서
+                    제외된다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )

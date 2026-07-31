@@ -31,7 +31,7 @@ local 프로필에서는 다음 주소를 사용한다.
 - Health: `http://localhost:8080/actuator/health`
 - MinIO Console: `http://localhost:9001`
 
-Swagger에는 이번 v1 범위의 전체 84개 API 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
+Swagger에는 이번 v1 범위의 전체 82개 API 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
 기재되어 있다. 자물쇠가 있는 API는 우측 상단 `Authorize`에 액세스 토큰 원문만
 입력한다. 공개 API 중 로그인 여부에 따라 응답이 달라지는 피드·프로필·댓글·검색은
 익명 호출과 Bearer JWT 호출을 모두 허용하도록 표시한다.
@@ -41,18 +41,6 @@ Swagger에는 이번 v1 범위의 전체 84개 API 인증 조건, 입력 제약,
 ```bash
 ./gradlew clean test bootJar
 java -jar build/libs/starttoo-backend.jar --spring.profiles.active=local
-```
-
-## 로컬 휴대폰 인증
-
-로컬 휴대폰 인증 API는 응답의 `debugCode`를 제공한다. 다른 프로필은
-`SMS_WEBHOOK_URL`에 다음 JSON을 전송하며, URL이 없으면 503을 반환한다.
-
-```json
-{
-  "phoneNumber": "+821012345678",
-  "verificationCode": "123456"
-}
 ```
 
 ## 응답 계약
@@ -190,7 +178,7 @@ pgvector의 확장·테이블·HNSW 인덱스는 V1에서 주석 상태다. 임�
 확정한 뒤 별도의 새 Flyway 마이그레이션으로 활성화해야 하며, 이미 적용된 V1을
 수정해서는 안 된다.
 
-운영 배포 전에는 OAuth 키, JWT 비밀키, SMS webhook,
+운영 배포 전에는 OAuth 키, JWT 비밀키,
 모델 연결 구현, MinIO 자격 증명과 CORS 도메인을 반드시 교체한다.
 
 ## 테스트

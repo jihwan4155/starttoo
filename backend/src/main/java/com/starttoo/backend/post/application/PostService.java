@@ -8,14 +8,10 @@ import com.starttoo.backend.post.api.PostDtos;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.notification.domain.NotificationType;
 import com.starttoo.backend.post.domain.Post;
-import com.starttoo.backend.post.domain.PostImage;
-import com.starttoo.backend.post.domain.PostImageRepository;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
 import com.starttoo.backend.tattoo.application.TattooService;
-import com.starttoo.backend.tattoo.domain.Tattoo;
-import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import com.starttoo.backend.user.application.UserService;
 import com.starttoo.backend.user.domain.AccountStatus;
 import com.starttoo.backend.user.domain.User;
@@ -43,8 +39,8 @@ import java.util.Set;
 public class PostService {
 
     private final PostRepository postRepository;
-    private final PostImageRepository postImageRepository;
     private final TattooService tattooService;
+    private final PostWriteService postWriteService;
     private final PreferenceScoreService preferenceScoreService;
     private final UserService userService;
     private final MediaService mediaService;
@@ -52,46 +48,16 @@ public class PostService {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final NotificationService notificationService;
 
-    @Transactional
     public PostDtos.PostResponse create(Integer userSeq, PostDtos.CreatePostRequest request) {
-        try {
-            userService.find(userSeq);
-            if (request.imageSeqs().size() != new HashSet<>(request.imageSeqs()).size()) {
-                throw BusinessException.of(ErrorCode.INVALID_REQUEST);
-            }
-            List<Tattoo> tattoos = request.imageSeqs().stream()
-                    .map(imageSeq -> tattooService.process(
-                            userSeq,
-                            imageSeq,
-                            TattooSourceType.USER_POST
-                    ))
-                    .toList();
-            OffsetDateTime now = OffsetDateTime.now();
-            Post post = postRepository.save(Post.builder()
-                    .authorSeq(userSeq)
-                    .content(request.content())
-                    .postStatus(PostStatus.PUBLISHED)
-                    .likeCount(0)
-                    .commentCount(0)
-                    .reportCount(0)
-                    .regDttm(now)
-                    .modDttm(now)
-                    .modUsrSeq(userSeq)
-                    .deleted(false)
-                    .build());
-            for (int index = 0; index < tattoos.size(); index++) {
-                postImageRepository.save(PostImage.builder()
-                        .postSeq(post.getPostSeq())
-                        .imageSeq(tattoos.get(index).getImageSeq())
-                        .displayOrder((short) (index + 1))
-                        .regDttm(now)
-                        .modDttm(now)
-                        .build());
-            }
-            return response(post, userSeq);
-        } catch (DataIntegrityViolationException exception) {
-            throw BusinessException.of(ErrorCode.DUPLICATE_RESOURCE);
+        userService.find(userSeq);
+        if (request.imageSeqs().size() != new HashSet<>(request.imageSeqs()).size()) {
+            throw BusinessException.of(ErrorCode.INVALID_REQUEST);
         }
+        List<TattooService.PreparedTattoo> preparedTattoos = request.imageSeqs().stream()
+                .map(imageSeq -> tattooService.prepare(userSeq, imageSeq))
+                .toList();
+        Post post = postWriteService.create(userSeq, request, preparedTattoos);
+        return response(post, userSeq);
     }
 
     @Transactional(readOnly = true)
@@ -284,15 +250,32 @@ public class PostService {
             Long postSeq,
             PostDtos.UpdatePostRequest request
     ) {
-        Post post = owned(postSeq, userSeq);
-        post.updateContent(request.content(), userSeq);
-        return response(post, userSeq);
+        owned(postSeq, userSeq);
+        int changed = postRepository.updateContent(
+                postSeq,
+                userSeq,
+                request.content(),
+                userSeq,
+                OffsetDateTime.now()
+        );
+        if (changed == 0) {
+            throw BusinessException.of(ErrorCode.POST_NOT_FOUND);
+        }
+        return response(owned(postSeq, userSeq), userSeq);
     }
 
     @Transactional
     public void delete(Integer userSeq, Long postSeq) {
-        Post post = owned(postSeq, userSeq);
-        post.delete(userSeq);
+        owned(postSeq, userSeq);
+        int changed = postRepository.softDelete(
+                postSeq,
+                userSeq,
+                userSeq,
+                OffsetDateTime.now()
+        );
+        if (changed == 0) {
+            throw BusinessException.of(ErrorCode.POST_NOT_FOUND);
+        }
     }
 
     @Transactional

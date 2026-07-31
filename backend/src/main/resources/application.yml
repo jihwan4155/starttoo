@@ -79,9 +79,6 @@ app:
       client-secret: ${KAKAO_CLIENT_SECRET:}
       token-uri: https://kauth.kakao.com/oauth/token
       user-info-uri: https://kapi.kakao.com/v2/user/me
-  sms:
-    webhook-url: ${SMS_WEBHOOK_URL:}
-    api-key: ${SMS_API_KEY:}
   firebase:
     # 변경: 로컬 기본값은 비활성화다. 운영에서는 서비스 계정 또는 ADC를 제공한다.
     enabled: ${FIREBASE_ENABLED:false}
@@ -101,10 +98,8 @@ app:
     default-window: ${RATE_LIMIT_DEFAULT_WINDOW:1m}
     mutation-capacity: ${RATE_LIMIT_MUTATION_CAPACITY:20}
     mutation-window: ${RATE_LIMIT_MUTATION_WINDOW:1m}
-    phone-verification-request-capacity: ${RATE_LIMIT_PHONE_REQUEST_CAPACITY:5}
-    phone-verification-request-window: ${RATE_LIMIT_PHONE_REQUEST_WINDOW:1m}
-    phone-verification-confirm-capacity: ${RATE_LIMIT_PHONE_CONFIRM_CAPACITY:10}
-    phone-verification-confirm-window: ${RATE_LIMIT_PHONE_CONFIRM_WINDOW:1m}
+    phone-availability-capacity: ${RATE_LIMIT_PHONE_AVAILABILITY_CAPACITY:5}
+    phone-availability-window: ${RATE_LIMIT_PHONE_AVAILABILITY_WINDOW:1m}
   search:
     log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}

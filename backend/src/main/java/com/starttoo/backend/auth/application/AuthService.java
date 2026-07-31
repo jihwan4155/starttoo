@@ -56,7 +56,6 @@ public class AuthService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final PhoneVerificationService phoneVerificationService;
     private final SignupTokenConsumer signupTokenConsumer;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
@@ -96,11 +95,11 @@ public class AuthService {
     @Transactional
     public AuthDtos.TokenResponse signup(AuthDtos.SignupRequest request) {
         UserRole requestedRole = requestedRole(request.requestedRole());
-        Jwt signupJwt = signupTokenConsumer.consume(request.signupToken());
+        Jwt signupJwt = signupTokenConsumer.validate(request.signupToken());
         String providerCode = signupJwt.getClaimAsString("provider");
         String providerSubject = signupJwt.getSubject();
         OAuthProvider provider = provider(providerCode);
-        String phoneNumber = phoneVerificationService.consume(request.phoneVerificationToken());
+        String phoneNumber = phoneNumberNormalizer.normalizeKorean(request.phoneNumber());
 
         if (oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(
@@ -119,18 +118,7 @@ public class AuthService {
                             AccountStatus.WITHDRAWN
                     );
             if (existingUser.isPresent()) {
-                User user = existingUser.get();
-                assertUsable(user);
-                oauthAccountRepository.saveAndFlush(UserOAuthAccount.builder()
-                        .userSeq(user.getUserSeq())
-                        .oauthProviderSeq(provider.getOauthProviderSeq())
-                        .providerSubject(providerSubject)
-                        .lastLoginDttm(now)
-                        .regDttm(now)
-                        .modDttm(now)
-                        .deleted(false)
-                        .build());
-                return issue(user, null);
+                throw BusinessException.of(ErrorCode.DUPLICATE_PHONE_NUMBER);
             }
             if (userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
                     request.nickname(),
@@ -182,7 +170,9 @@ public class AuthService {
                     ) VALUES (?, NULL, 'ACTIVE', 'SIGNUP', ?)
                     """, user.getUserSeq(), user.getUserSeq());
             searchIndexEventPublisher.accountChanged(user.getUserSeq());
-            return issue(user, null);
+            AuthDtos.TokenResponse response = issue(user, null);
+            signupTokenConsumer.consumeAfterCommit(signupJwt);
+            return response;
         } catch (DataIntegrityViolationException exception) {
             throw BusinessException.of(ErrorCode.DUPLICATE_RESOURCE);
         }
@@ -251,12 +241,29 @@ public class AuthService {
 
     public AuthDtos.PhoneAvailabilityResponse phoneAvailability(String phoneNumber) {
         String normalized = phoneNumberNormalizer.normalizeKorean(phoneNumber);
-        boolean available =
-                !userRepository.existsByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+        return userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
                         normalized,
                         AccountStatus.WITHDRAWN
-                );
-        return new AuthDtos.PhoneAvailabilityResponse(normalized, available);
+                )
+                .map(user -> new AuthDtos.PhoneAvailabilityResponse(
+                        normalized,
+                        false,
+                        providerCode(user.getUserSeq())
+                ))
+                .orElseGet(() -> new AuthDtos.PhoneAvailabilityResponse(
+                        normalized,
+                        true,
+                        null
+                ));
+    }
+
+    private String providerCode(Integer userSeq) {
+        UserOAuthAccount account = oauthAccountRepository
+                .findFirstByUserSeqAndDeletedFalseOrderByUserOauthAccountSeqAsc(userSeq)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.STATE_CONFLICT));
+        return providerRepository.findById(account.getOauthProviderSeq())
+                .map(OAuthProvider::getProviderCode)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.STATE_CONFLICT));
     }
 
     private AuthDtos.TokenResponse issue(User user, Long deviceSeq) {

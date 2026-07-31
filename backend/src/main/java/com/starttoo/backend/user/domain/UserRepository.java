@@ -21,11 +21,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
             AccountStatus excludedStatus
     );
 
-    boolean existsByPhoneNumberAndAccountStatusNotAndDeletedFalse(
-            String phoneNumber,
-            AccountStatus excludedStatus
-    );
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT user

@@ -7,13 +7,13 @@ import com.starttoo.backend.auth.api.AuthDtos;
 import com.starttoo.backend.auth.application.AuthService;
 import com.starttoo.backend.auth.application.OAuthSubjectResolver;
 import com.starttoo.backend.auth.application.PhoneNumberNormalizer;
-import com.starttoo.backend.auth.application.PhoneVerificationService;
 import com.starttoo.backend.auth.application.RefreshTokenHasher;
 import com.starttoo.backend.auth.application.SignupTokenConsumer;
 import com.starttoo.backend.auth.domain.OAuthProvider;
 import com.starttoo.backend.auth.domain.OAuthProviderRepository;
 import com.starttoo.backend.auth.domain.RefreshToken;
 import com.starttoo.backend.auth.domain.RefreshTokenRepository;
+import com.starttoo.backend.auth.domain.UserOAuthAccount;
 import com.starttoo.backend.auth.domain.UserOAuthAccountRepository;
 import com.starttoo.backend.common.config.JwtProperties;
 import com.starttoo.backend.common.error.BusinessException;
@@ -65,8 +65,6 @@ class AuthServiceTest {
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
     @Mock
-    private PhoneVerificationService phoneVerificationService;
-    @Mock
     private SignupTokenConsumer signupTokenConsumer;
     @Mock
     private JwtService jwtService;
@@ -87,19 +85,51 @@ class AuthServiceTest {
     private AuthService authService;
 
     @Test
-    void phoneAvailabilityUsesNormalizedNumberAndActiveAccounts() {
+    void phoneAvailabilityReturnsAvailableWhenNormalizedNumberIsNotRegistered() {
         when(phoneNumberNormalizer.normalizeKorean("010-1234-5678"))
                 .thenReturn("+821012345678");
-        when(userRepository.existsByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+        when(userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
                 "+821012345678",
                 AccountStatus.WITHDRAWN
-        )).thenReturn(false);
+        )).thenReturn(Optional.empty());
 
         AuthDtos.PhoneAvailabilityResponse response =
                 authService.phoneAvailability("010-1234-5678");
 
         assertThat(response.normalizedPhoneNumber()).isEqualTo("+821012345678");
         assertThat(response.available()).isTrue();
+        assertThat(response.provider()).isNull();
+    }
+
+    @Test
+    void phoneAvailabilityReturnsProviderWhenNumberIsRegistered() {
+        User existing = user(7, "기존닉네임", UserRole.USER);
+        UserOAuthAccount account = UserOAuthAccount.builder()
+                .userOauthAccountSeq(10L)
+                .userSeq(7)
+                .oauthProviderSeq(1)
+                .providerSubject("subject-1")
+                .regDttm(OffsetDateTime.now())
+                .modDttm(OffsetDateTime.now())
+                .deleted(false)
+                .build();
+        when(phoneNumberNormalizer.normalizeKorean("010-1234-5678"))
+                .thenReturn("+821012345678");
+        when(userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                "+821012345678",
+                AccountStatus.WITHDRAWN
+        )).thenReturn(Optional.of(existing));
+        when(oauthAccountRepository
+                .findFirstByUserSeqAndDeletedFalseOrderByUserOauthAccountSeqAsc(7))
+                .thenReturn(Optional.of(account));
+        when(providerRepository.findById(1)).thenReturn(Optional.of(provider()));
+
+        AuthDtos.PhoneAvailabilityResponse response =
+                authService.phoneAvailability("010-1234-5678");
+
+        assertThat(response.normalizedPhoneNumber()).isEqualTo("+821012345678");
+        assertThat(response.available()).isFalse();
+        assertThat(response.provider()).isEqualTo("KAKAO");
     }
 
     @Test
@@ -148,16 +178,17 @@ class AuthServiceTest {
         assertThat(artistCaptor.getValue().getVerificationStatus())
                 .isEqualTo(VerificationStatus.UNVERIFIED);
         verify(searchIndexEventPublisher).accountChanged(7);
+        verify(signupTokenConsumer).consumeAfterCommit(any(Jwt.class));
     }
 
     @Test
-    void existingPhoneAccountOnlyAddsOAuthConnection() {
+    void signupRejectsPhoneNumberAlreadyOwnedByAnotherAccount() {
         Jwt jwt = signupJwt();
         User existing = user(7, "기존닉네임", UserRole.USER);
-        when(signupTokenConsumer.consume("signup-token")).thenReturn(jwt);
+        when(signupTokenConsumer.validate("signup-token")).thenReturn(jwt);
         when(providerRepository.findByProviderCodeAndActiveTrue("KAKAO"))
                 .thenReturn(Optional.of(provider()));
-        when(phoneVerificationService.consume("phone-token"))
+        when(phoneNumberNormalizer.normalizeKorean("010-1234-5678"))
                 .thenReturn("+821012345678");
         when(oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(1, "subject-1"))
@@ -167,15 +198,18 @@ class AuthServiceTest {
                 AccountStatus.WITHDRAWN
         ))
                 .thenReturn(Optional.of(existing));
-        stubTokenIssue(existing);
 
-        authService.signup(signupRequest("ARTIST", "새닉네임"));
+        assertThatThrownBy(() -> authService.signup(
+                signupRequest("ARTIST", "새닉네임")
+        ))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.DUPLICATE_PHONE_NUMBER));
 
         verify(userRepository, never()).saveAndFlush(any(User.class));
         verify(artistRepository, never()).save(any(Artist.class));
-        verify(oauthAccountRepository).saveAndFlush(any());
-        assertThat(existing.getNickname()).isEqualTo("기존닉네임");
-        assertThat(existing.getRole()).isEqualTo(UserRole.USER);
+        verify(oauthAccountRepository, never()).save(any());
+        verify(signupTokenConsumer, never()).consumeAfterCommit(any());
     }
 
     @Test
@@ -187,7 +221,7 @@ class AuthServiceTest {
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.INVALID_REQUEST));
 
-        verifyNoInteractions(signupTokenConsumer, phoneVerificationService);
+        verifyNoInteractions(signupTokenConsumer, phoneNumberNormalizer);
     }
 
     @Test
@@ -252,10 +286,10 @@ class AuthServiceTest {
     private void stubNewSignup() {
         Jwt jwt = signupJwt();
         User persisted = user(7, "검은장미1", UserRole.USER);
-        when(signupTokenConsumer.consume("signup-token")).thenReturn(jwt);
+        when(signupTokenConsumer.validate("signup-token")).thenReturn(jwt);
         when(providerRepository.findByProviderCodeAndActiveTrue("KAKAO"))
                 .thenReturn(Optional.of(provider()));
-        when(phoneVerificationService.consume("phone-token"))
+        when(phoneNumberNormalizer.normalizeKorean("010-1234-5678"))
                 .thenReturn("+821012345678");
         when(oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(1, "subject-1"))
@@ -287,7 +321,7 @@ class AuthServiceTest {
     private AuthDtos.SignupRequest signupRequest(String role, String nickname) {
         return new AuthDtos.SignupRequest(
                 "signup-token",
-                "phone-token",
+                "010-1234-5678",
                 nickname,
                 role,
                 null,

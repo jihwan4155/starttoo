@@ -5,7 +5,6 @@ import com.starttoo.backend.common.config.FirebaseProperties;
 import com.starttoo.backend.common.config.JwtProperties;
 import com.starttoo.backend.common.config.MinioProperties;
 import com.starttoo.backend.common.config.OAuthProperties;
-import com.starttoo.backend.common.config.SmsProperties;
 import com.starttoo.backend.common.ratelimit.RateLimitProperties;
 import com.starttoo.backend.preference.config.PreferenceProperties;
 import org.springframework.boot.SpringApplication;
@@ -20,7 +19,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         OAuthProperties.class,
         AiProperties.class,
         FirebaseProperties.class,
-        SmsProperties.class,
         RateLimitProperties.class,
         PreferenceProperties.class
 })

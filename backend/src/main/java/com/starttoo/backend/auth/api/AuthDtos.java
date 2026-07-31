@@ -34,8 +34,9 @@ public final class AuthDtos {
     public record SignupRequest(
             @Schema(description = "소셜 로그인에서 signupRequired=true일 때 받은 단기 토큰")
             @NotBlank @Size(max = 4096) String signupToken,
-            @Schema(description = "휴대폰 인증 확인 API에서 받은 일회성 토큰")
-            @NotBlank @Size(max = 100) String phoneVerificationToken,
+            @Schema(description = "한국 휴대폰 번호. 하이픈·공백 제거 후 +82 E.164로 정규화",
+                    example = "010-1234-5678")
+            @NotBlank @Size(max = 30) String phoneNumber,
             @Schema(description = "공백·특수문자 없는 대소문자 구분 닉네임", example = "검은장미1")
             @NotBlank
             @Pattern(regexp = "^[가-힣A-Za-z0-9]{2,20}$")
@@ -75,27 +76,17 @@ public final class AuthDtos {
     ) {
     }
 
-    public record PhoneVerificationRequest(
-            @Schema(description = "한국 휴대폰 번호. 하이픈·공백은 제거 후 +82 E.164로 저장",
-                    example = "010-1234-5678")
-            @NotBlank @Size(max = 30) String phoneNumber
-    ) {
-    }
-
-    public record PhoneVerificationConfirmRequest(
-            @Schema(description = "인증번호 요청에서 받은 요청 ID")
-            @NotBlank @Size(max = 64) String requestId,
-            @Schema(description = "6자리 인증번호", example = "123456")
-            @NotBlank @Pattern(regexp = "^[0-9]{6}$") String code
-    ) {
-    }
-
     public record NicknameAvailabilityResponse(String nickname, boolean available) {
     }
 
     public record PhoneAvailabilityResponse(
             String normalizedPhoneNumber,
-            boolean available
+            @Schema(description = "신규 가입에 사용할 수 있는 번호인지 여부")
+            boolean available,
+            @Schema(description = "가입된 번호일 때 연결된 OAuth provider 코드",
+                    allowableValues = {"GOOGLE", "KAKAO"},
+                    nullable = true)
+            String provider
     ) {
     }
 

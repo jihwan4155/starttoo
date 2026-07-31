@@ -29,7 +29,7 @@ class AuthDtoValidationTest {
     private AuthDtos.SignupRequest request(String role) {
         return new AuthDtos.SignupRequest(
                 "signup-token",
-                "phone-token",
+                "010-1234-5678",
                 "검은장미1",
                 role,
                 null,

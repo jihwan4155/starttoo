@@ -91,25 +91,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.GET.matches(request.getMethod())
                 && "/v1/auth/phones/availability".equals(uri)) {
             return new Limit(
-                    properties.phoneVerificationRequestCapacity(),
-                    properties.phoneVerificationRequestWindow(),
+                    properties.phoneAvailabilityCapacity(),
+                    properties.phoneAvailabilityWindow(),
                     "phone-availability"
-            );
-        }
-        if (HttpMethod.POST.matches(request.getMethod())
-                && "/v1/auth/phone/verifications".equals(uri)) {
-            return new Limit(
-                    properties.phoneVerificationRequestCapacity(),
-                    properties.phoneVerificationRequestWindow(),
-                    "phone-verification-request"
-            );
-        }
-        if (HttpMethod.POST.matches(request.getMethod())
-                && "/v1/auth/phone/verifications/confirm".equals(uri)) {
-            return new Limit(
-                    properties.phoneVerificationConfirmCapacity(),
-                    properties.phoneVerificationConfirmWindow(),
-                    "phone-verification-confirm"
             );
         }
 

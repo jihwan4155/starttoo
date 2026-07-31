@@ -2,6 +2,8 @@ package com.starttoo.backend.common.config;
 
 import com.starttoo.backend.collection.api.CollectionController;
 import com.starttoo.backend.collection.api.CollectionDtos;
+import com.starttoo.backend.post.api.PostController;
+import com.starttoo.backend.post.api.PostDtos;
 import com.starttoo.backend.search.api.SearchController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -87,8 +89,6 @@ class OpenApiDocumentationTest {
             "PATCH /v1/users/me/profile-image",
             "PATCH /v1/users/me/recent-searches",
             "POST /v1/auth/logout",
-            "POST /v1/auth/phone/verifications",
-            "POST /v1/auth/phone/verifications/confirm",
             "POST /v1/auth/signup",
             "POST /v1/auth/social/login",
             "POST /v1/auth/token/refresh",
@@ -163,6 +163,25 @@ class OpenApiDocumentationTest {
         );
         HandlerMethod handlerMethod = new HandlerMethod(
                 new CollectionController(null),
+                method
+        );
+        io.swagger.v3.oas.models.Operation operation =
+                new io.swagger.v3.oas.models.Operation().responses(new ApiResponses());
+
+        new OpenApiConfig().commonErrorResponses().customize(operation, handlerMethod);
+
+        assertThat(operation.getResponses())
+                .containsKeys("422", "502", "503", "504");
+    }
+
+    @Test
+    void postCreateDocumentsTattooAnalysisFailures() throws Exception {
+        Method method = PostController.class.getMethod(
+                "create",
+                PostDtos.CreatePostRequest.class
+        );
+        HandlerMethod handlerMethod = new HandlerMethod(
+                new PostController(null),
                 method
         );
         io.swagger.v3.oas.models.Operation operation =

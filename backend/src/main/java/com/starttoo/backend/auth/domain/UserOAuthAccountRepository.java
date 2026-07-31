@@ -9,4 +9,8 @@ public interface UserOAuthAccountRepository extends JpaRepository<UserOAuthAccou
             Integer oauthProviderSeq,
             String providerSubject
     );
+
+    Optional<UserOAuthAccount> findFirstByUserSeqAndDeletedFalseOrderByUserOauthAccountSeqAsc(
+            Integer userSeq
+    );
 }

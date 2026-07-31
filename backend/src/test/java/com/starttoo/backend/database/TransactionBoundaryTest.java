@@ -11,8 +11,8 @@ import com.starttoo.backend.media.application.MediaImageRegistrationService;
 import com.starttoo.backend.notification.application.DeviceService;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.post.application.PostService;
+import com.starttoo.backend.post.application.PostWriteService;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
-import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.user.application.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,8 +36,7 @@ class TransactionBoundaryTest {
                 ref(UserService.class, "setBlock"),
                 ref(ArtistService.class, "update"),
                 ref(AdminService.class, "restoreExpiredSuspensions"),
-                ref(TattooService.class, "process"),
-                ref(PostService.class, "create"),
+                ref(PostWriteService.class, "create"),
                 ref(PostService.class, "setLike"),
                 ref(PostService.class, "setBookmark"),
                 ref(PostService.class, "setNotInterested"),

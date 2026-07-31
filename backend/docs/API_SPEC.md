@@ -8,14 +8,12 @@
 | Method | Path | 인증 | 설명 |
 |---|---|---:|---|
 | POST | `/auth/social/login` | N | Google/Kakao subject 확인, 로그인 또는 가입 토큰 |
-| POST | `/auth/phone/verifications` | N | 한국 번호 정규화 후 인증번호 요청 |
-| POST | `/auth/phone/verifications/confirm` | N | 휴대폰 인증 토큰 발급 |
-| POST | `/auth/signup` | N | 신규 통합 계정 생성 또는 기존 전화번호 계정에 OAuth 연결 |
+| POST | `/auth/signup` | N | 입력 전화번호 정규화 후 미가입 번호로 단일 OAuth 통합 계정 생성 |
 | POST | `/auth/token/refresh` | N | 리프레시 토큰 회전 |
 | POST | `/auth/logout` | N | 리프레시 토큰 폐기와 연결 기기 푸시 비활성화 |
 | GET | `/auth/nicknames/suggestions` | N | 활성 회원과 겹치지 않는 닉네임 후보 |
 | GET | `/auth/nicknames/availability` | N | 활성 회원 기준 닉네임 중복 확인 |
-| GET | `/auth/phones/availability` | N | 탈퇴 회원을 제외한 전화번호 중복 확인 |
+| GET | `/auth/phones/availability` | N | 번호 사용 가능 여부와 가입된 경우 OAuth provider 코드 |
 | GET | `/users/me` | Y | 내 계정 정보 |
 | PATCH | `/users/me` | Y | 내 프로필 수정 |
 | PATCH | `/users/me/profile-image` | Y | 소유 이미지로 프로필 이미지 변경 |
