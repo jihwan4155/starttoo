@@ -125,13 +125,6 @@ public class MediaService {
         return response(image, download);
     }
 
-    @Transactional(readOnly = true)
-    public MediaDtos.ImageResponse get(Long imageSeq) {
-        Image image = imageRepository.findByImageSeqAndDeletedFalse(imageSeq)
-                .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
-        return response(image);
-    }
-
     public String downloadUrl(Image image) {
         return downloadUrl(image.getObjectKey());
     }

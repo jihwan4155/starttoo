@@ -16,7 +16,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -96,25 +95,6 @@ public class CollectionController {
                 optionalUserSeq(authentication),
                 cursor,
                 size
-        ));
-    }
-
-    @PatchMapping("/collections/{collectionSeq}")
-    @Operation(
-            summary = "컬렉션 배치 수정",
-            description = """
-                    소유자만 bodyView, 0~1 정규화 좌표, 양수 배율, -180~180도 회전과 뒤집기
-                    상태를 수정할 수 있다. 타투 분석 결과와 원본 이미지는 변경하지 않는다.
-                    """
-    )
-    public ApiResponse<CollectionDtos.CollectionResponse> update(
-            @PathVariable Long collectionSeq,
-            @Valid @RequestBody CollectionDtos.UpdatePlacementRequest request
-    ) {
-        return ApiResponse.of(collectionService.update(
-                SecurityUtils.currentUserSeq(),
-                collectionSeq,
-                request
         ));
     }
 

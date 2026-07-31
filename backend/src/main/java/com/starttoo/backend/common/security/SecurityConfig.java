@@ -46,12 +46,10 @@ public class SecurityConfig {
                                 "/ws",
                                 "/ws/**"
                         ).permitAll()
-                        .requestMatchers("/v1/auth/**", "/v1/test/auth/**").permitAll()
+                        .requestMatchers("/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/comments/*/replies").permitAll()
-                        // 변경: 내 프로필 API가 공개 와일드카드에 포함되지 않도록 먼저 보호한다.
-                        .requestMatchers(HttpMethod.GET, "/v1/artists/me/profile").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/v1/artists", "/v1/artists/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/artists").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/users/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/users/*/posts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/users/*/collections").permitAll()
@@ -61,7 +59,6 @@ public class SecurityConfig {
                                 "/v1/users/*/following"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/users/*").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v1/images/*").permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/v1/tattoos/**",
@@ -69,7 +66,6 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/search/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/classifications/**").permitAll()
-                        .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resource -> resource
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))

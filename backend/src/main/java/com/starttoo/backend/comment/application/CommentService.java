@@ -213,17 +213,6 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentDtos.CommentResponse update(
-            Integer userSeq,
-            Long commentSeq,
-            CommentDtos.UpdateCommentRequest request
-    ) {
-        Comment comment = owned(commentSeq, userSeq);
-        comment.update(request.content(), userSeq);
-        return response(comment, userSeq);
-    }
-
-    @Transactional
     public void delete(Integer userSeq, Long commentSeq) {
         Comment comment = find(commentSeq);
         if (!comment.getAuthorSeq().equals(userSeq)) {

@@ -8,9 +8,7 @@ import com.starttoo.backend.common.api.CursorPageResponse;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
-import com.starttoo.backend.search.application.SearchIndexEventPublisher;
 import com.starttoo.backend.user.domain.User;
-import com.starttoo.backend.user.domain.UserRole;
 import com.starttoo.backend.user.application.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,16 +27,11 @@ public class ArtistService {
     private final ArtistRepository artistRepository;
     private final UserService userService;
     private final JdbcTemplate jdbcTemplate;
-    private final SearchIndexEventPublisher searchIndexEventPublisher;
     private final MediaService mediaService;
 
-    @Transactional(readOnly = true)
-    public ArtistDtos.ArtistProfile get(Integer userSeq, boolean requireVerified) {
+    private ArtistDtos.ArtistProfile profile(Integer userSeq) {
         Artist artist = artistRepository.findByUserSeqAndDeletedFalse(userSeq)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.ARTIST_NOT_FOUND));
-        if (requireVerified && artist.getVerificationStatus() != VerificationStatus.VERIFIED) {
-            throw BusinessException.of(ErrorCode.ARTIST_NOT_FOUND);
-        }
         User user = userService.find(userSeq);
         Long followerCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM user_follows WHERE following_seq = ?",
@@ -68,46 +61,7 @@ public class ArtistService {
                 request.shopDetails(),
                 userSeq
         );
-        return get(userSeq, false);
-    }
-
-    @Transactional
-    public ArtistDtos.ArtistProfile submit(Integer userSeq) {
-        Artist artist = artistRepository.findActiveForUpdate(userSeq)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.STATE_CONFLICT,
-                        "먼저 아티스트 프로필을 작성해야 합니다."
-                ));
-        if (artist.getVerificationStatus() == VerificationStatus.PENDING
-                || artist.getVerificationStatus() == VerificationStatus.VERIFIED) {
-            throw BusinessException.of(ErrorCode.STATE_CONFLICT);
-        }
-        artist.submitVerification(userSeq);
-        return get(userSeq, false);
-    }
-
-    @Transactional
-    public ArtistDtos.ArtistProfile decide(
-            Integer targetSeq,
-            Integer adminSeq,
-            ArtistDtos.VerificationDecision decision
-    ) {
-        if (decision.status() != VerificationStatus.VERIFIED
-                && decision.status() != VerificationStatus.REJECTED) {
-            throw BusinessException.of(ErrorCode.INVALID_REQUEST);
-        }
-        Artist artist = artistRepository.findActiveForUpdate(targetSeq)
-                .orElseThrow(() -> BusinessException.of(ErrorCode.ARTIST_NOT_FOUND));
-        if (artist.getVerificationStatus() != VerificationStatus.PENDING) {
-            throw BusinessException.of(ErrorCode.STATE_CONFLICT);
-        }
-        artist.processVerification(decision.status(), decision.rejectionReason(), adminSeq);
-        User user = userService.findForUpdate(targetSeq);
-        if (decision.status() == VerificationStatus.VERIFIED) {
-            user.changeRole(UserRole.ARTIST, adminSeq);
-        }
-        searchIndexEventPublisher.accountChanged(targetSeq);
-        return get(targetSeq, false);
+        return profile(userSeq);
     }
 
     @Transactional(readOnly = true)

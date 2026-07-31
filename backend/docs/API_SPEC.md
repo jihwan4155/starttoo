@@ -13,14 +13,20 @@
 | POST | `/auth/signup` | N | 신규 통합 계정 생성 또는 기존 전화번호 계정에 OAuth 연결 |
 | POST | `/auth/token/refresh` | N | 리프레시 토큰 회전 |
 | POST | `/auth/logout` | N | 리프레시 토큰 폐기와 연결 기기 푸시 비활성화 |
+| GET | `/auth/nicknames/suggestions` | N | 활성 회원과 겹치지 않는 닉네임 후보 |
 | GET | `/auth/nicknames/availability` | N | 활성 회원 기준 닉네임 중복 확인 |
+| GET | `/auth/phones/availability` | N | 탈퇴 회원을 제외한 전화번호 중복 확인 |
 | GET | `/users/me` | Y | 내 계정 정보 |
 | PATCH | `/users/me` | Y | 내 프로필 수정 |
+| PATCH | `/users/me/profile-image` | Y | 소유 이미지로 프로필 이미지 변경 |
 | DELETE | `/users/me` | Y | 계정 상태를 WITHDRAWN으로 변경하고 토큰 폐기 |
 | GET | `/users/{userSeq}` | N | ADMIN을 제외한 공개 프로필 |
 | PUT | `/users/{userSeq}/follow?enabled=` | Y | 팔로우 상태 설정 |
 | PUT | `/users/{userSeq}/block?enabled=` | Y | 차단 상태 설정 |
-| GET/POST/DELETE | `/users/me/recent-searches` | Y | 최대 10개 조회·추가·단건 삭제 |
+| GET | `/users/{userSeq}/followers` | N | 공개 팔로워 목록 |
+| GET | `/users/{userSeq}/following` | N | 공개 팔로잉 목록 |
+| GET | `/users/me/blocks` | Y | 내가 차단한 회원 목록 |
+| GET/PATCH | `/users/me/recent-searches` | Y | 최대 10개 조회·추가·단건 삭제 |
 
 최근 검색어 전체 삭제 API는 제공하지 않는다. Redis의 목록 변경은 dirty 사용자
 집합에 기록하고 스케줄러가 PostgreSQL 배열에 지연 반영한다. 조회 시 Redis 장애가
@@ -32,28 +38,26 @@
 | Method | Path | 인증 | 설명 |
 |---|---|---:|---|
 | GET | `/artists` | N | 인증 아티스트 목록 |
-| GET | `/artists/{userSeq}` | N | 인증 아티스트 상세 |
-| GET | `/artists/me/profile` | Y | 내 심사 상태 포함 프로필 |
 | PATCH | `/artists/me/profile` | Y | 숍 자유 정보 작성·수정 |
-| POST | `/artists/me/verification` | Y | 인증 심사 요청 |
-| PATCH | `/admin/artists/{userSeq}/verification` | ADMIN | VERIFIED/REJECTED 처리 |
 
-VERIFIED 승인과 `users.role=ARTIST` 변경은 같은 트랜잭션이다.
+심사 요청과 관리자 승인 API는 이후 버전의 확장 범위다.
 
-## 이미지·타투·AI
+## 이미지·타투·분류
 
 | Method | Path | 설명 |
 |---|---|---|
 | POST | `/images/uploads/presign` | 백엔드가 MinIO object key와 PUT URL 생성 |
 | POST | `/images/uploads/complete` | 객체 존재와 소유 경로 확인 후 images 행 생성 |
-| GET | `/images/{imageSeq}` | 짧은 만료시간의 GET URL 발급 |
+| GET | `/tattoo-designs` | 보관 가능한 활성 타투 도안 목록 |
 | GET | `/tattoos/{tattooSeq}` | 분석 결과와 다중 subject 조회 |
-| POST | `/ai/generations` | 모델 연결 전 DB 미저장 모의 응답 |
-| POST | `/ai/coverups` | 이미지 소유권 검증 후 모의 응답 |
-| POST | `/ai/simulations` | 이미지·배치 입력 검증 후 모의 응답 |
+| GET | `/tattoos/{tattooSeq}/image` | variant에 맞는 단기 Presigned GET URL |
+| GET | `/classifications/primary-styles` | 활성 주 스타일 목록 |
+| GET | `/classifications/secondary-styles` | 활성 보조 스타일 목록 |
+| GET | `/classifications/rendering-styles` | 활성 표현 스타일 목록 |
+| GET | `/classifications/colors` | 활성 색상 목록 |
 
-현재 모델 호출은 비활성화되어 세 API 모두 `MODEL_INTEGRATION_PENDING` 응답을
-반환한다. 생성 요청과 결과는 DB에 저장하지 않는다는 최종 정책은 그대로 유지한다.
+모든 이미지 URL은 DB의 MinIO object key로 요청 시점에 생성한 단기 Presigned GET
+URL이다. DB에는 URL을 저장하지 않는다.
 
 ## 게시물·댓글
 
@@ -61,6 +65,10 @@ VERIFIED 승인과 `users.role=ARTIST` 변경은 같은 트랜잭션이다.
 |---|---|---|
 | POST | `/posts` | 소유 이미지에 임시 분석값을 적용해 게시물 등록 |
 | GET | `/posts` | PUBLISHED만 노출 |
+| GET | `/users/{userSeq}/posts` | 공개 회원 게시물 |
+| GET | `/posts/me` | 내 게시물 |
+| GET | `/posts/bookmarked` | 내 북마크 게시물 |
+| GET | `/posts/following` | 팔로잉 회원 게시물 |
 | GET/PATCH/DELETE | `/posts/{postSeq}` | 상세/작성자 수정/작성자 삭제 |
 | PUT | `/posts/{postSeq}/like?enabled=` | 좋아요 상태와 count·취향 점수 동시 변경 |
 | PUT | `/posts/{postSeq}/bookmark?enabled=` | 북마크 상태와 취향 점수 동시 변경 |
@@ -68,7 +76,8 @@ VERIFIED 승인과 `users.role=ARTIST` 변경은 같은 트랜잭션이다.
 | POST | `/posts/{postSeq}/dwell` | 원본 체류 통계 없이 시간 구간을 점수화 |
 | POST | `/posts/{postSeq}/reports` | 회원당 게시물 1회 신고 |
 | GET/POST | `/posts/{postSeq}/comments` | 댓글 목록/등록 |
-| PATCH/DELETE | `/comments/{commentSeq}` | 작성자 수정/삭제 |
+| GET | `/comments/{commentSeq}/replies` | 최상위 댓글의 답글 목록 |
+| DELETE | `/comments/{commentSeq}` | 작성자 소프트 삭제 |
 | PUT | `/comments/{commentSeq}/like?enabled=` | 댓글 좋아요 상태 |
 
 `PUBLISHED`만 일반 조회에 노출한다. `HIDDEN`은 관리자 처리, `DELETED`는 작성자
@@ -79,9 +88,9 @@ VERIFIED 승인과 `users.role=ARTIST` 변경은 같은 트랜잭션이다.
 | Method | Path | 설명 |
 |---|---|---|
 | POST | `/preferences/survey` | 최초 설문 점수 |
-| GET | `/preferences` | primary style/color 현재 합산 점수 |
 | POST/GET | `/collections` | 임시 분석값을 적용한 배치 컬렉션 등록/목록 |
-| PATCH/DELETE | `/collections/{collectionSeq}` | 배치 수정/소프트 삭제 |
+| GET | `/users/{userSeq}/collections` | 공개 회원의 활성 컬렉션 |
+| DELETE | `/collections/{collectionSeq}` | 컬렉션과 연결 타투 소프트 삭제 |
 | GET | `/archive` | tattoo_designs 기반 보관함 |
 | PUT | `/archive/{tattooSeq}?enabled=` | 보관 상태 설정 |
 
@@ -126,10 +135,11 @@ DB 커밋 후 증분 갱신하며, 매일 PostgreSQL과 대조한다.
 | DELETE | `/dm/rooms/{roomSeq}` | 현재까지 메시지를 숨기고 방 목록 비활성 |
 | PATCH | `/dm/rooms/{roomSeq}/notification` | 방별 알림만 설정 |
 | GET | `/notifications` | 알림 목록 |
-| GET | `/notifications/unread-count` | 읽지 않은 알림 수 |
-| PATCH | `/notifications/{seq}/read` | 단건 읽음 |
+| GET | `/notifications/unread-counts` | 전체·유형별 읽지 않은 알림 수 |
+| PATCH | `/notifications/{notificationSeq}/read` | 단건 읽음 |
 | PATCH | `/notifications/read-all` | 전체 읽음 |
-| POST/GET/DELETE | `/devices[/{seq}]` | 푸시 토큰·현재 리프레시 토큰 연결/조회/비활성 |
+| POST | `/devices` | 푸시 토큰과 현재 리프레시 토큰 연결 |
+| DELETE | `/devices/{deviceSeq}` | 기기와 연결 세션 비활성 |
 
 DM 전송 시 방 알림을 켜둔 수신자에게 `referenceSeq=roomSeq`인 `NEW_DM` 알림을
 생성한다. 방 알림을 꺼도 메시지는 저장되고 읽지 않음 수에 포함된다. 방 읽음 API는
@@ -149,7 +159,7 @@ STOMP WebSocket 핸드셰이크 경로는 `/ws`다. HTTP 핸드셰이크 이후 
 
 | 구독 목적지 | 전달 내용 |
 |---|---|
-| `/user/queue/dm-events` | `MESSAGE_CREATED`, `MESSAGES_READ`, `MESSAGE_DELETED` |
+| `/user/queue/dm-events` | `MESSAGE_CREATED`, `MESSAGES_READ` |
 | `/user/queue/notifications` | 커밋된 서비스 알림 |
 
 현재 메시지 저장은 `POST /v1/dm/rooms/{roomSeq}/messages`만 사용한다. WebSocket의
@@ -161,11 +171,3 @@ FCM 및 WebSocket 전달 실패는 이미 커밋된 메시지와 알림 행을 �
 앱은 재연결 시 과거 메시지 API를 커서로 조회하여 누락된 화면 상태를 복구하고,
 `eventId`, `dmMessageSeq`, `notificationSeq`로 중복 표시를 방지한다. 로그아웃 시
 클라이언트도 WebSocket 연결을 종료하고 로컬 토큰을 제거해야 한다.
-
-## 관리자
-
-- 계정 ACTIVE/SUSPENDED/BANNED/WITHDRAWN 처리와 상태 이력
-- 정지 만료의 시스템 자동 복구(`mod_usr_seq=NULL`)
-- 신고 ACCEPTED 시 같은 트랜잭션으로 게시물을 HIDDEN 처리
-- 분류 기준정보 등록·활성 상태 변경
-- 타투의 보관 가능 도안 등록과 추가 학습 사용 완료 표시

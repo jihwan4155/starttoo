@@ -68,21 +68,6 @@ public class DeviceService {
         return find(userSeq, deviceSeq);
     }
 
-    @Transactional(readOnly = true)
-    public List<DeviceDtos.DeviceResponse> list(Integer userSeq) {
-        return jdbcTemplate.query("""
-                SELECT device_seq, platform, is_active, last_used_dttm
-                  FROM user_devices
-                 WHERE user_seq = ?
-                 ORDER BY device_seq DESC
-                """, (rs, rowNum) -> new DeviceDtos.DeviceResponse(
-                rs.getLong("device_seq"),
-                rs.getString("platform"),
-                rs.getBoolean("is_active"),
-                rs.getObject("last_used_dttm", OffsetDateTime.class)
-        ), userSeq);
-    }
-
     @Transactional
     public void deactivate(Integer userSeq, Long deviceSeq) {
         int changed = jdbcTemplate.update("""

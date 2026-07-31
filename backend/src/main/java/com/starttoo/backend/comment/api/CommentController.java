@@ -17,7 +17,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -100,26 +99,6 @@ public class CommentController {
                 ? Integer.valueOf(jwt.getToken().getSubject())
                 : null;
         return ApiResponse.of(commentService.replies(commentSeq, cursor, size, viewer));
-    }
-
-    @PatchMapping("/comments/{commentSeq}")
-    @Operation(
-            summary = "댓글 내용 수정",
-            description = """
-                    작성자만 활성 댓글의 내용을 수정할 수 있다. 내용, modDttm, modUsrSeq가 같은
-                    트랜잭션에서 갱신되며 부모 관계와 게시물 연결은 변경하지 않는다.
-                    """,
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    public ApiResponse<CommentDtos.CommentResponse> update(
-            @PathVariable Long commentSeq,
-            @Valid @RequestBody CommentDtos.UpdateCommentRequest request
-    ) {
-        return ApiResponse.of(commentService.update(
-                SecurityUtils.currentUserSeq(),
-                commentSeq,
-                request
-        ));
     }
 
     @DeleteMapping("/comments/{commentSeq}")

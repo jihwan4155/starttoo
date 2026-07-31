@@ -6,7 +6,6 @@ import com.starttoo.backend.artist.domain.Artist;
 import com.starttoo.backend.artist.domain.ArtistRepository;
 import com.starttoo.backend.artist.domain.VerificationStatus;
 import com.starttoo.backend.media.application.MediaService;
-import com.starttoo.backend.search.application.SearchIndexEventPublisher;
 import com.starttoo.backend.user.application.UserService;
 import com.starttoo.backend.user.domain.AccountStatus;
 import com.starttoo.backend.user.domain.User;
@@ -41,9 +40,6 @@ class ArtistServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
-
-    @Mock
-    private SearchIndexEventPublisher searchIndexEventPublisher;
 
     @Mock
     private MediaService mediaService;
@@ -119,6 +115,7 @@ class ArtistServiceTest {
     @Test
     void profileImageUrlIsPresignedFromObjectKey() {
         Artist artist = artist(VerificationStatus.VERIFIED);
+        when(artistRepository.findActiveForUpdate(7)).thenReturn(Optional.of(artist));
         when(artistRepository.findByUserSeqAndDeletedFalse(7)).thenReturn(Optional.of(artist));
         when(userService.find(7)).thenReturn(user(7, 301L));
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7))).thenReturn(5L);
@@ -127,7 +124,10 @@ class ArtistServiceTest {
         when(mediaService.downloadUrl("profiles/7/image.png"))
                 .thenReturn("https://temporary-download-url");
 
-        ArtistDtos.ArtistProfile profile = artistService.get(7, true);
+        ArtistDtos.ArtistProfile profile = artistService.update(
+                7,
+                new ArtistDtos.UpdateArtistRequest("숍", "서울", null, null, null)
+        );
 
         assertThat(profile.profileImageSeq()).isEqualTo(301L);
         assertThat(profile.profileImageUrl()).isEqualTo("https://temporary-download-url");

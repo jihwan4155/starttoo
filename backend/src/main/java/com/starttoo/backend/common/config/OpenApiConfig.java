@@ -53,7 +53,6 @@ public class OpenApiConfig {
                                 각 API 설명에는 데이터 검증과 트랜잭션 처리 범위를 함께 기재합니다.
                                 타투 판별·분석은 AI 연동이 활성화되면 이미지의 단기 Presigned GET
                                 URL로 모델을 호출하고, 비활성화된 환경에서는 명시적 Stub을 사용합니다.
-                                그 밖의 모델 의존 API는 현재 임시 응답을 사용합니다.
                                 DM은 REST로 DB 트랜잭션을 확정한 뒤 `/ws` STOMP 연결의 개인
                                 목적지로 실시간 전달합니다. WebSocket 구독 계약은 README와
                                 `docs/API_SPEC.md`에 별도로 기재되어 있습니다.

@@ -172,21 +172,4 @@ public class DmController {
         ));
     }
 
-    @DeleteMapping("/rooms/{roomSeq}/messages/{messageSeq}")
-    @Operation(
-            summary = "내가 보낸 DM 메시지 삭제",
-            description = """
-                    URL의 roomSeq와 messageSeq가 실제로 같은 방에 속하는지 검증하고 발신자만
-                    삭제할 수 있다. 행을 물리 삭제하지 않고 isDeleted와 수정자 정보를 기록하며,
-                    이후 양쪽 사용자에게 본문과 이미지를 노출하지 않는다. 커밋 후 상대방에게
-                    MESSAGE_DELETED WebSocket 이벤트를 보내 현재 화면도 갱신한다.
-                    """
-    )
-    public ApiResponse<Boolean> deleteMessage(
-            @PathVariable Long roomSeq,
-            @PathVariable Long messageSeq
-    ) {
-        dmService.deleteMessage(SecurityUtils.currentUserSeq(), roomSeq, messageSeq);
-        return ApiResponse.of(true);
-    }
 }

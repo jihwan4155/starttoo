@@ -11,8 +11,6 @@ import java.util.Optional;
 public interface DmMessageRepository extends JpaRepository<DmMessage, Long> {
     Optional<DmMessage> findTopByDmRoomSeqOrderByDmMessageSeqDesc(Long dmRoomSeq);
 
-    Optional<DmMessage> findByDmMessageSeqAndDmRoomSeq(Long messageSeq, Long roomSeq);
-
     @Modifying
     @Query("""
             update DmMessage m
