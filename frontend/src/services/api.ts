@@ -53,7 +53,16 @@ api.interceptors.request.use((config) => {
 
 // 응답 에러를 기존 ApiError 형태로 통일 (호출부의 catch 로직 유지)
 api.interceptors.response.use(
-	(response) => response,
+	(response) => {
+		// 백엔드 공통 성공 응답은 { data: ... } 로 감싸여 온다.
+		// 여기서 한 번 벗겨야 각 서비스의 반환 타입(payload)과 실제 값이 일치한다.
+		// 오류 응답(ErrorResponse)은 평면 구조라 이 분기에 걸리지 않는다.
+		const body: unknown = response.data;
+		if (body !== null && typeof body === "object" && "data" in body) {
+			response.data = (body as { data: unknown }).data;
+		}
+		return response;
+	},
 	async (error: AxiosError<{ status: number; code: string; message: string }>) => {
 		const config = error.config as AuthRetryConfig | undefined;
 

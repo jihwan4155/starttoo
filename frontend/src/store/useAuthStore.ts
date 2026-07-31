@@ -60,9 +60,10 @@ const useAuthStore = create<AuthState>()(
 			logout: async () => {
 				const { refreshToken } = get();
 				try {
-					await logoutRequest(
-						refreshToken ? { refreshToken } : {},
-					);
+					// 서버 로그아웃은 refreshToken이 필수 — 없으면 로컬 세션만 정리한다.
+					if (refreshToken) {
+						await logoutRequest({ refreshToken });
+					}
 				} finally {
 					get().clearSession();
 				}
