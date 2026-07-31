@@ -20,4 +20,11 @@ class KoreanJamoNormalizerTest {
         String indexed = normalizer.normalize("검은장미타투");
         assertThat(indexed).startsWith(normalizer.normalize("검ㅇ"));
     }
+
+    @Test
+    void preservesLatinCaseDistinction() {
+        assertThat(normalizer.normalize("Rose21"))
+                .isEqualTo("Rose21")
+                .isNotEqualTo(normalizer.normalize("rose21"));
+    }
 }

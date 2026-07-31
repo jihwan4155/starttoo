@@ -31,11 +31,6 @@ public class PreferenceScoreService {
     }
 
     @Transactional
-    public void applySearchClick(Integer userSeq, Long postSeq) {
-        applyPost(userSeq, postSeq, properties.searchClick());
-    }
-
-    @Transactional
     public void applyNotInterested(Integer userSeq, Long postSeq, boolean enabled) {
         applyPost(
                 userSeq,

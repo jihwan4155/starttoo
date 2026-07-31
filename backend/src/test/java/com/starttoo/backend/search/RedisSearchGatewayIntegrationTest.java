@@ -61,6 +61,7 @@ class RedisSearchGatewayIntegrationTest {
         ));
 
         assertThat(awaitCandidates("roze"))
+                .allSatisfy(candidate -> assertThat(candidate.redisScore()).isPositive())
                 .extracting(RedisSearchGateway.SearchCandidate::targetSeq)
                 .contains(1);
 
@@ -89,6 +90,26 @@ class RedisSearchGatewayIntegrationTest {
                         RedisSearchGateway.MatchTier.PREFIX,
                         RedisSearchGateway.MatchTier.CONTAINS
                 );
+        assertThat(candidates)
+                .extracting(RedisSearchGateway.SearchCandidate::targetSeq)
+                .doesNotHaveDuplicates();
+    }
+
+    @Test
+    void exactAccountSearchDistinguishesLatinCase() {
+        gateway.replaceAccounts(Map.of(
+                101, "Rose",
+                102, "rose"
+        ));
+
+        assertThat(awaitAccountCandidates("Rose", 1))
+                .singleElement()
+                .extracting(RedisSearchGateway.SearchCandidate::targetSeq)
+                .isEqualTo(101);
+        assertThat(awaitAccountCandidates("rose", 1))
+                .singleElement()
+                .extracting(RedisSearchGateway.SearchCandidate::targetSeq)
+                .isEqualTo(102);
     }
 
     private List<RedisSearchGateway.SearchCandidate> awaitCandidates(String query) {
@@ -110,6 +131,22 @@ class RedisSearchGatewayIntegrationTest {
         do {
             candidates = gateway.accountCandidates(query, 20);
             if (candidates.size() >= 3) {
+                return candidates;
+            }
+            LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
+        } while (System.nanoTime() < deadline);
+        return candidates;
+    }
+
+    private List<RedisSearchGateway.SearchCandidate> awaitAccountCandidates(
+            String query,
+            int limit
+    ) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(3).toNanos();
+        List<RedisSearchGateway.SearchCandidate> candidates;
+        do {
+            candidates = gateway.accountCandidates(query, limit);
+            if (!candidates.isEmpty()) {
                 return candidates;
             }
             LockSupport.parkNanos(Duration.ofMillis(50).toNanos());

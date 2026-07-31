@@ -12,7 +12,6 @@ import com.starttoo.backend.notification.application.DeviceService;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.post.application.PostService;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
-import com.starttoo.backend.search.application.SearchService;
 import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.user.application.UserService;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,6 @@ class TransactionBoundaryTest {
                 ref(CollectionService.class, "delete"),
                 ref(CollectionService.class, "setArchive"),
                 ref(PreferenceScoreService.class, "survey"),
-                ref(SearchService.class, "recordPostSearchClick"),
                 ref(DmService.class, "createRoom"),
                 ref(DmService.class, "send"),
                 ref(DmService.class, "markRead"),

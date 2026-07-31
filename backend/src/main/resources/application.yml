@@ -115,7 +115,6 @@ app:
     post-like: 2.0
     post-bookmark: 3.0
     collection: 4.0
-    search-click: 0.5
     not-interested: -2.0
     dwell-short: 0.1
     dwell-medium: 0.5

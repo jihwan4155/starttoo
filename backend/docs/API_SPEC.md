@@ -98,15 +98,14 @@ VERIFIED 승인과 `users.role=ARTIST` 변경은 같은 트랜잭션이다.
 | GET | `/search/artists/autocomplete` | VERIFIED 아티스트 자모 접두어 |
 | GET | `/search/accounts` | Redis fuzzy 후보 기반 대소문자 구분 닉네임 검색 |
 | GET | `/search/artists` | Redis fuzzy 후보 기반 인증 아티스트 닉네임 검색 |
-| GET | `/search/subjects/autocomplete` | 선별 subject 사전 접두어 |
-| GET | `/search/subjects/corrections` | Redis 전체 subject 사전의 편집거리 후보 |
-| GET | `/search/posts` | fuzzy subject 후보와 post image를 통한 게시물 검색 |
-| POST | `/search/posts/{postSeq}/click` | 검색 결과 클릭의 주 스타일·색상 점수 반영 |
+| GET | `/search/subjects/autocomplete` | 선별 subject 사전의 seq·이름 접두어 |
+| GET | `/search/posts` | 보정된 최상위 subject의 커서 기반 Post 검색 |
 
 계정 Redis 인덱스는 검색키와 `userSeq`만 유지한다. 화면 응답은 userSeq 목록으로
 PostgreSQL을 다시 조회한다. 한글 완성형은 호환 자모로 분해하며 영문 대소문자와
-숫자는 그대로 보존한다. 자동완성은 ZSET 접두어 사전을 사용하고 본 검색과 오타
-보정은 Redis Search가 exact·prefix·contains·Levenshtein 거리 1~2 후보를 생성한다.
+숫자는 그대로 보존한다. 자동완성은 ZSET 접두어 사전을 사용하고 본 검색과
+Subject 게시글 검색 내부 오타 보정은 Redis Search가 exact·prefix·contains·
+Levenshtein 거리 1~2 후보를 생성한다.
 본 검색은 Redis Search가 `exact → prefix → fuzzy 거리 1 → fuzzy 거리 2 →
 contains` 순으로 후보를 결정하며 같은 단계 안에서 Redis 점수를 사용한다. Spring은
 편집거리나 사용자 취향으로 다시 정렬하지 않고 PostgreSQL에서 활성·삭제·인증 상태를
@@ -116,9 +115,6 @@ contains` 순으로 후보를 결정하며 같은 단계 안에서 Redis 점수�
 실제 존재하는 정답 subject만 검색량을 +1 한다. Redis의 실시간 집계는 MinIO의
 버전별 스냅샷과 이후 JSONL 로그로 복구할 수 있다. 계정·아티스트·subject 원본 인덱스는
 DB 커밋 후 증분 갱신하며, 매일 PostgreSQL과 대조한다.
-
-인증 회원이 검색 결과 게시물을 열면 호출마다 검색 클릭 가중치 0.5를 적용한다.
-별도 클릭 이력이나 중복 제한은 저장하지 않고 공통 상태 변경 rate limit만 사용한다.
 
 ## DM·알림
 
