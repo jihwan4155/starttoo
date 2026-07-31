@@ -63,7 +63,7 @@ URL이다. DB에는 URL을 저장하지 않는다.
 
 | Method | Path | 설명 |
 |---|---|---|
-| POST | `/posts` | 소유 이미지에 임시 분석값을 적용해 게시물 등록 |
+| POST | `/posts` | 모든 이미지의 동기 AI 검증 완료 후 게시물 등록 |
 | GET | `/posts` | PUBLISHED만 노출 |
 | GET | `/users/{userSeq}/posts` | 공개 회원 게시물 |
 | GET | `/posts/me` | 내 게시물 |
@@ -92,7 +92,7 @@ URL이다. DB에는 URL을 저장하지 않는다.
 | Method | Path | 설명 |
 |---|---|---|
 | POST | `/preferences/survey` | 최초 설문 점수 |
-| POST/GET | `/collections` | 임시 분석값을 적용한 배치 컬렉션 등록/목록 |
+| POST/GET | `/collections` | 동기 AI 검증 후 배치 컬렉션 등록/목록 |
 | GET | `/users/{userSeq}/collections` | 공개 회원의 활성 컬렉션 |
 | DELETE | `/collections/{collectionSeq}` | 컬렉션과 연결 타투 소프트 삭제 |
 | GET | `/archive` | tattoo_designs 기반 보관함 |
