@@ -64,12 +64,6 @@ public final class UserDtos {
     ) {
     }
 
-    public record RelationStateRequest(
-            @Schema(description = "적용할 최종 관계 상태", example = "true")
-            @NotNull Boolean enabled
-    ) {
-    }
-
     public record RelationState(boolean enabled) {
     }
 

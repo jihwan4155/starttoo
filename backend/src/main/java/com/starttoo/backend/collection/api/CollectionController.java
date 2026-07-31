@@ -134,24 +134,38 @@ public class CollectionController {
 
     @PutMapping("/archive/{tattooSeq}")
     @Operation(
-            summary = "타투 도안 보관 상태 설정",
+            summary = "타투 도안 보관",
             description = """
-                    요청 body의 enabled를 최종 상태 명령으로 처리한다. enabled=true이면
-                    활성 tattoos와 tattooDesigns 존재를 확인하고 userArchive를 멱등하게
-                    생성한다. enabled=false이면 현재 회원의 보관 관계만 삭제한다.
-                    실제 상태가 전환된 경우에만 같은 트랜잭션에서 주 스타일·색상 취향 점수를
-                    증감 또는 역산하며, 동일 상태 반복 요청은 점수를 중복 변경하지 않고 성공한다.
+                    활성 tattoos와 tattooDesigns 존재를 확인하고 userArchive를 멱등하게 생성한다.
+                    실제로 새 보관 관계가 생성된 경우에만 같은 트랜잭션에서 주 스타일·색상 취향
+                    점수를 가산하며, 반복 요청은 점수를 중복 변경하지 않고 성공한다.
                     """
     )
-    public ApiResponse<CollectionDtos.ArchiveStateResponse> archive(
-            @PathVariable Long tattooSeq,
-            @Valid @RequestBody CollectionDtos.ArchiveStateRequest request
-    ) {
+    public ApiResponse<CollectionDtos.ArchiveStateResponse> archive(@PathVariable Long tattooSeq) {
         return ApiResponse.of(new CollectionDtos.ArchiveStateResponse(
                 collectionService.setArchive(
                         SecurityUtils.currentUserSeq(),
                         tattooSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/archive/{tattooSeq}")
+    @Operation(
+            summary = "타투 도안 보관 해제",
+            description = """
+                    현재 회원의 userArchive 관계를 멱등하게 삭제한다. 실제로 관계가 삭제된 경우에만
+                    같은 트랜잭션에서 주 스타일·색상 취향 점수를 역산하며, 반복 요청은 점수를
+                    중복 변경하지 않고 성공한다.
+                    """
+    )
+    public ApiResponse<CollectionDtos.ArchiveStateResponse> removeArchive(@PathVariable Long tattooSeq) {
+        return ApiResponse.of(new CollectionDtos.ArchiveStateResponse(
+                collectionService.setArchive(
+                        SecurityUtils.currentUserSeq(),
+                        tattooSeq,
+                        false
                 )
         ));
     }

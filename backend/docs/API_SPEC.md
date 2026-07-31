@@ -21,8 +21,10 @@
 | PATCH | `/users/me/profile-image` | Y | 소유 이미지로 프로필 이미지 변경 |
 | DELETE | `/users/me` | Y | 계정 상태를 WITHDRAWN으로 변경하고 토큰 폐기 |
 | GET | `/users/{userSeq}` | N | ADMIN을 제외한 공개 프로필 |
-| PUT | `/users/{userSeq}/follow?enabled=` | Y | 팔로우 상태 설정 |
-| PUT | `/users/{userSeq}/block?enabled=` | Y | 차단 상태 설정 |
+| PUT | `/users/{userSeq}/follow` | Y | 팔로우 설정 |
+| DELETE | `/users/{userSeq}/follow` | Y | 팔로우 해제 |
+| PUT | `/users/{userSeq}/block` | Y | 차단 설정 |
+| DELETE | `/users/{userSeq}/block` | Y | 차단 해제 |
 | GET | `/users/{userSeq}/followers` | N | 공개 팔로워 목록 |
 | GET | `/users/{userSeq}/following` | N | 공개 팔로잉 목록 |
 | GET | `/users/me/blocks` | Y | 내가 차단한 회원 목록 |
@@ -70,15 +72,19 @@ URL이다. DB에는 URL을 저장하지 않는다.
 | GET | `/posts/bookmarked` | 내 북마크 게시물 |
 | GET | `/posts/following` | 팔로잉 회원 게시물 |
 | GET/PATCH/DELETE | `/posts/{postSeq}` | 상세/작성자 수정/작성자 삭제 |
-| PUT | `/posts/{postSeq}/like?enabled=` | 좋아요 상태와 count·취향 점수 동시 변경 |
-| PUT | `/posts/{postSeq}/bookmark?enabled=` | 북마크 상태와 취향 점수 동시 변경 |
-| PUT | `/posts/{postSeq}/not-interested?enabled=` | 피드 숨김과 음수 취향 점수 |
+| PUT | `/posts/{postSeq}/like` | 좋아요 설정과 count·취향 점수 동시 변경 |
+| DELETE | `/posts/{postSeq}/like` | 좋아요 해제와 count·취향 점수 동시 변경 |
+| PUT | `/posts/{postSeq}/bookmark` | 북마크 설정과 취향 점수 동시 변경 |
+| DELETE | `/posts/{postSeq}/bookmark` | 북마크 해제와 취향 점수 동시 변경 |
+| PUT | `/posts/{postSeq}/not-interested` | 피드 숨김과 음수 취향 점수 |
+| DELETE | `/posts/{postSeq}/not-interested` | 피드 숨김 해제와 취향 점수 역산 |
 | POST | `/posts/{postSeq}/dwell` | 원본 체류 통계 없이 시간 구간을 점수화 |
 | POST | `/posts/{postSeq}/reports` | 회원당 게시물 1회 신고 |
 | GET/POST | `/posts/{postSeq}/comments` | 댓글 목록/등록 |
 | GET | `/comments/{commentSeq}/replies` | 최상위 댓글의 답글 목록 |
 | DELETE | `/comments/{commentSeq}` | 작성자 소프트 삭제 |
-| PUT | `/comments/{commentSeq}/like?enabled=` | 댓글 좋아요 상태 |
+| PUT | `/comments/{commentSeq}/like` | 댓글 좋아요 설정 |
+| DELETE | `/comments/{commentSeq}/like` | 댓글 좋아요 해제 |
 
 `PUBLISHED`만 일반 조회에 노출한다. `HIDDEN`은 관리자 처리, `DELETED`는 작성자
 삭제이며 `is_deleted`와 CHECK로 일관성을 보장한다.
@@ -92,7 +98,8 @@ URL이다. DB에는 URL을 저장하지 않는다.
 | GET | `/users/{userSeq}/collections` | 공개 회원의 활성 컬렉션 |
 | DELETE | `/collections/{collectionSeq}` | 컬렉션과 연결 타투 소프트 삭제 |
 | GET | `/archive` | tattoo_designs 기반 보관함 |
-| PUT | `/archive/{tattooSeq}?enabled=` | 보관 상태 설정 |
+| PUT | `/archive/{tattooSeq}` | 보관 설정 |
+| DELETE | `/archive/{tattooSeq}` | 보관 해제 |
 
 컬렉션 배치는 `bodyView`, 0~1의 `positionX/Y`, 양수 `scaleRatio`,
 -180~180의 `rotationDegree`, `flipped`를 모두 저장한다.

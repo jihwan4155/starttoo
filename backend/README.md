@@ -31,7 +31,7 @@ local 프로필에서는 다음 주소를 사용한다.
 - Health: `http://localhost:8080/actuator/health`
 - MinIO Console: `http://localhost:9001`
 
-Swagger에는 이번 v1 범위의 전체 77개 API 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
+Swagger에는 이번 v1 범위의 전체 84개 API 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
 기재되어 있다. 자물쇠가 있는 API는 우측 상단 `Authorize`에 액세스 토큰 원문만
 입력한다. 공개 API 중 로그인 여부에 따라 응답이 달라지는 피드·프로필·댓글·검색은
 익명 호출과 Bearer JWT 호출을 모두 허용하도록 표시한다.

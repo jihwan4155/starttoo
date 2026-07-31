@@ -67,12 +67,6 @@ public final class PostDtos {
     public record StateResponse(boolean enabled) {
     }
 
-    public record StateRequest(
-            @Schema(description = "설정할 최종 관계 상태", example = "true")
-            @NotNull Boolean enabled
-    ) {
-    }
-
     public record DwellRequest(
             @Schema(description = "프론트엔드가 계산한 게시물 체류시간(초)", example = "18",
                     minimum = "0", maximum = "3600")

@@ -126,45 +126,77 @@ public class UserController {
 
     @PutMapping("/{userSeq}/follow")
     @Operation(
-            summary = "팔로우 상태 설정",
+            summary = "회원 팔로우",
             description = """
-                    enabled=true는 ON CONFLICT DO NOTHING으로 중복 생성을 막고 새로 생성된 경우에만
-                    상대방 알림을 저장한다. enabled=false는 관계 행을 삭제한다. 자기 자신, ADMIN,
-                    비활성 회원 및 상호 차단 관계는 허용하지 않는다.
+                    ON CONFLICT DO NOTHING으로 팔로우 관계를 멱등하게 생성하고 새로 생성된
+                    경우에만 상대방 알림을 저장한다. 자기 자신, ADMIN, 비활성 회원 및 상호
+                    차단 관계는 허용하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<UserDtos.RelationState> follow(
-            @PathVariable Integer userSeq,
-            @Valid @RequestBody UserDtos.RelationStateRequest request
-    ) {
+    public ApiResponse<UserDtos.RelationState> follow(@PathVariable Integer userSeq) {
         return ApiResponse.of(new UserDtos.RelationState(
                 userService.setFollow(
                         SecurityUtils.currentUserSeq(),
                         userSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{userSeq}/follow")
+    @Operation(
+            summary = "회원 팔로우 해제",
+            description = """
+                    현재 회원이 만든 팔로우 관계를 멱등하게 삭제한다. 관계가 이미 없어도 성공하며
+                    자기 자신, ADMIN 및 비활성 회원은 관계 대상으로 허용하지 않는다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<UserDtos.RelationState> unfollow(@PathVariable Integer userSeq) {
+        return ApiResponse.of(new UserDtos.RelationState(
+                userService.setFollow(
+                        SecurityUtils.currentUserSeq(),
+                        userSeq,
+                        false
                 )
         ));
     }
 
     @PutMapping("/{userSeq}/block")
     @Operation(
-            summary = "차단 상태 설정",
+            summary = "회원 차단",
             description = """
-                    enabled=true이면 차단 행을 멱등하게 생성하고 양방향 팔로우 관계를 같은
-                    트랜잭션에서 제거한다. enabled=false이면 요청자가 만든 차단 행만 삭제한다.
+                    차단 행을 멱등하게 생성하고 양방향 팔로우 관계를 같은 트랜잭션에서 제거한다.
+                    반복 요청은 추가 관계 변경 없이 성공한다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ApiResponse<UserDtos.RelationState> block(
-            @PathVariable Integer userSeq,
-            @Valid @RequestBody UserDtos.RelationStateRequest request
-    ) {
+    public ApiResponse<UserDtos.RelationState> block(@PathVariable Integer userSeq) {
         return ApiResponse.of(new UserDtos.RelationState(
                 userService.setBlock(
                         SecurityUtils.currentUserSeq(),
                         userSeq,
-                        request.enabled()
+                        true
+                )
+        ));
+    }
+
+    @DeleteMapping("/{userSeq}/block")
+    @Operation(
+            summary = "회원 차단 해제",
+            description = """
+                    현재 회원이 만든 차단 관계를 멱등하게 삭제한다. 차단 해제는 이전 팔로우 관계를
+                    자동 복구하지 않으며 관계가 이미 없어도 성공한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<UserDtos.RelationState> unblock(@PathVariable Integer userSeq) {
+        return ApiResponse.of(new UserDtos.RelationState(
+                userService.setBlock(
+                        SecurityUtils.currentUserSeq(),
+                        userSeq,
+                        false
                 )
         ));
     }
