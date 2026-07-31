@@ -1,5 +1,6 @@
 package com.starttoo.backend.common.security;
 
+import com.starttoo.backend.common.config.CorsProperties;
 import com.starttoo.backend.common.error.ApiErrorWriter;
 import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.common.ratelimit.RateLimitFilter;
@@ -28,6 +29,7 @@ public class SecurityConfig {
     private final ApiErrorWriter errorWriter;
     private final RateLimitFilter rateLimitFilter;
     private final AccountStatusFilter accountStatusFilter;
+    private final CorsProperties corsProperties;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -97,10 +99,7 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "https://*.starttoo.com"
-        ));
+        configuration.setAllowedOriginPatterns(corsProperties.allowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("X-RateLimit-Limit", "X-RateLimit-Remaining"));

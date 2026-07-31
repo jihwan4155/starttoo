@@ -1,6 +1,7 @@
 package com.starttoo.backend;
 
 import com.starttoo.backend.common.config.AiProperties;
+import com.starttoo.backend.common.config.CorsProperties;
 import com.starttoo.backend.common.config.FirebaseProperties;
 import com.starttoo.backend.common.config.JwtProperties;
 import com.starttoo.backend.common.config.MinioProperties;
@@ -20,7 +21,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         AiProperties.class,
         FirebaseProperties.class,
         RateLimitProperties.class,
-        PreferenceProperties.class
+        PreferenceProperties.class,
+        CorsProperties.class
 })
 @SpringBootApplication
 public class StarttooBackendApplication {
