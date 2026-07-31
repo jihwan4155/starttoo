@@ -5,7 +5,7 @@ import { DEMO_MODE } from "../constants/config";
 import type { CoverupResponse } from "../types/coverup";
 
 // TODO: purpose 값(objectKey prefix 정책)은 백엔드와 협의 후 확정
-const COVERUP_UPLOAD_PURPOSE = "COVERUP_IMAGE";
+const COVERUP_UPLOAD_PURPOSE = "EXTRACTION" as const;
 
 /**
  * 커버업 도안 추천

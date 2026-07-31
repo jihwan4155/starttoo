@@ -1,8 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-	DEFAULT_POST_TYPE,
-	POST_UPLOAD_PURPOSE,
-} from "../../constants/community";
+import { POST_UPLOAD_PURPOSE } from "../../constants/upload";
 import { postsQueryKey } from "../queries/usePosts";
 import { createPost } from "../../services/communityApi";
 import { uploadImage } from "../../services/uploadApi";
@@ -19,14 +16,13 @@ export default function useCreatePost() {
 
 	return useMutation({
 		mutationFn: async ({ files, caption }: CreatePostVariables) => {
-			const objectKeys = await Promise.all(
+			const imageSeqs = await Promise.all(
 				files.map((file) => uploadImage(file, POST_UPLOAD_PURPOSE)),
 			);
 			const trimmed = caption.trim();
 			const response = await createPost({
-				postType: DEFAULT_POST_TYPE,
 				content: trimmed || undefined,
-				images: objectKeys.map((objectKey) => ({ objectKey })),
+				imageSeqs,
 			});
 			return mapPostResponse(response);
 		},

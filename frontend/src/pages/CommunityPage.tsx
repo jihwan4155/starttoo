@@ -26,8 +26,8 @@ export default function CommunityPage() {
 	const overlayHiddenIds = useCommunityStore((s) => s.overlayHiddenIds);
 	const clearAllOverlays = useCommunityStore((s) => s.clearAllOverlays);
 
-	const allQuery = usePosts({ size: 20, sort: "LATEST" });
-	const followingQuery = useFollowingPosts({ size: 20, sort: "LATEST" });
+	const allQuery = usePosts({ size: 20 });
+	const followingQuery = useFollowingPosts({ size: 20 });
 
 	const activeQuery = feedTab === "following" ? followingQuery : allQuery;
 	const {

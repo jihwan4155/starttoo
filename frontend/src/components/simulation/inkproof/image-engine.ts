@@ -3683,6 +3683,51 @@ export const renderScene = ({
   }
 };
 
+/** 2D 오버레이용 — 원뿔대·깊이 메시 워프 후 실루엣 클립 (합성은 CSS multiply) */
+export const renderWarpedTattooAlpha = ({
+  canvas,
+  tattoo,
+  depth,
+  personMask,
+  transform,
+  curvature = 0.82,
+}: {
+  canvas: HTMLCanvasElement;
+  tattoo: HTMLCanvasElement;
+  depth: DepthMap | null;
+  personMask: PersonMask;
+  transform: TattooTransform;
+  curvature?: number;
+}) => {
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+  const context = getContext(canvas);
+  context.clearRect(0, 0, canvasWidth, canvasHeight);
+
+  drawWarpedTattoo(
+    context,
+    canvasWidth,
+    canvasHeight,
+    tattoo,
+    depth,
+    personMask,
+    transform,
+    curvature,
+  );
+
+  const boundaryField = createBoundaryField(personMask);
+  context.save();
+  context.globalCompositeOperation = "destination-in";
+  context.drawImage(
+    boundaryField.visibilityCanvas,
+    0,
+    0,
+    canvasWidth,
+    canvasHeight,
+  );
+  context.restore();
+};
+
 export const pointInTattoo = (
   point: { x: number; y: number },
   geometry: OverlayGeometry,

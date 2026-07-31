@@ -461,7 +461,7 @@ export default function PostDetailModal({
 		isError: isCommentsError,
 		error: commentsError,
 		refetch: refetchComments,
-	} = useComments(post?.id, { size: 50, sort: "LATEST" });
+	} = useComments(post?.id, { size: 50 });
 
 	if (!post) return null;
 

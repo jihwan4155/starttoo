@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { ApiError } from "../../services/api";
 import useAuthStore from "../../store/useAuthStore";
 
-/** 개발용 test login 계정 (POST /test/auth/login) */
+/** 개발용 test login 계정 (POST /test/auth/login, local 프로필 전용) */
 const TEST_ACCOUNTS = [
-	{ userId: 1, label: "일반회원", role: "USER" },
-	{ userId: 2, label: "타투이스트", role: "ARTIST" },
-	{ userId: 9, label: "관리자", role: "ADMIN" },
+	{ userId: 2, label: "일반회원", role: "USER" },
+	{ userId: 3, label: "타투이스트", role: "ARTIST" },
+	{ userId: 1, label: "관리자", role: "ADMIN" },
 ] as const;
 
 /**
@@ -29,7 +30,24 @@ export default function DevAuthPanel() {
 		try {
 			await devLogin(userId);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "로그인 실패");
+			if (err instanceof ApiError) {
+				if (err.code === "NETWORK") {
+					setError(
+						"백엔드(localhost:8080)가 실행 중인지 확인하세요. dev 서버 재시작 후 다시 시도하세요.",
+					);
+				} else if (
+					err.status === 403 &&
+					err.message.includes("CORS")
+				) {
+					setError(
+						"CORS 오류입니다. npm run dev를 재시작하고 API URL이 /v1 인지 확인하세요.",
+					);
+				} else {
+					setError(err.message);
+				}
+			} else {
+				setError(err instanceof Error ? err.message : "로그인 실패");
+			}
 		} finally {
 			setBusy(null);
 		}

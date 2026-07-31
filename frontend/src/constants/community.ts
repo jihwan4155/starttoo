@@ -1,10 +1,5 @@
 import type { ReportReasonCode } from "../types/community";
 
-export const POST_UPLOAD_PURPOSE = "POST_IMAGE";
-
-/** 일반 회원 커뮤니티 게시글 유형 */
-export const DEFAULT_POST_TYPE = "USER_POST";
-
 export const REPORT_REASONS: {
 	code: ReportReasonCode;
 	label: string;

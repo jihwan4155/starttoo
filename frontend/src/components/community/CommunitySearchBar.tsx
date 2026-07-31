@@ -68,7 +68,7 @@ export default function CommunitySearchBar() {
 	const persistSearch = async (keyword: string) => {
 		if (!accessToken) return;
 		try {
-			await saveRecentSearch({ keyword });
+			await saveRecentSearch(keyword);
 			await queryClient.invalidateQueries({ queryKey: recentSearchesQueryKey });
 		} catch {
 			// 최근 검색어 저장 실패는 검색 자체를 막지 않음
@@ -84,9 +84,9 @@ export default function CommunitySearchBar() {
 		navigate(`/posts/search?q=${encodeURIComponent(keyword)}`);
 	};
 
-	const handleDeleteRecent = async (recentSearchId: number) => {
+	const handleDeleteRecent = async (keyword: string) => {
 		try {
-			await deleteRecentSearch(recentSearchId);
+			await deleteRecentSearch(keyword);
 			await queryClient.invalidateQueries({ queryKey: recentSearchesQueryKey });
 		} catch (err) {
 			window.alert(
@@ -222,22 +222,20 @@ export default function CommunitySearchBar() {
 							</p>
 							{accessToken && recentItems.length > 0 ? (
 								<ul className="mt-1.5">
-									{recentItems.map((item) => (
+									{recentItems.map((keyword) => (
 										<li
-											key={item.recentSearchId}
+											key={keyword}
 											className="flex items-center justify-between">
 											<button
 												type="button"
-												onClick={() => submit(item.keyword)}
+												onClick={() => submit(keyword)}
 												className="flex-1 rounded-lg px-2 py-2 text-left text-[13px] font-light text-black transition hover:bg-black/5">
-												{item.keyword}
+												{keyword}
 											</button>
 											<button
 												type="button"
-												aria-label={`${item.keyword} 삭제`}
-												onClick={() =>
-													void handleDeleteRecent(item.recentSearchId)
-												}
+												aria-label={`${keyword} 삭제`}
+												onClick={() => void handleDeleteRecent(keyword)}
 												className="p-1.5 text-black/35 transition hover:text-black">
 												<CloseIcon size={13} />
 											</button>

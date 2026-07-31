@@ -23,4 +23,6 @@ export type DesignExtractResult = {
 export type SavedDesign = DesignExtractResult & {
 	id: number;
 	createdAt: string;
+	/** BE 보관함이 아닌 로컬 샘플 도안 */
+	isDemo?: boolean;
 };

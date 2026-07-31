@@ -21,6 +21,9 @@ export async function fetchArtists(
 export async function updateArtistMe(
 	body: UpdateArtistRequest,
 ): Promise<ArtistProfileResponse> {
-	const { data } = await api.patch<ArtistProfileResponse>("/artists/me", body);
+	const { data } = await api.patch<ArtistProfileResponse>(
+		"/artists/me/profile",
+		body,
+	);
 	return data;
 }

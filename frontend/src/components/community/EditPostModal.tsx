@@ -43,18 +43,11 @@ export default function EditPostModal({
 	};
 
 	const handleSubmit = async () => {
-		const retainedPostImageIds = source.postImageIds ?? [];
-		if (retainedPostImageIds.length === 0 && imageUrls.length > 0) {
-			setError("이미지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-			return;
-		}
-
 		setError(null);
 		try {
 			await updatePostMutate({
 				postId: source.id,
 				caption,
-				retainedPostImageIds,
 			});
 			onClose();
 		} catch (err) {
