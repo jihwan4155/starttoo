@@ -7,23 +7,21 @@ export const myPostsQueryKey = ["posts", "mine"] as const;
 
 type MyPostsParams = {
 	size?: number;
-	status?: string;
 };
 
-/** GET /users/me/posts */
+/** GET /posts/me */
 export default function useMyPosts(params?: MyPostsParams) {
 	const accessToken = useAuthStore((s) => s.accessToken);
 	const userId = useAuthStore((s) => s.user?.userId);
-	const { size = 20, status = "ALL" } = params ?? {};
+	const { size = 20 } = params ?? {};
 
 	return useInfiniteQuery({
-		queryKey: [...myPostsQueryKey, userId, { size, status }],
+		queryKey: [...myPostsQueryKey, userId, { size }],
 		enabled: Boolean(accessToken && userId),
 		initialPageParam: undefined as string | undefined,
 		queryFn: async ({ pageParam }) => {
 			const page = await fetchMyPosts({
 				size,
-				status,
 				cursor: pageParam,
 			});
 			return {

@@ -11,10 +11,7 @@ export default function useRecentSearches() {
 
 	return useQuery({
 		queryKey: [...recentSearchesQueryKey, userId],
-		queryFn: async () => {
-			const data = await fetchRecentSearches();
-			return data.items;
-		},
+		queryFn: fetchRecentSearches,
 		enabled: Boolean(accessToken && userId),
 	});
 }
