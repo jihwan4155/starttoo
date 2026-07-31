@@ -251,7 +251,7 @@ public class CollectionService {
                    AND i.is_deleted = FALSE
                  WHERE ua.user_seq = :userSeq
                    AND (
-                       :cursorDttm IS NULL
+                       CAST(:cursorDttm AS timestamptz) IS NULL
                        OR ua.reg_dttm < :cursorDttm
                        OR (
                            ua.reg_dttm = :cursorDttm

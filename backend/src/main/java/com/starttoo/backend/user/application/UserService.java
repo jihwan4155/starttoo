@@ -394,7 +394,7 @@ public class UserService {
                        )
                    )
                    AND (
-                       :cursorDttm IS NULL
+                       CAST(:cursorDttm AS timestamptz) IS NULL
                        OR relation.reg_dttm < :cursorDttm
                        OR (
                            relation.reg_dttm = :cursorDttm
