@@ -1,13 +1,16 @@
 package com.starttoo.backend.tattoo.api;
 
 import com.starttoo.backend.common.api.ApiResponse;
+import com.starttoo.backend.common.config.OptionalAuth;
 import com.starttoo.backend.tattoo.application.TattooService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -19,6 +22,7 @@ public class TattooController {
     private final TattooService tattooService;
 
     @GetMapping("/{tattooSeq}")
+    @OptionalAuth
     @Operation(
             summary = "타투 분석 결과 조회",
             description = """
@@ -29,5 +33,23 @@ public class TattooController {
     )
     public ApiResponse<TattooDtos.TattooResponse> get(@PathVariable Long tattooSeq) {
         return ApiResponse.of(tattooService.get(tattooSeq));
+    }
+
+    @GetMapping("/{tattooSeq}/image")
+    @OptionalAuth
+    @Operation(
+            summary = "타투 이미지 단기 URL 조회",
+            description = """
+                    ORIGINAL은 tattoos의 원본 imageSeq를, DESIGN은 활성 tattoo_designs의 가공
+                    이미지 seq를 조회한다. 삭제되지 않은 이미지 object key로 단기 MinIO
+                    Presigned GET URL을 생성하며 DESIGN이 없는 타투는 404를 반환한다.
+                    """
+    )
+    public ApiResponse<TattooDtos.TattooImageResponse> image(
+            @PathVariable Long tattooSeq,
+            @Parameter(description = "조회할 이미지 종류", example = "ORIGINAL")
+            @RequestParam TattooDtos.TattooImageVariant variant
+    ) {
+        return ApiResponse.of(tattooService.image(tattooSeq, variant));
     }
 }

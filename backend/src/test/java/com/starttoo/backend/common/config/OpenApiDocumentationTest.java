@@ -19,7 +19,7 @@ class OpenApiDocumentationTest {
     @Test
     void everyControllerAndEndpointHasDetailedOpenApiDocumentation() {
         List<Class<?>> controllers = controllers();
-        assertThat(controllers).hasSize(20);
+        assertThat(controllers).hasSize(21);
         assertThat(controllers).allSatisfy(controller -> {
             Tag tag = controller.getAnnotation(Tag.class);
             assertThat(tag)
@@ -35,7 +35,7 @@ class OpenApiDocumentationTest {
                 .filter(method -> hasAnnotation(method, RequestMapping.class))
                 .toList();
 
-        assertThat(endpoints).hasSize(91);
+        assertThat(endpoints).hasSize(93);
         assertThat(endpoints).allSatisfy(method -> {
             Operation operation = method.getAnnotation(Operation.class);
             assertThat(operation)

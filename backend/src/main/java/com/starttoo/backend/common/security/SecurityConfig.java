@@ -56,7 +56,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/v1/users/*/posts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/users/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/images/*").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v1/tattoos/*").permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/v1/tattoos/**",
+                                "/v1/tattoo-designs"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/search/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/classifications/**").permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
