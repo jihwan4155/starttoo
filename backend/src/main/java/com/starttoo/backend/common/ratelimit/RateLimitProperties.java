@@ -11,6 +11,8 @@ public record RateLimitProperties(
         long mutationCapacity,
         Duration mutationWindow,
         long phoneAvailabilityCapacity,
-        Duration phoneAvailabilityWindow
+        Duration phoneAvailabilityWindow,
+        long coverupSearchCapacity,
+        Duration coverupSearchWindow
 ) {
 }

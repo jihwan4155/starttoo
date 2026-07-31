@@ -93,6 +93,7 @@ class OpenApiDocumentationTest {
             "POST /v1/auth/social/login",
             "POST /v1/auth/token/refresh",
             "POST /v1/collections",
+            "POST /v1/designs/search-by-shape",
             "POST /v1/devices",
             "POST /v1/dm/rooms",
             "POST /v1/dm/rooms/{roomSeq}/messages",
@@ -115,7 +116,7 @@ class OpenApiDocumentationTest {
     @Test
     void everyControllerAndEndpointHasDetailedOpenApiDocumentation() {
         List<Class<?>> controllers = controllers();
-        assertThat(controllers).hasSize(16);
+        assertThat(controllers).hasSize(17);
         assertThat(controllers).allSatisfy(controller -> {
             Tag tag = controller.getAnnotation(Tag.class);
             assertThat(tag)

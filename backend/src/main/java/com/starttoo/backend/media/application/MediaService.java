@@ -7,6 +7,7 @@ import com.starttoo.backend.media.api.MediaDtos;
 import com.starttoo.backend.media.domain.Image;
 import com.starttoo.backend.media.domain.ImageRepository;
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.Http;
 import io.minio.MakeBucketArgs;
@@ -20,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.InputStream;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Map;
@@ -135,20 +138,40 @@ public class MediaService {
     }
 
     public PresignedDownload presignedDownload(String objectKey) {
-        OffsetDateTime expiresAt = OffsetDateTime.now().plus(properties.downloadExpiry());
+        return presignedDownload(objectKey, properties.downloadExpiry());
+    }
+
+    /**
+     * 만료를 직접 지정해 Presigned GET URL 을 발급한다.
+     * 결과 목록처럼 화면을 오래 열어두는 응답은 기본 만료보다 길게 잡아야 이미지가 깨지지 않는다.
+     */
+    public PresignedDownload presignedDownload(String objectKey, Duration expiry) {
+        OffsetDateTime expiresAt = OffsetDateTime.now().plus(expiry);
         try {
             String url = minioPresignClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.GET)
                             .bucket(properties.bucket())
                             .object(objectKey)
-                            .expiry(
-                                    Math.toIntExact(properties.downloadExpiry().toSeconds()),
-                                    TimeUnit.SECONDS
-                            )
+                            .expiry(Math.toIntExact(expiry.toSeconds()), TimeUnit.SECONDS)
                             .build()
             );
             return new PresignedDownload(url, expiresAt);
+        } catch (Exception exception) {
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    /**
+     * 서버 내부 처리용으로 객체 바이트를 읽는다.
+     * 클라이언트 응답으로 이미지를 중계하는 용도가 아니다. 그건 Presigned URL 로 직접 받게 한다.
+     */
+    public byte[] objectBytes(String objectKey) {
+        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(properties.bucket())
+                .object(objectKey)
+                .build())) {
+            return stream.readAllBytes();
         } catch (Exception exception) {
             throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
         }
