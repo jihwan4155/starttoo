@@ -2,6 +2,7 @@ package com.starttoo.backend.common.config;
 
 import com.starttoo.backend.collection.api.CollectionController;
 import com.starttoo.backend.collection.api.CollectionDtos;
+import com.starttoo.backend.search.api.SearchController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.models.responses.ApiResponses;
@@ -39,7 +40,7 @@ class OpenApiDocumentationTest {
                 .filter(method -> hasAnnotation(method, RequestMapping.class))
                 .toList();
 
-        assertThat(endpoints).hasSize(98);
+        assertThat(endpoints).hasSize(96);
         assertThat(endpoints).allSatisfy(method -> {
             Operation operation = method.getAnnotation(Operation.class);
             assertThat(operation)
@@ -77,6 +78,21 @@ class OpenApiDocumentationTest {
 
         assertThat(operation.getResponses())
                 .containsKeys("422", "502", "503", "504");
+    }
+
+    @Test
+    void removedSearchEndpointsAreNotMapped() {
+        List<String> paths = List.of(SearchController.class.getDeclaredMethods()).stream()
+                .map(method -> org.springframework.core.annotation.AnnotatedElementUtils
+                        .findMergedAnnotation(method, RequestMapping.class))
+                .filter(java.util.Objects::nonNull)
+                .flatMap(mapping -> List.of(mapping.value()).stream())
+                .toList();
+
+        assertThat(paths).doesNotContain(
+                "/subjects/corrections",
+                "/posts/{postSeq}/click"
+        );
     }
 
     private List<Class<?>> controllers() {

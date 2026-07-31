@@ -2,7 +2,8 @@ package com.starttoo.backend.search.application;
 
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
-import com.starttoo.backend.preference.application.PreferenceScoreService;
+import com.starttoo.backend.post.api.PostDtos;
+import com.starttoo.backend.post.application.PostService;
 import com.starttoo.backend.search.api.SearchDtos;
 import com.starttoo.backend.search.application.RedisSearchGateway.SearchCandidate;
 import com.starttoo.backend.user.domain.UserRole;
@@ -18,10 +19,10 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.sql.Types;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -29,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.UUID;
 
 @Slf4j
@@ -42,6 +42,7 @@ public class SearchService {
     private static final String SUBJECT_KEY = "autocomplete:subjects";
     private static final String ACCOUNT_MEMBER_LOOKUP = "autocomplete:accounts:members";
     private static final String ARTIST_MEMBER_LOOKUP = "autocomplete:artists:members";
+    private static final String SUBJECT_MEMBER_LOOKUP = "autocomplete:subjects:members";
     private static final String SUBJECT_COUNTS = "search:subjects:query-count";
     private static final String DELIMITER = "\u0001";
     private static final long MAX_COUNTED_SUBJECTS = 100_000;
@@ -57,7 +58,7 @@ public class SearchService {
     private final KoreanJamoNormalizer jamoNormalizer;
     private final SearchLogService searchLogService;
     private final RedisSearchGateway redisSearchGateway;
-    private final PreferenceScoreService preferenceScoreService;
+    private final PostService postService;
 
     @EventListener(ApplicationReadyEvent.class)
     public void initialize() {
@@ -134,14 +135,27 @@ public class SearchService {
         return autocompleteAccounts(ARTIST_KEY, query, size, true);
     }
 
-    public List<String> autocompleteSubjects(String query, int size) {
+    public List<SearchDtos.SubjectResult> autocompleteSubjects(String query, int size) {
+        int safeSize = Math.min(Math.max(size, 1), 20);
         String prefix = jamoNormalizer.normalize(query);
-        return members(SUBJECT_KEY, prefix, size).stream()
-                .map(this::lastValue)
+        List<Integer> ids = members(
+                SUBJECT_KEY,
+                prefix,
+                Math.min(Math.max(safeSize * 10, 100), 200)
+        ).stream().map(this::idValue).toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        Map<Integer, SearchDtos.SubjectResult> byId = subjectResultMap(ids);
+        return ids.stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
                 .sorted(Comparator
-                        .comparingInt((String value) -> value.equals(query) ? 0 : 1)
-                        .thenComparingInt(String::length)
-                        .thenComparing(Comparator.naturalOrder()))
+                        .comparingInt((SearchDtos.SubjectResult value) ->
+                                value.subjectName().equals(query) ? 0 : 1)
+                        .thenComparingInt(value -> value.subjectName().length())
+                        .thenComparing(SearchDtos.SubjectResult::subjectName))
+                .limit(safeSize)
                 .toList();
     }
 
@@ -160,178 +174,102 @@ public class SearchService {
         return accountResults(candidates, safeSize, artistsOnly);
     }
 
-    public List<SearchDtos.SubjectCorrection> correctSubject(String query, int size) {
-        return subjectCandidates(query, 200).stream()
-                .limit(Math.min(Math.max(size, 1), 10))
-                .map(value -> new SearchDtos.SubjectCorrection(
-                        value.subjectSeq(),
-                        value.subjectName(),
-                        value.matchTier().name(),
-                        value.matchTier().editDistance(),
-                        value.redisScore()
-                ))
-                .toList();
-    }
-
-    public List<SearchDtos.PostSearchResult> searchPosts(
+    public SearchDtos.PostSearchResponse searchPosts(
             Integer userSeq,
             String query,
+            Long cursor,
             int size
     ) {
         int safeSize = Math.min(Math.max(size, 1), 50);
-        List<SubjectCandidate> candidates = subjectCandidates(query, 250).stream()
-                .limit(Math.min(Math.max(safeSize * 5, 50), 250))
-                .toList();
-        SubjectCandidate canonical = candidates.isEmpty() ? null : candidates.get(0);
+        List<SubjectCandidate> candidates = subjectCandidates(query, 250);
         if (candidates.isEmpty()) {
             searchLogService.recordPostSearch(userSeq, query, null, null);
-            return List.of();
-        }
-
-        StringJoiner values = new StringJoiner(", ");
-        MapSqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("userSeq", userSeq)
-                .addValue("limit", safeSize);
-        for (int index = 0; index < candidates.size(); index++) {
-            SubjectCandidate candidate = candidates.get(index);
-            String suffix = Integer.toString(index);
-            values.add("(:subject" + suffix
-                    + ", :tier" + suffix
-                    + ", :score" + suffix
-                    + ", :candidateOrder" + suffix + ")");
-            parameters
-                    .addValue("subject" + suffix, candidate.subjectSeq())
-                    .addValue("tier" + suffix, candidate.matchTier().rank())
-                    .addValue("score" + suffix, candidate.redisScore())
-                    .addValue("candidateOrder" + suffix, candidate.candidateOrder());
-        }
-
-        String sql = """
-                WITH candidates(
-                    subject_seq,
-                    match_tier,
-                    redis_score,
-                    candidate_order
-                ) AS (
-                    VALUES %s
-                ),
-                post_matches AS (
-                    SELECT DISTINCT
-                           p.post_seq,
-                           c.match_tier,
-                           c.redis_score,
-                           c.candidate_order
-                      FROM candidates c
-                      JOIN tattoo_subjects ts ON ts.subject_seq = c.subject_seq
-                      JOIN tattoos t
-                        ON t.tattoo_seq = ts.tattoo_seq
-                       AND t.is_deleted = FALSE
-                      JOIN post_images pi ON pi.image_seq = t.image_seq
-                      JOIN posts p ON p.post_seq = pi.post_seq
-                     WHERE p.post_status = 'PUBLISHED'
-                       AND p.is_deleted = FALSE
-                       AND (
-                           CAST(:userSeq AS INTEGER) IS NULL OR NOT EXISTS (
-                               SELECT 1
-                                 FROM user_blocks b
-                                WHERE (
-                                    b.blocker_seq = :userSeq
-                                    AND b.blocked_seq = p.author_seq
-                                ) OR (
-                                    b.blocker_seq = p.author_seq
-                                    AND b.blocked_seq = :userSeq
-                                )
-                           )
-                       )
-                       AND (
-                           CAST(:userSeq AS INTEGER) IS NULL OR NOT EXISTS (
-                               SELECT 1
-                                 FROM post_hidden_preferences h
-                                WHERE h.post_seq = p.post_seq
-                                  AND h.user_seq = :userSeq
-                           )
-                       )
-                ),
-                best_post_match AS (
-                    SELECT DISTINCT ON (post_seq)
-                           post_seq,
-                           match_tier,
-                           redis_score,
-                           candidate_order
-                      FROM post_matches
-                     ORDER BY post_seq,
-                              match_tier,
-                              redis_score DESC,
-                              candidate_order
-                ),
-                ranked_posts AS (
-                    SELECT *
-                      FROM best_post_match
-                     ORDER BY match_tier,
-                              redis_score DESC,
-                              candidate_order,
-                              post_seq DESC
-                     LIMIT :limit
-                )
-                SELECT rp.post_seq,
-                       ARRAY_AGG(DISTINCT s.subject_name ORDER BY s.subject_name)
-                           AS matched_subjects,
-                       rp.match_tier,
-                       rp.redis_score
-                  FROM ranked_posts rp
-                  JOIN post_images pi ON pi.post_seq = rp.post_seq
-                  JOIN tattoos t
-                    ON t.image_seq = pi.image_seq
-                   AND t.is_deleted = FALSE
-                  JOIN tattoo_subjects ts ON ts.tattoo_seq = t.tattoo_seq
-                  JOIN candidates c ON c.subject_seq = ts.subject_seq
-                  JOIN subjects s ON s.subject_seq = c.subject_seq
-                 GROUP BY rp.post_seq,
-                          rp.match_tier,
-                          rp.redis_score,
-                          rp.candidate_order
-                 ORDER BY rp.match_tier,
-                          rp.redis_score DESC,
-                          rp.candidate_order,
-                          rp.post_seq DESC
-                """.formatted(values);
-        List<SearchDtos.PostSearchResult> results = namedParameterJdbcTemplate.query(
-                sql,
-                parameters,
-                (rs, rowNum) -> {
-            Object[] matchedSubjects = (Object[]) rs.getArray("matched_subjects").getArray();
-            return new SearchDtos.PostSearchResult(
-                    rs.getLong("post_seq"),
-                    java.util.Arrays.stream(matchedSubjects).map(Object::toString).toList(),
-                    RedisSearchGateway.MatchTier.values()[rs.getInt("match_tier") - 1].name(),
-                    rs.getDouble("redis_score")
+            return new SearchDtos.PostSearchResponse(
+                    query,
+                    null,
+                    null,
+                    List.of(),
+                    null,
+                    false,
+                    0
             );
-        });
+        }
+        SubjectCandidate canonical = candidates.get(0);
+
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("subjectSeq", canonical.subjectSeq(), Types.INTEGER)
+                .addValue("userSeq", userSeq, Types.INTEGER)
+                .addValue("cursor", cursor, Types.BIGINT)
+                .addValue("limit", safeSize + 1, Types.INTEGER);
+        List<Long> ids = namedParameterJdbcTemplate.queryForList("""
+                SELECT DISTINCT post.post_seq
+                  FROM tattoo_subjects tattoo_subject
+                  JOIN tattoos tattoo
+                    ON tattoo.tattoo_seq = tattoo_subject.tattoo_seq
+                   AND tattoo.is_deleted = FALSE
+                  JOIN post_images post_image
+                    ON post_image.image_seq = tattoo.image_seq
+                  JOIN posts post
+                    ON post.post_seq = post_image.post_seq
+                   AND post.post_status = 'PUBLISHED'
+                   AND post.is_deleted = FALSE
+                  JOIN users author
+                    ON author.user_seq = post.author_seq
+                   AND author.account_status = 'ACTIVE'
+                   AND author.role <> 'ADMIN'
+                   AND author.is_deleted = FALSE
+                 WHERE tattoo_subject.subject_seq = :subjectSeq
+                   AND (:cursor IS NULL OR post.post_seq < :cursor)
+                   AND (
+                       :userSeq IS NULL OR NOT EXISTS (
+                           SELECT 1
+                             FROM user_blocks block
+                            WHERE (
+                                block.blocker_seq = :userSeq
+                                AND block.blocked_seq = post.author_seq
+                            ) OR (
+                                block.blocker_seq = post.author_seq
+                                AND block.blocked_seq = :userSeq
+                            )
+                       )
+                   )
+                   AND (
+                       :userSeq IS NULL OR NOT EXISTS (
+                           SELECT 1
+                             FROM post_hidden_preferences hidden
+                            WHERE hidden.post_seq = post.post_seq
+                              AND hidden.user_seq = :userSeq
+                       )
+                   )
+                 ORDER BY post.post_seq DESC
+                 LIMIT :limit
+                """,
+                parameters,
+                Long.class
+        );
+        boolean hasNext = ids.size() > safeSize;
+        List<Long> page = hasNext ? ids.subList(0, safeSize) : ids;
+        List<PostDtos.PostResponse> items = page.isEmpty()
+                ? List.of()
+                : postService.responsesBySeqs(page, userSeq);
         searchLogService.recordPostSearch(
                 userSeq,
                 query,
                 canonical.subjectSeq(),
                 canonical.subjectName()
         );
-        return results;
-    }
-
-    @Transactional
-    public boolean recordPostSearchClick(Integer userSeq, Long postSeq) {
-        Boolean postExists = jdbcTemplate.queryForObject("""
-                SELECT EXISTS (
-                    SELECT 1
-                      FROM posts
-                     WHERE post_seq = ?
-                       AND post_status = 'PUBLISHED'
-                       AND is_deleted = FALSE
-                )
-                """, Boolean.class, postSeq);
-        if (!Boolean.TRUE.equals(postExists)) {
-            throw BusinessException.of(ErrorCode.POST_NOT_FOUND);
-        }
-        preferenceScoreService.applySearchClick(userSeq, postSeq);
-        return true;
+        return new SearchDtos.PostSearchResponse(
+                query,
+                new SearchDtos.SubjectResult(
+                        canonical.subjectSeq(),
+                        canonical.subjectName()
+                ),
+                canonical.matchTier().name(),
+                items,
+                hasNext ? page.get(page.size() - 1).toString() : null,
+                hasNext,
+                items.size()
+        );
     }
 
     private List<SearchDtos.AccountResult> autocompleteAccounts(
@@ -340,10 +278,11 @@ public class SearchService {
             int size,
             boolean artistsOnly
     ) {
+        int safeSize = Math.min(Math.max(size, 1), 20);
         List<Integer> ids = members(
                 key,
                 jamoNormalizer.normalize(query),
-                Math.min(Math.max(size, 1), 20)
+                Math.min(Math.max(safeSize * 10, 100), 200)
         ).stream().map(this::idValue).toList();
         if (ids.isEmpty()) {
             return List.of();
@@ -357,6 +296,7 @@ public class SearchService {
                                 value.nickname().equals(query) ? 0 : 1)
                         .thenComparingInt(value -> value.nickname().length())
                         .thenComparing(SearchDtos.AccountResult::nickname))
+                .limit(safeSize)
                 .toList();
     }
 
@@ -410,6 +350,22 @@ public class SearchService {
                     UserRole.valueOf(rs.getString("role"))
             );
             byId.put(value.userSeq(), value);
+        });
+        return byId;
+    }
+
+    private Map<Integer, SearchDtos.SubjectResult> subjectResultMap(List<Integer> ids) {
+        Map<Integer, SearchDtos.SubjectResult> byId = new LinkedHashMap<>();
+        namedParameterJdbcTemplate.query("""
+                SELECT subject_seq, subject_name
+                  FROM subjects
+                 WHERE subject_seq IN (:ids)
+                """, new MapSqlParameterSource("ids", ids), rs -> {
+            SearchDtos.SubjectResult value = new SearchDtos.SubjectResult(
+                    rs.getInt("subject_seq"),
+                    rs.getString("subject_name")
+            );
+            byId.put(value.subjectSeq(), value);
         });
         return byId;
     }
@@ -502,8 +458,9 @@ public class SearchService {
     private void rebuildSubjectAutocomplete() {
         Set<org.springframework.data.redis.core.ZSetOperations.TypedTuple<String>> subjects =
                 new LinkedHashSet<>();
+        Map<String, String> subjectMembers = new LinkedHashMap<>();
         jdbcTemplate.query("""
-                SELECT s.subject_name, COUNT(t.tattoo_seq) AS frequency
+                SELECT s.subject_seq, s.subject_name, COUNT(t.tattoo_seq) AS frequency
                   FROM subjects s
                   LEFT JOIN tattoo_subjects ts ON ts.subject_seq = s.subject_seq
                   LEFT JOIN tattoos t
@@ -513,11 +470,14 @@ public class SearchService {
                  ORDER BY frequency DESC, s.subject_name
                  LIMIT 2000
                 """, rs -> {
+            Integer subjectSeq = rs.getInt("subject_seq");
             String subject = rs.getString("subject_name");
+            String member = jamoNormalizer.normalize(subject) + DELIMITER + subjectSeq;
             subjects.add(new DefaultTypedTuple<>(
-                    jamoNormalizer.normalize(subject) + DELIMITER + subject,
+                    member,
                     0.0
             ));
+            subjectMembers.put(subjectSeq.toString(), member);
         });
 
         Set<String> searchedSubjectSeqs = redisTemplate.opsForZSet()
@@ -533,11 +493,15 @@ public class SearchService {
                           FROM subjects
                          WHERE subject_seq IN (:ids)
                         """, new MapSqlParameterSource("ids", ids), rs -> {
+                    Integer subjectSeq = rs.getInt("subject_seq");
                     String subject = rs.getString("subject_name");
+                    String member = jamoNormalizer.normalize(subject)
+                            + DELIMITER + subjectSeq;
                     subjects.add(new DefaultTypedTuple<>(
-                            jamoNormalizer.normalize(subject) + DELIMITER + subject,
+                            member,
                             0.0
                     ));
+                    subjectMembers.put(subjectSeq.toString(), member);
                 });
             }
         }
@@ -551,6 +515,7 @@ public class SearchService {
             );
         }
         replace(SUBJECT_KEY, subjects);
+        replaceHash(SUBJECT_MEMBER_LOOKUP, subjectMembers);
     }
 
     private void synchronizeAccount(Integer userSeq) {
@@ -626,9 +591,22 @@ public class SearchService {
         );
         if (names.isEmpty()) {
             redisSearchGateway.removeSubject(subjectSeq);
+            synchronizeAutocompleteMember(
+                    SUBJECT_KEY,
+                    SUBJECT_MEMBER_LOOKUP,
+                    subjectSeq,
+                    null
+            );
             return;
         }
-        redisSearchGateway.upsertSubject(subjectSeq, jamoNormalizer.normalize(names.get(0)));
+        String normalized = jamoNormalizer.normalize(names.get(0));
+        redisSearchGateway.upsertSubject(subjectSeq, normalized);
+        synchronizeAutocompleteMember(
+                SUBJECT_KEY,
+                SUBJECT_MEMBER_LOOKUP,
+                subjectSeq,
+                normalized + DELIMITER + subjectSeq
+        );
     }
 
     private void synchronizeAutocompleteMember(

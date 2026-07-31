@@ -2,10 +2,8 @@ package com.starttoo.backend.search.api;
 
 import com.starttoo.backend.common.api.ApiResponse;
 import com.starttoo.backend.common.config.OptionalAuth;
-import com.starttoo.backend.common.security.SecurityUtils;
 import com.starttoo.backend.search.application.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -15,8 +13,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -112,29 +108,11 @@ public class SearchController {
                     이벤트를 재생해 검색량을 복구한 뒤 사전을 다시 구성할 수 있다.
                     """
     )
-    public ApiResponse<List<String>> subjects(
+    public ApiResponse<List<SearchDtos.SubjectResult>> subjects(
             @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,50}$") String q,
             @RequestParam(defaultValue = "10") @Min(1) @Max(20) int size
     ) {
         return ApiResponse.of(searchService.autocompleteSubjects(q, size));
-    }
-
-    @GetMapping("/subjects/corrections")
-    @Operation(
-            summary = "subject 오타 보정 후보",
-            description = """
-                    자동완성용 선별 ZSET과 별개로 전체 subjects를 Redis Search HASH에
-                    인덱싱한다. Redis가 exact, prefix, fuzzy 거리 1, fuzzy 거리 2, contains
-                    단계 순으로 후보를 계산하며 Spring은 재정렬하지 않는다. 응답의 matchType,
-                    editDistance와 redisScore로 선택 근거를 확인할 수 있다. contains의
-                    editDistance는 편집거리 단계가 아니므로 -1이다.
-                    """
-    )
-    public ApiResponse<List<SearchDtos.SubjectCorrection>> corrections(
-            @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{2,50}$") String q,
-            @RequestParam(defaultValue = "5") @Min(1) @Max(10) int size
-    ) {
-        return ApiResponse.of(searchService.correctSubject(q, size));
     }
 
     @GetMapping("/posts")
@@ -142,42 +120,23 @@ public class SearchController {
     @Operation(
             summary = "subject 기반 게시물 이미지 검색",
             description = """
-                    Redis Search의 전체 subject 인덱스가 exact, prefix, fuzzy 거리 1,
-                    fuzzy 거리 2, contains 순으로 후보와 점수를 결정한다. 그 순서를 유지해
-                    subjects→tattooSubjects→tattoos→postImages→PUBLISHED posts를 연결하고,
-                    로그인 회원에게는 차단 관계와 관심 없음 게시물을 제외한다. 사용자 취향은
-                    재정렬에 쓰지 않는다. 최상위 후보 하나를 실제 존재하는 정답 subject로
-                    확정해 검색량을 +1 하며 rawQuery와 함께 Redis 대기열에 기록한다. 스케줄러는
-                    JSONL 로그와 버전별 subject count 스냅샷을 MinIO에 저장한다.
+                    전체 Subject Redis Search 인덱스에서 exact, prefix, fuzzy 거리 1,
+                    fuzzy 거리 2, contains 순으로 최상위 정답 Subject를 결정한다. 그 Subject와
+                    연결된 PUBLISHED 게시물을 postSeq 내림차순 커서로 조회하고, 로그인 회원에게는
+                    차단 관계와 관심 없음 게시물을 제외한다. 공통 Post 응답의 모든 이미지 URL은
+                    MinIO object key로 생성한 단기 Presigned GET URL이다. 보정된 실제 Subject의
+                    검색량을 +1 하고 raw query와 함께 Redis 대기열에 기록한다.
                     """
     )
-    public ApiResponse<List<SearchDtos.PostSearchResult>> posts(
+    public ApiResponse<SearchDtos.PostSearchResponse> posts(
             @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{2,50}$") String q,
+            @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
             Authentication authentication
     ) {
         Integer userSeq = authentication instanceof JwtAuthenticationToken jwt
                 ? Integer.valueOf(jwt.getToken().getSubject())
                 : null;
-        return ApiResponse.of(searchService.searchPosts(userSeq, q, size));
-    }
-
-    @PostMapping("/posts/{postSeq}/click")
-    @Operation(
-            summary = "검색 결과 게시물 클릭 점수 반영",
-            description = """
-                    프론트엔드가 게시물 검색 결과를 실제로 열었을 때 호출한다. 게시물에 연결된
-                    타투 이미지의 주 스타일과 색상에 각각 0.5점을 반영한다. 클릭 이력이나
-                    중복 방지 키는 저장하지 않으므로 유효한 호출마다 점수가 누적된다. PUBLISHED
-                    게시물 확인과 취향 점수 upsert는 하나의 DB 트랜잭션으로 처리되며, 과도한
-                    반복 호출은 공통 상태 변경 rate limit으로 제한한다.
-                    """,
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    public ApiResponse<Boolean> postClick(@PathVariable Long postSeq) {
-        return ApiResponse.of(searchService.recordPostSearchClick(
-                SecurityUtils.currentUserSeq(),
-                postSeq
-        ));
+        return ApiResponse.of(searchService.searchPosts(userSeq, q, cursor, size));
     }
 }

@@ -31,7 +31,7 @@ local 프로필에서는 다음 주소를 사용한다.
 - Health: `http://localhost:8080/actuator/health`
 - MinIO Console: `http://localhost:9001`
 
-Swagger에는 전체 86개 API의 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
+Swagger에는 전체 96개 API의 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
 기재되어 있다. 자물쇠가 있는 API는 우측 상단 `Authorize`에 액세스 토큰 원문만
 입력한다. 공개 API 중 로그인 여부에 따라 응답이 달라지는 피드·프로필·댓글·검색은
 익명 호출과 Bearer JWT 호출을 모두 허용하도록 표시한다.
@@ -134,8 +134,8 @@ Rate limit 초과는 HTTP 429와 `RATE_LIMITED`를 반환한다. 읽기와 상�
 - 계정 생성·닉네임 변경·상태 변경·아티스트 승인·subject 생성은 DB 커밋 후 Redis
   인덱스에 증분 반영한다. Redis 유실이나 인덱스 버전 변경 시 전체 재구축하고 매일
   PostgreSQL과 저빈도 대조한다.
-- 검색 결과 게시물 클릭은 호출할 때마다 primary style과 color에 0.5점을 반영한다.
-  클릭 이력과 중복 방지 데이터는 저장하지 않으며 공통 상태 변경 rate limit을 적용한다.
+- 회원가입 취향 설문은 primary style과 선택 색상의 중복을 제거해 최초 한 번만
+  반영하고, 게시물 체류시간은 구간 점수로 변환해 중복 제거된 분류에만 반영한다.
 - DM 방별 알림 설정은 메시지 저장과 읽지 않음 수에 영향을 주지 않는다.
 - DM 읽음 처리는 상대 메시지와 해당 방의 `NEW_DM` 알림을 한 트랜잭션으로 갱신한다.
 - DM 메시지·알림 행은 DB에 먼저 커밋하고 WebSocket·FCM은 `AFTER_COMMIT`에서

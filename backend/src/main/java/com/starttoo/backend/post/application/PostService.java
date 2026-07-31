@@ -511,6 +511,14 @@ public class PostService {
         )).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<PostDtos.PostResponse> responsesBySeqs(
+            List<Long> postSeqs,
+            Integer viewerSeq
+    ) {
+        return responses(loadPosts(postSeqs), viewerSeq);
+    }
+
     private CursorPageResponse<PostDtos.PostResponse> postSeqPage(
             List<Long> ids,
             int safeSize,
