@@ -93,8 +93,8 @@ public class OpenApiConfig {
                     addError(responses, "415", "object key 확장자와 실제 Content-Type이 일치하지 않음");
                 }
             } else if (usesExternalService(handlerMethod)) {
-                addError(responses, "502", "OAuth 또는 SMS 외부 서비스 처리 실패");
-                addError(responses, "503", "필수 외부 서비스가 설정되지 않았거나 일시적으로 사용 불가");
+                addError(responses, "502", "OAuth 외부 서비스 처리 실패");
+                addError(responses, "503", "OAuth 외부 서비스가 일시적으로 사용 불가");
                 addError(responses, "504", "외부 서비스 처리 시간 초과");
             }
             if (usesTattooAnalysis(handlerMethod)) {
@@ -147,7 +147,7 @@ public class OpenApiConfig {
         String controller = handlerMethod.getBeanType().getSimpleName();
         String method = handlerMethod.getMethod().getName();
         return controller.equals("AuthController")
-                && (method.equals("socialLogin") || method.equals("requestPhoneVerification"));
+                && method.equals("socialLogin");
     }
 
     private boolean usesMinio(org.springframework.web.method.HandlerMethod handlerMethod) {
@@ -157,8 +157,11 @@ public class OpenApiConfig {
     private boolean usesTattooAnalysis(
             org.springframework.web.method.HandlerMethod handlerMethod
     ) {
-        return handlerMethod.getBeanType().getSimpleName().equals("CollectionController")
-                && handlerMethod.getMethod().getName().equals("create");
+        String controller = handlerMethod.getBeanType().getSimpleName();
+        String method = handlerMethod.getMethod().getName();
+        return method.equals("create")
+                && (controller.equals("CollectionController")
+                || controller.equals("PostController"));
     }
 
     private boolean usesRecentSearchMutation(

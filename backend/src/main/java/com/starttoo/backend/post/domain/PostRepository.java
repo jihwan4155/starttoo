@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
@@ -23,4 +24,40 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying
     @Query("update Post p set p.reportCount = p.reportCount + :delta where p.postSeq = :postSeq and p.reportCount + :delta >= 0")
     int addReportCount(@Param("postSeq") Long postSeq, @Param("delta") int delta);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Post p
+               set p.content = :content,
+                   p.modUsrSeq = :modifierSeq,
+                   p.modDttm = :modifiedDttm
+             where p.postSeq = :postSeq
+               and p.authorSeq = :authorSeq
+               and p.deleted = false
+            """)
+    int updateContent(
+            @Param("postSeq") Long postSeq,
+            @Param("authorSeq") Integer authorSeq,
+            @Param("content") String content,
+            @Param("modifierSeq") Integer modifierSeq,
+            @Param("modifiedDttm") OffsetDateTime modifiedDttm
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Post p
+               set p.postStatus = com.starttoo.backend.post.domain.PostStatus.DELETED,
+                   p.deleted = true,
+                   p.modUsrSeq = :modifierSeq,
+                   p.modDttm = :modifiedDttm
+             where p.postSeq = :postSeq
+               and p.authorSeq = :authorSeq
+               and p.deleted = false
+            """)
+    int softDelete(
+            @Param("postSeq") Long postSeq,
+            @Param("authorSeq") Integer authorSeq,
+            @Param("modifierSeq") Integer modifierSeq,
+            @Param("modifiedDttm") OffsetDateTime modifiedDttm
+    );
 }

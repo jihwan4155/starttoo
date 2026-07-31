@@ -60,23 +60,4 @@ public class Post {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
-    public void updateContent(String content, Integer modifierSeq) {
-        this.content = content;
-        this.modUsrSeq = modifierSeq;
-        this.modDttm = OffsetDateTime.now();
-    }
-
-    public void delete(Integer modifierSeq) {
-        this.postStatus = PostStatus.DELETED;
-        this.deleted = true;
-        this.modUsrSeq = modifierSeq;
-        this.modDttm = OffsetDateTime.now();
-    }
-
-    public void hide(Integer adminSeq) {
-        this.postStatus = PostStatus.HIDDEN;
-        this.deleted = false;
-        this.modUsrSeq = adminSeq;
-        this.modDttm = OffsetDateTime.now();
-    }
 }

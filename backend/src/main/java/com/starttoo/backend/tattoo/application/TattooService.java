@@ -45,11 +45,6 @@ public class TattooService {
     private final TattooModelClient tattooModelClient;
     private final SearchIndexEventPublisher searchIndexEventPublisher;
 
-    @Transactional
-    public Tattoo process(Integer userSeq, Long imageSeq, TattooSourceType sourceType) {
-        return persistPrepared(userSeq, prepare(userSeq, imageSeq), sourceType);
-    }
-
     public PreparedTattoo prepare(Integer userSeq, Long imageSeq) {
         Image image = imageRepository.findByImageSeqAndDeletedFalse(imageSeq)
                 .filter(value -> value.getRegUsrSeq().equals(userSeq))

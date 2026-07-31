@@ -7,14 +7,12 @@ import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.post.api.PostDtos;
 import com.starttoo.backend.post.application.PostService;
+import com.starttoo.backend.post.application.PostWriteService;
 import com.starttoo.backend.post.domain.Post;
-import com.starttoo.backend.post.domain.PostImageRepository;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
 import com.starttoo.backend.tattoo.application.TattooService;
-import com.starttoo.backend.tattoo.domain.Tattoo;
-import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import com.starttoo.backend.user.application.UserService;
 import com.starttoo.backend.user.domain.AccountStatus;
 import com.starttoo.backend.user.domain.User;
@@ -59,10 +57,10 @@ class PostServiceTest {
     private PostRepository postRepository;
 
     @Mock
-    private PostImageRepository postImageRepository;
+    private TattooService tattooService;
 
     @Mock
-    private TattooService tattooService;
+    private PostWriteService postWriteService;
 
     @Mock
     private PreferenceScoreService preferenceScoreService;
@@ -166,11 +164,9 @@ class PostServiceTest {
     @Test
     void createDoesNotSavePostWhenAnyImageProcessingFails() {
         when(userService.find(7)).thenReturn(activeUser(7));
-        when(tattooService.process(
-                eq(7),
-                anyLong(),
-                eq(TattooSourceType.USER_POST)
-        )).thenReturn(tattoo(61L))
+        when(tattooService.prepare(7, 61L))
+                .thenReturn(new TattooService.PreparedTattoo(61L, "object-61", null));
+        when(tattooService.prepare(7, 62L))
                 .thenThrow(BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
 
         assertThatThrownBy(() -> postService.create(
@@ -179,8 +175,61 @@ class PostServiceTest {
         )).isInstanceOfSatisfying(BusinessException.class, exception ->
                 assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.IMAGE_NOT_FOUND));
 
-        verify(postRepository, never()).save(any());
-        verify(postImageRepository, never()).save(any());
+        verify(postWriteService, never()).create(any(), any(), any());
+    }
+
+    @Test
+    void updateUsesPartialUpdateAndReturnsFreshCounts() throws Exception {
+        Post original = post(31L, 8);
+        Post refreshed = post(31L, 8, "updated", 7, 4, 2);
+        when(postRepository.findByPostSeq(31L))
+                .thenReturn(Optional.of(original), Optional.of(refreshed));
+        when(postRepository.updateContent(
+                eq(31L),
+                eq(8),
+                eq("updated"),
+                eq(8),
+                any(OffsetDateTime.class)
+        )).thenReturn(1);
+        mockPostResponseRows();
+
+        PostDtos.PostResponse response = postService.update(
+                8,
+                31L,
+                new PostDtos.UpdatePostRequest("updated")
+        );
+
+        assertThat(response.content()).isEqualTo("updated");
+        assertThat(response.likeCount()).isEqualTo(7);
+        assertThat(response.commentCount()).isEqualTo(4);
+        verify(postRepository).updateContent(
+                eq(31L),
+                eq(8),
+                eq("updated"),
+                eq(8),
+                any(OffsetDateTime.class)
+        );
+    }
+
+    @Test
+    void deleteUsesPartialSoftDelete() {
+        when(postRepository.findByPostSeq(31L))
+                .thenReturn(Optional.of(post(31L, 8)));
+        when(postRepository.softDelete(
+                eq(31L),
+                eq(8),
+                eq(8),
+                any(OffsetDateTime.class)
+        )).thenReturn(1);
+
+        postService.delete(8, 31L);
+
+        verify(postRepository).softDelete(
+                eq(31L),
+                eq(8),
+                eq(8),
+                any(OffsetDateTime.class)
+        );
     }
 
     @Test
@@ -263,15 +312,26 @@ class PostServiceTest {
     }
 
     private Post post(Long postSeq, Integer authorSeq) {
+        return post(postSeq, authorSeq, "content", 2, 1, 0);
+    }
+
+    private Post post(
+            Long postSeq,
+            Integer authorSeq,
+            String content,
+            int likeCount,
+            int commentCount,
+            int reportCount
+    ) {
         OffsetDateTime now = OffsetDateTime.now();
         return Post.builder()
                 .postSeq(postSeq)
                 .authorSeq(authorSeq)
-                .content("content")
+                .content(content)
                 .postStatus(PostStatus.PUBLISHED)
-                .likeCount(2)
-                .commentCount(1)
-                .reportCount(0)
+                .likeCount(likeCount)
+                .commentCount(commentCount)
+                .reportCount(reportCount)
                 .regDttm(now)
                 .modDttm(now)
                 .modUsrSeq(authorSeq)
@@ -290,17 +350,4 @@ class PostServiceTest {
                 .build();
     }
 
-    private Tattoo tattoo(Long imageSeq) {
-        return Tattoo.builder()
-                .tattooSeq(imageSeq + 10)
-                .registrantSeq(7)
-                .imageSeq(imageSeq)
-                .sourceType(TattooSourceType.USER_POST)
-                .primaryStyleSeq(1)
-                .usedForTraining(false)
-                .regDttm(OffsetDateTime.now())
-                .modDttm(OffsetDateTime.now())
-                .deleted(false)
-                .build();
-    }
 }
