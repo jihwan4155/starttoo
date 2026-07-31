@@ -25,7 +25,10 @@ export default function useToggleCommentLike() {
 			return liked ? unlikeComment(commentId) : likeComment(commentId);
 		},
 		onSuccess: (data, variables) => {
-			const patch = { liked: data.liked, likeCount: data.likeCount };
+			const patch = {
+				liked: data.liked,
+				...(data.likeCount != null ? { likeCount: data.likeCount } : {}),
+			};
 			patchCommentInCache(
 				queryClient,
 				variables.postId,

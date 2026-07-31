@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { DEFAULT_POST_TYPE } from "../../constants/community";
 import { postsQueryKey } from "../queries/usePosts";
 import { followingPostsQueryKey } from "../queries/useFollowingPosts";
 import { myPostsQueryKey } from "../queries/useMyPosts";
@@ -11,24 +10,17 @@ import { mapPostResponse } from "../../utils/mapPost";
 type UpdatePostVariables = {
 	postId: number;
 	caption: string;
-	retainedPostImageIds: number[];
 };
 
-/** PATCH /posts/{postId} — 캡션·기존 이미지 유지 수정 */
+/** PATCH /posts/{postSeq} — 본문 수정 */
 export default function useUpdatePost() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async ({
-			postId,
-			caption,
-			retainedPostImageIds,
-		}: UpdatePostVariables) => {
+		mutationFn: async ({ postId, caption }: UpdatePostVariables) => {
 			const trimmed = caption.trim();
 			const response = await updatePost(postId, {
-				postType: DEFAULT_POST_TYPE,
 				content: trimmed || null,
-				retainedPostImageIds,
 			});
 			return mapPostResponse(response);
 		},

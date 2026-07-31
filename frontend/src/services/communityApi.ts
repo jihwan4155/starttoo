@@ -13,6 +13,7 @@ import type {
 	PostResponse,
 	ReportRequest,
 	ReportResponse,
+	StateResponse,
 	UpdatePostRequest,
 } from "../types/community";
 
@@ -28,24 +29,23 @@ export async function fetchPosts(
 	return data;
 }
 
-/** GET /posts/following — 팔로잉 피드 (Bearer 필요) */
+/** GET /posts/following — 팔로잉 피드 */
 export async function fetchFollowingPosts(
 	params?: FetchPostsParams,
 ): Promise<CursorPage<PostResponse>> {
-	const { data } = await api.get<CursorPage<PostResponse>>(
-		"/posts/following",
-		{ params },
-	);
+	const { data } = await api.get<CursorPage<PostResponse>>("/posts/following", {
+		params,
+	});
 	return data;
 }
 
-/** GET /posts/{postId} */
+/** GET /posts/{postSeq} */
 export async function fetchPost(postId: number): Promise<PostResponse> {
 	const { data } = await api.get<PostResponse>(`/posts/${postId}`);
 	return data;
 }
 
-/** POST /posts (Bearer 필요) */
+/** POST /posts */
 export async function createPost(
 	body: CreatePostRequest,
 ): Promise<PostResponse> {
@@ -53,7 +53,7 @@ export async function createPost(
 	return data;
 }
 
-/** PATCH /posts/{postId} (Bearer 필요) */
+/** PATCH /posts/{postSeq} */
 export async function updatePost(
 	postId: number,
 	body: UpdatePostRequest,
@@ -62,56 +62,56 @@ export async function updatePost(
 	return data;
 }
 
-/** DELETE /posts/{postId} (Bearer 필요) */
+/** DELETE /posts/{postSeq} */
 export async function deletePost(postId: number): Promise<void> {
 	await api.delete(`/posts/${postId}`);
 }
 
-/** POST /posts/{postId}/like */
+/** PUT /posts/{postSeq}/like */
 export async function likePost(postId: number): Promise<LikeResponse> {
-	const { data } = await api.post<LikeResponse>(`/posts/${postId}/like`);
-	return data;
+	const { data } = await api.put<StateResponse>(`/posts/${postId}/like`);
+	return { postId, liked: data.enabled };
 }
 
-/** DELETE /posts/{postId}/like */
+/** DELETE /posts/{postSeq}/like */
 export async function unlikePost(postId: number): Promise<LikeResponse> {
-	const { data } = await api.delete<LikeResponse>(`/posts/${postId}/like`);
-	return data;
+	const { data } = await api.delete<StateResponse>(`/posts/${postId}/like`);
+	return { postId, liked: data.enabled };
 }
 
-/** POST /posts/{postId}/bookmark */
+/** PUT /posts/{postSeq}/bookmark */
 export async function bookmarkPost(postId: number): Promise<BookmarkResponse> {
-	const { data } = await api.post<BookmarkResponse>(
-		`/posts/${postId}/bookmark`,
-	);
-	return data;
+	const { data } = await api.put<StateResponse>(`/posts/${postId}/bookmark`);
+	return { postId, bookmarked: data.enabled };
 }
 
-/** DELETE /posts/{postId}/bookmark */
+/** DELETE /posts/{postSeq}/bookmark */
 export async function unbookmarkPost(
 	postId: number,
 ): Promise<BookmarkResponse> {
-	const { data } = await api.delete<BookmarkResponse>(
+	const { data } = await api.delete<StateResponse>(
 		`/posts/${postId}/bookmark`,
 	);
-	return data;
+	return { postId, bookmarked: data.enabled };
 }
 
-/** POST /posts/{postId}/hidden */
+/** PUT /posts/{postSeq}/not-interested */
 export async function hidePost(postId: number): Promise<HiddenResponse> {
-	const { data } = await api.post<HiddenResponse>(`/posts/${postId}/hidden`);
-	return data;
-}
-
-/** DELETE /posts/{postId}/hidden */
-export async function unhidePost(postId: number): Promise<HiddenResponse> {
-	const { data } = await api.delete<HiddenResponse>(
-		`/posts/${postId}/hidden`,
+	const { data } = await api.put<StateResponse>(
+		`/posts/${postId}/not-interested`,
 	);
-	return data;
+	return { postId, hidden: data.enabled };
 }
 
-/** POST /posts/{postId}/reports */
+/** DELETE /posts/{postSeq}/not-interested */
+export async function unhidePost(postId: number): Promise<HiddenResponse> {
+	const { data } = await api.delete<StateResponse>(
+		`/posts/${postId}/not-interested`,
+	);
+	return { postId, hidden: data.enabled };
+}
+
+/** POST /posts/{postSeq}/reports */
 export async function reportPost(
 	postId: number,
 	body: ReportRequest,
@@ -123,17 +123,17 @@ export async function reportPost(
 	return data;
 }
 
-/** GET /users/me/posts */
+/** GET /posts/me */
 export async function fetchMyPosts(
-	params?: FetchPostsParams & { status?: string },
+	params?: FetchPostsParams,
 ): Promise<CursorPage<PostResponse>> {
-	const { data } = await api.get<CursorPage<PostResponse>>("/users/me/posts", {
+	const { data } = await api.get<CursorPage<PostResponse>>("/posts/me", {
 		params,
 	});
 	return data;
 }
 
-/** GET /users/{userId}/posts */
+/** GET /users/{userSeq}/posts */
 export async function fetchUserPosts(
 	userId: number,
 	params?: FetchPostsParams,
@@ -145,20 +145,19 @@ export async function fetchUserPosts(
 	return data;
 }
 
-/** GET /users/me/bookmarked-posts */
+/** GET /posts/bookmarked */
 export async function fetchBookmarkedPosts(
 	params?: FetchPostsParams,
 ): Promise<CursorPage<PostResponse>> {
-	const { data } = await api.get<CursorPage<PostResponse>>(
-		"/users/me/bookmarked-posts",
-		{ params },
-	);
+	const { data } = await api.get<CursorPage<PostResponse>>("/posts/bookmarked", {
+		params,
+	});
 	return data;
 }
 
 /* ─── Comments ─── */
 
-/** GET /posts/{postId}/comments */
+/** GET /posts/{postSeq}/comments */
 export async function fetchComments(
 	postId: number,
 	params?: FetchCommentsParams,
@@ -170,7 +169,7 @@ export async function fetchComments(
 	return data;
 }
 
-/** POST /posts/{postId}/comments (Bearer 필요) */
+/** POST /posts/{postSeq}/comments */
 export async function createComment(
 	postId: number,
 	body: CreateCommentRequest,
@@ -182,7 +181,7 @@ export async function createComment(
 	return data;
 }
 
-/** GET /comments/{commentId}/replies */
+/** GET /comments/{commentSeq}/replies */
 export async function fetchReplies(
 	commentId: number,
 	params?: FetchCommentsParams,
@@ -194,27 +193,27 @@ export async function fetchReplies(
 	return data;
 }
 
-/** DELETE /comments/{commentId} (Bearer 필요) */
+/** DELETE /comments/{commentSeq} */
 export async function deleteComment(commentId: number): Promise<void> {
 	await api.delete(`/comments/${commentId}`);
 }
 
-/** POST /comments/{commentId}/like */
+/** PUT /comments/{commentSeq}/like */
 export async function likeComment(
 	commentId: number,
 ): Promise<CommentLikeResponse> {
-	const { data } = await api.post<CommentLikeResponse>(
+	const { data } = await api.put<StateResponse>(
 		`/comments/${commentId}/like`,
 	);
-	return data;
+	return { commentId, liked: data.enabled };
 }
 
-/** DELETE /comments/{commentId}/like */
+/** DELETE /comments/{commentSeq}/like */
 export async function unlikeComment(
 	commentId: number,
 ): Promise<CommentLikeResponse> {
-	const { data } = await api.delete<CommentLikeResponse>(
+	const { data } = await api.delete<StateResponse>(
 		`/comments/${commentId}/like`,
 	);
-	return data;
+	return { commentId, liked: data.enabled };
 }

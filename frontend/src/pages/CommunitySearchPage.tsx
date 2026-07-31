@@ -13,7 +13,7 @@ export default function CommunitySearchPage() {
 	const keyword = searchParams.get("q") ?? "";
 	const [activePost, setActivePost] = useState<Post | null>(null);
 
-	const { data, isPending, isError, error } = usePosts({ size: 50, sort: "LATEST" });
+	const { data, isPending, isError, error } = usePosts({ size: 50 });
 	const hiddenIds = useHiddenIdsForUser();
 
 	const allPosts = useMemo(() => {

@@ -2,9 +2,7 @@ export type PostAuthor = {
 	userId?: number;
 	nickname: string;
 	isArtist: boolean;
-	/** 작성자 프로필 이미지 (없으면 닉네임 기반 해석 → 기본 프로필) */
 	avatarUrl?: string | null;
-	/** 현재 로그인 사용자가 작성한 콘텐츠 — 프로필 스토어를 실시간으로 따라감 */
 	isMe?: boolean;
 };
 
@@ -12,34 +10,25 @@ export type PostComment = {
 	id: number;
 	author: PostAuthor;
 	content: string;
-	/** 작성 시각 (ISO 문자열) — 표시할 땐 formatTimeAgo로 변환 */
 	createdAt: string;
 	likeCount: number;
-	/** 로그인 사용자 기준 좋아요 여부 (API liked) */
 	liked?: boolean;
-	/** 최상위 댓글 ID (답글일 때만) */
 	parentCommentId?: number | null;
-	/** 최상위 댓글의 답글 수 (API replyCount) */
 	replyCount?: number;
 	replies?: PostComment[];
 };
 
-/** UI용 게시물 모델 (목업/화면). API 연동 시 PostResponse → Post 매핑 */
+/** UI용 게시물 모델 */
 export type Post = {
 	id: number;
 	author: PostAuthor;
-	/** 작성 시각 (ISO 문자열) — 표시할 땐 formatTimeAgo로 변환 */
 	createdAt: string;
-	/** 대표 이미지(첫 장). null이면 회색 플레이스홀더 표시 */
 	imageUrl: string | null;
-	/** displayOrder 순 전체 이미지. 없으면 imageUrl 한 장만 사용 */
 	imageUrls?: string[];
-	/** PATCH /posts 시 retainedPostImageIds용 */
 	postImageIds?: number[];
 	caption: string;
 	likeCount: number;
 	commentCount: number;
-	/** 로그인 사용자 기준 좋아요·북마크·숨김 (API) */
 	liked?: boolean;
 	bookmarked?: boolean;
 	hidden?: boolean;
@@ -52,64 +41,61 @@ export type CursorPage<T> = {
 	items: T[];
 	nextCursor: string | null;
 	hasNext: boolean;
+	size?: number;
 };
 
 export type PostAuthorDto = {
-	userId: number;
+	userSeq: number;
 	nickname: string;
-	profileImageUrl: string | null;
 	role: string;
+	profileImageSeq: number | null;
+	profileImageUrl: string | null;
 };
 
 export type PostImageDto = {
-	postImageId: number;
-	imageId: number;
+	postImageSeq: number;
+	imageSeq: number;
 	imageUrl: string;
+	tattooSeq: number | null;
 	displayOrder: number;
 };
 
 export type PostResponse = {
-	postId: number;
-	postType: string;
-	content: string | null;
-	postStatus: string;
+	postSeq: number;
 	author: PostAuthorDto;
-	images: PostImageDto[];
+	content: string | null;
 	likeCount: number;
 	commentCount: number;
-	liked: boolean;
-	bookmarked: boolean;
-	hidden: boolean;
-	bookmarkedAt: string | null;
-	createdAt: string;
-	updatedAt: string;
+	images: PostImageDto[];
+	likedByMe: boolean;
+	bookmarkedByMe: boolean;
+	regDttm: string;
+	modDttm: string;
 };
 
 export type FetchPostsParams = {
-	cursor?: string;
+	cursor?: string | number;
 	size?: number;
-	sort?: "LATEST" | "POPULAR" | string;
-	postType?: string;
-	authorId?: number;
+	authorSeq?: number;
 };
 
 export type CreatePostRequest = {
-	postType: string;
 	content?: string;
-	images: { objectKey: string }[];
+	imageSeqs: number[];
 };
 
 export type UpdatePostRequest = {
-	postType?: string;
 	content?: string | null;
-	retainedPostImageIds?: number[];
-	newImages?: { objectKey: string }[];
+};
+
+export type StateResponse = {
+	enabled: boolean;
 };
 
 export type LikeResponse = {
 	postId: number;
 	liked: boolean;
-	likeCount: number;
+	likeCount?: number;
 };
 
 export type BookmarkResponse = {
@@ -135,47 +121,43 @@ export type ReportRequest = {
 };
 
 export type ReportResponse = {
-	reportId: number;
-	postId: number;
-	reasonCode: string;
-	reasonDetail: string | null;
+	reportSeq: number;
 	reportStatus: string;
-	createdAt: string;
 };
 
 export type CommentAuthorDto = {
-	userId: number;
+	userSeq: number;
 	nickname: string;
+	profileImageSeq: number | null;
 	profileImageUrl: string | null;
 };
 
 export type CommentResponse = {
-	commentId: number;
-	postId: number;
-	parentCommentId: number | null;
+	commentSeq: number;
+	postSeq: number;
+	parentCommentSeq: number | null;
 	content: string;
-	commentStatus: string;
-	author: CommentAuthorDto;
 	likeCount: number;
-	liked: boolean;
 	replyCount: number;
-	createdAt: string;
-	updatedAt: string;
+	likedByMe: boolean;
+	deleted: boolean;
+	author: CommentAuthorDto;
+	regDttm: string;
+	modDttm: string;
 };
 
 export type CreateCommentRequest = {
 	content: string;
-	parentCommentId?: number;
+	parentCommentSeq?: number | null;
 };
 
 export type CommentLikeResponse = {
 	commentId: number;
 	liked: boolean;
-	likeCount: number;
+	likeCount?: number;
 };
 
 export type FetchCommentsParams = {
-	cursor?: string;
+	cursor?: string | number;
 	size?: number;
-	sort?: "LATEST" | "POPULAR" | string;
 };
