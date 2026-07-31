@@ -2,13 +2,15 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import type { ClientRequest } from 'node:http';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // VITE_API_PROXY_TARGET을 설정하면 /api 요청을 그 서버로 대신 보낸다.
-  // dev 서버는 https인데 배포 백엔드의 CORS 허용 origin은 http://localhost:5173이라
-  // 브라우저가 직접 호출하면 차단된다. 프록시를 거치면 동일 출처 요청이 되어 CORS가 사라진다.
-  const apiProxyTarget = env.VITE_API_PROXY_TARGET;
+  // 프록시가 향할 백엔드. 기본은 로컬이고, VITE_API_PROXY_TARGET으로 배포 서버를
+  // 가리킬 수 있다. 배포 백엔드의 CORS 허용 목록(CORS_ALLOWED_ORIGINS)에는 https
+  // dev 서버가 없어서 브라우저 직접 호출은 403이 되므로, 배포 서버를 볼 때도
+  // 반드시 이 프록시를 거쳐야 한다.
+  const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8080';
 
   return {
     plugins: [
@@ -20,23 +22,20 @@ export default defineConfig(({ mode }) => {
     // 폰(같은 와이파이)에서 PC의 LAN IP로 접속할 수 있도록 0.0.0.0 바인딩
     server: {
       host: true,
-      ...(apiProxyTarget && {
-        proxy: {
-          '/api': {
-            target: apiProxyTarget,
-            changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api/, ''),
-            configure: (proxy) => {
-              // 배포 백엔드의 CORS 허용 목록(CORS_ALLOWED_ORIGINS)에 로컬 오리진이 없어
-              // 브라우저 Origin을 그대로 넘기면 403 "Invalid CORS request"가 된다.
-              // 프록시는 서버 간 호출이라 Origin이 필요 없으므로 떼고 보낸다.
-              proxy.on('proxyReq', (proxyReq) => {
-                proxyReq.removeHeader('origin');
-              });
-            },
+      // dev는 HTTPS(basicSsl) → API를 같은 origin(/v1)으로 두고 프록시 (mixed content 방지)
+      proxy: {
+        '/v1': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          // 브라우저 Origin(https://localhost:5173)이 BE CORS(http://5173)와 달라 403 나는 것 방지
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq: ClientRequest) => {
+              proxyReq.removeHeader('origin');
+              proxyReq.removeHeader('referer');
+            });
           },
         },
-      }),
+      },
     },
   };
 });

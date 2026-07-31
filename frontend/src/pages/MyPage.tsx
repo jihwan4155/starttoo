@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import ImageViewerModal from "../components/common/ImageViewerModal";
 import CreatePostModal from "../components/community/CreatePostModal";
 import PostDetailModal from "../components/community/PostDetailModal";
+import CollectionEditor from "../components/collections/CollectionEditor";
 import DesignThumbnailGrid from "../components/mypage/DesignThumbnailGrid";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageHeader from "../components/mypage/MyPageHeader";
@@ -20,7 +21,9 @@ import useUserStore from "../store/useUserStore";
 import type { Post } from "../types/community";
 import type { SavedDesign } from "../types/designExtract";
 import { ApiError } from "../services/api";
+import { isDemoArchiveDesign } from "../constants/demoArchiveDesigns";
 import { mapArchiveItemToSavedDesign } from "../utils/mapArchive";
+import mergeWithDemoArchiveDesigns from "../utils/mergeArchiveDesigns";
 
 function isMyPageTab(value: string | null): value is MyPageTab {
 	return (
@@ -93,13 +96,13 @@ export default function MyPage() {
 		() => bookmarkData?.pages.flatMap((page) => page.items) ?? [],
 		[bookmarkData?.pages],
 	);
-	const savedDesigns = useMemo(
-		() =>
+	const savedDesigns = useMemo(() => {
+		const fromApi =
 			archiveData?.pages.flatMap((page) =>
 				page.items.map(mapArchiveItemToSavedDesign),
-			) ?? [],
-		[archiveData?.pages],
-	);
+			) ?? [];
+		return authUser ? mergeWithDemoArchiveDesigns(fromApi) : [];
+	}, [archiveData?.pages, authUser]);
 
 	const meErrorMessage =
 		meError instanceof ApiError
@@ -111,7 +114,7 @@ export default function MyPage() {
 			: "보관함을 불러오지 못했습니다.";
 
 	const handleRemoveDesign = (tattooId: number) => {
-		if (!requireAuth()) return;
+		if (!requireAuth() || isDemoArchiveDesign(tattooId)) return;
 		removeFromArchive(tattooId, {
 			onError: (err) => {
 				window.alert(
@@ -217,9 +220,18 @@ export default function MyPage() {
 							/>
 						))}
 
-					{tab === "collection" && (
-						<MyPageEmptyState message="준비 중이에요" />
-					)}
+					{tab === "collection" &&
+						(!authUser ? (
+							<MyPageEmptyState message="로그인 후 내 컬렉션을 확인할 수 있습니다" />
+						) : !authUserId ? (
+							<MyPageEmptyState message="사용자 정보를 불러올 수 없습니다" />
+						) : (
+							<CollectionEditor
+								userId={authUserId}
+								designs={savedDesigns}
+								isArchiveLoading={isArchiveLoading}
+							/>
+						))}
 				</div>
 			</div>
 

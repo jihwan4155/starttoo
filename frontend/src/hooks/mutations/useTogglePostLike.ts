@@ -21,7 +21,7 @@ export default function useTogglePostLike() {
 			useCommunityStore.getState().setLiked(data.postId, data.liked);
 			patchPostInCache(queryClient, data.postId, {
 				liked: data.liked,
-				likeCount: data.likeCount,
+				...(data.likeCount != null ? { likeCount: data.likeCount } : {}),
 			});
 		},
 	});

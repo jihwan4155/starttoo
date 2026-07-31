@@ -18,7 +18,9 @@ services:
 
   redis:
     image: redis/redis-stack-server:latest
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    # protected-mode가 켜져있으면 비밀번호 없이는 컨테이너 밖(호스트에서 도는 bootRun 포함)에서
+    # 오는 연결을 다 거부한다. 로컬 개발용으로만 노출하므로 운영 compose와 동일하게 비활성화한다.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--protected-mode", "no"]
     ports:
       - "6379:6379"
     volumes:

@@ -4,14 +4,14 @@ import { updateProfileImage } from "../../services/userApi";
 import { uploadImage } from "../../services/uploadApi";
 import { meQueryKey } from "../queries/useMe";
 
-/** presigned 업로드 → PUT /users/me/profile-image */
+/** presigned 업로드 → PATCH /users/me/profile-image */
 export default function useUpdateProfileImage() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: async (file: File) => {
-			const objectKey = await uploadImage(file, PROFILE_UPLOAD_PURPOSE);
-			return updateProfileImage({ profileImageObjectKey: objectKey });
+			const imageSeq = await uploadImage(file, PROFILE_UPLOAD_PURPOSE);
+			return updateProfileImage({ imageSeq });
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: meQueryKey });

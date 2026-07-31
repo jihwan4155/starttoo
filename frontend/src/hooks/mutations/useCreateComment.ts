@@ -35,7 +35,7 @@ export default function useCreateComment() {
 		}: CreateCommentVariables): Promise<CreateCommentResult> => {
 			const response = await createComment(postId, {
 				content,
-				parentCommentId,
+				parentCommentSeq: parentCommentId ?? null,
 			});
 			return {
 				postId,

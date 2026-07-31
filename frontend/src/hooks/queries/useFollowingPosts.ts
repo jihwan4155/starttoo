@@ -11,16 +11,15 @@ type FollowingPostsParams = Omit<FetchPostsParams, "cursor">;
 /** GET /posts/following — 팔로잉 피드 */
 export default function useFollowingPosts(params?: FollowingPostsParams) {
 	const accessToken = useAuthStore((s) => s.accessToken);
-	const { size = 20, sort = "LATEST" } = params ?? {};
+	const { size = 20 } = params ?? {};
 
 	return useInfiniteQuery({
-		queryKey: [...followingPostsQueryKey, { size, sort }],
+		queryKey: [...followingPostsQueryKey, { size }],
 		enabled: Boolean(accessToken),
 		initialPageParam: undefined as string | undefined,
 		queryFn: async ({ pageParam }) => {
 			const page = await fetchFollowingPosts({
 				size,
-				sort,
 				cursor: pageParam,
 			});
 			return {

@@ -1,11 +1,18 @@
 import axios, {
 	type AxiosError,
 	type AxiosInstance,
+	type AxiosResponse,
 	type InternalAxiosRequestConfig,
 } from "axios";
 
 export const API_BASE_URL: string =
-	import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/v1";
+	import.meta.env.VITE_API_BASE_URL ??
+	(import.meta.env.DEV ? "/v1" : "http://localhost:8080/v1");
+
+/** 백엔드 성공 응답 래퍼 */
+export type ApiResponseBody<T> = {
+	data: T;
+};
 
 /** 백엔드 공통 에러 응답: { status, code, message } */
 export class ApiError extends Error {
@@ -25,6 +32,19 @@ type AuthRetryConfig = InternalAxiosRequestConfig & {
 	_retryWithoutAuth?: boolean;
 };
 
+function unwrapResponseData<T>(response: AxiosResponse<T | ApiResponseBody<T>>): T {
+	const body = response.data;
+	if (
+		body != null &&
+		typeof body === "object" &&
+		"data" in body &&
+		Object.keys(body).length === 1
+	) {
+		return (body as ApiResponseBody<T>).data;
+	}
+	return body as T;
+}
+
 /** 공통 axios 인스턴스 — baseURL·JSON 헤더를 기본 설정 */
 export const api: AxiosInstance = axios.create({
 	baseURL: API_BASE_URL,
@@ -43,27 +63,33 @@ export function setUnauthorizedHandler(handler: () => void): void {
 	onUnauthorized = handler;
 }
 
+// 로그인·회원가입 요청에는 기존 토큰을 붙이지 않는다.
+const AUTH_SKIP_PATHS = [
+	"/test/auth/login",
+	"/auth/social/login",
+	"/auth/signup",
+	"/auth/token/refresh",
+];
+
 // 모든 요청에 Authorization 헤더 자동 첨부
 api.interceptors.request.use((config) => {
-	if (accessToken) {
+	const path = config.url ?? "";
+	const skipAuth = AUTH_SKIP_PATHS.some((segment) => path.includes(segment));
+	if (accessToken && !skipAuth) {
 		config.headers.Authorization = `Bearer ${accessToken}`;
 	}
 	return config;
 });
 
-// 응답 에러를 기존 ApiError 형태로 통일 (호출부의 catch 로직 유지)
+// 성공 응답 { data: T } unwrap + 에러 통일
 api.interceptors.response.use(
-	(response) => {
-		// 백엔드 공통 성공 응답은 { data: ... } 로 감싸여 온다.
-		// 여기서 한 번 벗겨야 각 서비스의 반환 타입(payload)과 실제 값이 일치한다.
-		// 오류 응답(ErrorResponse)은 평면 구조라 이 분기에 걸리지 않는다.
-		const body: unknown = response.data;
-		if (body !== null && typeof body === "object" && "data" in body) {
-			response.data = (body as { data: unknown }).data;
-		}
-		return response;
-	},
-	async (error: AxiosError<{ status: number; code: string; message: string }>) => {
+	(response) => ({
+		...response,
+		data: unwrapResponseData(response),
+	}),
+	// 에러 본문은 { status, code, message } 봉투일 때도, 평문 문자열일 때도 있어
+	// unknown으로 받고 아래에서 형태를 확인한다. (좁게 선언하면 문자열 분기가 never가 된다)
+	async (error: AxiosError<unknown>) => {
 		const config = error.config as AuthRetryConfig | undefined;
 
 		// 공개 GET만 토큰 없이 재시도 (POST/PUT/PATCH/DELETE는 재시도해도 401)
@@ -84,9 +110,18 @@ api.interceptors.response.use(
 
 		if (error.response) {
 			const body = error.response.data;
-			const code = body?.code ?? "UNKNOWN";
+			const code =
+				typeof body === "object" && body != null && "code" in body
+					? String(body.code)
+					: "UNKNOWN";
 			const message =
-				body?.message ?? `요청에 실패했습니다. (${error.response.status})`;
+				(typeof body === "object" && body != null && "message" in body
+					? String(body.message)
+					: undefined) ??
+				(typeof body === "string" && body.trim().length > 0
+					? body.trim()
+					: undefined) ??
+				`요청에 실패했습니다. (${error.response.status})`;
 			return Promise.reject(
 				new ApiError(error.response.status, code, message),
 			);

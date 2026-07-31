@@ -47,7 +47,10 @@ class MediaServiceTest {
         imageRegistrationService = mock(MediaImageRegistrationService.class);
         mediaService = new MediaService(
                 minioClient,
+                // presign 전용 클라이언트 — 이 테스트는 내부 클라이언트 동작만 검증하므로 같은 목을 쓴다
+                minioClient,
                 new MinioProperties(
+                        "http://localhost:9000",
                         "http://localhost:9000",
                         "starttoo",
                         "secret",

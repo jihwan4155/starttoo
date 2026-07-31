@@ -31,10 +31,13 @@ export async function upsertArtistProfile(
 	await api.patch("/artists/me/profile", body);
 }
 
-/** PATCH /artists/me — 로그인 타투이스트 숍 프로필 부분 수정 */
+/** PATCH /artists/me/profile — 숍 프로필 수정 후 갱신된 프로필을 돌려받는다 */
 export async function updateArtistMe(
 	body: UpdateArtistRequest,
 ): Promise<ArtistProfileResponse> {
-	const { data } = await api.patch<ArtistProfileResponse>("/artists/me", body);
+	const { data } = await api.patch<ArtistProfileResponse>(
+		"/artists/me/profile",
+		body,
+	);
 	return data;
 }

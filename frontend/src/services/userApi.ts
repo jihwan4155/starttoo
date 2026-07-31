@@ -1,90 +1,108 @@
 import { api } from "./api";
 import type {
+	BeMyProfile,
+	BeProfileImageRequest,
+	BePublicProfile,
+	BeRecentSearchUpdateRequest,
+	BeRelationState,
+	BeUpdateProfileRequest,
+} from "../types/beUser";
+import type {
 	FollowResponse,
 	MeResponse,
-	ProfileImageRequest,
-	ProfileImageResponse,
 	PublicProfileResponse,
-	RecentSearchItem,
-	RecentSearchListResponse,
-	RecentSearchRequest,
 	UpdateMeRequest,
-	UpdateMeResponse,
 } from "../types/user";
+import { mapMyProfile, mapPublicProfile } from "../utils/mapUser";
 
 /** GET /users/me */
 export async function fetchMe(): Promise<MeResponse> {
-	const { data } = await api.get<MeResponse>("/users/me");
-	return data;
+	const { data } = await api.get<BeMyProfile>("/users/me");
+	return mapMyProfile(data);
 }
 
 /** PATCH /users/me */
-export async function updateMe(body: UpdateMeRequest): Promise<UpdateMeResponse> {
-	const { data } = await api.patch<UpdateMeResponse>("/users/me", body);
-	return data;
+export async function updateMe(body: UpdateMeRequest): Promise<MeResponse> {
+	const payload: BeUpdateProfileRequest = {};
+
+	if (body.nickname != null) payload.nickname = body.nickname;
+	if (body.removeBirthDate) {
+		payload.birthDate = null;
+	} else if (body.birthDate != null) {
+		payload.birthDate = body.birthDate;
+	}
+	if (body.removeGender) {
+		payload.gender = null;
+	} else if (body.gender != null) {
+		payload.gender = body.gender;
+	}
+
+	const { data } = await api.patch<BeMyProfile>("/users/me", payload);
+	return mapMyProfile(data);
 }
 
-/** PUT /users/me/profile-image */
+/** PATCH /users/me/profile-image */
 export async function updateProfileImage(
-	body: ProfileImageRequest,
-): Promise<ProfileImageResponse> {
-	const { data } = await api.put<ProfileImageResponse>(
+	body: BeProfileImageRequest,
+): Promise<MeResponse> {
+	const { data } = await api.patch<BeMyProfile>(
 		"/users/me/profile-image",
 		body,
 	);
-	return data;
+	return mapMyProfile(data);
 }
 
-/** DELETE /users/me/profile-image */
-export async function removeProfileImage(): Promise<void> {
-	await api.delete("/users/me/profile-image");
-}
-
-/** GET /users/{userId} */
+/** GET /users/{userSeq} */
 export async function fetchUserProfile(
 	userId: number,
+	viewerUserId?: number | null,
 ): Promise<PublicProfileResponse> {
-	const { data } = await api.get<PublicProfileResponse>(`/users/${userId}`);
-	return data;
+	const { data } = await api.get<BePublicProfile>(`/users/${userId}`);
+	return mapPublicProfile(data, viewerUserId);
 }
 
-/** POST /users/{userId}/follow */
+/** PUT /users/{userSeq}/follow */
 export async function followUser(userId: number): Promise<FollowResponse> {
-	const { data } = await api.post<FollowResponse>(`/users/${userId}/follow`);
-	return data;
+	const { data } = await api.put<BeRelationState>(`/users/${userId}/follow`);
+	return {
+		userId,
+		following: data.enabled,
+		followerCount: 0,
+	};
 }
 
-/** DELETE /users/{userId}/follow */
+/** DELETE /users/{userSeq}/follow */
 export async function unfollowUser(userId: number): Promise<FollowResponse> {
-	const { data } = await api.delete<FollowResponse>(`/users/${userId}/follow`);
-	return data;
+	const { data } = await api.delete<BeRelationState>(`/users/${userId}/follow`);
+	return {
+		userId,
+		following: data.enabled,
+		followerCount: 0,
+	};
 }
 
 /** GET /users/me/recent-searches */
-export async function fetchRecentSearches(): Promise<RecentSearchListResponse> {
-	const { data } = await api.get<RecentSearchListResponse>(
-		"/users/me/recent-searches",
-	);
+export async function fetchRecentSearches(): Promise<string[]> {
+	const { data } = await api.get<string[]>("/users/me/recent-searches");
 	return data;
 }
 
-/** POST /users/me/recent-searches */
-export async function saveRecentSearch(
-	body: RecentSearchRequest,
-): Promise<RecentSearchItem> {
-	const { data } = await api.post<RecentSearchItem>(
-		"/users/me/recent-searches",
-		body,
-	);
+/** PATCH /users/me/recent-searches — ADD */
+export async function saveRecentSearch(keyword: string): Promise<string[]> {
+	const body: BeRecentSearchUpdateRequest = {
+		operation: "ADD",
+		term: keyword,
+	};
+	const { data } = await api.patch<string[]>("/users/me/recent-searches", body);
 	return data;
 }
 
-/** DELETE /users/me/recent-searches/{recentSearchId} */
-export async function deleteRecentSearch(recentSearchId: number): Promise<void> {
-	await api.delete(`/users/me/recent-searches/${recentSearchId}`);
-}
-
-/** DELETE /users/me/recent-searches */
-export async function deleteAllRecentSearches(): Promise<void> {
-	await api.delete("/users/me/recent-searches");
+/** PATCH /users/me/recent-searches — REMOVE */
+export async function deleteRecentSearch(keyword: string): Promise<string[]> {
+	const body: BeRecentSearchUpdateRequest = {
+		operation: "REMOVE",
+		term: keyword,
+	};
+	const { data } = await api.patch<string[]>("/users/me/recent-searches", body);
+	return data;
 }

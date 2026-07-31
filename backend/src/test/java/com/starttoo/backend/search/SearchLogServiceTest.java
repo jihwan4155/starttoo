@@ -64,6 +64,7 @@ class SearchLogServiceTest {
                 minioClient,
                 new MinioProperties(
                         "http://localhost:9000",
+                        "http://localhost:9000",
                         "starttoo",
                         "secret",
                         "starttoo",

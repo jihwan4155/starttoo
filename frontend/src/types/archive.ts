@@ -1,6 +1,22 @@
-/** 백엔드 Archive 도메인 타입 (Swagger: Starttoo API - Archive) */
+/** 백엔드 Archive / TattooDesignItem (GET /archive) */
 
-/** 보관함 항목 (GET /archive) */
+export type ArchiveSubjectItem = {
+	subjectSeq: number;
+	subjectName: string;
+};
+
+/** Swagger TattooDesignItem — UI에서는 ArchiveItem으로 매핑 */
+export type TattooDesignItemDto = {
+	tattooSeq: number;
+	designImageSeq: number;
+	designImageUrl: string;
+	primaryStyleSeq: number | null;
+	colorSeq: number | null;
+	subjects: ArchiveSubjectItem[];
+	archivedDttm: string;
+};
+
+/** 보관함 항목 (화면·드래그용) */
 export type ArchiveItem = {
 	tattooId: number;
 	originalImageUrl: string;
@@ -18,10 +34,14 @@ export type ArchivePage = {
 	hasNext: boolean;
 };
 
-/** POST·DELETE /archive/{tattooId} — 저장/삭제 토글 응답 */
+/** PUT/DELETE /archive/{tattooSeq} 응답 */
+export type ArchiveStateResponse = {
+	enabled: boolean;
+};
+
+/** POST·DELETE /archive/{tattooId} — UI 토글 훅용 */
 export type ArchiveToggleResponse = {
 	tattooId: number;
-	/** 현재 저장 상태 (저장 true / 삭제 false) */
 	saved: boolean;
 	savedAt: string | null;
 };

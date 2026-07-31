@@ -9,17 +9,15 @@ type PostsInfiniteParams = Omit<FetchPostsParams, "cursor">;
 
 /** GET /posts — 커서 기반 무한 스크롤 */
 export default function usePosts(params?: PostsInfiniteParams) {
-	const { size = 20, sort = "LATEST", postType, authorId } = params ?? {};
+	const { size = 20, authorSeq } = params ?? {};
 
 	return useInfiniteQuery({
-		queryKey: [...postsQueryKey, { size, sort, postType, authorId }],
+		queryKey: [...postsQueryKey, { size, authorSeq }],
 		initialPageParam: undefined as string | undefined,
 		queryFn: async ({ pageParam }) => {
 			const page = await fetchPosts({
 				size,
-				sort,
-				postType,
-				authorId,
+				authorSeq,
 				cursor: pageParam,
 			});
 			return {

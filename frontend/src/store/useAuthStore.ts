@@ -70,6 +70,7 @@ const useAuthStore = create<AuthState>()(
 			},
 
 			devLogin: async (userId) => {
+				setAccessToken(null);
 				const res = await testLoginRequest({ userId });
 				get().setSession({
 					accessToken: res.accessToken,
