@@ -36,11 +36,18 @@ public class AuthController {
     @Operation(
             summary = "소셜 로그인 또는 가입 토큰 발급",
             description = """
-                    Google 또는 Kakao 액세스 토큰을 제공자 API로 검증하여 불변 subject를 얻는다.
+                    accessToken 또는 authorizationCode 중 하나로 Google·Kakao 계정을 검증한다.
+                    네이티브 앱 SDK는 액세스 토큰을 직접 발급받으므로 accessToken을 보낸다.
+                    웹은 카카오 JavaScript SDK가 브라우저에 액세스 토큰을 주지 않으므로
+                    authorizationCode와 redirectUri를 보내고, 서버가 제공자 토큰 엔드포인트에서
+                    액세스 토큰으로 교환한다. 교환에 필요한 클라이언트 키는 서버에만 둔다.
+                    확보한 액세스 토큰을 제공자 API로 검증해 불변 subject를 얻는다.
                     이미 연결된 OAuth 계정이면 마지막 로그인 시각을 갱신하고 ACTIVE 계정에 대한
                     액세스·리프레시 토큰을 발급한다. 연결 계정이 없으면 users 행을 만들지 않고,
                     제공자와 subject가 서명된 단기 가입 토큰만 반환한다.
-                    토큰 거부와 subject 누락은 401, 제공자 장애는 502, 시간 초과는 504로 구분한다.
+                    두 자격 증명을 함께 보내거나 모두 비우면 400, 만료·재사용된 코드와
+                    redirect_uri 불일치, 토큰 거부와 subject 누락은 401,
+                    제공자 키 미설정은 503, 제공자 장애는 502, 시간 초과는 504로 구분한다.
                     """
     )
     public ApiResponse<SocialLoginResponse> socialLogin(
