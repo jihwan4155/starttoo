@@ -85,6 +85,86 @@ tests/          정확성·계약·성능 검증 (이미지에는 포함되지 �
 | `COVERUP_MAX_IMAGE_BODY` | `10485760` | 도안 이미지 base64 상한(B) |
 | `COVERUP_MAX_CONCURRENT` | 코어수-1 | 동시 검색 상한 |
 
+## 최초 대량 적재 (운영 CLI)
+
+스토어가 비어 있으면 `/search` 는 503 이다. **기존 도안 전체를 한 번 색인해야 검색이
+동작한다.** 이후로는 백엔드의 증분 색인이 도안을 하나씩 추가하므로 다시 할 일이 없다.
+
+### 1. 매니페스트를 만든다 (백엔드가 SQL 로)
+
+엔진은 DB 를 직접 보지 않는다. TSV 한 장이 계약이다.
+
+```sql
+SELECT td.tattoo_seq, i.object_key
+FROM   tattoo_designs td
+JOIN   images  i ON i.image_seq  = td.image_seq
+JOIN   tattoos t ON t.tattoo_seq = td.tattoo_seq
+WHERE  td.is_deleted = false AND i.is_deleted = false AND t.is_deleted = false;
+```
+
+`tattoo_seq<TAB>object_key` 형식으로 저장해 컨테이너가 읽을 수 있는 곳에 둔다
+(예: 볼륨 안 `/data/coverup_store/designs.tsv`).
+
+### 2. 색인한다
+
+```bash
+docker compose exec ai python -m coverup.cli index --source minio --manifest /data/coverup_store/designs.tsv --workers 8
+```
+
+```bash
+docker compose exec ai python -m coverup.cli stat
+```
+
+| 옵션 | 기본 | 뜻 |
+|---|---|---|
+| `--source` | `minio` | `minio` 또는 `folder`(개발용) |
+| `--manifest` | — | TSV 경로 (minio 소스) |
+| `--path` | — | 이미지 폴더 (folder 소스) |
+| `--workers` | 8 | 다운로드·특징계산 병렬도. **붙이기는 항상 단일 스레드다** |
+| `--batch` | 512 | 한 번에 붙일 레코드 수 |
+| `--limit` | — | 앞에서 N건만 (시험용) |
+| `--reindex` | off | 이미 색인된 key 도 다시 처리 (이미지 교체) |
+| `--failed` | `<store>/failed.txt` | 실패한 key 목록 |
+
+**중단해도 된다.** 같은 명령을 다시 실행하면 이미 색인된 key 를 건너뛰고 이어서 한다
+(`store.row_of()` 가 O(1) 이라 재개 비용이 사실상 0이다). `Ctrl-C` 를 누르면 진행분을
+저장하고 끝낸다.
+
+실패한 도안은 `failed.txt` 에 남는다 — 깨진 파일, 알파가 전부 0인 빈 PNG 같은 것들이다.
+백엔드가 `indexed=false` 로 두고 주기 스캔에서 재시도하지만, 계속 실패하면 이미지 자체
+문제이므로 사람이 봐야 한다.
+
+### 예상 시간
+
+장당 약 20ms (다운로드 + 특징 계산) 기준.
+
+| 도안 수 | 단일 | 8 워커 | 디스크 |
+|---|---|---|---|
+| 2,520 | 50초 | 10초 | 45 MB |
+| 100,000 | 33분 | 5분 | 1.8 GB |
+| 1,000,000 | 5.5시간 | 40분 | 18 GB |
+
+### ⚠️ 순서 — 적재를 켜기 전에 끝낸다
+
+**서버가 뜬 상태로 CLI 를 돌려도 된다.** `append()` 가 데이터 파일을 먼저 쓰고
+`meta.json` 을 나중에 갱신하므로, 서버가 새 `meta.json` 을 본 시점에는 데이터가 이미
+디스크에 있다. 서버는 요청마다 `meta.json` 을 stat 해 바뀌었을 때만 다시 매핑한다
+(`store.refresh()`) — **재시작 없이 새 도안이 검색에 잡힌다.**
+
+**단 쓰는 쪽이 하나여야 한다.** `COVERUP_ENABLED=true` 로 켜면 백엔드의 색인 동기화
+스캔도 쓰기 때문에, 최초 적재는 **켜기 전에** 끝내야 한다.
+
+```
+① COVERUP_ENABLED=false 인 상태에서 ai 컨테이너 기동
+② CLI 로 최초 적재
+③ stat 으로 확인
+④ COVERUP_INTERNAL_TOKEN 설정
+⑤ COVERUP_ENABLED=true 로 백엔드 재기동
+```
+
+> **Git Bash 사용 시**: `/data/...` 같은 인수가 윈도우 경로로 바뀌어 엉뚱한 곳을
+>가리킨다(MSYS 경로 변환). `MSYS_NO_PATHCONV=1` 을 앞에 붙이거나 PowerShell 을 쓴다.
+
 ## 로컬 실행
 
 ```bash
@@ -95,7 +175,9 @@ pip install -r requirements.txt
 COVERUP_STORE=./coverup_store uvicorn coverup.app:app --port 8000
 ```
 
-스토어가 비어 있으면 `/search` 가 503 이다. 색인을 먼저 해야 한다.
+```bash
+python -m coverup.cli --store ./coverup_store index --source folder --path ./images
+```
 
 ## 검증
 
@@ -146,7 +228,7 @@ python -m tests.bench_recall   # N 을 늘려가며 recall 곡선
 
 ## 남은 작업
 
-- [ ] 최초 대량 적재 CLI (`coverup/cli.py`) — MinIO 에서 받아 색인. 중단 후 재개 가능해야 한다
-- [ ] compaction — tombstone 이 쌓이면 정리
+- [x] 최초 대량 적재 CLI (`coverup/cli.py`)
+- [ ] compaction — tombstone 이 쌓이면 정리 (`stat` 이 20% 넘으면 알려준다)
 - [ ] 구조화 로그·메트릭 — `timing_ms` 를 지금은 흘려보내고 있다
 - [ ] pgvector 1단계 — 도안 3만 장 넘을 때. 스키마는 `tattoo_embeddings` 에 준비돼 있다

@@ -144,9 +144,23 @@ def _b64(s: str, what: str, limit: int) -> bytes:
         raise BadRequest(f"base64 디코딩 실패: {e}") from e
 
 
+def _store() -> FeatureStore | None:
+    """
+    현재 스토어. 읽기 전에 항상 refresh 를 거친다.
+
+    ★ 빈 스토어 검사보다 refresh 가 먼저여야 한다. 운영 순서가 '서버를 띄우고 CLI 로
+    최초 적재' 이므로, 부팅 시점의 count=0 을 그대로 믿고 503 을 내면 색인을 끝내도
+    영원히 503 이 나온다(재시작해야 풀린다).
+    """
+    store: FeatureStore | None = _state["store"]
+    if store is not None:
+        store.refresh()
+    return store
+
+
 @app.get("/health")
 def health():
-    store: FeatureStore | None = _state["store"]
+    store = _store()
     s = store.stats() if store else {"rows": 0, "alive": 0}
     return {"status": "ok", "ready": _state["ready"],
             "rows": s["rows"], "alive": s["alive"],
@@ -159,8 +173,8 @@ def search(req: SearchReq):
     if not _state["ready"]:
         return JSONResponse(status_code=503, content={"detail": "워밍업 중"})
     searcher: Searcher = _state["searcher"]
-    store: FeatureStore = _state["store"]
-    if store.count == 0:
+    store = _store()
+    if store is None or store.count == 0:
         return JSONResponse(status_code=503,
                             content={"detail": f"스토어가 비어 있다({STORE_DIR}). 색인 먼저"})
 
@@ -188,7 +202,7 @@ def add_design(req: DesignReq):
     디스크에 먼저 쓰고 메모리(mmap)를 갱신하는 순서다 — 반대로 하면 재시작 때
     조용히 사라진다.
     """
-    store: FeatureStore = _state["store"]
+    store = _store()
     rec = design_record(req.key, _b64(req.image_b64, "image_b64", MAX_IMAGE_BODY))
     if rec is None:
         raise BadRequest("이미지 디코딩 실패 또는 빈 마스크")
@@ -198,7 +212,7 @@ def add_design(req: DesignReq):
 
 @app.post("/designs/batch", status_code=201)
 def add_designs(items: list[DesignReq] = Body(...)):
-    store: FeatureStore = _state["store"]
+    store = _store()
     src = ((it.key, _b64(it.image_b64, "image_b64", MAX_IMAGE_BODY)) for it in items)
     return index_all(store, src)
 
@@ -209,7 +223,7 @@ def delete_design(key: int):
     tombstone 만 세운다(행은 남는다). 파일 중간을 빼면 뒤가 다 밀리기 때문이다.
     빈 자리는 나중에 compaction 으로 일괄 정리한다.
     """
-    store: FeatureStore = _state["store"]
+    store = _store()
     n = store.delete([key])
     if n == 0:
         return JSONResponse(status_code=404, content={"detail": f"없는 key: {key}"})
@@ -218,7 +232,9 @@ def delete_design(key: int):
 
 @app.get("/stats")
 def stats():
-    store: FeatureStore = _state["store"]
+    store = _store()
+    if store is None:
+        return JSONResponse(status_code=503, content={"detail": "스토어 미초기화"})
     s = store.stats()
     searcher: Searcher = _state["searcher"]
     alive = s["alive"]

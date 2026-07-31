@@ -99,6 +99,10 @@ class FeatureStore:
         self._meta_sig: tuple | None = None
         if (self.dir / "meta.json").exists():
             self._load()
+        else:
+            # 스토어가 아직 없어도 배열 접근이 KeyError 로 죽지 않게 빈 매핑을 만든다.
+            # 서버가 빈 스토어로 부팅한 뒤 CLI 가 색인하면 refresh() 가 집어 올린다.
+            self._remap()
 
     # -- 생성 -------------------------------------------------------------
     @classmethod
@@ -157,6 +161,11 @@ class FeatureStore:
         self._mm.clear()
         for name, dtype, per in _ALL:
             path = self.dir / name
+            if self.count == 0:
+                # 스토어가 아직 없을 수도 있다(서버가 빈 볼륨으로 부팅하고 CLI 가
+                # 나중에 만드는 순서). 파일을 stat 하지 않고 빈 배열만 놓는다.
+                self._mm[name] = np.empty((0, per), dtype)
+                continue
             expect = self.count * per * np.dtype(dtype).itemsize
             actual = path.stat().st_size
             if actual != expect:
@@ -165,11 +174,8 @@ class FeatureStore:
                 raise ValueError(
                     f"{name}: {actual}B 인데 count={self.count} 면 {expect}B 여야 한다. "
                     "스토어가 깨졌다 — 재빌드 필요")
-            if self.count == 0:
-                self._mm[name] = np.empty((0, per), dtype)
-            else:
-                self._mm[name] = np.memmap(path, dtype=dtype, mode="r",
-                                           shape=(self.count, per))
+            self._mm[name] = np.memmap(path, dtype=dtype, mode="r",
+                                       shape=(self.count, per))
 
     # -- 배열 접근 (읽기 전용 뷰) -------------------------------------------
     @property
