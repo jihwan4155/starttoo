@@ -1,0 +1,154 @@
+import { useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import OnboardingDialog from "../components/onboarding/OnboardingDialog";
+import ProfileFormStep from "../components/onboarding/ProfileFormStep";
+import type { ProfileFormValues } from "../components/onboarding/ProfileFormStep";
+import RoleAskStep from "../components/onboarding/RoleAskStep";
+import TastePickStep from "../components/onboarding/TastePickStep";
+import { ApiError } from "../services/api";
+import { upsertArtistProfile } from "../services/artistApi";
+import { submitPreferenceSurvey } from "../services/preferenceApi";
+import { updateMe } from "../services/userApi";
+import useAuthStore from "../store/useAuthStore";
+import useSignupStore from "../store/useSignupStore";
+import type { RequestedRole } from "../types/auth";
+import type { TattooDesignItem } from "../types/tattoo";
+
+type Step = "role" | "profile" | "taste";
+
+const TITLES: Record<Step, string> = {
+	role: "타투이스트 이신가요?",
+	profile: "",
+	taste: "좋아하는 이미지 고르기",
+};
+
+/**
+ * 가입 직후 온보딩.
+ *
+ * 가입 자체는 전화번호 인증 시점에 이미 끝나 있다. 여기서 받는 값은 전부 보강이라
+ * 어느 단계에서 X로 닫아도 계정은 살아 있고, 그 경우 일반 사용자 · 임시 닉네임 ·
+ * 생년월일 없음 상태로 남는다.
+ */
+export default function OnboardingPage() {
+	const navigate = useNavigate();
+	const accessToken = useAuthStore((s) => s.accessToken);
+	// 가입 때 서버 추천으로 배정한 닉네임 — 프로필 입력의 초기값이 된다.
+	const assignedNickname = useSignupStore((s) => s.nickname);
+	const clearSignup = useSignupStore((s) => s.clearSignup);
+
+	const [step, setStep] = useState<Step>("role");
+	const [role, setRole] = useState<RequestedRole>("USER");
+	const [submitting, setSubmitting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	// 세션 없이 들어오면 온보딩할 대상이 없다.
+	if (!accessToken) {
+		return <Navigate to="/login" replace />;
+	}
+
+	const finish = () => {
+		clearSignup();
+		navigate("/", { replace: true });
+	};
+
+	const handleRoleSelect = (isArtist: boolean) => {
+		setRole(isArtist ? "ARTIST" : "USER");
+		setError(null);
+		setStep("profile");
+	};
+
+	const handleProfileSubmit = async (values: ProfileFormValues) => {
+		setError(null);
+		setSubmitting(true);
+		try {
+			// nickname은 서버에서 필수라 바꾸지 않았어도 현재 값을 그대로 다시 보낸다.
+			await updateMe({
+				nickname: values.nickname,
+				...(values.birthDate ? { birthDate: values.birthDate } : {}),
+				...(values.gender ? { gender: values.gender } : {}),
+			});
+			if (role === "ARTIST") {
+				// 빈 본문으로 호출해도 아티스트 프로필이 UNVERIFIED("신청")로 생성된다.
+				await upsertArtistProfile({
+					...(values.shopName ? { shopName: values.shopName } : {}),
+					...(values.shopAddress ? { shopAddress: values.shopAddress } : {}),
+				});
+			}
+			setStep("taste");
+		} catch (cause) {
+			setError(
+				cause instanceof ApiError
+					? cause.message
+					: "프로필을 저장하지 못했습니다.",
+			);
+		} finally {
+			setSubmitting(false);
+		}
+	};
+
+	const handleTasteSubmit = async (picked: TattooDesignItem[]) => {
+		const primaryStyleSeqs = [
+			...new Set(
+				picked
+					.map((item) => item.primaryStyleSeq)
+					.filter((seq): seq is number => seq != null),
+			),
+		];
+		// 분류가 붙지 않은 도안만 골랐다면 보낼 점수가 없다.
+		if (primaryStyleSeqs.length === 0) {
+			finish();
+			return;
+		}
+		const colorSeqs = [
+			...new Set(
+				picked
+					.map((item) => item.colorSeq)
+					.filter((seq): seq is number => seq != null),
+			),
+		];
+
+		setError(null);
+		setSubmitting(true);
+		try {
+			await submitPreferenceSurvey({ primaryStyleSeqs, colorSeqs });
+			finish();
+		} catch (cause) {
+			setError(
+				cause instanceof ApiError
+					? cause.message
+					: "취향을 저장하지 못했습니다.",
+			);
+		} finally {
+			setSubmitting(false);
+		}
+	};
+
+	const title =
+		step === "profile"
+			? role === "ARTIST"
+				? "타투이스트"
+				: "일반 사용자"
+			: TITLES[step];
+
+	return (
+		<OnboardingDialog title={title} onClose={finish}>
+			{step === "role" && <RoleAskStep onSelect={handleRoleSelect} />}
+			{step === "profile" && (
+				<ProfileFormStep
+					role={role}
+					assignedNickname={assignedNickname ?? ""}
+					submitting={submitting}
+					submitError={error}
+					onSubmit={handleProfileSubmit}
+				/>
+			)}
+			{step === "taste" && (
+				<TastePickStep
+					submitting={submitting}
+					submitError={error}
+					onSubmit={handleTasteSubmit}
+				/>
+			)}
+		</OnboardingDialog>
+	);
+}

@@ -21,6 +21,7 @@ import TattooistPage from "./pages/TattooistPage";
 import LoginPage from "./pages/LoginPage";
 import KakaoCallbackPage from "./pages/KakaoCallbackPage";
 import SignupPage from "./pages/SignupPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import { KAKAO_CALLBACK_PATH } from "./constants/auth";
 
 export default function App() {
@@ -50,6 +51,8 @@ export default function App() {
 					<Route path={KAKAO_CALLBACK_PATH} element={<KakaoCallbackPage />} />
 					{/* API: POST /auth/signup */}
 					<Route path="/signup" element={<SignupPage />} />
+					{/* API: PATCH /users/me · PATCH /artists/me/profile · POST /preferences/survey */}
+					<Route path="/onboarding" element={<OnboardingPage />} />
 					{/* API: POST /ai/generations */}
 					<Route path="/ai" element={<AiPage />} />
 					{/* API: POST /simulations/ar-sessions */}

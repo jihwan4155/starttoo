@@ -1,35 +1,99 @@
-import { Link, Navigate } from "react-router-dom";
+import { useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import SignupPhoneStep from "../components/signup/SignupPhoneStep";
+import { ApiError } from "../services/api";
+import { signup, suggestNicknames } from "../services/authApi";
+import useAuthStore from "../store/useAuthStore";
 import useSignupStore from "../store/useSignupStore";
 
 /**
- * 회원가입 플로우 진입점.
+ * 가입 시점에 쓸 임시 닉네임.
  *
- * 현재는 가입 토큰을 받아왔는지만 확인한다.
- * 전화번호 확인 → 닉네임 → 역할 선택 화면은 다음 단계에서 붙인다.
+ * 번호 확인만 끝나면 곧바로 가입을 마치므로 이 시점에 이름이 하나 필요하다.
+ * 서버 추천을 먼저 쓰고, 추천이 비었거나 실패해도 가입을 막지 않도록 후보를 직접 만든다.
+ * 사용자는 다음 화면(온보딩)에서 바꿀 수 있다.
+ */
+async function assignNickname(): Promise<string> {
+	try {
+		const { items } = await suggestNicknames(1);
+		if (items[0]) return items[0];
+	} catch {
+		// 추천 실패가 가입을 막을 이유는 없다.
+	}
+	return `타투인${Math.floor(Math.random() * 1_000_000)}`;
+}
+
+/**
+ * 회원가입 플로우 — 전화번호 확인 한 단계뿐이다.
+ *
+ * 번호 인증을 통과하면 임시 닉네임으로 가입을 끝내고 세션을 세운다.
+ * 닉네임·생년월일·성별·역할은 이어지는 온보딩에서 보강하며, 거기서 이탈해도
+ * 일반 사용자로 계정이 남는다.
  */
 export default function SignupPage() {
+	const navigate = useNavigate();
 	const signupToken = useSignupStore((s) => s.signupToken);
+	const setNickname = useSignupStore((s) => s.setNickname);
+	const accessToken = useAuthStore((s) => s.accessToken);
+	const setSession = useAuthStore((s) => s.setSession);
 
-	// 토큰 없이 직접 들어온 경우 — 소셜 로그인부터 다시.
+	const [submitting, setSubmitting] = useState(false);
+	const [submitError, setSubmitError] = useState<string | null>(null);
+
+	// 세션이 있으면 가입은 이미 끝났다. 가입 성공 직후의 리렌더도 여기로 걸리므로
+	// 라우터 이동이 늦게 반영돼도 /login으로 튕기지 않고 온보딩으로 간다.
+	if (accessToken) {
+		return <Navigate to="/onboarding" replace />;
+	}
+	// 가입 토큰 없이 직접 들어온 경우 — 소셜 로그인부터 다시.
 	if (!signupToken) {
 		return <Navigate to="/login" replace />;
 	}
 
+	const handleConfirmed = async (phoneNumber: string) => {
+		setSubmitError(null);
+		setSubmitting(true);
+		try {
+			const nickname = await assignNickname();
+			// 역할은 온보딩에서 고르게 하고 여기서는 USER로 가입한다.
+			// ARTIST로 가입해도 users.role은 USER이고 artists 행만 UNVERIFIED로 생기므로,
+			// 온보딩에서 PATCH /artists/me/profile 를 호출하면 결과가 같다.
+			const tokens = await signup({
+				signupToken,
+				phoneNumber,
+				nickname,
+				requestedRole: "USER",
+			});
+			setSession({
+				accessToken: tokens.accessToken,
+				refreshToken: tokens.refreshToken,
+			});
+			// 온보딩 닉네임 입력의 초기값으로 쓴다.
+			setNickname(nickname);
+			// 가입 토큰은 여기서 지우지 않는다. zustand 갱신은 동기라 즉시 리렌더되는데
+			// react-router의 이동은 transition이라 뒤늦게 반영된다. 지금 지우면 아직
+			// 이 화면인 채로 위의 가입 토큰 가드가 먼저 돌아 /login으로 튕겨 버린다.
+			// 가입 재료는 온보딩을 빠져나갈 때 clearSignup()으로 한 번에 정리한다.
+			navigate("/onboarding", { replace: true });
+		} catch (cause) {
+			// 번호 확인 이후 다른 사람이 같은 번호로 가입했을 수 있어
+			// 서버가 가입 트랜잭션에서 한 번 더 검증한다.
+			setSubmitError(
+				cause instanceof ApiError
+					? cause.message
+					: "회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.",
+			);
+			setSubmitting(false);
+		}
+	};
+
 	return (
-		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center gap-4 px-6 text-center">
-			<p className="text-[14px] font-light text-black/60">
-				스타트투가 처음이시네요
-			</p>
-			<h1 className="text-[24px] font-extrabold text-black">회원가입</h1>
-			<p className="max-w-[420px] text-[13px] leading-5 text-black/55">
-				가입 토큰을 받았습니다. 전화번호 확인·닉네임·역할 선택 화면은 다음
-				단계에서 이어집니다.
-			</p>
-			<Link
-				to="/login"
-				className="mt-2 text-[14px] font-semibold text-black/50 underline">
-				로그인 화면으로
-			</Link>
+		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center px-6 py-10">
+			<SignupPhoneStep
+				submitting={submitting}
+				submitError={submitError}
+				onConfirmed={handleConfirmed}
+			/>
 		</div>
 	);
 }
