@@ -19,7 +19,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.List;
 
 @Slf4j
@@ -55,14 +59,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         Limit limit = resolveLimit(request);
-        String key = "rate-limit:" + resolveClientKey(request) + ":" + limit.bucket();
         try {
-            Long count = redisTemplate.execute(
-                    SCRIPT,
-                    List.of(key),
-                    Long.toString(limit.window().toMillis())
-            );
-            long used = count == null ? 0 : count;
+            long used = 0;
+            for (String clientKey : resolveClientKeys(request)) {
+                String key = "rate-limit:" + clientKey + ":" + limit.bucket();
+                Long count = redisTemplate.execute(
+                        SCRIPT,
+                        List.of(key),
+                        Long.toString(limit.window().toMillis())
+                );
+                used = Math.max(used, count == null ? 0 : count);
+            }
             response.setHeader("X-RateLimit-Limit", Long.toString(limit.capacity()));
             response.setHeader(
                     "X-RateLimit-Remaining",
@@ -81,6 +88,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private Limit resolveLimit(HttpServletRequest request) {
         String uri = request.getRequestURI();
+        if (HttpMethod.GET.matches(request.getMethod())
+                && "/v1/auth/phones/availability".equals(uri)) {
+            return new Limit(
+                    properties.phoneVerificationRequestCapacity(),
+                    properties.phoneVerificationRequestWindow(),
+                    "phone-availability"
+            );
+        }
         if (HttpMethod.POST.matches(request.getMethod())
                 && "/v1/auth/phone/verifications".equals(uri)) {
             return new Limit(
@@ -115,6 +130,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
         );
     }
 
+    private List<String> resolveClientKeys(HttpServletRequest request) {
+        if (HttpMethod.GET.matches(request.getMethod())
+                && "/v1/auth/phones/availability".equals(request.getRequestURI())) {
+            String phoneNumber = request.getParameter("phoneNumber");
+            return List.of(
+                    "ip:" + resolveIp(request),
+                    "phone:" + sha256(canonicalPhone(phoneNumber))
+            );
+        }
+        return List.of(resolveClientKey(request));
+    }
+
     private String resolveClientKey(HttpServletRequest request) {
         Authentication authentication =
                 org.springframework.security.core.context.SecurityContextHolder
@@ -123,11 +150,35 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (authentication instanceof JwtAuthenticationToken jwt && authentication.isAuthenticated()) {
             return "user:" + jwt.getToken().getSubject();
         }
+        return "ip:" + resolveIp(request);
+    }
+
+    private String resolveIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
-        String ip = forwarded == null || forwarded.isBlank()
+        return forwarded == null || forwarded.isBlank()
                 ? request.getRemoteAddr()
                 : forwarded.split(",")[0].trim();
-        return "ip:" + ip;
+    }
+
+    private String canonicalPhone(String phoneNumber) {
+        String value = phoneNumber == null ? "" : phoneNumber.replaceAll("[\\s-]", "");
+        if (value.startsWith("010")) {
+            return "+82" + value.substring(1);
+        }
+        if (value.startsWith("8210")) {
+            return "+" + value;
+        }
+        return value;
+    }
+
+    private String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
     }
 
     private record Limit(long capacity, Duration window, String bucket) {

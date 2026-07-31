@@ -29,7 +29,7 @@ class FlywayMigrationTest {
                 .load()
                 .migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(4);
+        assertThat(result.migrationsExecuted).isEqualTo(5);
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(),
                 POSTGRES.getUsername(),
@@ -43,6 +43,30 @@ class FlywayMigrationTest {
              var rows = statement.executeQuery()) {
             rows.next();
             assertThat(rows.getInt(1)).isEqualTo(34);
+        }
+        try (var connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(),
+                POSTGRES.getUsername(),
+                POSTGRES.getPassword()
+        ); var statement = connection.prepareStatement("""
+                SELECT indexdef
+                  FROM pg_indexes
+                 WHERE schemaname = 'public'
+                   AND indexname IN (
+                       'uq_users_active_nickname',
+                       'uq_users_active_phone_number'
+                   )
+                 ORDER BY indexname
+                """);
+             var rows = statement.executeQuery()) {
+            int indexCount = 0;
+            while (rows.next()) {
+                indexCount++;
+                assertThat(rows.getString("indexdef"))
+                        .contains("account_status")
+                        .contains("WITHDRAWN");
+            }
+            assertThat(indexCount).isEqualTo(2);
         }
     }
 }

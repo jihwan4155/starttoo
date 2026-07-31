@@ -13,6 +13,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,5 +66,29 @@ class RecentSearchServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.SERVICE_UNAVAILABLE));
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Test
+    void addReturnsLatestTenTermsAndRemoveReturnsExactMutationResult() {
+        User user = mock(User.class);
+        when(user.getRecentSearchTerms()).thenReturn(new String[0]);
+        when(userRepository.findByUserSeqAndDeletedFalse(7)).thenReturn(Optional.of(user));
+        when(redisTemplate.hasKey("recent-search:loaded:7")).thenReturn(false);
+        List<String> tenTerms = List.of(
+                "열", "아홉", "여덟", "일곱", "여섯",
+                "다섯", "넷", "셋", "둘", "하나"
+        );
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of())
+                .thenReturn(tenTerms)
+                .thenReturn(List.of())
+                .thenReturn(List.of("열", "아홉"));
+
+        RecentSearchService service =
+                new RecentSearchService(redisTemplate, userRepository, jdbcTemplate);
+
+        assertThat(service.add(7, "열한번째")).containsExactlyElementsOf(tenTerms);
+        assertThat(service.remove(7, "여덟")).containsExactly("열", "아홉");
     }
 }

@@ -94,6 +94,12 @@ public final class AuthDtos {
     public record NicknameAvailabilityResponse(String nickname, boolean available) {
     }
 
+    public record PhoneAvailabilityResponse(
+            String normalizedPhoneNumber,
+            boolean available
+    ) {
+    }
+
     public record NicknameSuggestionsResponse(
             @Schema(description = "추천 시점에 활성 회원과 중복되지 않은 닉네임")
             List<String> items

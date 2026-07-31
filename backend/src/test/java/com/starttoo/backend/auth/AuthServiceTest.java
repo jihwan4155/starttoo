@@ -6,6 +6,7 @@ import com.starttoo.backend.artist.domain.VerificationStatus;
 import com.starttoo.backend.auth.api.AuthDtos;
 import com.starttoo.backend.auth.application.AuthService;
 import com.starttoo.backend.auth.application.OAuthSubjectResolver;
+import com.starttoo.backend.auth.application.PhoneNumberNormalizer;
 import com.starttoo.backend.auth.application.PhoneVerificationService;
 import com.starttoo.backend.auth.application.RefreshTokenHasher;
 import com.starttoo.backend.auth.application.SignupTokenConsumer;
@@ -76,12 +77,30 @@ class AuthServiceTest {
     @Mock
     private RefreshTokenHasher refreshTokenHasher;
     @Mock
+    private PhoneNumberNormalizer phoneNumberNormalizer;
+    @Mock
     private SearchIndexEventPublisher searchIndexEventPublisher;
     @Mock
     private DeviceService deviceService;
 
     @InjectMocks
     private AuthService authService;
+
+    @Test
+    void phoneAvailabilityUsesNormalizedNumberAndActiveAccounts() {
+        when(phoneNumberNormalizer.normalizeKorean("010-1234-5678"))
+                .thenReturn("+821012345678");
+        when(userRepository.existsByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                "+821012345678",
+                AccountStatus.WITHDRAWN
+        )).thenReturn(false);
+
+        AuthDtos.PhoneAvailabilityResponse response =
+                authService.phoneAvailability("010-1234-5678");
+
+        assertThat(response.normalizedPhoneNumber()).isEqualTo("+821012345678");
+        assertThat(response.available()).isTrue();
+    }
 
     @Test
     void unlinkedOAuthReturnsOnlySignupToken() {
@@ -143,7 +162,10 @@ class AuthServiceTest {
         when(oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(1, "subject-1"))
                 .thenReturn(Optional.empty());
-        when(userRepository.findByPhoneNumberAndDeletedFalse("+821012345678"))
+        when(userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                "+821012345678",
+                AccountStatus.WITHDRAWN
+        ))
                 .thenReturn(Optional.of(existing));
         stubTokenIssue(existing);
 
@@ -214,9 +236,9 @@ class AuthServiceTest {
 
     @Test
     void nicknameSuggestionsAreFiniteUniqueAndValid() {
-        when(userRepository.existsByNicknameAndAccountStatusAndDeletedFalse(
+        when(userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
                 anyString(),
-                eq(AccountStatus.ACTIVE)
+                eq(AccountStatus.WITHDRAWN)
         )).thenReturn(false);
 
         List<String> suggestions = authService.nicknameSuggestions(10);
@@ -238,9 +260,15 @@ class AuthServiceTest {
         when(oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(1, "subject-1"))
                 .thenReturn(Optional.empty());
-        when(userRepository.findByPhoneNumberAndDeletedFalse("+821012345678"))
+        when(userRepository.findByPhoneNumberAndAccountStatusNotAndDeletedFalse(
+                "+821012345678",
+                AccountStatus.WITHDRAWN
+        ))
                 .thenReturn(Optional.empty());
-        when(userRepository.existsByNicknameAndDeletedFalse("검은장미1"))
+        when(userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
+                "검은장미1",
+                AccountStatus.WITHDRAWN
+        ))
                 .thenReturn(false);
         when(userRepository.saveAndFlush(any(User.class))).thenReturn(persisted);
         stubTokenIssue(persisted);
