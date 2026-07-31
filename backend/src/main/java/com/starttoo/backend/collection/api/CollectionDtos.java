@@ -51,16 +51,18 @@ public final class CollectionDtos {
 
     public record CollectionResponse(
             Long collectionSeq,
+            Integer ownerSeq,
             Long tattooSeq,
             Long imageSeq,
+            @Schema(description = "원본 이미지의 단기 Presigned GET URL")
+            String imageUrl,
             String bodyView,
             double positionX,
             double positionY,
             double scaleRatio,
             double rotationDegree,
             boolean flipped,
-            OffsetDateTime regDttm,
-            OffsetDateTime modDttm
+            OffsetDateTime regDttm
     ) {
     }
 

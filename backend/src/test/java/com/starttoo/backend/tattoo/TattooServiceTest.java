@@ -8,6 +8,7 @@ import com.starttoo.backend.media.domain.Image;
 import com.starttoo.backend.media.domain.ImageRepository;
 import com.starttoo.backend.search.application.SearchIndexEventPublisher;
 import com.starttoo.backend.tattoo.api.TattooDtos;
+import com.starttoo.backend.tattoo.application.TattooModelClient;
 import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.tattoo.domain.Tattoo;
 import com.starttoo.backend.tattoo.domain.TattooDesignRepository;
@@ -63,10 +64,53 @@ class TattooServiceTest {
     private MediaService mediaService;
 
     @Mock
+    private TattooModelClient tattooModelClient;
+
+    @Mock
     private SearchIndexEventPublisher searchIndexEventPublisher;
 
     @InjectMocks
     private TattooService tattooService;
+
+    @Test
+    void prepareSignsObjectKeyAndAnalyzesPresignedUrl() {
+        TattooModelClient.Analysis analysis = new TattooModelClient.Analysis(
+                "OTHER",
+                List.of(),
+                List.of("LINE"),
+                "BLACK",
+                List.of("타투")
+        );
+        when(imageRepository.findByImageSeqAndDeletedFalse(301L))
+                .thenReturn(Optional.of(image(301L, "users/7/original.webp")));
+        when(mediaService.downloadUrl("users/7/original.webp"))
+                .thenReturn("https://minio.example/presigned-original");
+        when(tattooModelClient.analyze("https://minio.example/presigned-original"))
+                .thenReturn(analysis);
+
+        TattooService.PreparedTattoo prepared = tattooService.prepare(7, 301L);
+
+        assertThat(prepared.imageSeq()).isEqualTo(301L);
+        assertThat(prepared.objectKey()).isEqualTo("users/7/original.webp");
+        assertThat(prepared.analysis()).isSameAs(analysis);
+    }
+
+    @Test
+    void preparePropagatesNonTattooResultWithoutDatabaseWrite() {
+        when(imageRepository.findByImageSeqAndDeletedFalse(301L))
+                .thenReturn(Optional.of(image(301L, "users/7/original.webp")));
+        when(mediaService.downloadUrl("users/7/original.webp"))
+                .thenReturn("https://minio.example/presigned-original");
+        when(tattooModelClient.analyze("https://minio.example/presigned-original"))
+                .thenThrow(BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE));
+
+        assertThatThrownBy(() -> tattooService.prepare(7, 301L))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.NOT_TATTOO_IMAGE));
+
+        verify(tattooRepository, never()).save(any());
+    }
 
     @Test
     void detailReturnsMultipleSubjectsAndEmptyOptionalStyleArrays() {

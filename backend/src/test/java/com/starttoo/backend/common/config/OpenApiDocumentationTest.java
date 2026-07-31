@@ -1,12 +1,16 @@
 package com.starttoo.backend.common.config;
 
+import com.starttoo.backend.collection.api.CollectionController;
+import com.starttoo.backend.collection.api.CollectionDtos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.models.responses.ApiResponses;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.method.HandlerMethod;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -35,7 +39,7 @@ class OpenApiDocumentationTest {
                 .filter(method -> hasAnnotation(method, RequestMapping.class))
                 .toList();
 
-        assertThat(endpoints).hasSize(97);
+        assertThat(endpoints).hasSize(98);
         assertThat(endpoints).allSatisfy(method -> {
             Operation operation = method.getAnnotation(Operation.class);
             assertThat(operation)
@@ -54,6 +58,25 @@ class OpenApiDocumentationTest {
 
         assertThat(openApi.getComponents().getSchemas())
                 .containsKeys("ErrorResponse", "FieldViolation");
+    }
+
+    @Test
+    void collectionCreateDocumentsTattooAnalysisFailures() throws Exception {
+        Method method = CollectionController.class.getMethod(
+                "create",
+                CollectionDtos.CreateCollectionRequest.class
+        );
+        HandlerMethod handlerMethod = new HandlerMethod(
+                new CollectionController(null),
+                method
+        );
+        io.swagger.v3.oas.models.Operation operation =
+                new io.swagger.v3.oas.models.Operation().responses(new ApiResponses());
+
+        new OpenApiConfig().commonErrorResponses().customize(operation, handlerMethod);
+
+        assertThat(operation.getResponses())
+                .containsKeys("422", "502", "503", "504");
     }
 
     private List<Class<?>> controllers() {
