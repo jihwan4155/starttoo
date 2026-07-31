@@ -1,28 +1,41 @@
-import { api } from "./api";
 import {
 	ALLOWED_IMAGE_TYPES,
 	MAX_IMAGE_SIZE,
+	type UploadPurpose,
 } from "../constants/upload";
 import type {
+	CompleteUploadRequest,
+	ImageResponse,
 	PresignedUploadRequest,
 	PresignedUploadResponse,
 } from "../types/upload";
+import { api } from "./api";
 
 export async function createPresignedUpload(
 	params: PresignedUploadRequest,
 ): Promise<PresignedUploadResponse> {
 	const { data } = await api.post<PresignedUploadResponse>(
-		"/uploads/presigned-url",
+		"/images/uploads/presign",
 		params,
 	);
 	return data;
 }
 
-/** Presigned URL을 발급받아 MinIO에 직접 업로드하고 objectKey를 반환 */
+export async function completeUpload(
+	body: CompleteUploadRequest,
+): Promise<ImageResponse> {
+	const { data } = await api.post<ImageResponse>(
+		"/images/uploads/complete",
+		body,
+	);
+	return data;
+}
+
+/** presign → MinIO PUT → complete 후 imageSeq 반환 */
 export async function uploadImage(
 	file: File,
-	purpose: string,
-): Promise<string> {
+	purpose: UploadPurpose,
+): Promise<number> {
 	if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
 		throw new Error("JPG, PNG, WEBP 이미지만 업로드할 수 있습니다.");
 	}
@@ -33,17 +46,24 @@ export async function uploadImage(
 	const presigned = await createPresignedUpload({
 		purpose,
 		contentType: file.type as PresignedUploadRequest["contentType"],
+		originalFilename: file.name,
 		fileSize: file.size,
 	});
 
+	const headers = {
+		...(presigned.requiredHeaders ?? {}),
+		"Content-Type": file.type,
+	};
+
 	const res = await fetch(presigned.uploadUrl, {
-		method: presigned.method || "PUT",
-		headers: { "Content-Type": presigned.contentType },
+		method: "PUT",
+		headers,
 		body: file,
 	});
 	if (!res.ok) {
 		throw new Error("이미지 업로드에 실패했습니다.");
 	}
 
-	return presigned.objectKey;
+	const image = await completeUpload({ objectKey: presigned.objectKey });
+	return image.imageSeq;
 }
