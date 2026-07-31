@@ -94,11 +94,10 @@ public class PreferenceScoreService {
             new LinkedHashSet<>(request.colorSeqs()).forEach(color ->
                     add(userSeq, null, color, properties.survey()));
         }
-        return get(userSeq);
+        return preferences(userSeq);
     }
 
-    @Transactional(readOnly = true)
-    public PreferenceDtos.Preferences get(Integer userSeq) {
+    private PreferenceDtos.Preferences preferences(Integer userSeq) {
         List<PreferenceDtos.Score> primary = jdbcTemplate.query("""
                 SELECT primary_style_seq, score
                   FROM user_primary_style_preferences

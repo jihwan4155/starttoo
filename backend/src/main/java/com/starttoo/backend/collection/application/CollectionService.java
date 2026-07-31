@@ -80,28 +80,6 @@ public class CollectionService {
     }
 
     @Transactional
-    public CollectionDtos.CollectionResponse update(
-            Integer userSeq,
-            Long collectionSeq,
-            CollectionDtos.UpdatePlacementRequest request
-    ) {
-        TattooCollection collection = findOwned(userSeq, collectionSeq);
-        collection.updatePlacement(
-                request.bodyView(),
-                request.positionX(),
-                request.positionY(),
-                request.scaleRatio(),
-                request.rotationDegree(),
-                request.flipped()
-        );
-        Tattoo tattoo = tattooRepository.findByTattooSeqAndDeletedFalse(collection.getTattooSeq())
-                .orElseThrow(() -> BusinessException.of(ErrorCode.TATTOO_NOT_FOUND));
-        Image image = imageRepository.findByImageSeqAndDeletedFalse(tattoo.getImageSeq())
-                .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
-        return response(collection, tattoo.getImageSeq(), image.getObjectKey());
-    }
-
-    @Transactional
     public void delete(Integer userSeq, Long collectionSeq) {
         TattooCollection collection = findOwned(userSeq, collectionSeq);
         Tattoo tattoo = tattooRepository

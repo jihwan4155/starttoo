@@ -1,6 +1,5 @@
 package com.starttoo.backend.auth.api;
 
-import com.starttoo.backend.user.domain.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -106,15 +105,4 @@ public final class AuthDtos {
     ) {
     }
 
-    public record LocalLoginRequest(
-            @Schema(description = "기존 로컬 테스트 회원. 없으면 아래 신규 회원 필드가 필요")
-            Integer userSeq,
-            @Schema(description = "신규 테스트 회원 닉네임", example = "테스트유저1")
-            @Pattern(regexp = "^[가-힣A-Za-z0-9]{2,20}$") String nickname,
-            @Schema(description = "신규 테스트 회원 한국 휴대폰 번호", example = "01012345678")
-            @Size(max = 30) String phoneNumber,
-            @Schema(description = "테스트할 역할", example = "USER")
-            UserRole role
-    ) {
-    }
 }

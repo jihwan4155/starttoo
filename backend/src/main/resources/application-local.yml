@@ -4,8 +4,6 @@ spring:
       on-profile: local
 
 app:
-  test-auth:
-    enabled: true
   firebase:
     enabled: false
   ai:

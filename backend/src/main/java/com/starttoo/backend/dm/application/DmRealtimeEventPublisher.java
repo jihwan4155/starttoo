@@ -36,10 +36,4 @@ public class DmRealtimeEventPublisher {
         ));
     }
 
-    public void messageDeleted(Integer receiverSeq, Long roomSeq, Long messageSeq) {
-        eventPublisher.publishEvent(new DmRealtimeDeliveryEvent(
-                receiverSeq,
-                DmDtos.RealtimeEvent.messageDeleted(roomSeq, messageSeq)
-        ));
-    }
 }

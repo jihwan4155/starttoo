@@ -8,8 +8,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -59,16 +57,4 @@ public class MediaController {
         return ApiResponse.of(mediaService.complete(SecurityUtils.currentUserSeq(), request));
     }
 
-    @GetMapping("/{imageSeq}")
-    @Operation(
-            summary = "이미지 단기 다운로드 URL 발급",
-            description = """
-                    소프트 삭제되지 않은 images 행을 조회하고 MinIO GET presigned URL을 발급한다.
-                    영구 공개 URL을 저장하지 않으며 응답 URL은 설정된 짧은 만료시간 이후 사용할
-                    수 없다.
-                    """
-    )
-    public ApiResponse<MediaDtos.ImageResponse> get(@PathVariable Long imageSeq) {
-        return ApiResponse.of(mediaService.get(imageSeq));
-    }
 }

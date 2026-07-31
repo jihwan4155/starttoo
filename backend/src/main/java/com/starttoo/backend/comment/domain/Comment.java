@@ -60,10 +60,4 @@ public class Comment {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
-    public void update(String content, Integer modifierSeq) {
-        this.content = content;
-        this.modUsrSeq = modifierSeq;
-        this.modDttm = OffsetDateTime.now();
-    }
-
 }

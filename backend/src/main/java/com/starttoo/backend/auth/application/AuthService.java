@@ -217,12 +217,6 @@ public class AuthService {
                 });
     }
 
-    @Transactional
-    public AuthDtos.TokenResponse issueForLocalUser(User user) {
-        assertUsable(user);
-        return issue(user, null);
-    }
-
     public boolean nicknameAvailable(String nickname) {
         if (nickname == null || !nickname.matches("^[가-힣A-Za-z0-9]{2,20}$")) {
             throw BusinessException.of(ErrorCode.INVALID_REQUEST);

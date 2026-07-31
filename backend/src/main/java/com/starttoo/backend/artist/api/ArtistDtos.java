@@ -2,8 +2,6 @@ package com.starttoo.backend.artist.api;
 
 import com.starttoo.backend.artist.domain.VerificationStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -44,25 +42,4 @@ public final class ArtistDtos {
     ) {
     }
 
-    public record VerificationRequest(
-            @Schema(description = "심사 요청 확인값. true만 허용", example = "true")
-            @NotNull @AssertTrue Boolean confirm
-    ) {
-    }
-
-    public record VerificationDecision(
-            @Schema(description = "관리자 심사 결과", example = "VERIFIED",
-                    allowableValues = {"VERIFIED", "REJECTED"})
-            @NotNull VerificationStatus status,
-            @Schema(description = "REJECTED일 때 필수인 거절 사유",
-                    example = "인증 자료를 확인할 수 없습니다.")
-            @Size(max = 2000) String rejectionReason
-    ) {
-        @AssertTrue(message = "REJECTED 상태에는 rejectionReason이 필요합니다.")
-        public boolean isValidReason() {
-            return status == VerificationStatus.REJECTED
-                    ? rejectionReason != null && !rejectionReason.isBlank()
-                    : rejectionReason == null || rejectionReason.isBlank();
-        }
-    }
 }

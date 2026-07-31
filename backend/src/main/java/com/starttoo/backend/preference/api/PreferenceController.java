@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,24 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/v1/preferences")
 @RequiredArgsConstructor
-@Tag(name = "Preferences", description = "현재 취향 점수와 최초 설문")
+@Tag(name = "Preferences", description = "회원가입 최초 취향 설문")
 @SecurityRequirement(name = "bearerAuth")
 public class PreferenceController {
 
     private final PreferenceScoreService preferenceScoreService;
-
-    @GetMapping
-    @Operation(
-            summary = "내 취향 점수 조회",
-            description = """
-                    추천에 사용하는 primaryStyle과 color별 현재 누적 점수를 각각 점수 내림차순으로
-                    반환한다. secondaryStyle과 renderingStyle은 분석 메타데이터로만 유지되며
-                    현재 취향 점수 계산에는 사용하지 않는다.
-                    """
-    )
-    public ApiResponse<PreferenceDtos.Preferences> get() {
-        return ApiResponse.of(preferenceScoreService.get(SecurityUtils.currentUserSeq()));
-    }
 
     @PostMapping("/survey")
     @Operation(

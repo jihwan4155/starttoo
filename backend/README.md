@@ -31,7 +31,7 @@ local 프로필에서는 다음 주소를 사용한다.
 - Health: `http://localhost:8080/actuator/health`
 - MinIO Console: `http://localhost:9001`
 
-Swagger에는 전체 96개 API의 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
+Swagger에는 이번 v1 범위의 전체 77개 API 인증 조건, 입력 제약, 처리 흐름과 공통 오류 응답이
 기재되어 있다. 자물쇠가 있는 API는 우측 상단 `Authorize`에 액세스 토큰 원문만
 입력한다. 공개 API 중 로그인 여부에 따라 응답이 달라지는 피드·프로필·댓글·검색은
 익명 호출과 Bearer JWT 호출을 모두 허용하도록 표시한다.
@@ -43,27 +43,7 @@ Swagger에는 전체 96개 API의 인증 조건, 입력 제약, 처리 흐름과
 java -jar build/libs/starttoo-backend.jar --spring.profiles.active=local
 ```
 
-## 로컬 인증
-
-`local` 프로필에만 `/v1/test/auth/login`이 등록된다.
-
-기존 부트스트랩 관리자 토큰:
-
-```json
-{
-  "userSeq": 1
-}
-```
-
-일반 테스트 회원 생성과 토큰 발급:
-
-```json
-{
-  "nickname": "검은장미21",
-  "phoneNumber": "010-1234-5678",
-  "role": "USER"
-}
-```
+## 로컬 휴대폰 인증
 
 로컬 휴대폰 인증 API는 응답의 `debugCode`를 제공한다. 다른 프로필은
 `SMS_WEBHOOK_URL`에 다음 JSON을 전송하며, URL이 없으면 503을 반환한다.
@@ -121,7 +101,6 @@ Rate limit 초과는 HTTP 429와 `RATE_LIMITED`를 반환한다. 읽기와 상�
 - 모델 연결 후에는 타투 여부 판별을 통과한 이미지에 한해 primary style 1개,
   secondary style 최대 2개, rendering style 최대 2개, nullable color 1개와
   다중 subject를 저장한다.
-- AI 생성·커버업·시뮬레이션 요청과 결과는 DB에 저장하지 않는다.
 - 좋아요 변경, 게시물 카운트의 원자 증감, 취향 점수 변경은 한 트랜잭션이다.
 - 체류시간은 사용자×게시물 원본 통계를 저장하지 않고 즉시 점수화한다.
 - 최근 검색어는 Redis에서 즉시 변경하고 `users.recent_search_terms`에
@@ -131,7 +110,7 @@ Rate limit 초과는 HTTP 429와 `RATE_LIMITED`를 반환한다. 읽기와 상�
 - 닉네임과 전체 subject 검색은 Redis Search가 `exact → prefix → fuzzy 1 →
   fuzzy 2 → contains` 순으로 후보와 점수를 결정한다. Spring은 재정렬하지 않고
   PostgreSQL의 최신 활성·삭제·인증 상태만 검증한다.
-- 계정 생성·닉네임 변경·상태 변경·아티스트 승인·subject 생성은 DB 커밋 후 Redis
+- 계정 생성·닉네임 변경·상태 변경과 subject 생성은 DB 커밋 후 Redis
   인덱스에 증분 반영한다. Redis 유실이나 인덱스 버전 변경 시 전체 재구축하고 매일
   PostgreSQL과 저빈도 대조한다.
 - 회원가입 취향 설문은 primary style과 선택 색상의 중복을 제거해 최초 한 번만
@@ -152,7 +131,7 @@ Authorization: Bearer {accessToken}
 
 구독 목적지는 다음과 같다.
 
-- `/user/queue/dm-events`: 메시지 생성·읽음·삭제
+- `/user/queue/dm-events`: 메시지 생성·읽음
 - `/user/queue/notifications`: DB에 커밋된 알림
 
 DM 전송과 읽음 처리는 기존 REST API를 사용한다. 현재 WebSocket은 서버→클라이언트
@@ -172,28 +151,16 @@ FIREBASE_PROJECT_ID=starttoo-production
 로그아웃하면 해당 리프레시 토큰과 연결된 기기의 푸시가 같은 트랜잭션에서
 비활성화된다. 클라이언트도 로그아웃 시 WebSocket 연결과 로컬 인증 정보를 정리한다.
 
-## 모델 연동 보류 상태
+## 타투 분석 모델 연동
 
 현재 `AI_ENABLED=false`가 기본값이며 외부 모델 호출 코드는 서비스의
-`TODO(model-integration)` 지점에서 비활성화되어 있다. AI 생성·커버업·시뮬레이션
-API는 입력과 이미지 소유권을 검증한 뒤 다음과 같은 모의 응답을 반환한다.
-
-```json
-{
-  "status": "MODEL_INTEGRATION_PENDING",
-  "type": "GENERATION",
-  "mock": true,
-  "resultUrl": null
-}
-```
+`TODO(model-integration)` 지점에서 비활성화되어 있다. 현재 게시물·컬렉션 등록은
+소유 이미지 검증 뒤 명시적 고정 분석값을 사용한다.
 
 추후 연결할 외부 계약은 다음 엔드포인트를 전제로 한다.
 
 - `POST /v1/tattoos/detect`: `{"imageUrl":"..."}` → `{"isTattoo":true}`
 - `POST /v1/tattoos/analyze`
-- `POST /v1/generations`
-- `POST /v1/coverups`
-- `POST /v1/simulations`
 
 분석 응답:
 
@@ -207,7 +174,7 @@ API는 입력과 이미지 소유권을 검증한 뒤 다음과 같은 모의 �
 }
 ```
 
-모델 연동 시 고정 분석값과 모의 응답을 제거하고, Swagger의 임시 동작 설명도 실제
+모델 연동 시 고정 분석값을 제거하고, Swagger의 임시 동작 설명도 실제
 실패·재시도·타임아웃 계약에 맞춰 함께 변경해야 한다.
 
 ## 데이터베이스
@@ -223,7 +190,7 @@ pgvector의 확장·테이블·HNSW 인덱스는 V1에서 주석 상태다. 임�
 확정한 뒤 별도의 새 Flyway 마이그레이션으로 활성화해야 하며, 이미 적용된 V1을
 수정해서는 안 된다.
 
-운영 배포 전에는 부트스트랩 관리자 정책, OAuth 키, JWT 비밀키, SMS webhook,
+운영 배포 전에는 OAuth 키, JWT 비밀키, SMS webhook,
 모델 연결 구현, MinIO 자격 증명과 CORS 도메인을 반드시 교체한다.
 
 ## 테스트

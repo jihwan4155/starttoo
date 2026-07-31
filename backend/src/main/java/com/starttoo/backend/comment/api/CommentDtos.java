@@ -20,12 +20,6 @@ public final class CommentDtos {
     ) {
     }
 
-    public record UpdateCommentRequest(
-            @Schema(description = "수정할 댓글 내용", example = "수정한 댓글입니다.")
-            @NotBlank @Size(max = 1000) String content
-    ) {
-    }
-
     public record CommentResponse(
             Long commentSeq,
             Long postSeq,
