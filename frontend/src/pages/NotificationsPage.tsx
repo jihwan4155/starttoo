@@ -9,7 +9,7 @@ import useAuthStore from "../store/useAuthStore";
 import { ApiError } from "../services/api";
 import type { NotificationItem } from "../types/notification";
 
-/** GET /notifications/unread — 미확인 알림만 표시 */
+/** GET /notifications — 미확인 알림만 표시 */
 export default function NotificationsPage() {
 	const accessToken = useAuthStore((s) => s.accessToken);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -145,7 +145,7 @@ export default function NotificationsPage() {
 						<ul className="divide-y divide-black/[0.06]">
 							{items.map((item) => (
 								<NotificationListItem
-									key={item.notificationId}
+									key={item.notificationSeq}
 									item={item}
 									onClick={(target) =>
 										void handleNotification(target)

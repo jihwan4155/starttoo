@@ -9,18 +9,16 @@ import {
 	optimisticallyRemoveDmRoomBundle,
 	optimisticallyRemoveNotification,
 } from "../../utils/notificationCache";
-import { notificationPreviewQueryKey } from "../queries/useNotificationPreview";
-import { unreadNotificationsQueryKey } from "../queries/useUnreadNotifications";
 
+/** 목록·미확인 수 캐시를 한 번에 되돌린다 (키 prefix로 세 쿼리 모두 포함) */
 function invalidateNotificationQueries(
 	queryClient: ReturnType<typeof useQueryClient>,
 ) {
-	void queryClient.invalidateQueries({ queryKey: notificationPreviewQueryKey });
-	void queryClient.invalidateQueries({ queryKey: unreadNotificationsQueryKey });
+	void queryClient.invalidateQueries({ queryKey: ["notifications"] });
 }
 
 type MarkOneVariables = {
-	notificationId: number;
+	notificationSeq: number;
 	item: NotificationItem;
 };
 
@@ -28,13 +26,13 @@ type MarkAllVariables = {
 	items: NotificationItem[];
 };
 
-/** PATCH /notifications/{notificationId}/read */
+/** PATCH /notifications/{notificationSeq}/read */
 export function useMarkNotificationRead() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ notificationId }: MarkOneVariables) =>
-			markNotificationRead(notificationId),
+		mutationFn: ({ notificationSeq }: MarkOneVariables) =>
+			markNotificationRead(notificationSeq),
 		onMutate: ({ item }) => {
 			optimisticallyRemoveNotification(queryClient, item);
 		},
@@ -43,20 +41,16 @@ export function useMarkNotificationRead() {
 	});
 }
 
-/** DM 방 묶음 알림 일괄 읽음 */
+/** DM 방 알림 일괄 읽음 */
 export function useMarkDmNotificationRead() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ notificationId, item }: MarkOneVariables) => {
-			if (item.referenceId == null) {
-				return markNotificationRead(notificationId);
+		mutationFn: ({ notificationSeq, item }: MarkOneVariables) => {
+			if (item.referenceSeq == null) {
+				return markNotificationRead(notificationSeq);
 			}
-			return markDmNotificationRead(
-				notificationId,
-				item.referenceId,
-				item.count,
-			);
+			return markDmNotificationRead(notificationSeq, item.referenceSeq);
 		},
 		onMutate: ({ item }) => {
 			optimisticallyRemoveDmRoomBundle(queryClient, item);
@@ -70,8 +64,9 @@ export function useMarkDmNotificationRead() {
 export function useMarkAllNotificationsRead() {
 	const queryClient = useQueryClient();
 
-	return useMutation({
-		mutationFn: (_variables: MarkAllVariables) => markAllNotificationsRead(),
+	// 요청 본문은 없지만 낙관적 제거를 위해 onMutate가 목록을 받아야 한다.
+	return useMutation<void, Error, MarkAllVariables>({
+		mutationFn: () => markAllNotificationsRead(),
 		onMutate: ({ items }) => {
 			for (const item of items) {
 				if (item.notificationType === "NEW_DM") {

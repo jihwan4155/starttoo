@@ -70,13 +70,8 @@ export default function NotificationListItem({
 						<span className="truncate text-[14px] font-semibold text-black">
 							{item.title}
 						</span>
-						{item.count > 1 && (
-							<span className="shrink-0 rounded-full bg-brand/10 px-1.5 text-[10px] font-semibold text-brand">
-								{item.count}
-							</span>
-						)}
 						<span className="shrink-0 text-[11px] font-light text-black/35">
-							{formatNotifTime(item.createdAt)}
+							{formatNotifTime(item.regDttm)}
 						</span>
 						<span className="ml-auto size-[7px] shrink-0 rounded-full bg-brand" />
 					</span>

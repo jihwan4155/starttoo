@@ -1,4 +1,4 @@
-import type { NotificationItem } from "../types/notification";
+import type { NotificationType } from "../types/notification";
 
 /** ISO 시각 → 오늘이면 HH:MM, 아니면 M/D */
 export function formatNotifTime(iso: string): string {
@@ -14,22 +14,15 @@ export function formatNotifTime(iso: string): string {
 		: `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-/** 알림 타입·참조에 따른 이동 경로 (null이면 현재 화면 유지) */
-export function getNotificationTargetPath(
-	item: NotificationItem,
-): string | null {
-	if (item.notificationType === "NEW_DM" && item.referenceId != null) {
-		return "/dm";
-	}
-	if (
-		item.notificationType === "SYSTEM" &&
-		item.referenceType === "ARTIST"
-	) {
-		return "/mypage";
-	}
-	return null;
-}
+const TYPE_LABELS: Record<NotificationType, string> = {
+	POST_LIKE: "좋아요",
+	POST_COMMENT: "댓글",
+	COMMENT_LIKE: "댓글 좋아요",
+	FOLLOW: "팔로우",
+	NEW_DM: "메시지",
+	SYSTEM: "시스템",
+};
 
-export function getNotificationTypeLabel(type: NotificationItem["notificationType"]) {
-	return type === "NEW_DM" ? "메시지" : "시스템";
+export function getNotificationTypeLabel(type: NotificationType): string {
+	return TYPE_LABELS[type] ?? "알림";
 }

@@ -1,46 +1,57 @@
-/** 백엔드 Notifications 도메인 타입 (Swagger: Starttoo API - Notifications) */
+/**
+ * 백엔드 Notifications 도메인 타입
+ * 기준: https://starttoo.duckdns.org/v3/api-docs (2026-07-31 확인)
+ *
+ * 목록 엔드포인트는 `GET /notifications` 하나뿐이고 미확인 알림만 내려온다.
+ * 별도의 preview 경로는 없으며 size=10으로 부르면 "미확인 Top 10"과 같다.
+ */
 
-export type NotificationType = "NEW_DM" | "SYSTEM";
-export type NotificationReferenceType = "DM_ROOM" | "REPORT" | "ARTIST";
+export type NotificationType =
+	| "POST_LIKE"
+	| "POST_COMMENT"
+	| "COMMENT_LIKE"
+	| "FOLLOW"
+	| "NEW_DM"
+	| "SYSTEM";
 
 /** 개별 알림 항목 */
 export type NotificationItem = {
-	notificationId: number;
+	notificationSeq: number;
+	/** 행위자 회원 seq (SYSTEM 알림은 null) */
+	actorSeq: number | null;
 	notificationType: NotificationType;
-	/** 행위자 회원 id (SYSTEM 알림은 null) */
-	actorId: number | null;
-	referenceType: NotificationReferenceType | null;
-	referenceId: number | null;
-	/** 동일 대상 알림 묶음 개수 (예: DM 미확인 메시지 수) */
-	count: number;
+	/**
+	 * 알림 종류별 대상 식별자. NEW_DM은 DM 방 seq, 게시글 알림은 게시글 seq다.
+	 * 대상이 없는 알림(SYSTEM 등)은 null.
+	 */
+	referenceSeq: number | null;
 	title: string;
 	body: string;
-	createdAt: string;
+	regDttm: string;
 };
 
-/** GET /notifications/unread — 커서 기반 페이지 */
+/** GET /notifications — 미확인 알림 커서 페이지 */
 export type NotificationPage = {
 	items: NotificationItem[];
+	/** 다음 페이지 요청에 그대로 넘기는 불투명 커서. 없으면 null */
 	nextCursor: string | null;
 	hasNext: boolean;
-	unreadCount: number;
+	/** 이번 응답에 담긴 실제 항목 수 */
+	size: number;
 };
 
-/** GET /notifications/unread/preview — 미확인 Top 10 */
-export type NotificationPreview = {
-	items: NotificationItem[];
-	unreadCount: number;
-};
-
-/** GET /notifications/unread-counts — 타입별 개수 */
+/** GET /notifications/unread-counts — 타입별 미확인 개수 */
 export type UnreadCountsResponse = {
-	totalCount: number;
-	/** notificationType 별 미확인 개수 (예: { SYSTEM: 4, NEW_DM: 17 }) */
-	counts: Record<NotificationType, number>;
+	/** byType 값의 합 */
+	total: number;
+	/** 알림이 없는 타입도 0으로 모두 포함된다 */
+	byType: Partial<Record<NotificationType, number>>;
 };
 
-/** GET /notifications/unread 쿼리 파라미터 */
+/** GET /notifications 쿼리 파라미터 */
 export type NotificationPageQuery = {
+	/** 이전 응답의 nextCursor를 그대로 넘긴다 */
 	cursor?: string;
+	/** 1~100, 기본 30 */
 	size?: number;
 };

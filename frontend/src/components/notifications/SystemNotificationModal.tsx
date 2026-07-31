@@ -51,7 +51,7 @@ export default function SystemNotificationModal({
 						{item.title}
 					</p>
 					<p className="mt-1 text-center text-[12px] font-light text-black/40">
-						{formatNotifTime(item.createdAt)}
+						{formatNotifTime(item.regDttm)}
 					</p>
 
 					<div className="mt-4 rounded-[12px] border border-black/[0.06] bg-black/[0.02] px-4 py-3">
