@@ -1,0 +1,194 @@
+import type { ReactNode } from "react";
+import type { DoodleTool } from "./useDoodleCanvas";
+
+const STROKE_SIZES = [
+	{ value: 2, label: "얇은 선" },
+	{ value: 4, label: "보통 선" },
+	{ value: 8, label: "굵은 선" },
+] as const;
+
+function PenIcon() {
+	return (
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round">
+			<path d="M12 19l7-7 3 3-7 7-3-3z" />
+			<path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+			<path d="M2 2l7.586 7.586" />
+			<circle cx="11" cy="11" r="2" />
+		</svg>
+	);
+}
+
+function EraserIcon() {
+	return (
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round">
+			<path d="M20 20H8.5L3 14.5a1.5 1.5 0 0 1 0-2.12l7.9-7.9a1.5 1.5 0 0 1 2.12 0l6.5 6.5a1.5 1.5 0 0 1 0 2.12L12 20" />
+			<path d="M6 17.5 13.5 10" />
+		</svg>
+	);
+}
+
+function UndoIcon() {
+	return (
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round">
+			<path d="M3 7v6h6" />
+			<path d="M3.5 13a9 9 0 1 0 2.6-6.4L3 9.5" />
+		</svg>
+	);
+}
+
+function RedoIcon() {
+	return (
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round">
+			<path d="M21 7v6h-6" />
+			<path d="M20.5 13a9 9 0 1 1-2.6-6.4L21 9.5" />
+		</svg>
+	);
+}
+
+type ToolbarButtonProps = {
+	label: string;
+	active?: boolean;
+	disabled?: boolean;
+	onClick: () => void;
+	children: ReactNode;
+};
+
+function ToolbarButton({
+	label,
+	active = false,
+	disabled = false,
+	onClick,
+	children,
+}: ToolbarButtonProps) {
+	return (
+		<button
+			type="button"
+			title={label}
+			aria-label={label}
+			aria-pressed={active}
+			disabled={disabled}
+			onClick={onClick}
+			className={`flex h-9 w-9 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-30 ${
+				active
+					? "bg-brand text-white"
+					: "text-black/70 hover:bg-black/5 hover:text-black"
+			}`}>
+			{children}
+		</button>
+	);
+}
+
+function Divider() {
+	return <span className="h-6 w-px bg-black/10" />;
+}
+
+type DoodleToolbarProps = {
+	tool: DoodleTool;
+	onToolChange: (tool: DoodleTool) => void;
+	size: number;
+	onSizeChange: (size: number) => void;
+	canUndo: boolean;
+	canRedo: boolean;
+	onUndo: () => void;
+	onRedo: () => void;
+	onClear: () => void;
+};
+
+export default function DoodleToolbar({
+	tool,
+	onToolChange,
+	size,
+	onSizeChange,
+	canUndo,
+	canRedo,
+	onUndo,
+	onRedo,
+	onClear,
+}: DoodleToolbarProps) {
+	return (
+		<div className="flex items-center gap-1 rounded-full border border-black/10 bg-white/90 px-3 py-2 shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur">
+			<ToolbarButton
+				label="펜"
+				active={tool === "pen"}
+				onClick={() => onToolChange("pen")}>
+				<PenIcon />
+			</ToolbarButton>
+			<ToolbarButton
+				label="지우개"
+				active={tool === "eraser"}
+				onClick={() => onToolChange("eraser")}>
+				<EraserIcon />
+			</ToolbarButton>
+
+			<Divider />
+
+			{/* 선 두께 — 실제 두께를 점 크기로 보여준다 */}
+			{STROKE_SIZES.map((option) => (
+				<ToolbarButton
+					key={option.value}
+					label={option.label}
+					active={size === option.value}
+					onClick={() => onSizeChange(option.value)}>
+					<span
+						className="rounded-full bg-current"
+						style={{
+							width: `${option.value + 3}px`,
+							height: `${option.value + 3}px`,
+						}}
+					/>
+				</ToolbarButton>
+			))}
+
+			<Divider />
+
+			<ToolbarButton label="되돌리기" disabled={!canUndo} onClick={onUndo}>
+				<UndoIcon />
+			</ToolbarButton>
+			<ToolbarButton label="다시 실행" disabled={!canRedo} onClick={onRedo}>
+				<RedoIcon />
+			</ToolbarButton>
+
+			<Divider />
+
+			<button
+				type="button"
+				disabled={!canUndo}
+				onClick={onClear}
+				className="rounded-full px-3 text-[13px] font-normal text-black/60 transition hover:text-brand disabled:cursor-not-allowed disabled:opacity-30">
+				전체 지우기
+			</button>
+		</div>
+	);
+}

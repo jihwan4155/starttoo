@@ -1,15 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import ActionButton from "../components/common/ActionButton";
 import ConfirmModal from "../components/common/ConfirmModal";
 import ImageViewerModal from "../components/common/ImageViewerModal";
-import RegionSelector from "../components/coverup/RegionSelector";
+import ResultsGrid from "../components/coverup/ResultsGrid";
+import ShapeCanvas from "../components/coverup/ShapeCanvas";
 import StepHeader from "../components/coverup/StepHeader";
 import UploadBox from "../components/coverup/UploadBox";
+import useCanvasStrokes from "../components/coverup/useCanvasStrokes";
+import { describeSearchError } from "../components/coverup/shapeSearchError";
+import {
+	DEFAULT_MODE,
+	MAX_BRUSH,
+	MIN_BRUSH,
+	MODE_KEYS,
+	MODES,
+} from "../components/coverup/shapeSearchConstants";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
-import useCoverupRecommendationMutation from "../hooks/mutations/useCoverupRecommendation";
-import type { CoverupSelection } from "../types/coverup";
+import useShapeSearchMutation from "../hooks/mutations/useShapeSearch";
+import useRequireAuth from "../hooks/useRequireAuth";
+import { saveToArchive } from "../services/archiveApi";
+import type { SearchMode } from "../types/shapeSearch";
 
 type Step = 1 | 2 | 3;
 
@@ -30,37 +43,32 @@ function ReloadIcon() {
 	);
 }
 
-function ZoomIcon() {
-	return (
-		<svg
-			width="18"
-			height="18"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round">
-			<circle cx="11" cy="11" r="7" />
-			<path d="m21 21-4.3-4.3" />
-		</svg>
-	);
-}
-
 export default function CoverUpPage() {
 	const navigate = useNavigate();
 	const reloadInputRef = useRef<HTMLInputElement>(null);
+	const { requireAuth } = useRequireAuth();
 
 	const [step, setStep] = useState<Step>(1);
-	const [file, setFile] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [fileError, setFileError] = useState<string | null>(null);
-	const [selection, setSelection] = useState<CoverupSelection | null>(null);
-	const [results, setResults] = useState<string[]>([]);
+	const [mode, setMode] = useState<SearchMode>(DEFAULT_MODE);
+	// 획 없이 검색을 누른 경우. 요청은 보내지 않고 안내만 띄운다
+	const [showEmptyStrokeHint, setShowEmptyStrokeHint] = useState(false);
+	const [isStale, setStale] = useState(false);
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [isViewerOpen, setViewerOpen] = useState(false);
 	const [isSavedOpen, setSavedOpen] = useState(false);
 
-	const recommendMutation = useCoverupRecommendationMutation();
+	const canvas = useCanvasStrokes(mode);
+	const searchMutation = useShapeSearchMutation();
+	const saveMutation = useMutation({ mutationFn: saveToArchive });
+
+	const results = searchMutation.data ?? [];
+	const selectedResult = results[selectedIndex] ?? null;
+	const errorInfo = searchMutation.isError
+		? describeSearchError(searchMutation.error)
+		: null;
+	const hasEmptyResult = searchMutation.isSuccess && results.length === 0;
 
 	useEffect(
 		() => () => {
@@ -79,10 +87,14 @@ export default function CoverUpPage() {
 			setFileError("이미지는 최대 10MB까지 업로드할 수 있어요.");
 			return;
 		}
+		const nextUrl = URL.createObjectURL(nextFile);
 		setFileError(null);
-		setFile(nextFile);
-		setPreviewUrl(URL.createObjectURL(nextFile));
-		setSelection(null);
+		setPreviewUrl(nextUrl);
+		canvas.loadPhoto(nextUrl);
+		canvas.clear();
+		searchMutation.reset();
+		setStale(false);
+		setShowEmptyStrokeHint(false);
 	};
 
 	const handleReloadChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -91,17 +103,31 @@ export default function CoverUpPage() {
 		e.target.value = "";
 	};
 
-	// 영역 선택값은 현재 백엔드 스펙상 전송하지 않음 (서버가 흉터 영역 자동 탐지)
-	// TODO: 흉터 탐지 결과 API가 생기면 STEP 2를 수동 선택 → 탐지 결과 확인으로 교체
-	const handleRecommend = () => {
-		if (!file || !selection) return;
-		recommendMutation.mutate(
-			{ image: file },
+	/** 모드를 바꾸면 붓 굵기를 그 모드 기본값으로 되돌리고 기존 결과를 비운다 */
+	const switchMode = (next: SearchMode) => {
+		if (next === mode) return;
+		setMode(next);
+		canvas.resetBrush(next);
+		searchMutation.reset();
+		setStale(false);
+		setShowEmptyStrokeHint(false);
+	};
+
+	const runSearch = () => {
+		const maskPngB64 = canvas.buildMask();
+		if (!maskPngB64) {
+			setShowEmptyStrokeHint(true);
+			return;
+		}
+		setShowEmptyStrokeHint(false);
+		setStale(false);
+		searchMutation.mutate(
+			{ maskPngB64, mode },
 			{
-				onSuccess: (data) => {
-					setResults((prev) => [...prev, data.imageUrl]);
-					setSelectedIndex(results.length);
-					setStep(3);
+				onSuccess: (nextResults) => {
+					setSelectedIndex(0);
+					// 결과가 없으면 그림을 바로 고칠 수 있게 STEP 2에 머문다
+					if (nextResults.length > 0) setStep(3);
 				},
 			},
 		);
@@ -110,22 +136,27 @@ export default function CoverUpPage() {
 	// 기능명세 4-4: 현재 결과를 초기화하고 처음부터 다시 진행
 	const handleReset = () => {
 		setStep(1);
-		setFile(null);
 		setPreviewUrl(null);
 		setFileError(null);
-		setSelection(null);
-		setResults([]);
+		setMode(DEFAULT_MODE);
+		canvas.loadPhoto(null);
+		canvas.clear();
+		canvas.resetBrush(DEFAULT_MODE);
+		searchMutation.reset();
+		saveMutation.reset();
+		setStale(false);
+		setShowEmptyStrokeHint(false);
 		setSelectedIndex(0);
-		recommendMutation.reset();
 	};
 
-	// TODO: 커버업 결과 저장 API 확정되면 연동 (현재 /archive/{tattooId}는
-	// tattooId가 필요한데 커버업 응답에 없음). 저장 성공 시에만 모달 표시.
 	const handleSave = () => {
-		setSavedOpen(true);
+		if (!selectedResult) return;
+		// 서버가 돌려주는 saved 값은 ApiResponse 봉투에 싸여 있어 아직 신뢰할 수 없다.
+		// 예외 없이 끝나면 저장된 것으로 본다. (전역 언랩 작업에서 정리)
+		saveMutation.mutate(selectedResult.tattooSeq, {
+			onSuccess: () => setSavedOpen(true),
+		});
 	};
-
-	const selectedResult = results[selectedIndex] ?? null;
 
 	return (
 		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center bg-surface px-6 pb-10">
@@ -136,12 +167,15 @@ export default function CoverUpPage() {
 			<h1 className="mt-1 text-[28px] font-extrabold text-black">
 				커버업 타투 도안 추천
 			</h1>
-			<p className="mt-2 whitespace-nowrap text-center text-[14px] font-light text-black/50">
-				흉터 이미지를 업로드하면 AI가 흉터 영역을 탐지하고 어울리는 타투
-				도안을 추천해드려요.
+			<p className="mt-2 text-center text-[14px] font-light text-black/50">
+				사진을 올리고 가릴 부위를 그리면, 그 형태를 닮은 타투 도안을
+				찾아드려요.
 			</p>
 
-			<div className="mt-6 flex w-full max-w-[560px] flex-col items-center">
+			<div
+				className={`mt-6 flex w-full flex-col items-center ${
+					step === 3 ? "max-w-[880px]" : "max-w-[560px]"
+				}`}>
 				{step === 1 && !previewUrl && (
 					<>
 						<StepHeader
@@ -164,7 +198,11 @@ export default function CoverUpPage() {
 							description="커버업하고 싶은 흉터나 타투가 있는 부위의 사진을 업로드해주세요."
 						/>
 						<div className="mt-5 w-full">
-							<RegionSelector src={previewUrl} selection={null} />
+							<ShapeCanvas
+								canvasRef={canvas.canvasRef}
+								redraw={canvas.redraw}
+								handlers={canvas.handlers}
+							/>
 						</div>
 						{fileError && (
 							<p className="mt-4 text-[14px] text-brand">{fileError}</p>
@@ -181,20 +219,73 @@ export default function CoverUpPage() {
 					</>
 				)}
 
-				{step === 2 && previewUrl && (
+				{step === 2 && (
 					<>
 						<StepHeader
 							step={2}
-							description="덮을 영역을 드래그로 선택해주세요."
+							description="가릴 부위를 따라 그려주세요. 그린 형태를 닮은 도안을 찾아드려요."
 						/>
-						<div className="mt-5 w-full">
-							<RegionSelector
-								src={previewUrl}
-								selection={selection}
-								onChange={setSelection}
-								selectable
+
+						{/* 모드별로 붓 굵기가 다르다 (shape 6px · coverup 16px) */}
+						<div className="mt-5 flex flex-col items-center gap-2">
+							<div className="flex gap-2">
+								{MODE_KEYS.map((key) => (
+									<button
+										key={key}
+										type="button"
+										onClick={() => switchMode(key)}
+										className={`h-9 rounded-full px-4 text-[13px] font-semibold transition ${
+											mode === key
+												? "bg-brand text-white"
+												: "border border-black/15 bg-white text-black/60 hover:bg-black/5"
+										}`}>
+										{MODES[key].label}
+									</button>
+								))}
+							</div>
+							<p className="text-[13px] font-light text-black/50">
+								{MODES[mode].hint}
+							</p>
+						</div>
+
+						<label className="mt-4 flex items-center gap-3 text-[13px] font-light text-black/60">
+							<span className="w-[64px]">붓 {canvas.brush}px</span>
+							<input
+								type="range"
+								min={MIN_BRUSH}
+								max={MAX_BRUSH}
+								value={canvas.brush}
+								onChange={(e) => canvas.setBrush(Number(e.target.value))}
+								className="w-[180px] accent-brand"
+							/>
+						</label>
+
+						<div className="mt-4 w-full">
+							<ShapeCanvas
+								canvasRef={canvas.canvasRef}
+								redraw={canvas.redraw}
+								handlers={canvas.handlers}
+								drawable
 							/>
 						</div>
+
+						<div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+							<button
+								type="button"
+								onClick={canvas.undo}
+								disabled={!canvas.canUndo}
+								className="h-9 rounded-full border border-black/15 bg-white px-4 text-[13px] font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40">
+								되돌리기
+							</button>
+							<button
+								type="button"
+								onClick={canvas.clear}
+								disabled={!canvas.canUndo}
+								className="h-9 rounded-full border border-black/15 bg-white px-4 text-[13px] font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40">
+								지우기
+							</button>
+						</div>
+
 						<div className="mt-5 flex gap-4">
 							<ActionButton
 								variant="outline"
@@ -203,17 +294,39 @@ export default function CoverUpPage() {
 								다시 올리기
 							</ActionButton>
 							<ActionButton
-								onClick={handleRecommend}
-								disabled={!selection || recommendMutation.isPending}>
-								{recommendMutation.isPending
-									? "도안 생성 중..."
-									: "타투 추천받기"}
+								onClick={runSearch}
+								disabled={searchMutation.isPending}>
+								{searchMutation.isPending ? "찾는 중…" : "도안 찾기"}
 							</ActionButton>
 						</div>
-						{recommendMutation.isError && (
+
+						{showEmptyStrokeHint && (
 							<p className="mt-4 text-[14px] text-brand">
-								{recommendMutation.error.message}
+								가릴 부위를 그려주세요.
 							</p>
+						)}
+						{hasEmptyResult && (
+							<p className="mt-4 text-[14px] font-light text-black/60">
+								조건에 맞는 도안이 없습니다. 형태를 조금 바꿔서 다시
+								찾아보세요.
+							</p>
+						)}
+						{errorInfo && (
+							<div className="mt-4 flex flex-col items-center gap-2">
+								<p className="text-[14px] text-brand">{errorInfo.message}</p>
+								{errorInfo.retryable && (
+									<ActionButton variant="outline" onClick={runSearch}>
+										다시 시도
+									</ActionButton>
+								)}
+								{errorInfo.needsLogin && (
+									<ActionButton
+										variant="outline"
+										onClick={() => requireAuth()}>
+										로그인하기
+									</ActionButton>
+								)}
+							</div>
 						)}
 					</>
 				)}
@@ -222,67 +335,36 @@ export default function CoverUpPage() {
 					<>
 						<StepHeader
 							step={3}
-							description="도안이 완성됐어요! 마음에 드는 도안을 저장해보세요."
+							description="닮은 도안을 찾았어요! 마음에 드는 도안을 저장해보세요."
 						/>
 
-						{/* 기능명세 4-4: 추천 도안 카드 목록, 선택·확대 가능 */}
-						<div
-							className={`mt-5 grid w-full gap-4 ${
-								results.length === 1 ? "grid-cols-1" : "grid-cols-2"
-							}`}>
-							{results.map((url, index) => (
-								<div
-									// 추가만 되는 목록이라 index 키 안전 (데모 모드에선 URL이 중복됨)
-									key={index}
-									className={`relative overflow-hidden rounded-[10px] ${
-										results.length === 1 ? "" : "aspect-square"
-									}`}>
-									<button
-										type="button"
-										aria-label={`도안 ${index + 1} 선택`}
-										onClick={() => setSelectedIndex(index)}
-										className={`block h-full w-full rounded-[10px] transition ${
-											index === selectedIndex
-												? "ring-4 ring-brand"
-												: "opacity-80 hover:opacity-100"
-										}`}>
-										<img
-											src={url}
-											alt={`추천 커버업 도안 ${index + 1}`}
-											className={`w-full rounded-[10px] object-cover ${
-												results.length === 1
-													? "h-[clamp(240px,45vh,400px)]"
-													: "h-full"
-											}`}
-										/>
-									</button>
-									{index === selectedIndex && (
-										<button
-											type="button"
-											aria-label="도안 크게 보기"
-											onClick={() => setViewerOpen(true)}
-											className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-black shadow transition hover:bg-white">
-											<ZoomIcon />
-										</button>
-									)}
-								</div>
-							))}
+						<div className="mt-5 w-full">
+							<ResultsGrid
+								results={results}
+								selectedIndex={selectedIndex}
+								onSelect={setSelectedIndex}
+								onZoom={() => setViewerOpen(true)}
+								isStale={isStale}
+								onStale={() => setStale(true)}
+								onRefresh={runSearch}
+								isRefreshing={searchMutation.isPending}
+							/>
 						</div>
 
 						<div className="mt-5 flex gap-4">
-							<ActionButton
-								variant="outline"
-								onClick={handleRecommend}
-								disabled={recommendMutation.isPending}>
-								{recommendMutation.isPending
-									? "도안 생성 중..."
-									: "+ 같은 조건으로 더보기"}
+							<ActionButton variant="outline" onClick={() => setStep(2)}>
+								<ReloadIcon />
+								다시 그리기
 							</ActionButton>
-							<ActionButton onClick={handleSave}>도안 저장하기</ActionButton>
+							<ActionButton
+								onClick={handleSave}
+								disabled={saveMutation.isPending || !selectedResult}>
+								{saveMutation.isPending ? "저장 중…" : "도안 저장하기"}
+							</ActionButton>
 						</div>
-						{recommendMutation.isError && (
+						{saveMutation.isError && (
 							<p className="mt-4 text-[14px] text-brand">
-								{recommendMutation.error.message}
+								{saveMutation.error.message}
 							</p>
 						)}
 
@@ -306,7 +388,7 @@ export default function CoverUpPage() {
 
 			{selectedResult && (
 				<ImageViewerModal
-					src={selectedResult}
+					src={selectedResult.imageUrl}
 					alt="추천 커버업 도안"
 					isOpen={isViewerOpen}
 					onClose={() => setViewerOpen(false)}
