@@ -1,6 +1,8 @@
 package com.starttoo.backend.auth.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -18,10 +20,41 @@ public final class AuthDtos {
             @Schema(description = "OAuth 제공자 코드", example = "KAKAO",
                     allowableValues = {"GOOGLE", "KAKAO"})
             @NotBlank @Size(max = 20) String provider,
-            @Schema(description = "프론트엔드가 OAuth 제공자에서 받은 액세스 토큰",
+            @Schema(description = """
+                    네이티브 앱 SDK가 발급받은 제공자 액세스 토큰.
+                    authorizationCode와 둘 중 하나만 보낸다.""",
                     example = "provider-access-token")
-            @NotBlank @Size(max = 4096) String accessToken
+            @Size(max = 4096) String accessToken,
+            @Schema(description = """
+                    웹 프론트엔드가 제공자 동의 화면에서 받은 authorization code.
+                    카카오 JavaScript SDK는 액세스 토큰을 브라우저에 주지 않으므로 웹은 이 값을 사용한다.
+                    서버가 redirectUri와 함께 제공자 토큰 엔드포인트로 교환한다.""",
+                    example = "authorization-code")
+            @Size(max = 4096) String authorizationCode,
+            @Schema(description = """
+                    authorizationCode를 발급받을 때 사용한 redirect_uri.
+                    제공자가 인가 시점의 값과 대조하므로 정확히 같아야 한다. code 방식에서만 필수.""",
+                    example = "https://localhost:5173/auth/kakao/callback")
+            @Size(max = 2048) String redirectUri
     ) {
+
+        @JsonIgnore
+        @Schema(hidden = true)
+        @AssertTrue(message = "accessToken 또는 authorizationCode 중 하나만 제공해야 합니다.")
+        public boolean isExactlyOneCredentialPresent() {
+            return hasText(accessToken) ^ hasText(authorizationCode);
+        }
+
+        @JsonIgnore
+        @Schema(hidden = true)
+        @AssertTrue(message = "authorizationCode를 사용할 때는 redirectUri가 필요합니다.")
+        public boolean isRedirectUriPresentWithCode() {
+            return !hasText(authorizationCode) || hasText(redirectUri);
+        }
+
+        private static boolean hasText(String value) {
+            return value != null && !value.isBlank();
+        }
     }
 
     public record SocialLoginResponse(
