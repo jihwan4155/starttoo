@@ -42,6 +42,7 @@ public class MediaService {
     );
 
     private final MinioClient minioClient;
+    private final MinioClient minioPresignClient;
     private final MinioProperties properties;
     private final ImageRepository imageRepository;
     private final MediaImageRegistrationService imageRegistrationService;
@@ -71,7 +72,7 @@ public class MediaService {
         );
         int expiry = Math.toIntExact(properties.uploadExpiry().toSeconds());
         try {
-            String url = minioClient.getPresignedObjectUrl(
+            String url = minioPresignClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.PUT)
                             .bucket(properties.bucket())
@@ -136,7 +137,7 @@ public class MediaService {
     public PresignedDownload presignedDownload(String objectKey) {
         OffsetDateTime expiresAt = OffsetDateTime.now().plus(properties.downloadExpiry());
         try {
-            String url = minioClient.getPresignedObjectUrl(
+            String url = minioPresignClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.GET)
                             .bucket(properties.bucket())
