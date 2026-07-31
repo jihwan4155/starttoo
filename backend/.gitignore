@@ -6,3 +6,4 @@ out/
 .env
 logs/
 data/
+.env.local

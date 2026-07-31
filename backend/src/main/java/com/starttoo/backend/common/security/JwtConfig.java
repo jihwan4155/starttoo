@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -68,6 +69,13 @@ public class JwtConfig {
     @Service
     public static class JwtService {
 
+        /**
+         * 서명 알고리즘을 명시한다. 생략하면 NimbusJwtEncoder가 RS256을 기본값으로 잡고
+         * HMAC 비밀키 소스에서 RSA 키를 찾다 실패해 "Failed to select a JWK signing key"가 난다.
+         */
+        private static final JwsHeader HS256_HEADER =
+                JwsHeader.with(MacAlgorithm.HS256).build();
+
         private final JwtEncoder encoder;
         private final JwtProperties properties;
 
@@ -87,7 +95,9 @@ public class JwtConfig {
                     .claim("role", role)
                     .claim("token_type", "ACCESS")
                     .build();
-            String token = encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+            String token = encoder
+                    .encode(JwtEncoderParameters.from(HS256_HEADER, claims))
+                    .getTokenValue();
             return new TokenValue(token, expiresAt);
         }
 
@@ -107,7 +117,9 @@ public class JwtConfig {
                     .id(UUID.randomUUID().toString())
                     .claim("token_type", tokenType);
             additionalClaims.forEach(builder::claim);
-            String token = encoder.encode(JwtEncoderParameters.from(builder.build())).getTokenValue();
+            String token = encoder
+                    .encode(JwtEncoderParameters.from(HS256_HEADER, builder.build()))
+                    .getTokenValue();
             return new TokenValue(token, expiresAt);
         }
     }
