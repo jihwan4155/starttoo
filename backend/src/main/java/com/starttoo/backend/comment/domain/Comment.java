@@ -66,10 +66,4 @@ public class Comment {
         this.modDttm = OffsetDateTime.now();
     }
 
-    public void delete(Integer modifierSeq) {
-        this.commentStatus = CommentStatus.DELETED;
-        this.deleted = true;
-        this.modUsrSeq = modifierSeq;
-        this.modDttm = OffsetDateTime.now();
-    }
 }

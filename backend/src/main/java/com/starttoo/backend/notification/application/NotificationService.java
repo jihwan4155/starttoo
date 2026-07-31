@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,8 +65,9 @@ public class NotificationService {
         int safeSize = Math.min(Math.max(size, 1), 100);
         List<Long> ids = jdbcTemplate.queryForList("""
                 SELECT notification_seq
-                  FROM notifications
+                 FROM notifications
                  WHERE receiver_seq = ?
+                   AND is_read = FALSE
                    AND (CAST(? AS BIGINT) IS NULL OR notification_seq < ?)
                  ORDER BY notification_seq DESC
                  LIMIT ?
@@ -107,8 +109,27 @@ public class NotificationService {
         );
     }
 
-    public long unreadCount(Integer receiverSeq) {
-        return notificationRepository.countByReceiverSeqAndReadFalse(receiverSeq);
+    @Transactional(readOnly = true)
+    public NotificationDtos.UnreadCounts unreadCounts(Integer receiverSeq) {
+        EnumMap<NotificationType, Long> byType = new EnumMap<>(NotificationType.class);
+        for (NotificationType type : NotificationType.values()) {
+            byType.put(type, 0L);
+        }
+        List<UnreadRow> rows = jdbcTemplate.query("""
+                SELECT notification_type, COUNT(*) AS unread_count
+                  FROM notifications
+                 WHERE receiver_seq = ?
+                   AND is_read = FALSE
+                 GROUP BY notification_type
+                """, (rs, rowNum) -> new UnreadRow(
+                NotificationType.valueOf(rs.getString("notification_type")),
+                rs.getLong("unread_count")
+        ), receiverSeq);
+        rows.forEach(row -> byType.put(row.type(), row.count()));
+        long total = byType.values().stream()
+                .mapToLong(Long::longValue)
+                .sum();
+        return new NotificationDtos.UnreadCounts(total, Map.copyOf(byType));
     }
 
     private NotificationDtos.NotificationResponse response(Notification notification) {
@@ -119,9 +140,10 @@ public class NotificationService {
                 notification.getReferenceSeq(),
                 notification.getTitle(),
                 notification.getBody(),
-                notification.isRead(),
-                notification.getReadDttm(),
                 notification.getRegDttm()
         );
+    }
+
+    private record UnreadRow(NotificationType type, long count) {
     }
 }

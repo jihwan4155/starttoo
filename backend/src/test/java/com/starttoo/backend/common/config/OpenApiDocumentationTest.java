@@ -35,7 +35,7 @@ class OpenApiDocumentationTest {
                 .filter(method -> hasAnnotation(method, RequestMapping.class))
                 .toList();
 
-        assertThat(endpoints).hasSize(85);
+        assertThat(endpoints).hasSize(87);
         assertThat(endpoints).allSatisfy(method -> {
             Operation operation = method.getAnnotation(Operation.class);
             assertThat(operation)

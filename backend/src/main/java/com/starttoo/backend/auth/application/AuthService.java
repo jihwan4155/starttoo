@@ -7,6 +7,9 @@ import com.starttoo.backend.auth.domain.RefreshToken;
 import com.starttoo.backend.auth.domain.RefreshTokenRepository;
 import com.starttoo.backend.auth.domain.UserOAuthAccount;
 import com.starttoo.backend.auth.domain.UserOAuthAccountRepository;
+import com.starttoo.backend.artist.domain.Artist;
+import com.starttoo.backend.artist.domain.ArtistRepository;
+import com.starttoo.backend.artist.domain.VerificationStatus;
 import com.starttoo.backend.common.config.JwtProperties;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
@@ -22,25 +25,39 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final OAuthSubjectResolver subjectResolver;
+    private static final List<String> NICKNAME_BASES = List.of(
+            "검은장미",
+            "푸른나비",
+            "별빛라인",
+            "BlackRose",
+            "LineArt",
+            "InkMood"
+    );
+    private static final int NICKNAME_ATTEMPTS_PER_ITEM = 50;
+
     private final OAuthProviderRepository providerRepository;
     private final UserOAuthAccountRepository oauthAccountRepository;
     private final UserRepository userRepository;
+    private final ArtistRepository artistRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PhoneVerificationService phoneVerificationService;
+    private final SignupTokenConsumer signupTokenConsumer;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final JdbcTemplate jdbcTemplate;
@@ -49,12 +66,10 @@ public class AuthService {
     private final DeviceService deviceService;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    private final SignupTokenDecoder signupTokenDecoder;
-
     @Transactional
-    public AuthDtos.SocialLoginResponse socialLogin(AuthDtos.SocialLoginRequest request) {
-        OAuthSubjectResolver.OAuthSubject subject =
-                subjectResolver.resolve(request.provider(), request.accessToken());
+    public AuthDtos.SocialLoginResponse socialLogin(
+            OAuthSubjectResolver.OAuthSubject subject
+    ) {
         OAuthProvider provider = provider(subject.providerCode());
         return oauthAccountRepository
                 .findByOauthProviderSeqAndProviderSubjectAndDeletedFalse(
@@ -79,7 +94,8 @@ public class AuthService {
 
     @Transactional
     public AuthDtos.TokenResponse signup(AuthDtos.SignupRequest request) {
-        Jwt signupJwt = decodeSignupToken(request.signupToken());
+        UserRole requestedRole = requestedRole(request.requestedRole());
+        Jwt signupJwt = signupTokenConsumer.consume(request.signupToken());
         String providerCode = signupJwt.getClaimAsString("provider");
         String providerSubject = signupJwt.getSubject();
         OAuthProvider provider = provider(providerCode);
@@ -130,6 +146,17 @@ public class AuthService {
                     .build());
             user.initializeModifier();
             userRepository.flush();
+
+            if (requestedRole == UserRole.ARTIST) {
+                artistRepository.save(Artist.builder()
+                        .userSeq(user.getUserSeq())
+                        .verificationStatus(VerificationStatus.UNVERIFIED)
+                        .regDttm(now)
+                        .modDttm(now)
+                        .modUsrSeq(user.getUserSeq())
+                        .deleted(false)
+                        .build());
+            }
 
             oauthAccountRepository.save(UserOAuthAccount.builder()
                     .userSeq(user.getUserSeq())
@@ -195,6 +222,28 @@ public class AuthService {
         return !userRepository.existsByNicknameAndDeletedFalse(nickname);
     }
 
+    public List<String> nicknameSuggestions(int count) {
+        if (count < 1 || count > 10) {
+            throw BusinessException.of(ErrorCode.INVALID_REQUEST);
+        }
+
+        Set<String> suggestions = new LinkedHashSet<>();
+        int seed = secureRandom.nextInt(10_000);
+        int maxAttempts = count * NICKNAME_ATTEMPTS_PER_ITEM;
+        for (int attempt = 0; attempt < maxAttempts && suggestions.size() < count; attempt++) {
+            String base = NICKNAME_BASES.get(attempt % NICKNAME_BASES.size());
+            int suffix = Math.floorMod(seed + attempt * 37, 10_000);
+            String candidate = base + suffix;
+            if (!userRepository.existsByNicknameAndAccountStatusAndDeletedFalse(
+                    candidate,
+                    AccountStatus.ACTIVE
+            )) {
+                suggestions.add(candidate);
+            }
+        }
+        return new ArrayList<>(suggestions);
+    }
+
     private AuthDtos.TokenResponse issue(User user, Long deviceSeq) {
         TokenValue access = jwtService.createAccessToken(user.getUserSeq(), user.getRole().name());
         byte[] refreshBytes = new byte[32];
@@ -218,21 +267,16 @@ public class AuthService {
         );
     }
 
-    private Jwt decodeSignupToken(String token) {
-        try {
-            Jwt jwt = signupTokenDecoder.decode(token);
-            if (!"SIGNUP".equals(jwt.getClaimAsString("token_type"))) {
-                throw BusinessException.of(ErrorCode.INVALID_TOKEN);
-            }
-            return jwt;
-        } catch (JwtException exception) {
-            throw BusinessException.of(ErrorCode.INVALID_TOKEN);
-        }
-    }
-
     private OAuthProvider provider(String providerCode) {
         return providerRepository.findByProviderCodeAndActiveTrue(providerCode)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER));
+    }
+
+    private UserRole requestedRole(String role) {
+        if (!UserRole.USER.name().equals(role) && !UserRole.ARTIST.name().equals(role)) {
+            throw BusinessException.of(ErrorCode.INVALID_REQUEST);
+        }
+        return UserRole.valueOf(role);
     }
 
     private User activeUser(Integer userSeq) {

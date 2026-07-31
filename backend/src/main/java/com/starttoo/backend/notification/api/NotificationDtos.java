@@ -3,6 +3,7 @@ package com.starttoo.backend.notification.api;
 import com.starttoo.backend.notification.domain.NotificationType;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 public final class NotificationDtos {
 
@@ -16,12 +17,13 @@ public final class NotificationDtos {
             Long referenceSeq,
             String title,
             String body,
-            boolean read,
-            OffsetDateTime readDttm,
             OffsetDateTime regDttm
     ) {
     }
 
-    public record UnreadCount(long count) {
+    public record UnreadCounts(
+            long total,
+            Map<NotificationType, Long> byType
+    ) {
     }
 }

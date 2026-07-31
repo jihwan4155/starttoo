@@ -8,8 +8,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.Locale;
+import java.util.concurrent.TimeoutException;
 
 @Component
 public class OAuthSubjectResolver {
@@ -23,6 +28,9 @@ public class OAuthSubjectResolver {
     }
 
     public OAuthSubject resolve(String provider, String accessToken) {
+        if (provider == null) {
+            throw BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER);
+        }
         String normalized = provider.toUpperCase(Locale.ROOT);
         String uri = switch (normalized) {
             case "GOOGLE" -> properties.google().userInfoUri();
@@ -41,11 +49,19 @@ public class OAuthSubjectResolver {
                 default -> throw BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER);
             };
             return new OAuthSubject(normalized, subject);
-        } catch (RestClientException | NullPointerException exception) {
-            throw new BusinessException(
-                    ErrorCode.OAUTH_AUTHENTICATION_FAILED,
-                    "OAuth 제공자의 회원 식별자를 확인하지 못했습니다."
-            );
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            if (status == 400 || status == 401 || status == 403) {
+                throw BusinessException.of(ErrorCode.OAUTH_AUTHENTICATION_FAILED);
+            }
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+        } catch (ResourceAccessException exception) {
+            if (hasTimeoutCause(exception)) {
+                throw BusinessException.of(ErrorCode.PROCESSING_TIMEOUT);
+            }
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+        } catch (RestClientException exception) {
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
         }
     }
 
@@ -54,6 +70,19 @@ public class OAuthSubjectResolver {
             throw BusinessException.of(ErrorCode.OAUTH_AUTHENTICATION_FAILED);
         }
         return node.get(field).asText();
+    }
+
+    private boolean hasTimeoutCause(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SocketTimeoutException
+                    || current instanceof HttpTimeoutException
+                    || current instanceof TimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     public record OAuthSubject(String providerCode, String providerSubject) {

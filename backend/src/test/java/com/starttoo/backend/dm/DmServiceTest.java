@@ -4,8 +4,10 @@ import com.starttoo.backend.dm.application.DmService;
 import com.starttoo.backend.dm.application.DmRealtimeEventPublisher;
 import com.starttoo.backend.dm.domain.DmMessageRepository;
 import com.starttoo.backend.dm.domain.DmRoom;
+import com.starttoo.backend.dm.domain.DmRoomParticipant;
 import com.starttoo.backend.dm.domain.DmRoomParticipantRepository;
 import com.starttoo.backend.dm.domain.DmRoomRepository;
+import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.media.domain.ImageRepository;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.user.application.UserService;
@@ -42,6 +44,9 @@ class DmServiceTest {
     private ImageRepository imageRepository;
 
     @Mock
+    private MediaService mediaService;
+
+    @Mock
     private UserService userService;
 
     @Mock
@@ -60,8 +65,13 @@ class DmServiceTest {
     void markReadAlsoMarksRoomNotificationsWithSameTimestamp() {
         DmRoom room = mock(DmRoom.class);
         when(room.contains(7)).thenReturn(true);
+        when(room.getDmRoomSeq()).thenReturn(31L);
         when(roomRepository.findById(31L)).thenReturn(Optional.of(room));
-        when(messageRepository.markRoomRead(any(), any(), any())).thenReturn(3);
+        DmRoomParticipant participant = mock(DmRoomParticipant.class);
+        when(participant.getLastHiddenMessageSeq()).thenReturn(null);
+        when(participantRepository.findByIdDmRoomSeqAndIdUserSeq(31L, 7))
+                .thenReturn(Optional.of(participant));
+        when(messageRepository.markRoomRead(any(), any(), any(), any())).thenReturn(3);
 
         int changed = dmService.markRead(7, 31L);
 
@@ -72,6 +82,7 @@ class DmServiceTest {
         verify(messageRepository).markRoomRead(
                 org.mockito.ArgumentMatchers.eq(31L),
                 org.mockito.ArgumentMatchers.eq(7),
+                org.mockito.ArgumentMatchers.isNull(),
                 messageTime.capture()
         );
         verify(notificationService).readDmRoom(

@@ -24,6 +24,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 @Configuration
 public class JwtConfig {
@@ -103,6 +104,7 @@ public class JwtConfig {
                     .issuedAt(now)
                     .expiresAt(expiresAt)
                     .subject(subject)
+                    .id(UUID.randomUUID().toString())
                     .claim("token_type", tokenType);
             additionalClaims.forEach(builder::claim);
             String token = encoder.encode(JwtEncoderParameters.from(builder.build())).getTokenValue();

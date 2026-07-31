@@ -2,6 +2,7 @@ package com.starttoo.backend.common.validation;
 
 import com.starttoo.backend.ai.api.AiDtos;
 import com.starttoo.backend.collection.api.CollectionDtos;
+import com.starttoo.backend.comment.api.CommentDtos;
 import com.starttoo.backend.dm.api.DmDtos;
 import com.starttoo.backend.post.api.PostDtos;
 import jakarta.validation.Validation;
@@ -20,6 +21,8 @@ class RequiredRequestFieldValidationTest {
         var collection = new CollectionDtos.CreateCollectionRequest(
                 1L, "front", null, null, null, null, null
         );
+        var archiveState = new CollectionDtos.ArchiveStateRequest(null);
+        var commentLike = new CommentDtos.LikeStateRequest(null);
         var simulation = new AiDtos.SimulationRequest(
                 1L, 2L, "front", null, null, null, null, null
         );
@@ -27,6 +30,8 @@ class RequiredRequestFieldValidationTest {
         var dwell = new PostDtos.DwellRequest(null);
 
         assertThat(validator.validate(collection)).hasSize(5);
+        assertThat(validator.validate(archiveState)).hasSize(1);
+        assertThat(validator.validate(commentLike)).hasSize(1);
         assertThat(validator.validate(simulation)).hasSize(5);
         assertThat(validator.validate(dmNotification)).hasSize(1);
         assertThat(validator.validate(dwell)).hasSize(1);

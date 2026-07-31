@@ -48,6 +48,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/v1/auth/**", "/v1/test/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/comments/*/replies").permitAll()
                         // 변경: 내 프로필 API가 공개 와일드카드에 포함되지 않도록 먼저 보호한다.
                         .requestMatchers(HttpMethod.GET, "/v1/artists/me/profile").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/artists", "/v1/artists/*").permitAll()

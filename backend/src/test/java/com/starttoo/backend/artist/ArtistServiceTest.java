@@ -1,0 +1,169 @@
+package com.starttoo.backend.artist;
+
+import com.starttoo.backend.artist.api.ArtistDtos;
+import com.starttoo.backend.artist.application.ArtistService;
+import com.starttoo.backend.artist.domain.Artist;
+import com.starttoo.backend.artist.domain.ArtistRepository;
+import com.starttoo.backend.artist.domain.VerificationStatus;
+import com.starttoo.backend.media.application.MediaService;
+import com.starttoo.backend.search.application.SearchIndexEventPublisher;
+import com.starttoo.backend.user.application.UserService;
+import com.starttoo.backend.user.domain.AccountStatus;
+import com.starttoo.backend.user.domain.User;
+import com.starttoo.backend.user.domain.UserRole;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ArtistServiceTest {
+
+    @Mock
+    private ArtistRepository artistRepository;
+
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+
+    @Mock
+    private SearchIndexEventPublisher searchIndexEventPublisher;
+
+    @Mock
+    private MediaService mediaService;
+
+    @InjectMocks
+    private ArtistService artistService;
+
+    @Test
+    void listFiltersUserRoleArtist() {
+        when(jdbcTemplate.query(
+                anyString(),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                any(), any(), any(), any(), any(), any(), any()
+        ))
+                .thenReturn(List.of());
+
+        artistService.list(null, 20, null);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(
+                sql.capture(),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                any(), any(), any(), any(), any(), any(), any()
+        );
+        assertThat(sql.getValue()).contains("u.role = 'ARTIST'");
+    }
+
+    @Test
+    void updateCreatesUnverifiedProfileWhenMissing() {
+        User user = user(7, null);
+        when(userService.find(7)).thenReturn(user);
+        when(artistRepository.findActiveForUpdate(7)).thenReturn(Optional.empty());
+        when(artistRepository.save(any(Artist.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(artistRepository.findByUserSeqAndDeletedFalse(7))
+                .thenAnswer(invocation -> Optional.of(savedArtist()));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7))).thenReturn(0L);
+
+        ArtistDtos.ArtistProfile profile = artistService.update(
+                7,
+                new ArtistDtos.UpdateArtistRequest(
+                        "스타투 스튜디오",
+                        "서울",
+                        "서울특별시 강남구 테헤란로 1",
+                        "02-1234-5678",
+                        "예약제"
+                )
+        );
+
+        assertThat(profile.verificationStatus()).isEqualTo(VerificationStatus.UNVERIFIED);
+        ArgumentCaptor<Artist> saved = ArgumentCaptor.forClass(Artist.class);
+        verify(artistRepository).save(saved.capture());
+        assertThat(saved.getValue().getVerificationStatus()).isEqualTo(VerificationStatus.UNVERIFIED);
+    }
+
+    @Test
+    void updatePreservesVerificationStatus() {
+        User user = user(7, null);
+        Artist artist = artist(VerificationStatus.VERIFIED);
+        when(userService.find(7)).thenReturn(user);
+        when(artistRepository.findActiveForUpdate(7)).thenReturn(Optional.of(artist));
+        when(artistRepository.findByUserSeqAndDeletedFalse(7)).thenReturn(Optional.of(artist));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7))).thenReturn(3L);
+
+        ArtistDtos.ArtistProfile profile = artistService.update(
+                7,
+                new ArtistDtos.UpdateArtistRequest("새 숍", "부산", null, null, null)
+        );
+
+        assertThat(profile.verificationStatus()).isEqualTo(VerificationStatus.VERIFIED);
+        assertThat(artist.getVerificationStatus()).isEqualTo(VerificationStatus.VERIFIED);
+    }
+
+    @Test
+    void profileImageUrlIsPresignedFromObjectKey() {
+        Artist artist = artist(VerificationStatus.VERIFIED);
+        when(artistRepository.findByUserSeqAndDeletedFalse(7)).thenReturn(Optional.of(artist));
+        when(userService.find(7)).thenReturn(user(7, 301L));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7))).thenReturn(5L);
+        when(jdbcTemplate.queryForList(anyString(), eq(String.class), eq(301L)))
+                .thenReturn(List.of("profiles/7/image.png"));
+        when(mediaService.downloadUrl("profiles/7/image.png"))
+                .thenReturn("https://temporary-download-url");
+
+        ArtistDtos.ArtistProfile profile = artistService.get(7, true);
+
+        assertThat(profile.profileImageSeq()).isEqualTo(301L);
+        assertThat(profile.profileImageUrl()).isEqualTo("https://temporary-download-url");
+    }
+
+    private Artist savedArtist() {
+        return artist(VerificationStatus.UNVERIFIED);
+    }
+
+    private Artist artist(VerificationStatus status) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return Artist.builder()
+                .userSeq(7)
+                .verificationStatus(status)
+                .regDttm(now)
+                .modDttm(now)
+                .modUsrSeq(7)
+                .deleted(false)
+                .build();
+    }
+
+    private User user(Integer userSeq, Long profileImageSeq) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return User.builder()
+                .userSeq(userSeq)
+                .nickname("검은장미")
+                .phoneNumber("+821012345678")
+                .phoneVerifiedDttm(now)
+                .profileImageSeq(profileImageSeq)
+                .role(UserRole.ARTIST)
+                .recentSearchTerms(new String[0])
+                .accountStatus(AccountStatus.ACTIVE)
+                .statusChangedDttm(now)
+                .regDttm(now)
+                .modDttm(now)
+                .deleted(false)
+                .build();
+    }
+}
