@@ -115,7 +115,7 @@ export default function StyleInputForm({
 						참고용 도안 이미지
 					</h2>
 					<p className="mt-1 text-[16px] font-light leading-[19px] text-[#666]">
-						이미지는 최대 {MAX_REFERENCE_IMAGES}개까지 등록할 수 있어요.
+						이미지는 {MAX_REFERENCE_IMAGES}개만 등록할 수 있어요.
 					</p>
 				</div>
 
@@ -153,7 +153,6 @@ export default function StyleInputForm({
 								ref={fileInputRef}
 								type="file"
 								accept="image/*"
-								multiple
 								className="hidden"
 								onChange={(event) => {
 									if (event.target.files?.length) {
