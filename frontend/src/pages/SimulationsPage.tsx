@@ -4,9 +4,7 @@ import SimulationTabs, {
 	type SimulationTab,
 } from "../components/simulation/SimulationTabs";
 import StepHeading from "../components/simulation/StepHeading";
-import BodyPartStep, {
-	type BodyPart,
-} from "../components/simulation/BodyPartStep";
+import MarkerGuideStep from "../components/simulation/MarkerGuideStep";
 import CameraConnectStep from "../components/simulation/CameraConnectStep";
 import ArResultStep from "../components/simulation/ArResultStep";
 import ArCustomizeScreen from "../components/simulation/ArCustomizeScreen";
@@ -48,7 +46,7 @@ function ChevronRightIcon() {
 
 const STEP_COPY: Record<SimulationTab, Record<number, string>> = {
 	ar: {
-		1: "적용해 볼 신체 부위를 선택하세요",
+		1: "팔에 인식용 마커를 그려주세요",
 		2: "스마트폰으로 카메라를 연결하세요",
 		3: "폰에서 캡처한 결과를 확인하고 저장하세요",
 	},
@@ -69,7 +67,6 @@ export default function SimulationsPage() {
 	);
 	const [arStep, setArStep] = useState(1);
 	const [imageStep, setImageStep] = useState(1);
-	const [bodyPart, setBodyPart] = useState<BodyPart | null>(null);
 	const [myDesignsOpen, setMyDesignsOpen] = useState(false);
 	const [captureUrl, setCaptureUrl] = useState<string | null>(null);
 	const isMobile = useIsMobile();
@@ -106,7 +103,7 @@ export default function SimulationsPage() {
 
 	// AR 단계 설명 (모바일은 QR 없이 직접 카메라)
 	const mobileArCopy: Record<number, string> = {
-		1: "적용해 볼 신체 부위를 선택하세요",
+		1: "팔에 인식용 마커를 그려주세요",
 		2: "카메라를 연결하세요",
 		3: "실시간으로 확인하고 저장하세요",
 	};
@@ -167,9 +164,7 @@ export default function SimulationsPage() {
 						</button>
 
 						<div className="flex min-w-0 min-h-0 items-center justify-center">
-							{tab === "ar" && step === 1 && (
-								<BodyPartStep selected={bodyPart} onSelect={setBodyPart} />
-							)}
+							{tab === "ar" && step === 1 && <MarkerGuideStep />}
 							{tab === "ar" &&
 								step === 2 &&
 								(isMobile ? (
@@ -234,7 +229,7 @@ export default function SimulationsPage() {
 
 				{tab === "ar" && step === 1 && (
 					<p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/50">
-						부위를 선택하여 AR 인식률을 높이고 있어요!
+						마커를 진하게 그릴수록 AR 인식률이 높아져요!
 					</p>
 				)}
 
