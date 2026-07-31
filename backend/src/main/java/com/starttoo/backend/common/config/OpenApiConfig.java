@@ -82,8 +82,18 @@ public class OpenApiConfig {
             if (isMutation(handlerMethod)) {
                 addError(responses, "409", "중복 요청 또는 현재 상태와 충돌");
             }
-            if (usesExternalService(handlerMethod)) {
-                addError(responses, "502", "OAuth, SMS 또는 MinIO 처리 실패");
+            if (usesMinio(handlerMethod)) {
+                addError(responses, "503", "MinIO 연결 장애 또는 저장소 사용 불가");
+                if (handlerMethod.getMethod().getName().equals("presign")) {
+                    addError(responses, "413", "요청 파일 크기가 설정된 최대값을 초과함");
+                }
+                if (handlerMethod.getMethod().getName().equals("complete")) {
+                    addError(responses, "404", "업로드 완료할 MinIO 객체가 없음");
+                    addError(responses, "413", "실제 업로드 파일 크기가 설정된 최대값을 초과함");
+                    addError(responses, "415", "object key 확장자와 실제 Content-Type이 일치하지 않음");
+                }
+            } else if (usesExternalService(handlerMethod)) {
+                addError(responses, "502", "OAuth 또는 SMS 외부 서비스 처리 실패");
                 addError(responses, "503", "필수 외부 서비스가 설정되지 않았거나 일시적으로 사용 불가");
                 addError(responses, "504", "외부 서비스 처리 시간 초과");
             }
@@ -130,9 +140,12 @@ public class OpenApiConfig {
     ) {
         String controller = handlerMethod.getBeanType().getSimpleName();
         String method = handlerMethod.getMethod().getName();
-        return controller.equals("MediaController")
-                || controller.equals("AuthController")
+        return controller.equals("AuthController")
                 && (method.equals("socialLogin") || method.equals("requestPhoneVerification"));
+    }
+
+    private boolean usesMinio(org.springframework.web.method.HandlerMethod handlerMethod) {
+        return handlerMethod.getBeanType().getSimpleName().equals("MediaController");
     }
 
     private boolean usesRecentSearchMutation(

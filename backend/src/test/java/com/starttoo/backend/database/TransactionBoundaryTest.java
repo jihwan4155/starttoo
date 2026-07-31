@@ -6,7 +6,7 @@ import com.starttoo.backend.auth.application.AuthService;
 import com.starttoo.backend.collection.application.CollectionService;
 import com.starttoo.backend.comment.application.CommentService;
 import com.starttoo.backend.dm.application.DmService;
-import com.starttoo.backend.media.application.MediaService;
+import com.starttoo.backend.media.application.MediaImageRegistrationService;
 import com.starttoo.backend.notification.application.DeviceService;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.post.application.PostService;
@@ -59,7 +59,7 @@ class TransactionBoundaryTest {
                 ref(DmService.class, "leave"),
                 ref(DmService.class, "notification"),
                 ref(DmService.class, "deleteMessage"),
-                ref(MediaService.class, "complete"),
+                ref(MediaImageRegistrationService.class, "register"),
                 ref(DeviceService.class, "register"),
                 ref(DeviceService.class, "deactivate"),
                 ref(DeviceService.class, "deactivateForLogout"),
