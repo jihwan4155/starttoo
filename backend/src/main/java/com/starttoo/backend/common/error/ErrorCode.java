@@ -11,6 +11,7 @@ public enum ErrorCode {
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "입력값 검증에 실패했습니다."),
     INVALID_CURSOR(HttpStatus.BAD_REQUEST, "페이지 커서가 올바르지 않습니다."),
     INVALID_FILE(HttpStatus.BAD_REQUEST, "파일 형식 또는 크기가 올바르지 않습니다."),
+    MASK_TOO_LARGE(HttpStatus.BAD_REQUEST, "그린 형태 데이터가 허용 범위를 초과했습니다."),
     INVALID_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "지원하지 않는 OAuth 제공자입니다."),
     PHONE_VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "휴대폰 인증이 필요합니다."),
     PHONE_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "휴대폰 인증 정보가 올바르지 않습니다."),

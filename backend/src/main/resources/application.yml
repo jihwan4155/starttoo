@@ -96,6 +96,21 @@ app:
     simulation-path: /v1/simulations
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  coverup:
+    # false면 커버업 검색은 503, 색인 동기화는 건너뛴다. app.ai 와는 다른 서비스다.
+    enabled: ${COVERUP_ENABLED:false}
+    base-url: ${COVERUP_ENGINE_URL:http://localhost:8004}
+    internal-token: ${COVERUP_INTERNAL_TOKEN:}
+    search-timeout: 3s
+    index-timeout: 30s
+    engine-top-k: 24
+    result-size: 16
+    max-mask-base64-bytes: 102400
+    presign-expiry: 1h
+    circuit-failure-threshold: 5
+    circuit-open-duration: 30s
+    index-sync-batch-size: 50
+    index-sync-cron: "${COVERUP_INDEX_SYNC_CRON:0 */10 * * * *}"
   rate-limit:
     default-capacity: ${RATE_LIMIT_DEFAULT_CAPACITY:60}
     default-window: ${RATE_LIMIT_DEFAULT_WINDOW:1m}
@@ -103,6 +118,8 @@ app:
     mutation-window: ${RATE_LIMIT_MUTATION_WINDOW:1m}
     phone-availability-capacity: ${RATE_LIMIT_PHONE_AVAILABILITY_CAPACITY:5}
     phone-availability-window: ${RATE_LIMIT_PHONE_AVAILABILITY_WINDOW:1m}
+    coverup-search-capacity: ${RATE_LIMIT_COVERUP_SEARCH_CAPACITY:30}
+    coverup-search-window: ${RATE_LIMIT_COVERUP_SEARCH_WINDOW:1m}
   search:
     log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}

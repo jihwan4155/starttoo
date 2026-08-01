@@ -97,6 +97,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
             );
         }
 
+        if (HttpMethod.POST.matches(request.getMethod())
+                && "/v1/designs/search-by-shape".equals(uri)) {
+            // 검색은 POST 지만 조회성 요청이다. 등록·수정용 mutation 한도와 분리한다.
+            return new Limit(
+                    properties.coverupSearchCapacity(),
+                    properties.coverupSearchWindow(),
+                    "coverup-search"
+            );
+        }
+
         boolean mutation = !HttpMethod.GET.matches(request.getMethod())
                 && !HttpMethod.HEAD.matches(request.getMethod())
                 && !HttpMethod.OPTIONS.matches(request.getMethod());

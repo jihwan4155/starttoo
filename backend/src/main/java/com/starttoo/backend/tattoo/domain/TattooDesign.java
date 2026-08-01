@@ -36,9 +36,15 @@ public class TattooDesign {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
+    /** 커버업 검색 엔진에 색인이 반영됐는지 여부. 실제 반영은 색인 동기화 스캔이 담당한다. */
+    @Column(name = "indexed", nullable = false)
+    private boolean indexed;
+
     public void replaceImage(Long imageSeq) {
         this.imageSeq = imageSeq;
         this.deleted = false;
+        // 변경: 이미지가 바뀌면 기존 색인은 다른 그림을 가리킨다. 재색인 대상으로 되돌린다.
+        this.indexed = false;
         this.modDttm = OffsetDateTime.now();
     }
 }
