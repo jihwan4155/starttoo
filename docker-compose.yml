@@ -53,7 +53,12 @@ services:
       start_period: 40s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      # Vite는 빌드 시점에 값을 번들로 치환한다. 런타임 environment로는 주입되지 않으므로
+      # env 파일의 VITE_KAKAO_JS_KEY를 반드시 build arg로 넘겨야 카카오 로그인이 동작한다.
+      args:
+        VITE_KAKAO_JS_KEY: ${VITE_KAKAO_JS_KEY:-}
     container_name: starttoo-frontend
     restart: unless-stopped
     networks:
