@@ -36,9 +36,12 @@ public class ArtistController {
                     VERIFIED 아티스트이면서 ACTIVE 회원인 프로필만 조회한다. 팔로워 수 내림차순,
                     userSeq 내림차순의 복합 커서를 사용하여 동률에서도 순서가 고정된다.
                     city가 있으면 저장된 shopCity와 정확히 일치하는 항목만 반환한다.
+                    각 아티스트에는 최신 PUBLISHED 게시물 최대 6개를 postSeq 내림차순으로
+                    포함한다. 게시물 항목은 postSeq, 첫 이미지의 단기 Presigned GET URL,
+                    likeCount만 제공한다.
                     """
     )
-    public ApiResponse<CursorPageResponse<ArtistDtos.ArtistProfile>> list(
+    public ApiResponse<CursorPageResponse<ArtistDtos.ArtistListItem>> list(
             @RequestParam(required = false) @Size(max = 100) String cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
             @RequestParam(required = false) @Size(max = 100) String city
@@ -50,9 +53,9 @@ public class ArtistController {
     @Operation(
             summary = "아티스트 프로필 작성·수정",
             description = """
-                    프로필이 없으면 UNVERIFIED 상태로 생성하고, 있으면 같은 행의 간략한 숍 정보를
-                    수정한다. 독립적인 shop 엔티티는 만들지 않는다. 생성 또는 수정과 수정자·수정
-                    시각 기록은 하나의 트랜잭션에서 반영된다.
+                    users.role=ARTIST인 회원만 가입 시 생성된 artists 행의 숍 정보를 수정할 수
+                    있다. USER이거나 artists 행이 없으면 거부한다. verificationStatus와 role은
+                    변경하지 않으며 독립적인 shop 엔티티도 만들지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )

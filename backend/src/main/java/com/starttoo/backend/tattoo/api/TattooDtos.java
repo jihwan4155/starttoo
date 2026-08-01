@@ -16,18 +16,23 @@ public final class TattooDtos {
             Integer registrantSeq,
             Long imageSeq,
             TattooSourceType sourceType,
-            Integer primaryStyleSeq,
-            List<Integer> secondaryStyleSeqs,
-            List<Integer> renderingStyleSeqs,
-            Integer colorSeq,
-            List<SubjectResponse> subjects,
+            ClassificationValue primaryStyle,
+            List<ClassificationValue> secondaryStyles,
+            List<ClassificationValue> renderingStyles,
+            ClassificationValue color,
+            List<String> subjects,
             boolean usedForTraining,
             OffsetDateTime trainedDttm,
             OffsetDateTime regDttm
     ) {
     }
 
-    public record SubjectResponse(Integer subjectSeq, String subjectName) {
+    public record ClassificationValue(
+            @Schema(description = "프론트 로직에서 사용할 안정적인 분류 코드", example = "BLACKWORK")
+            String code,
+            @Schema(description = "화면 표시용 분류명", example = "블랙워크")
+            String name
+    ) {
     }
 
     public record TattooDesignResponse(
@@ -40,12 +45,12 @@ public final class TattooDtos {
                     example = "https://minio.example.com/starttoo/design.png?X-Amz-Algorithm=AWS4-HMAC-SHA256"
             )
             String designImageUrl,
-            @Schema(description = "주 스타일 식별자", example = "1")
-            Integer primaryStyleSeq,
-            @Schema(description = "색상 식별자. 분류되지 않았으면 null", example = "2")
-            Integer colorSeq,
-            @Schema(description = "Subject 목록. 없으면 빈 배열")
-            List<SubjectResponse> subjects,
+            @Schema(description = "주 스타일 기준정보")
+            ClassificationValue primaryStyle,
+            @Schema(description = "색상 기준정보. 분류되지 않았으면 null")
+            ClassificationValue color,
+            @Schema(description = "Subject 이름 목록. 없으면 빈 배열")
+            List<String> subjects,
             @Schema(description = "현재 로그인 회원의 보관 여부", example = "false")
             boolean archivedByMe,
             @Schema(description = "도안 등록 시각")

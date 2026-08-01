@@ -5,8 +5,6 @@ import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.post.api.PostDtos;
-import com.starttoo.backend.notification.application.NotificationService;
-import com.starttoo.backend.notification.domain.NotificationType;
 import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
@@ -46,17 +44,16 @@ public class PostService {
     private final MediaService mediaService;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    private final NotificationService notificationService;
 
     public PostDtos.PostResponse create(Integer userSeq, PostDtos.CreatePostRequest request) {
         userService.find(userSeq);
         if (request.imageSeqs().size() != new HashSet<>(request.imageSeqs()).size()) {
             throw BusinessException.of(ErrorCode.INVALID_REQUEST);
         }
-        List<TattooService.PreparedTattoo> preparedTattoos = request.imageSeqs().stream()
-                .map(imageSeq -> tattooService.prepare(userSeq, imageSeq))
+        List<TattooService.PreparedPostImage> preparedImages = request.imageSeqs().stream()
+                .map(imageSeq -> tattooService.preparePostImage(userSeq, imageSeq))
                 .toList();
-        Post post = postWriteService.create(userSeq, request, preparedTattoos);
+        Post post = postWriteService.create(userSeq, request, preparedImages);
         return response(post, userSeq);
     }
 
@@ -280,7 +277,7 @@ public class PostService {
 
     @Transactional
     public boolean setLike(Integer userSeq, Long postSeq, boolean enabled) {
-        Post post = publishedForUser(postSeq, userSeq);
+        publishedForUser(postSeq, userSeq);
         int changed;
         if (enabled) {
             changed = jdbcTemplate.update("""
@@ -291,14 +288,6 @@ public class PostService {
             if (changed > 0) {
                 postRepository.addLikeCount(postSeq, 1);
                 preferenceScoreService.applyPostLike(userSeq, postSeq, true);
-                notificationService.create(
-                        post.getAuthorSeq(),
-                        userSeq,
-                        NotificationType.POST_LIKE,
-                        postSeq,
-                        "게시물 좋아요",
-                        "회원님의 게시물에 좋아요가 추가되었습니다."
-                );
             }
             return true;
         }
@@ -309,7 +298,6 @@ public class PostService {
         );
         if (changed > 0) {
             postRepository.addLikeCount(postSeq, -1);
-            preferenceScoreService.applyPostLike(userSeq, postSeq, false);
         }
         return false;
     }
@@ -331,8 +319,8 @@ public class PostService {
                     userSeq
             );
         }
-        if (changed > 0) {
-            preferenceScoreService.applyPostBookmark(userSeq, postSeq, enabled);
+        if (changed > 0 && enabled) {
+            preferenceScoreService.applyPostBookmark(userSeq, postSeq, true);
         }
         return enabled;
     }
@@ -354,8 +342,8 @@ public class PostService {
                     userSeq
             );
         }
-        if (changed > 0) {
-            preferenceScoreService.applyNotInterested(userSeq, postSeq, enabled);
+        if (changed > 0 && enabled) {
+            preferenceScoreService.applyNotInterested(userSeq, postSeq, true);
         }
         return enabled;
     }

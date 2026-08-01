@@ -85,8 +85,8 @@ class TattooServiceTest {
                 .thenReturn(Optional.of(image(301L, "users/7/original.webp")));
         when(mediaService.downloadUrl("users/7/original.webp"))
                 .thenReturn("https://minio.example/presigned-original");
-        when(tattooModelClient.analyze("https://minio.example/presigned-original"))
-                .thenReturn(analysis);
+        when(tattooModelClient.analyzeIfTattoo("https://minio.example/presigned-original"))
+                .thenReturn(Optional.of(analysis));
 
         TattooService.PreparedTattoo prepared = tattooService.prepare(7, 301L);
 
@@ -101,8 +101,8 @@ class TattooServiceTest {
                 .thenReturn(Optional.of(image(301L, "users/7/original.webp")));
         when(mediaService.downloadUrl("users/7/original.webp"))
                 .thenReturn("https://minio.example/presigned-original");
-        when(tattooModelClient.analyze("https://minio.example/presigned-original"))
-                .thenThrow(BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE));
+        when(tattooModelClient.analyzeIfTattoo("https://minio.example/presigned-original"))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> tattooService.prepare(7, 301L))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
@@ -113,27 +113,31 @@ class TattooServiceTest {
     }
 
     @Test
-    void detailReturnsMultipleSubjectsAndEmptyOptionalStyleArrays() {
+    void detailReturnsClassificationLabelsAndSubjectNames() throws Exception {
         Tattoo tattoo = tattoo(501L, 301L);
         when(tattooRepository.findByTattooSeqAndDeletedFalse(501L))
                 .thenReturn(Optional.of(tattoo));
-        when(jdbcTemplate.query(
+        when(jdbcTemplate.queryForList(anyString(), eq(String.class), eq(501L)))
+                .thenReturn(List.of("장미", "나비"));
+        doAnswer(invocation -> {
+            RowMapper<?> mapper = invocation.getArgument(1);
+            ResultSet resultSet = mock(ResultSet.class);
+            when(resultSet.getString("primary_code")).thenReturn("OTHER");
+            when(resultSet.getString("primary_name")).thenReturn("기타");
+            return mapper.mapRow(resultSet, 0);
+        }).when(jdbcTemplate).queryForObject(
                 anyString(),
-                org.mockito.ArgumentMatchers
-                        .<RowMapper<TattooDtos.SubjectResponse>>any(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
                 eq(501L)
-        )).thenReturn(List.of(
-                new TattooDtos.SubjectResponse(10, "장미"),
-                new TattooDtos.SubjectResponse(11, "나비")
-        ));
+        );
 
         TattooDtos.TattooResponse response = tattooService.get(501L);
 
-        assertThat(response.secondaryStyleSeqs()).isEmpty();
-        assertThat(response.renderingStyleSeqs()).isEmpty();
-        assertThat(response.subjects())
-                .extracting(TattooDtos.SubjectResponse::subjectSeq)
-                .containsExactly(10, 11);
+        assertThat(response.primaryStyle().code()).isEqualTo("OTHER");
+        assertThat(response.primaryStyle().name()).isEqualTo("기타");
+        assertThat(response.secondaryStyles()).isEmpty();
+        assertThat(response.renderingStyles()).isEmpty();
+        assertThat(response.subjects()).containsExactly("장미", "나비");
     }
 
     @Test
@@ -202,9 +206,9 @@ class TattooServiceTest {
         assertThat(loggedIn.items()).singleElement().satisfies(item -> {
             assertThat(item.designImageUrl()).isEqualTo("https://minio.example/design");
             assertThat(item.archivedByMe()).isTrue();
-            assertThat(item.subjects()).singleElement()
-                    .extracting(TattooDtos.SubjectResponse::subjectName)
-                    .isEqualTo("장미");
+            assertThat(item.primaryStyle().code()).isEqualTo("OTHER");
+            assertThat(item.color().name()).isEqualTo("검정");
+            assertThat(item.subjects()).containsExactly("장미");
         });
         assertThat(anonymous.items()).singleElement()
                 .extracting(TattooDtos.TattooDesignResponse::archivedByMe)
@@ -230,8 +234,10 @@ class TattooServiceTest {
             when(resultSet.getLong("design_image_seq")).thenReturn(302L);
             when(resultSet.getString("design_object_key"))
                     .thenReturn("users/7/design.webp");
-            when(resultSet.getInt("primary_style_seq")).thenReturn(1);
-            when(resultSet.getObject("color_seq", Integer.class)).thenReturn(2);
+            when(resultSet.getString("primary_style_code")).thenReturn("OTHER");
+            when(resultSet.getString("primary_style_name")).thenReturn("기타");
+            when(resultSet.getString("color_code")).thenReturn("BLACK");
+            when(resultSet.getString("color_name")).thenReturn("검정");
             when(resultSet.getBoolean("archived_by_me"))
                     .thenReturn(parameters.getValue("userSeq") != null);
             when(resultSet.getObject("reg_dttm", OffsetDateTime.class))
@@ -249,7 +255,6 @@ class TattooServiceTest {
             RowCallbackHandler handler = invocation.getArgument(2);
             ResultSet resultSet = mock(ResultSet.class);
             when(resultSet.getLong("tattoo_seq")).thenReturn(501L);
-            when(resultSet.getInt("subject_seq")).thenReturn(10);
             when(resultSet.getString("subject_name")).thenReturn("장미");
             handler.processRow(resultSet);
             return null;

@@ -170,7 +170,7 @@ class AuthServiceTest {
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).saveAndFlush(userCaptor.capture());
-        assertThat(userCaptor.getValue().getRole()).isEqualTo(UserRole.USER);
+        assertThat(userCaptor.getValue().getRole()).isEqualTo(UserRole.ARTIST);
 
         ArgumentCaptor<Artist> artistCaptor = ArgumentCaptor.forClass(Artist.class);
         verify(artistRepository).save(artistCaptor.capture());
@@ -285,7 +285,7 @@ class AuthServiceTest {
 
     private void stubNewSignup() {
         Jwt jwt = signupJwt();
-        User persisted = user(7, "검은장미1", UserRole.USER);
+        User persisted = user(7, "검은장미1", UserRole.ARTIST);
         when(signupTokenConsumer.validate("signup-token")).thenReturn(jwt);
         when(providerRepository.findByProviderCodeAndActiveTrue("KAKAO"))
                 .thenReturn(Optional.of(provider()));

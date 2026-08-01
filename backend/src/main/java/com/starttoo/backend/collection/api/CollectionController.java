@@ -103,7 +103,8 @@ public class CollectionController {
             summary = "컬렉션 삭제",
             description = """
                     소유 컬렉션과 이 등록 과정에서 생성된 tattoos 행을 같은 트랜잭션에서 소프트
-                    삭제한다. 이미지 원본 images 행은 삭제하지 않는다.
+                    삭제한다. 이미지 원본 images 행은 삭제하지 않으며 등록 시 반영된 취향 점수도
+                    행동 이력으로 유지해 역보정하지 않는다.
                     """
     )
     public ApiResponse<Boolean> delete(@PathVariable Long collectionSeq) {
@@ -118,7 +119,7 @@ public class CollectionController {
                     현재 회원의 보관함을 보관 시각과 tattooSeq 내림차순 커서로 조회한다.
                     활성 tattooDesigns, tattoos, images만 반환하며 도안 이미지 URL은 DB에
                     저장된 MinIO objectKey로 단기 Presigned GET URL을 생성해 제공한다.
-                    subjects가 없으면 빈 배열을 반환한다.
+                    응답 항목은 tattooSeq, designImageSeq, designImageUrl, archivedDttm만 제공한다.
                     """
     )
     public ApiResponse<CursorPageResponse<CollectionDtos.TattooDesignItem>> archive(
@@ -155,9 +156,8 @@ public class CollectionController {
     @Operation(
             summary = "타투 도안 보관 해제",
             description = """
-                    현재 회원의 userArchive 관계를 멱등하게 삭제한다. 실제로 관계가 삭제된 경우에만
-                    같은 트랜잭션에서 주 스타일·색상 취향 점수를 역산하며, 반복 요청은 점수를
-                    중복 변경하지 않고 성공한다.
+                    현재 회원의 userArchive 관계를 멱등하게 삭제한다. 보관 시 반영된 취향 점수는
+                    행동 이력으로 유지하며 역보정하지 않는다. 반복 요청도 enabled=false로 성공한다.
                     """
     )
     public ApiResponse<CollectionDtos.ArchiveStateResponse> removeArchive(@PathVariable Long tattooSeq) {

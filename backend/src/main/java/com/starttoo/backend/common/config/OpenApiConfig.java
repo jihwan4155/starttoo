@@ -98,7 +98,9 @@ public class OpenApiConfig {
                 addError(responses, "504", "외부 서비스 처리 시간 초과");
             }
             if (usesTattooAnalysis(handlerMethod)) {
-                addError(responses, "422", "업로드한 이미지가 타투 이미지가 아님");
+                if (handlerMethod.getBeanType().getSimpleName().equals("CollectionController")) {
+                    addError(responses, "422", "업로드한 이미지가 타투 이미지가 아님");
+                }
                 addError(responses, "502", "타투 판별 또는 분석 모델 처리 실패");
                 addError(responses, "503", "이미지 저장소를 일시적으로 사용할 수 없음");
                 addError(responses, "504", "타투 판별 또는 분석 모델 처리 시간 초과");

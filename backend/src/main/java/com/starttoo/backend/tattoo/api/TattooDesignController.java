@@ -32,8 +32,9 @@ public class TattooDesignController {
             summary = "공개 타투 도안 목록 조회",
             description = """
                     활성 tattoo_designs와 비삭제 타투·이미지를 도안 등록 시각 내림차순 커서로
-                    조회한다. 이미지 URL과 Subject, 로그인 회원의 archivedByMe는 일괄 조회해
-                    조립하며 원본이 아닌 가공 도안 이미지의 단기 Presigned GET URL을 반환한다.
+                    조회한다. 주 스타일·색상은 기준정보의 code와 name으로, Subject는 이름 목록으로
+                    반환한다. 로그인 회원의 archivedByMe를 계산하며 원본이 아닌 가공 도안 이미지의
+                    단기 Presigned GET URL을 반환한다.
                     """
     )
     public ApiResponse<CursorPageResponse<TattooDtos.TattooDesignResponse>> list(

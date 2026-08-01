@@ -9,7 +9,6 @@ import com.starttoo.backend.post.domain.PostImageRepository;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
 import com.starttoo.backend.tattoo.application.TattooService;
-import com.starttoo.backend.tattoo.domain.Tattoo;
 import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -31,16 +30,16 @@ public class PostWriteService {
     public Post create(
             Integer userSeq,
             PostDtos.CreatePostRequest request,
-            List<TattooService.PreparedTattoo> preparedTattoos
+            List<TattooService.PreparedPostImage> preparedImages
     ) {
         try {
-            List<Tattoo> tattoos = preparedTattoos.stream()
-                    .map(prepared -> tattooService.persistPrepared(
+            preparedImages.stream()
+                    .filter(TattooService.PreparedPostImage::tattoo)
+                    .forEach(prepared -> tattooService.persistPrepared(
                             userSeq,
-                            prepared,
+                            prepared.asTattoo(),
                             TattooSourceType.USER_POST
-                    ))
-                    .toList();
+                    ));
             OffsetDateTime now = OffsetDateTime.now();
             Post post = postRepository.save(Post.builder()
                     .authorSeq(userSeq)
@@ -54,10 +53,10 @@ public class PostWriteService {
                     .modUsrSeq(userSeq)
                     .deleted(false)
                     .build());
-            for (int index = 0; index < tattoos.size(); index++) {
+            for (int index = 0; index < preparedImages.size(); index++) {
                 postImageRepository.save(PostImage.builder()
                         .postSeq(post.getPostSeq())
-                        .imageSeq(tattoos.get(index).getImageSeq())
+                        .imageSeq(preparedImages.get(index).imageSeq())
                         .displayOrder((short) (index + 1))
                         .regDttm(now)
                         .modDttm(now)

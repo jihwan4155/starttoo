@@ -25,7 +25,6 @@ import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -46,12 +45,21 @@ public class TattooService {
     private final SearchIndexEventPublisher searchIndexEventPublisher;
 
     public PreparedTattoo prepare(Integer userSeq, Long imageSeq) {
+        PreparedPostImage prepared = preparePostImage(userSeq, imageSeq);
+        if (prepared.analysis() == null) {
+            throw BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE);
+        }
+        return new PreparedTattoo(prepared.imageSeq(), prepared.objectKey(), prepared.analysis());
+    }
+
+    public PreparedPostImage preparePostImage(Integer userSeq, Long imageSeq) {
         Image image = imageRepository.findByImageSeqAndDeletedFalse(imageSeq)
                 .filter(value -> value.getRegUsrSeq().equals(userSeq))
                 .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
         String imageUrl = mediaService.downloadUrl(image.getObjectKey());
-        TattooModelClient.Analysis analysis = tattooModelClient.analyze(imageUrl);
-        return new PreparedTattoo(image.getImageSeq(), image.getObjectKey(), analysis);
+        TattooModelClient.Analysis analysis = tattooModelClient.analyzeIfTattoo(imageUrl)
+                .orElse(null);
+        return new PreparedPostImage(image.getImageSeq(), image.getObjectKey(), analysis);
     }
 
     @Transactional
@@ -113,25 +121,23 @@ public class TattooService {
     public TattooDtos.TattooResponse get(Long tattooSeq) {
         Tattoo tattoo = tattooRepository.findByTattooSeqAndDeletedFalse(tattooSeq)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.TATTOO_NOT_FOUND));
-        List<TattooDtos.SubjectResponse> subjects = jdbcTemplate.query("""
-                SELECT s.subject_seq, s.subject_name
+        List<String> subjects = jdbcTemplate.queryForList("""
+                SELECT s.subject_name
                   FROM tattoo_subjects ts
                   JOIN subjects s ON s.subject_seq = ts.subject_seq
                  WHERE ts.tattoo_seq = ?
                  ORDER BY s.subject_seq
-                """, (rs, rowNum) -> new TattooDtos.SubjectResponse(
-                rs.getInt("subject_seq"),
-                rs.getString("subject_name")
-        ), tattooSeq);
+                """, String.class, tattooSeq);
+        TattooLabels labels = labels(tattooSeq);
         return new TattooDtos.TattooResponse(
                 tattoo.getTattooSeq(),
                 tattoo.getRegistrantSeq(),
                 tattoo.getImageSeq(),
                 tattoo.getSourceType(),
-                tattoo.getPrimaryStyleSeq(),
-                compact(tattoo.getSecondaryStyle1Seq(), tattoo.getSecondaryStyle2Seq()),
-                compact(tattoo.getRenderingStyle1Seq(), tattoo.getRenderingStyle2Seq()),
-                tattoo.getColorSeq(),
+                labels.primary(),
+                compact(labels.secondary1(), labels.secondary2()),
+                compact(labels.rendering1(), labels.rendering2()),
+                labels.color(),
                 subjects,
                 tattoo.isUsedForTraining(),
                 tattoo.getTrainedDttm(),
@@ -144,6 +150,23 @@ public class TattooService {
             String objectKey,
             TattooModelClient.Analysis analysis
     ) {
+    }
+
+    public record PreparedPostImage(
+            Long imageSeq,
+            String objectKey,
+            TattooModelClient.Analysis analysis
+    ) {
+        public boolean tattoo() {
+            return analysis != null;
+        }
+
+        public PreparedTattoo asTattoo() {
+            if (!tattoo()) {
+                throw new IllegalStateException("비타투 이미지는 PreparedTattoo로 변환할 수 없습니다.");
+            }
+            return new PreparedTattoo(imageSeq, objectKey, analysis);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -171,8 +194,10 @@ public class TattooService {
                 SELECT td.tattoo_seq,
                        td.image_seq AS design_image_seq,
                        image.object_key AS design_object_key,
-                       tattoo.primary_style_seq,
-                       tattoo.color_seq,
+                       primary_style.style_code AS primary_style_code,
+                       primary_style.style_name AS primary_style_name,
+                       color.color_code,
+                       color.color_name,
                        td.reg_dttm,
                        CASE
                            WHEN :userSeq IS NULL THEN FALSE
@@ -190,6 +215,10 @@ public class TattooService {
                   JOIN images image
                     ON image.image_seq = td.image_seq
                    AND image.is_deleted = FALSE
+                  JOIN primary_styles primary_style
+                    ON primary_style.primary_style_seq = tattoo.primary_style_seq
+                  LEFT JOIN colors color
+                    ON color.color_seq = tattoo.color_seq
                  WHERE td.is_deleted = FALSE
                    AND (
                        CAST(:cursorDttm AS timestamptz) IS NULL
@@ -205,22 +234,29 @@ public class TattooService {
                 rs.getLong("tattoo_seq"),
                 rs.getLong("design_image_seq"),
                 rs.getString("design_object_key"),
-                rs.getInt("primary_style_seq"),
-                rs.getObject("color_seq", Integer.class),
+                new TattooDtos.ClassificationValue(
+                        rs.getString("primary_style_code"),
+                        rs.getString("primary_style_name")
+                ),
+                rs.getString("color_code") == null ? null
+                        : new TattooDtos.ClassificationValue(
+                        rs.getString("color_code"),
+                        rs.getString("color_name")
+                ),
                 rs.getBoolean("archived_by_me"),
                 rs.getObject("reg_dttm", OffsetDateTime.class)
         ));
         boolean hasNext = rows.size() > safeSize;
         List<DesignRow> page = hasNext ? rows.subList(0, safeSize) : rows;
-        Map<Long, List<TattooDtos.SubjectResponse>> subjects =
+        Map<Long, List<String>> subjects =
                 subjectsByTattoo(page.stream().map(DesignRow::tattooSeq).toList());
         List<TattooDtos.TattooDesignResponse> items = page.stream()
                 .map(row -> new TattooDtos.TattooDesignResponse(
                         row.tattooSeq(),
                         row.designImageSeq(),
                         mediaService.downloadUrl(row.designObjectKey()),
-                        row.primaryStyleSeq(),
-                        row.colorSeq(),
+                        row.primaryStyle(),
+                        row.color(),
                         subjects.getOrDefault(row.tattooSeq(), List.of()),
                         row.archivedByMe(),
                         row.regDttm()
@@ -254,13 +290,13 @@ public class TattooService {
         );
     }
 
-    private Map<Long, List<TattooDtos.SubjectResponse>> subjectsByTattoo(
+    private Map<Long, List<String>> subjectsByTattoo(
             List<Long> tattooSeqs
     ) {
         if (tattooSeqs.isEmpty()) {
             return Map.of();
         }
-        Map<Long, List<TattooDtos.SubjectResponse>> result = new HashMap<>();
+        Map<Long, List<String>> result = new HashMap<>();
         namedParameterJdbcTemplate.query("""
                 SELECT ts.tattoo_seq, subject.subject_seq, subject.subject_name
                   FROM tattoo_subjects ts
@@ -269,10 +305,7 @@ public class TattooService {
                  ORDER BY ts.tattoo_seq, subject.subject_seq
                 """, new MapSqlParameterSource("tattooSeqs", tattooSeqs), rs -> {
             result.computeIfAbsent(rs.getLong("tattoo_seq"), ignored -> new ArrayList<>())
-                    .add(new TattooDtos.SubjectResponse(
-                            rs.getInt("subject_seq"),
-                            rs.getString("subject_name")
-                    ));
+                    .add(rs.getString("subject_name"));
         });
         return result;
     }
@@ -368,15 +401,60 @@ public class TattooService {
         return values.size() > index ? values.get(index) : null;
     }
 
-    private List<Integer> compact(Integer first, Integer second) {
-        List<Integer> result = new ArrayList<>();
+    private List<TattooDtos.ClassificationValue> compact(
+            TattooDtos.ClassificationValue first,
+            TattooDtos.ClassificationValue second
+    ) {
+        List<TattooDtos.ClassificationValue> result = new ArrayList<>();
         if (first != null) {
             result.add(first);
         }
         if (second != null) {
             result.add(second);
         }
-        return Collections.unmodifiableList(result);
+        return List.copyOf(result);
+    }
+
+    private TattooLabels labels(Long tattooSeq) {
+        return jdbcTemplate.queryForObject("""
+                SELECT primary_style.style_code AS primary_code,
+                       primary_style.style_name AS primary_name,
+                       secondary1.style_code AS secondary1_code,
+                       secondary1.style_name AS secondary1_name,
+                       secondary2.style_code AS secondary2_code,
+                       secondary2.style_name AS secondary2_name,
+                       rendering1.style_code AS rendering1_code,
+                       rendering1.style_name AS rendering1_name,
+                       rendering2.style_code AS rendering2_code,
+                       rendering2.style_name AS rendering2_name,
+                       color.color_code,
+                       color.color_name
+                  FROM tattoos tattoo
+                  JOIN primary_styles primary_style
+                    ON primary_style.primary_style_seq = tattoo.primary_style_seq
+                  LEFT JOIN secondary_styles secondary1
+                    ON secondary1.secondary_style_seq = tattoo.secondary_style1_seq
+                  LEFT JOIN secondary_styles secondary2
+                    ON secondary2.secondary_style_seq = tattoo.secondary_style2_seq
+                  LEFT JOIN rendering_styles rendering1
+                    ON rendering1.rendering_style_seq = tattoo.rendering_style1_seq
+                  LEFT JOIN rendering_styles rendering2
+                    ON rendering2.rendering_style_seq = tattoo.rendering_style2_seq
+                  LEFT JOIN colors color
+                    ON color.color_seq = tattoo.color_seq
+                 WHERE tattoo.tattoo_seq = ?
+                """, (rs, rowNum) -> new TattooLabels(
+                value(rs.getString("primary_code"), rs.getString("primary_name")),
+                value(rs.getString("secondary1_code"), rs.getString("secondary1_name")),
+                value(rs.getString("secondary2_code"), rs.getString("secondary2_name")),
+                value(rs.getString("rendering1_code"), rs.getString("rendering1_name")),
+                value(rs.getString("rendering2_code"), rs.getString("rendering2_name")),
+                value(rs.getString("color_code"), rs.getString("color_name"))
+        ), tattooSeq);
+    }
+
+    private TattooDtos.ClassificationValue value(String code, String name) {
+        return code == null ? null : new TattooDtos.ClassificationValue(code, name);
     }
 
     private record DesignCursor(OffsetDateTime regDttm, Long tattooSeq) {
@@ -386,10 +464,20 @@ public class TattooService {
             Long tattooSeq,
             Long designImageSeq,
             String designObjectKey,
-            Integer primaryStyleSeq,
-            Integer colorSeq,
+            TattooDtos.ClassificationValue primaryStyle,
+            TattooDtos.ClassificationValue color,
             boolean archivedByMe,
             OffsetDateTime regDttm
+    ) {
+    }
+
+    private record TattooLabels(
+            TattooDtos.ClassificationValue primary,
+            TattooDtos.ClassificationValue secondary1,
+            TattooDtos.ClassificationValue secondary2,
+            TattooDtos.ClassificationValue rendering1,
+            TattooDtos.ClassificationValue rendering2,
+            TattooDtos.ClassificationValue color
     ) {
     }
 }

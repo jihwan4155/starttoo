@@ -32,13 +32,13 @@ public class NotificationController {
     @Operation(
             summary = "내 미확인 알림 목록",
             description = """
-                    receiverSeq가 현재 회원이고 isRead=false인 알림만 notificationSeq
-                    내림차순 커서로 조회한다. size=10을 사용하면 미확인 알림 Top 10과
-                    동일하며 결과가 없으면 items=[]를 반환한다.
+                    NEW_DM은 전체 미확인 알림에서 채팅방별로 집계하고 SYSTEM은 개별로 반환한다.
+                    집계 대표값은 가장 최근 알림이며 대표 regDttm, notificationSeq 내림차순으로
+                    정렬한 뒤 커서 페이지네이션한다. size=10은 미확인 알림 Top 10과 동일하다.
                     """
     )
     public ApiResponse<CursorPageResponse<NotificationDtos.NotificationResponse>> list(
-            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") @Min(1) @Max(100) int size
     ) {
         return ApiResponse.of(notificationService.list(
@@ -66,9 +66,9 @@ public class NotificationController {
     @Operation(
             summary = "알림 한 건 읽음 처리",
             description = """
-                    현재 회원이 수신한 알림인지 확인하고 read=true와 최초 readDttm을 기록한다.
-                    다른 회원의 알림은 존재하지 않는 리소스처럼 처리하며 이미 읽은 알림은
-                    성공으로 처리하는 멱등 명령이다.
+                    SYSTEM은 지정한 한 건을 읽음 처리한다. NEW_DM 대표 알림은 같은 채팅방의
+                    모든 미확인 NEW_DM 알림을 읽음 처리한다. DM 메시지 자체의 readDttm은
+                    변경하지 않으며 다른 회원의 알림은 존재하지 않는 리소스처럼 처리한다.
                     """
     )
     public ApiResponse<NotificationDtos.NotificationResponse> read(

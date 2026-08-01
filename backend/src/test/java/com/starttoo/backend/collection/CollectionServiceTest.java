@@ -157,7 +157,7 @@ class CollectionServiceTest {
     }
 
     @Test
-    void deleteSoftDeletesCollectionTattooAndReversesScoreButKeepsImage() {
+    void deleteSoftDeletesCollectionTattooWithoutReversingScoreAndKeepsImage() {
         TattooCollection collection = collection(601L, 7, 501L);
         Tattoo tattoo = tattoo(501L, 301L);
         when(collectionRepository.findByCollectionSeqAndUserSeqAndDeletedFalse(601L, 7))
@@ -169,7 +169,7 @@ class CollectionServiceTest {
 
         assertThat(collection.isDeleted()).isTrue();
         assertThat(tattoo.isDeleted()).isTrue();
-        verify(preferenceScoreService).applyCollection(7, 501L, false);
+        verifyNoInteractions(preferenceScoreService);
         verifyNoInteractions(imageRepository);
     }
 

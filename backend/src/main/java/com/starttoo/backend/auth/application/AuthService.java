@@ -94,7 +94,7 @@ public class AuthService {
 
     @Transactional
     public AuthDtos.TokenResponse signup(AuthDtos.SignupRequest request) {
-        UserRole requestedRole = requestedRole(request.requestedRole());
+        UserRole role = role(request.role());
         Jwt signupJwt = signupTokenConsumer.validate(request.signupToken());
         String providerCode = signupJwt.getClaimAsString("provider");
         String providerSubject = signupJwt.getSubject();
@@ -132,7 +132,7 @@ public class AuthService {
                     .phoneVerifiedDttm(now)
                     .birthDate(request.birthDate())
                     .gender(request.gender())
-                    .role(UserRole.USER)
+                    .role(role)
                     .recentSearchTerms(new String[0])
                     .accountStatus(AccountStatus.ACTIVE)
                     .statusChangedDttm(now)
@@ -143,7 +143,7 @@ public class AuthService {
             user.initializeModifier();
             userRepository.flush();
 
-            if (requestedRole == UserRole.ARTIST) {
+            if (role == UserRole.ARTIST) {
                 artistRepository.save(Artist.builder()
                         .userSeq(user.getUserSeq())
                         .verificationStatus(VerificationStatus.UNVERIFIED)
@@ -294,7 +294,7 @@ public class AuthService {
                 .orElseThrow(() -> BusinessException.of(ErrorCode.INVALID_OAUTH_PROVIDER));
     }
 
-    private UserRole requestedRole(String role) {
+    private UserRole role(String role) {
         if (!UserRole.USER.name().equals(role) && !UserRole.ARTIST.name().equals(role)) {
             throw BusinessException.of(ErrorCode.INVALID_REQUEST);
         }

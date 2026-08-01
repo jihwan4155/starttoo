@@ -86,7 +86,6 @@ public class CollectionService {
                 .findByTattooSeqAndDeletedFalse(collection.getTattooSeq())
                 .filter(value -> value.getSourceType() == TattooSourceType.USER_COLLECTION)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.TATTOO_NOT_FOUND));
-        preferenceScoreService.applyCollection(userSeq, collection.getTattooSeq(), false);
         collection.softDelete();
         tattoo.softDelete();
     }
@@ -206,14 +205,11 @@ public class CollectionService {
             }
             return true;
         }
-        int deleted = jdbcTemplate.update(
+        jdbcTemplate.update(
                 "DELETE FROM user_archive WHERE user_seq = ? AND tattoo_seq = ?",
                 userSeq,
                 tattooSeq
         );
-        if (deleted > 0) {
-            preferenceScoreService.applyCollection(userSeq, tattooSeq, false);
-        }
         return false;
     }
 
@@ -236,8 +232,6 @@ public class CollectionService {
                 SELECT ua.tattoo_seq,
                        td.image_seq AS design_image_seq,
                        i.object_key AS design_object_key,
-                       t.primary_style_seq,
-                       t.color_seq,
                        ua.reg_dttm AS archived_dttm
                   FROM user_archive ua
                   JOIN tattoo_designs td
@@ -264,8 +258,6 @@ public class CollectionService {
                 rs.getLong("tattoo_seq"),
                 rs.getLong("design_image_seq"),
                 rs.getString("design_object_key"),
-                rs.getInt("primary_style_seq"),
-                rs.getObject("color_seq", Integer.class),
                 rs.getObject("archived_dttm", OffsetDateTime.class)
         ));
         boolean hasNext = rows.size() > safeSize;
@@ -275,27 +267,11 @@ public class CollectionService {
                         row.tattooSeq(),
                         row.designImageSeq(),
                         mediaService.downloadUrl(row.designObjectKey()),
-                        row.primaryStyleSeq(),
-                        row.colorSeq(),
-                        subjects(row.tattooSeq()),
                         row.archivedDttm()
                 ))
                 .toList();
         String nextCursor = hasNext ? encodeArchiveCursor(page.get(page.size() - 1)) : null;
         return CursorPageResponse.of(items, nextCursor, hasNext);
-    }
-
-    private List<CollectionDtos.SubjectItem> subjects(Long tattooSeq) {
-        return jdbcTemplate.query("""
-                SELECT s.subject_seq, s.subject_name
-                  FROM tattoo_subjects ts
-                  JOIN subjects s ON s.subject_seq = ts.subject_seq
-                 WHERE ts.tattoo_seq = ?
-                 ORDER BY s.subject_seq
-                """, (rs, rowNum) -> new CollectionDtos.SubjectItem(
-                rs.getInt("subject_seq"),
-                rs.getString("subject_name")
-        ), tattooSeq);
     }
 
     private ArchiveCursor decodeArchiveCursor(String cursor) {
@@ -330,8 +306,6 @@ public class CollectionService {
             Long tattooSeq,
             Long designImageSeq,
             String designObjectKey,
-            Integer primaryStyleSeq,
-            Integer colorSeq,
             OffsetDateTime archivedDttm
     ) {
     }

@@ -10,15 +10,20 @@ import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.user.domain.User;
 import com.starttoo.backend.user.application.UserService;
+import com.starttoo.backend.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class ArtistService {
     private final ArtistRepository artistRepository;
     private final UserService userService;
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MediaService mediaService;
 
     private ArtistDtos.ArtistProfile profile(Integer userSeq) {
@@ -44,15 +50,11 @@ public class ArtistService {
     @Transactional
     public ArtistDtos.ArtistProfile update(Integer userSeq, ArtistDtos.UpdateArtistRequest request) {
         User user = userService.find(userSeq);
+        if (user.getRole() != UserRole.ARTIST) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
         Artist artist = artistRepository.findActiveForUpdate(userSeq)
-                .orElseGet(() -> artistRepository.save(Artist.builder()
-                        .userSeq(userSeq)
-                        .verificationStatus(VerificationStatus.UNVERIFIED)
-                        .regDttm(OffsetDateTime.now())
-                        .modDttm(OffsetDateTime.now())
-                        .modUsrSeq(userSeq)
-                        .deleted(false)
-                        .build()));
+                .orElseThrow(() -> BusinessException.of(ErrorCode.ARTIST_NOT_FOUND));
         artist.updateShop(
                 request.shopName(),
                 request.shopCity(),
@@ -65,7 +67,7 @@ public class ArtistService {
     }
 
     @Transactional(readOnly = true)
-    public CursorPageResponse<ArtistDtos.ArtistProfile> list(
+    public CursorPageResponse<ArtistDtos.ArtistListItem> list(
             String cursor,
             int size,
             String city
@@ -141,8 +143,14 @@ public class ArtistService {
         );
         boolean hasNext = rows.size() > safeSize;
         List<Row> page = hasNext ? rows.subList(0, safeSize) : rows;
-        List<ArtistDtos.ArtistProfile> items = page.stream()
-                .map(Row::profile)
+        Map<Integer, List<ArtistDtos.ArtistPostSummary>> posts = recentPosts(
+                page.stream().map(Row::userSeq).toList()
+        );
+        List<ArtistDtos.ArtistListItem> items = page.stream()
+                .map(row -> toListItem(
+                        row.profile(),
+                        posts.getOrDefault(row.userSeq(), List.of())
+                ))
                 .toList();
         String nextCursor = hasNext ? encodeCursor(page.get(page.size() - 1)) : null;
         return CursorPageResponse.of(items, nextCursor, hasNext);
@@ -163,6 +171,73 @@ public class ArtistService {
                 followerCount,
                 artist.getRegDttm()
         );
+    }
+
+    private ArtistDtos.ArtistListItem toListItem(
+            ArtistDtos.ArtistProfile profile,
+            List<ArtistDtos.ArtistPostSummary> posts
+    ) {
+        return new ArtistDtos.ArtistListItem(
+                profile.userSeq(),
+                profile.nickname(),
+                profile.profileImageSeq(),
+                profile.profileImageUrl(),
+                profile.shopName(),
+                profile.shopCity(),
+                profile.shopAddress(),
+                profile.shopPhone(),
+                profile.shopDetails(),
+                profile.verificationStatus(),
+                profile.followerCount(),
+                posts,
+                profile.regDttm()
+        );
+    }
+
+    private Map<Integer, List<ArtistDtos.ArtistPostSummary>> recentPosts(
+            List<Integer> artistSeqs
+    ) {
+        if (artistSeqs.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, List<ArtistDtos.ArtistPostSummary>> result = new HashMap<>();
+        namedParameterJdbcTemplate.query("""
+                SELECT ranked.author_seq,
+                       ranked.post_seq,
+                       ranked.image_object_key,
+                       ranked.like_count
+                  FROM (
+                      SELECT post.author_seq,
+                             post.post_seq,
+                             image.object_key AS image_object_key,
+                             post.like_count,
+                             ROW_NUMBER() OVER (
+                                 PARTITION BY post.author_seq
+                                 ORDER BY post.post_seq DESC
+                             ) AS row_number
+                        FROM posts post
+                        JOIN post_images post_image
+                          ON post_image.post_seq = post.post_seq
+                         AND post_image.display_order = 1
+                        JOIN images image
+                          ON image.image_seq = post_image.image_seq
+                         AND image.is_deleted = FALSE
+                       WHERE post.author_seq IN (:artistSeqs)
+                         AND post.post_status = 'PUBLISHED'
+                         AND post.is_deleted = FALSE
+                  ) ranked
+                 WHERE ranked.row_number <= 6
+                 ORDER BY ranked.author_seq, ranked.post_seq DESC
+                """, new MapSqlParameterSource("artistSeqs", artistSeqs), rs -> {
+            int artistSeq = rs.getInt("author_seq");
+            result.computeIfAbsent(artistSeq, ignored -> new java.util.ArrayList<>())
+                    .add(new ArtistDtos.ArtistPostSummary(
+                            rs.getLong("post_seq"),
+                            downloadUrl(rs.getString("image_object_key")),
+                            rs.getInt("like_count")
+                    ));
+        });
+        return result;
     }
 
     private String profileImageUrl(Long profileImageSeq) {

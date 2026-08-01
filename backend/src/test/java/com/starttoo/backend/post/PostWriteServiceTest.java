@@ -40,13 +40,12 @@ class PostWriteServiceTest {
     private PostWriteService postWriteService;
 
     @Test
-    void persistsPreparedTattoosAndPostImagesInRequestOrder() {
-        var first = new TattooService.PreparedTattoo(61L, "object-61", null);
-        var second = new TattooService.PreparedTattoo(62L, "object-62", null);
-        when(tattooService.persistPrepared(7, first, TattooSourceType.USER_POST))
-                .thenReturn(tattoo(101L, 61L));
-        when(tattooService.persistPrepared(7, second, TattooSourceType.USER_POST))
-                .thenReturn(tattoo(102L, 62L));
+    void persistsOnlyTattooRowsButKeepsAllPostImagesInRequestOrder() {
+        var analysis = new com.starttoo.backend.tattoo.application.TattooModelClient.Analysis(
+                "OTHER", List.of(), List.of("LINE"), "BLACK", List.of("타투")
+        );
+        var first = new TattooService.PreparedPostImage(61L, "object-61", analysis);
+        var second = new TattooService.PreparedPostImage(62L, "object-62", null);
         when(postRepository.save(any(Post.class))).thenReturn(post(31L));
 
         Post created = postWriteService.create(
@@ -64,8 +63,16 @@ class PostWriteServiceTest {
                         org.assertj.core.groups.Tuple.tuple(61L, (short) 1),
                         org.assertj.core.groups.Tuple.tuple(62L, (short) 2)
                 );
-        verify(tattooService).persistPrepared(eq(7), eq(first), eq(TattooSourceType.USER_POST));
-        verify(tattooService).persistPrepared(eq(7), eq(second), eq(TattooSourceType.USER_POST));
+        verify(tattooService).persistPrepared(
+                eq(7),
+                eq(first.asTattoo()),
+                eq(TattooSourceType.USER_POST)
+        );
+        verify(tattooService, org.mockito.Mockito.never()).persistPrepared(
+                eq(7),
+                eq(new TattooService.PreparedTattoo(62L, "object-62", null)),
+                eq(TattooSourceType.USER_POST)
+        );
     }
 
     private Post post(Long postSeq) {

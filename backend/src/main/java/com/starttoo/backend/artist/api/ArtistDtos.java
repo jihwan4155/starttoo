@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public final class ArtistDtos {
 
@@ -24,6 +25,35 @@ public final class ArtistDtos {
             VerificationStatus verificationStatus,
             long followerCount,
             OffsetDateTime regDttm
+    ) {
+    }
+
+    public record ArtistListItem(
+            Integer userSeq,
+            String nickname,
+            Long profileImageSeq,
+            @Schema(description = "프로필 이미지의 단기 Presigned GET URL")
+            String profileImageUrl,
+            String shopName,
+            String shopCity,
+            String shopAddress,
+            String shopPhone,
+            String shopDetails,
+            VerificationStatus verificationStatus,
+            long followerCount,
+            @Schema(description = "최신 공개 게시물. 최대 6개")
+            List<ArtistPostSummary> posts,
+            OffsetDateTime regDttm
+    ) {
+    }
+
+    public record ArtistPostSummary(
+            @Schema(description = "게시물 식별자", example = "2001")
+            Long postSeq,
+            @Schema(description = "첫 번째 게시물 이미지의 단기 Presigned GET URL")
+            String imageUrl,
+            @Schema(description = "게시물 좋아요 수", example = "12")
+            int likeCount
     ) {
     }
 

@@ -11,8 +11,6 @@ import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
-import com.starttoo.backend.notification.application.NotificationService;
-import com.starttoo.backend.notification.domain.NotificationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -36,7 +34,6 @@ public class CommentService {
     private final PostRepository postRepository;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    private final NotificationService notificationService;
     private final MediaService mediaService;
 
     @Transactional
@@ -53,7 +50,7 @@ public class CommentService {
         }
         Comment parent = null;
         if (request.parentCommentSeq() != null) {
-            parent = find(request.parentCommentSeq());
+            parent = findForUpdate(request.parentCommentSeq());
             if (!parent.getPostSeq().equals(postSeq)
                     || parent.getCommentStatus() != CommentStatus.PUBLISHED
                     || parent.isDeleted()
@@ -78,15 +75,6 @@ public class CommentService {
                 .deleted(false)
                 .build());
         postRepository.addCommentCount(postSeq, 1);
-        Integer receiverSeq = parent == null ? post.getAuthorSeq() : parent.getAuthorSeq();
-        notificationService.create(
-                receiverSeq,
-                userSeq,
-                NotificationType.POST_COMMENT,
-                comment.getCommentSeq(),
-                request.parentCommentSeq() == null ? "새 댓글" : "새 답글",
-                "회원님의 게시물 또는 댓글에 새 내용이 등록되었습니다."
-        );
         return response(comment, userSeq);
     }
 
@@ -109,23 +97,8 @@ public class CommentService {
                   FROM comments c
                  WHERE c.post_seq = ?
                    AND c.parent_comment_seq IS NULL
-                   AND (
-                       (
-                           c.comment_status = 'PUBLISHED'
-                           AND c.is_deleted = FALSE
-                       )
-                       OR (
-                           c.comment_status = 'DELETED'
-                           AND c.is_deleted = TRUE
-                           AND EXISTS (
-                               SELECT 1
-                                 FROM comments reply
-                                WHERE reply.parent_comment_seq = c.comment_seq
-                                  AND reply.comment_status = 'PUBLISHED'
-                                  AND reply.is_deleted = FALSE
-                           )
-                       )
-                   )
+                   AND c.comment_status = 'PUBLISHED'
+                   AND c.is_deleted = FALSE
                    AND (CAST(? AS BIGINT) IS NULL OR c.comment_seq > ?)
                    AND (
                        CAST(? AS INTEGER) IS NULL OR NOT EXISTS (
@@ -163,7 +136,7 @@ public class CommentService {
         if (parent.getParentCommentSeq() != null) {
             throw BusinessException.of(ErrorCode.INVALID_REQUEST);
         }
-        if (parent.getCommentStatus() == CommentStatus.HIDDEN) {
+        if (parent.getCommentStatus() != CommentStatus.PUBLISHED || parent.isDeleted()) {
             throw BusinessException.of(ErrorCode.COMMENT_NOT_FOUND);
         }
         Post post = postRepository
@@ -214,21 +187,33 @@ public class CommentService {
 
     @Transactional
     public void delete(Integer userSeq, Long commentSeq) {
-        Comment comment = find(commentSeq);
+        Comment comment = findForUpdate(commentSeq);
         if (!comment.getAuthorSeq().equals(userSeq)) {
             throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
         if (comment.isDeleted()) {
             return;
         }
-        int changed = commentRepository.softDelete(
+        int changed = jdbcTemplate.update("""
+                UPDATE comments
+                   SET comment_status = 'DELETED',
+                       is_deleted = TRUE,
+                       mod_usr_seq = ?,
+                       mod_dttm = ?
+                 WHERE is_deleted = FALSE
+                   AND (
+                       comment_seq = ?
+                       OR (CAST(? AS BIGINT) IS NULL AND parent_comment_seq = ?)
+                   )
+                """,
+                userSeq,
+                OffsetDateTime.now(),
                 commentSeq,
-                userSeq,
-                userSeq,
-                OffsetDateTime.now()
+                comment.getParentCommentSeq(),
+                commentSeq
         );
         if (changed > 0) {
-            postRepository.addCommentCount(comment.getPostSeq(), -1);
+            postRepository.addCommentCount(comment.getPostSeq(), -changed);
         }
     }
 
@@ -255,14 +240,6 @@ public class CommentService {
                     """, commentSeq, userSeq);
             if (changed > 0) {
                 commentRepository.addLikeCount(commentSeq, 1);
-                notificationService.create(
-                        comment.getAuthorSeq(),
-                        userSeq,
-                        NotificationType.COMMENT_LIKE,
-                        commentSeq,
-                        "댓글 좋아요",
-                        "회원님의 댓글에 좋아요가 추가되었습니다."
-                );
             }
             return true;
         }
@@ -411,6 +388,11 @@ public class CommentService {
 
     private Comment find(Long commentSeq) {
         return commentRepository.findById(commentSeq)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.COMMENT_NOT_FOUND));
+    }
+
+    private Comment findForUpdate(Long commentSeq) {
+        return commentRepository.findForUpdate(commentSeq)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.COMMENT_NOT_FOUND));
     }
 

@@ -74,11 +74,11 @@ public final class AuthDtos {
             @NotBlank
             @Pattern(regexp = "^[가-힣A-Za-z0-9]{2,20}$")
             String nickname,
-            @Schema(description = "가입 요청 역할", example = "ARTIST",
-                    allowableValues = {"USER", "ARTIST"})
+            @Schema(description = "가입 즉시 부여할 역할", example = "ARTIST",
+                     allowableValues = {"USER", "ARTIST"})
             @NotBlank
             @Pattern(regexp = "USER|ARTIST")
-            String requestedRole,
+            String role,
             @Schema(description = "선택 생년월일", example = "1998-05-21")
             LocalDate birthDate,
             @Schema(description = "선택 성별 코드", example = "M",
