@@ -87,7 +87,9 @@ api.interceptors.response.use(
 		...response,
 		data: unwrapResponseData(response),
 	}),
-	async (error: AxiosError<{ status: number; code: string; message: string }>) => {
+	// 에러 본문은 { status, code, message } 봉투일 때도, 평문 문자열일 때도 있어
+	// unknown으로 받고 아래에서 형태를 확인한다. (좁게 선언하면 문자열 분기가 never가 된다)
+	async (error: AxiosError<unknown>) => {
 		const config = error.config as AuthRetryConfig | undefined;
 
 		// 공개 GET만 토큰 없이 재시도 (POST/PUT/PATCH/DELETE는 재시도해도 401)

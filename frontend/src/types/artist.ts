@@ -53,6 +53,18 @@ export type FetchArtistsParams = {
 	size?: number;
 };
 
+/**
+ * PATCH /artists/me/profile 요청 (전부 선택)
+ * 빈 본문으로 호출하면 아티스트 프로필이 UNVERIFIED 상태로 생성된다.
+ */
+export type UpdateArtistProfileRequest = {
+	shopName?: string;
+	shopCity?: string;
+	shopAddress?: string;
+	shopPhone?: string;
+	shopDetails?: string;
+};
+
 /** PATCH /artists/me 요청 */
 export type UpdateArtistRequest = {
 	shopName?: string;

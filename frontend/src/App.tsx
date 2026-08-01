@@ -18,6 +18,11 @@ import ProfilePage from "./pages/ProfilePage";
 import SimulationsPage from "./pages/SimulationsPage";
 import ArJoinPage from "./pages/ArJoinPage";
 import TattooistPage from "./pages/TattooistPage";
+import LoginPage from "./pages/LoginPage";
+import KakaoCallbackPage from "./pages/KakaoCallbackPage";
+import SignupPage from "./pages/SignupPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import { KAKAO_CALLBACK_PATH } from "./constants/auth";
 
 export default function App() {
 	// 앱 진입 시 로고 공전 로딩 화면 → load 완료 후 페이드아웃하고 메인으로
@@ -41,6 +46,13 @@ export default function App() {
 				<Route path="/simulations/ar/:sessionId" element={<ArJoinPage />} />
 				<Route element={<MainLayout />}>
 					<Route path="/" element={<HomePage />} />
+					{/* API: POST /auth/social/login */}
+					<Route path="/login" element={<LoginPage />} />
+					<Route path={KAKAO_CALLBACK_PATH} element={<KakaoCallbackPage />} />
+					{/* API: POST /auth/signup */}
+					<Route path="/signup" element={<SignupPage />} />
+					{/* API: PATCH /users/me · PATCH /artists/me/profile · POST /preferences/survey */}
+					<Route path="/onboarding" element={<OnboardingPage />} />
 					{/* API: POST /ai/generations */}
 					<Route path="/ai" element={<AiPage />} />
 					{/* API: POST /simulations/ar-sessions */}

@@ -7,6 +7,7 @@ import CommunitySearchBar from "../community/CommunitySearchBar";
 import NotificationListItem from "../notifications/NotificationListItem";
 import SystemNotificationModal from "../notifications/SystemNotificationModal";
 import useNotificationPreview from "../../hooks/queries/useNotificationPreview";
+import useUnreadCounts from "../../hooks/queries/useUnreadCounts";
 import {
 	useMarkAllNotificationsRead,
 } from "../../hooks/mutations/useMarkNotificationsRead";
@@ -59,6 +60,8 @@ function NotificationBell() {
 	const openRoom = useDmStore((s) => s.openRoom);
 
 	const { data: preview, isLoading, error } = useNotificationPreview();
+	// 목록 응답에는 총 미확인 수가 없어 뱃지 숫자는 별도 엔드포인트에서 받는다.
+	const { data: unreadCounts } = useUnreadCounts();
 	const { mutate: markAllRead } = useMarkAllNotificationsRead();
 	const handleServerNotification = useNotificationAction({
 		onSystemOpen: (item) => setSystemModalItem(item),
@@ -66,7 +69,7 @@ function NotificationBell() {
 
 	const serverEnabled = Boolean(accessToken);
 	const serverItems = preview?.items ?? [];
-	const serverUnreadCount = preview?.unreadCount ?? 0;
+	const serverUnreadCount = unreadCounts?.total ?? 0;
 	const mockUnread = notifications.filter((n) => !n.read).length;
 	const unreadCount = serverEnabled ? serverUnreadCount : mockUnread;
 
@@ -153,7 +156,7 @@ function NotificationBell() {
 							) : (
 								serverItems.map((item) => (
 									<NotificationListItem
-										key={item.notificationId}
+										key={item.notificationSeq}
 										item={item}
 										compact
 										onClick={(target) =>

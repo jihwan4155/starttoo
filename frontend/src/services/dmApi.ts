@@ -54,43 +54,42 @@ export async function markDmRoomRead(dmRoomId: number): Promise<void> {
 	await api.patch(`/dm/rooms/${dmRoomId}/read`, body);
 }
 
-/** 묶음 DM 알림을 방 단위로 모두 읽음 처리 */
-async function markDmBundleByNotificationReads(
-	notificationId: number,
-	dmRoomId: number,
-	bundledCount: number,
-): Promise<void> {
-	let currentId = notificationId;
-	const attempts = Math.max(bundledCount, 1);
+/**
+ * 방 단위 읽음이 막혔을 때의 우회 상한.
+ *
+ * 알림은 메시지당 한 행이라 방에 몇 건이 남아 있는지 미리 알 수 없다.
+ * 남은 알림이 없으면 루프가 스스로 끝나고, 이 값은 폭주만 막는 안전장치다.
+ */
+const MAX_DM_BUNDLE_ATTEMPTS = 20;
 
-	for (let i = 0; i < attempts; i += 1) {
-		await markNotificationRead(currentId);
-		if (i === attempts - 1) break;
+/** 같은 방의 NEW_DM 알림을 하나씩 읽음 처리 */
+async function markDmBundleByNotificationReads(
+	notificationSeq: number,
+	dmRoomId: number,
+): Promise<void> {
+	let currentSeq: number | null = notificationSeq;
+
+	for (let i = 0; i < MAX_DM_BUNDLE_ATTEMPTS && currentSeq != null; i += 1) {
+		await markNotificationRead(currentSeq);
 
 		const preview = await getUnreadPreview();
-		const next = preview.items.find(
-			(item) =>
-				item.notificationType === "NEW_DM" &&
-				item.referenceId === dmRoomId,
-		);
-		if (!next) break;
-		currentId = next.notificationId;
+		currentSeq =
+			preview.items.find(
+				(item) =>
+					item.notificationType === "NEW_DM" &&
+					item.referenceSeq === dmRoomId,
+			)?.notificationSeq ?? null;
 	}
 }
 
-/** DM 알림 클릭 — 방 묶음 전체 읽음 */
+/** DM 알림 클릭 — 방의 미확인 알림 전체 읽음 */
 export async function markDmNotificationRead(
-	notificationId: number,
+	notificationSeq: number,
 	dmRoomId: number,
-	bundledCount = 1,
 ): Promise<void> {
 	try {
 		await markDmRoomRead(dmRoomId);
 	} catch {
-		await markDmBundleByNotificationReads(
-			notificationId,
-			dmRoomId,
-			bundledCount,
-		);
+		await markDmBundleByNotificationReads(notificationSeq, dmRoomId);
 	}
 }

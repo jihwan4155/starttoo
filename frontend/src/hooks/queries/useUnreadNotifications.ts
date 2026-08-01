@@ -4,7 +4,7 @@ import useAuthStore from "../../store/useAuthStore";
 
 export const unreadNotificationsQueryKey = ["notifications", "unread"] as const;
 
-/** GET /notifications/unread — 알림 전체 목록 (커서 무한 스크롤) */
+/** GET /notifications — 미확인 알림 목록 (커서 무한 스크롤) */
 export default function useUnreadNotifications(size = 20) {
 	const accessToken = useAuthStore((s) => s.accessToken);
 
