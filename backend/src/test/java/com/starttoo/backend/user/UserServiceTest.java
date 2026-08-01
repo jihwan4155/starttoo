@@ -9,8 +9,6 @@ import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.media.domain.Image;
 import com.starttoo.backend.media.domain.ImageRepository;
-import com.starttoo.backend.notification.application.NotificationService;
-import com.starttoo.backend.notification.domain.NotificationType;
 import com.starttoo.backend.search.application.SearchIndexEventPublisher;
 import com.starttoo.backend.user.api.UserDtos;
 import com.starttoo.backend.user.application.UserService;
@@ -64,9 +62,6 @@ class UserServiceTest {
 
     @Mock
     private MediaService mediaService;
-
-    @Mock
-    private NotificationService notificationService;
 
     @Mock
     private SearchIndexEventPublisher searchIndexEventPublisher;
@@ -154,7 +149,7 @@ class UserServiceTest {
     }
 
     @Test
-    void newFollowCreatesNotificationInSameUseCase() {
+    void newFollowCreatesRelationWithoutServiceNotification() {
         when(userRepository.findByUserSeqAndDeletedFalse(8))
                 .thenReturn(Optional.of(user(8, UserRole.USER)));
         when(jdbcTemplate.queryForObject(
@@ -170,13 +165,10 @@ class UserServiceTest {
 
         assertThat(userService.setFollow(7, 8, true)).isTrue();
 
-        verify(notificationService).create(
-                8,
-                7,
-                NotificationType.FOLLOW,
-                7L,
-                "새 팔로워",
-                "새로운 회원이 회원님을 팔로우했습니다."
+        verify(jdbcTemplate).update(
+                contains("INSERT INTO user_follows"),
+                eq(7),
+                eq(8)
         );
     }
 

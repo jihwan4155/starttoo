@@ -40,9 +40,8 @@ public class CommentController {
             description = """
                     대상 게시물이 PUBLISHED인지 확인한다. parentCommentSeq가 있으면 같은 게시물의
                     PUBLISHED 최상위 댓글인지 검증한 뒤 답글로 저장한다. 답글에 다시 답글을
-                    연결하는 2단계 초과 계층은 허용하지 않는다. 댓글 생성, 게시물 commentCount의
-                    원자적 증가, 게시물 작성자 또는 부모 댓글 작성자 알림 생성을 하나의
-                    트랜잭션으로 처리한다.
+                    연결하는 2단계 초과 계층은 허용하지 않는다. 댓글 생성과 게시물 commentCount의
+                    원자적 증가를 하나의 트랜잭션으로 처리하며 댓글 서비스 알림은 생성하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -62,9 +61,8 @@ public class CommentController {
     @Operation(
             summary = "최상위 댓글 목록",
             description = """
-                    commentSeq 오름차순 커서를 사용하여 최상위 댓글만 반환한다. 활성 답글이 있는
-                    삭제 댓글은 author와 content를 숨긴 tombstone으로 유지하고 각 항목에는 활성
-                    답글 수 replyCount를 포함한다. 로그인 조회자는 likedByMe를 계산한다.
+                    commentSeq 오름차순 커서를 사용하여 활성 최상위 댓글만 반환한다. 각 항목에는
+                    활성 답글 수 replyCount를 포함하며 로그인 조회자는 likedByMe를 계산한다.
                     """
     )
     public ApiResponse<CursorPageResponse<CommentDtos.CommentResponse>> list(
@@ -84,9 +82,9 @@ public class CommentController {
     @Operation(
             summary = "댓글 답글 목록",
             description = """
-                    지정한 최상위 댓글을 부모로 갖는 활성 1단계 답글만 commentSeq 오름차순
-                    커서로 반환한다. 삭제된 최상위 tombstone의 답글도 조회할 수 있으며 답글의
-                    replyCount는 항상 0이다. 로그인 조회자는 likedByMe를 계산한다.
+                    지정한 활성 최상위 댓글을 부모로 갖는 활성 1단계 답글만 commentSeq 오름차순
+                    커서로 반환한다. 답글의 replyCount는 항상 0이며 로그인 조회자는 likedByMe를
+                    계산한다. 삭제된 최상위 댓글은 조회할 수 없다.
                     """
     )
     public ApiResponse<CursorPageResponse<CommentDtos.CommentResponse>> replies(
@@ -105,9 +103,9 @@ public class CommentController {
     @Operation(
             summary = "댓글 작성자 삭제",
             description = """
-                    작성자만 삭제할 수 있다. 댓글 상태와 isDeleted를 변경하는 소프트 삭제이며,
-                    posts.commentCount를 원자적으로 -1 한다. 두 변경은 같은 트랜잭션에 포함된다.
-                    최상위 댓글의 답글은 삭제하지 않으며 반복 삭제는 성공한다.
+                    작성자만 삭제할 수 있다. 답글이면 해당 답글만, 최상위 댓글이면 현재 활성
+                    답글까지 한 번에 소프트 삭제한다. posts.commentCount는 실제 삭제된 행 수만큼
+                    원자적으로 감소하며 생성·삭제 경쟁은 최상위 댓글 행 잠금으로 직렬화한다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -121,8 +119,7 @@ public class CommentController {
             summary = "댓글 좋아요",
             description = """
                     좋아요 관계를 멱등하게 생성하고 실제 신규 생성일 때만 comment.likeCount를
-                    원자적으로 +1 하며 작성자 알림을 저장한다. 관계·카운트·알림은 같은
-                    트랜잭션으로 묶이며 반복 요청은 카운트를 중복 변경하지 않는다.
+                    원자적으로 +1 한다. 관계와 카운트는 같은 트랜잭션이며 알림은 생성하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )

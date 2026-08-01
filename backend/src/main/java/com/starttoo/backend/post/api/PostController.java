@@ -41,10 +41,11 @@ public class PostController {
             description = """
                     중복되지 않은 1~10개의 imageSeq가 현재 회원 소유인지 확인하고 각 이미지의
                     타투 판별·분석이 동기로 모두 끝날 때까지 기다린다. 이 외부 모델 호출 동안에는
-                    DB 쓰기 트랜잭션을 열지 않는다. 모든 이미지가 검증을 통과한 뒤에만
-                    tattoos·subjects 연결, PUBLISHED 게시물과 postImages를 하나의 짧은 DB
-                    트랜잭션으로 저장한다. 어느 이미지 검증 또는 저장이라도 실패하면 게시물은
-                    생성되지 않는다. 응답은 DB 커밋 후 반환하며 이미지 URL은 저장된 MinIO
+                    DB 쓰기 트랜잭션을 열지 않는다. 비타투 이미지도 게시물에는 사용할 수 있으며,
+                    타투로 판별된 이미지에 대해서만 tattoos와 subjects 연결을 만든다. 판별 완료 후
+                    PUBLISHED 게시물과 모든 postImages를 하나의 짧은 DB 트랜잭션으로 저장한다.
+                    모델 장애·시간 초과 또는 저장 실패 시 게시물은 생성되지 않는다. 응답은 DB 커밋 후
+                    반환하며 이미지 URL은 저장된 MinIO
                     object key로 생성한 단기 Presigned GET URL이다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
@@ -202,7 +203,7 @@ public class PostController {
             description = """
                     postLikes를 ON CONFLICT DO NOTHING으로 생성하고, 실제 신규 생성된 경우에만
                     게시물 likeCount를 원자적 증감식으로 +1 한다. 동시에 게시물 이미지의 주
-                    스타일·색상 취향 점수를 가산하고 작성자 알림을 저장한다. 모든 DB 변경은
+                    스타일·색상 취향 점수를 가산한다. 게시물 좋아요 알림은 생성하지 않는다. 모든 DB 변경은
                     하나의 트랜잭션이며 반복 요청은 카운트와 점수를 중복 반영하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
@@ -222,8 +223,8 @@ public class PostController {
             summary = "게시물 좋아요 해제",
             description = """
                     postLikes 관계를 멱등하게 삭제한다. 실제 삭제된 경우에만 게시물 likeCount를
-                    원자적으로 -1 하고 게시물 이미지의 주 스타일·색상 취향 점수를 역산한다.
-                    모든 DB 변경은 하나의 트랜잭션이며 반복 요청은 카운트와 점수를 중복 변경하지 않는다.
+                    원자적으로 -1 한다. 좋아요 시 반영된 취향 점수는 행동 이력으로 유지하며
+                    역보정하지 않는다. 반복 요청은 카운트를 중복 변경하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -261,9 +262,8 @@ public class PostController {
     @Operation(
             summary = "게시물 북마크 해제",
             description = """
-                    북마크 행을 멱등하게 삭제한다. 실제로 관계가 삭제된 경우에만 게시물의
-                    주 스타일·색상 취향 점수를 역산하며 관계와 점수 변경은 같은 트랜잭션에서
-                    처리한다. 반복 요청은 점수를 중복 변경하지 않는다.
+                    북마크 행을 멱등하게 삭제한다. 북마크 시 반영된 취향 점수는 행동 이력으로
+                    유지하며 역보정하지 않는다. 반복 요청도 enabled=false로 성공한다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -302,8 +302,7 @@ public class PostController {
             summary = "관심 없는 게시물 설정 해제",
             description = """
                     사용자별 숨김 관계를 멱등하게 삭제하여 게시물이 다시 피드 후보가 되도록 한다.
-                    실제로 관계가 삭제된 경우에만 기존 취향 점수 감점을 역산하며 반복 요청은
-                    점수를 중복 변경하지 않는다.
+                    설정 시 반영된 취향 점수 감점은 행동 이력으로 유지하며 해제 시 역보정하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )

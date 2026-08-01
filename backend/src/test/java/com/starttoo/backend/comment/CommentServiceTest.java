@@ -8,15 +8,12 @@ import com.starttoo.backend.comment.domain.CommentStatus;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
-import com.starttoo.backend.notification.application.NotificationService;
-import com.starttoo.backend.notification.domain.NotificationType;
 import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
-import org.mockito.InOrder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -34,7 +31,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,7 +42,6 @@ class CommentServiceTest {
     private PostRepository postRepository;
     private JdbcTemplate jdbcTemplate;
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    private NotificationService notificationService;
     private MediaService mediaService;
     private CommentService commentService;
     private List<Long> queryIds;
@@ -66,20 +61,18 @@ class CommentServiceTest {
             return Answers.RETURNS_DEFAULTS.answer(invocation);
         });
         namedParameterJdbcTemplate = mock(NamedParameterJdbcTemplate.class);
-        notificationService = mock(NotificationService.class);
         mediaService = mock(MediaService.class);
         commentService = new CommentService(
                 commentRepository,
                 postRepository,
                 jdbcTemplate,
                 namedParameterJdbcTemplate,
-                notificationService,
                 mediaService
         );
     }
 
     @Test
-    void topLevelListExcludesRepliesAndKeepsEligibleTombstones() {
+    void topLevelListReturnsOnlyActiveTopLevelComments() {
         when(postRepository.findByPostSeqAndPostStatus(100L, PostStatus.PUBLISHED))
                 .thenReturn(Optional.of(post()));
 
@@ -88,8 +81,9 @@ class CommentServiceTest {
         assertThat(queriedSql).singleElement().satisfies(sql ->
                 assertThat(sql)
                         .contains("c.parent_comment_seq IS NULL")
-                        .contains("reply.parent_comment_seq = c.comment_seq")
-                        .contains("c.comment_status = 'DELETED'"));
+                        .contains("c.comment_status = 'PUBLISHED'")
+                        .contains("c.is_deleted = FALSE")
+                        .doesNotContain("c.comment_status = 'DELETED'"));
     }
 
     @Test
@@ -113,7 +107,7 @@ class CommentServiceTest {
         Comment reply = comment(502L, 100L, 8, 501L, false);
         when(postRepository.findByPostSeqAndPostStatus(100L, PostStatus.PUBLISHED))
                 .thenReturn(Optional.of(post()));
-        when(commentRepository.findById(502L)).thenReturn(Optional.of(reply));
+        when(commentRepository.findForUpdate(502L)).thenReturn(Optional.of(reply));
 
         assertError(
                 () -> commentService.create(
@@ -133,7 +127,7 @@ class CommentServiceTest {
         Comment parent = comment(501L, 200L, 8, null, false);
         when(postRepository.findByPostSeqAndPostStatus(100L, PostStatus.PUBLISHED))
                 .thenReturn(Optional.of(post()));
-        when(commentRepository.findById(501L)).thenReturn(Optional.of(parent));
+        when(commentRepository.findForUpdate(501L)).thenReturn(Optional.of(parent));
 
         assertError(
                 () -> commentService.create(
@@ -145,26 +139,6 @@ class CommentServiceTest {
         );
 
         verify(commentRepository, never()).save(any(Comment.class));
-    }
-
-    @Test
-    void deletedTopLevelCommentBecomesTombstoneAndKeepsReplyCount() throws Exception {
-        queryIds = List.of(501L);
-        Comment tombstone = comment(501L, 100L, 7, null, true);
-        when(postRepository.findByPostSeqAndPostStatus(100L, PostStatus.PUBLISHED))
-                .thenReturn(Optional.of(post()));
-        when(commentRepository.findAllById(List.of(501L)))
-                .thenReturn(List.of(tombstone));
-        stubReplyCount(501L, 2);
-
-        CommentDtos.CommentResponse response =
-                commentService.list(100L, null, 30, null).items().get(0);
-
-        assertThat(response.deleted()).isTrue();
-        assertThat(response.author()).isNull();
-        assertThat(response.content()).isNull();
-        assertThat(response.replyCount()).isEqualTo(2);
-        assertThat(response.likeCount()).isZero();
     }
 
     @Test
@@ -190,24 +164,19 @@ class CommentServiceTest {
     }
 
     @Test
-    void repeatedDeleteDecrementsPostCountOnlyOnce() {
+    void topLevelDeleteCascadesRepliesAndDecrementsActualDeletedCountOnlyOnce() {
         Comment comment = comment(501L, 100L, 9, null, false);
-        when(commentRepository.findById(501L)).thenReturn(Optional.of(comment));
-        when(commentRepository.softDelete(
-                eq(501L), eq(9), eq(9), any(OffsetDateTime.class)
-        )).thenReturn(1, 0);
+        when(commentRepository.findForUpdate(501L)).thenReturn(Optional.of(comment));
+        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(3, 0);
 
         commentService.delete(9, 501L);
         commentService.delete(9, 501L);
 
-        verify(commentRepository, org.mockito.Mockito.times(2)).softDelete(
-                eq(501L), eq(9), eq(9), any(OffsetDateTime.class)
-        );
-        verify(postRepository).addCommentCount(100L, -1);
+        verify(postRepository).addCommentCount(100L, -3);
     }
 
     @Test
-    void repeatedLikeChangesCountAndNotificationOnlyOnce() {
+    void repeatedLikeChangesCountOnlyOnce() {
         Comment comment = comment(501L, 100L, 7, null, false);
         when(commentRepository.findById(501L)).thenReturn(Optional.of(comment));
         when(postRepository.findByPostSeqAndPostStatus(100L, PostStatus.PUBLISHED))
@@ -219,39 +188,6 @@ class CommentServiceTest {
         assertThat(commentService.setLike(9, 501L, true)).isTrue();
 
         verify(commentRepository).addLikeCount(501L, 1);
-        verify(notificationService).create(
-                7,
-                9,
-                NotificationType.COMMENT_LIKE,
-                501L,
-                "댓글 좋아요",
-                "회원님의 댓글에 좋아요가 추가되었습니다."
-        );
-    }
-
-    @Test
-    void notificationFailurePropagatesAfterCommentAndCountWrites() {
-        Comment saved = comment(501L, 100L, 9, null, false);
-        when(postRepository.findByPostSeqAndPostStatus(100L, PostStatus.PUBLISHED))
-                .thenReturn(Optional.of(post()));
-        when(commentRepository.save(any(Comment.class))).thenReturn(saved);
-        when(notificationService.create(
-                any(), any(), any(), any(), anyString(), anyString()
-        )).thenThrow(new IllegalStateException("notification insert failed"));
-
-        assertThatThrownBy(() -> commentService.create(
-                9,
-                100L,
-                new CommentDtos.CreateCommentRequest(null, "댓글")
-        )).isInstanceOf(IllegalStateException.class);
-
-        InOrder order = inOrder(commentRepository, postRepository, notificationService);
-        order.verify(commentRepository).save(any(Comment.class));
-        order.verify(postRepository).addCommentCount(100L, 1);
-        order.verify(notificationService).create(
-                eq(7), eq(9), eq(NotificationType.POST_COMMENT),
-                eq(501L), anyString(), anyString()
-        );
     }
 
     @SuppressWarnings("unchecked")

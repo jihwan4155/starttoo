@@ -1,7 +1,7 @@
 # Starttoo API v1 범용 명세서
 
-> 최종 갱신: 2026-07-31  
-> 현재 서버 구현 및 Swagger 기준 API 수: 82개
+> 최종 갱신: 2026-08-01
+> 현재 서버 구현 및 Swagger 기준 API 수: 83개
 
 ## 0. 문서 목적
 
@@ -143,8 +143,9 @@
 - MinIO와 Redis 연결 장애는 Starttoo의 필수 인프라 장애이므로 503이다.
 - Presigned 업로드 완료 시 객체 자체가 없으면 404, 크기 초과는 413,
   MIME 불일치는 415로 분리한다.
-- 타투 판별 모델이 정상 이미지를 비타투로 판정하면 파일 형식 오류가 아니므로
-  422 `NOT_TATTOO_IMAGE`를 반환한다.
+- 컬렉션 등록처럼 타투 이미지가 필수인 API에서 모델이 정상 이미지를 비타투로
+  판정하면 파일 형식 오류가 아니므로 422 `NOT_TATTOO_IMAGE`를 반환한다.
+  게시글 작성은 비타투 이미지를 허용하므로 이 오류를 반환하지 않는다.
 
 ## 1.4 커서 페이지 응답
 
@@ -283,10 +284,27 @@ GET /v1/archive?cursor={cursor}&size=20
 | `tattooSeq` | Long | Y | 도안 타투 식별자 |
 | `designImageSeq` | Long | Y | 가공된 도안 이미지 |
 | `designImageUrl` | String | Y | 단기 다운로드 URL |
-| `primaryStyleSeq` | Integer | Y | 주 스타일 |
-| `colorSeq` | Integer | N | 색상 |
-| `subjects` | Array | Y | Subject 목록, 없으면 `[]` |
 | `archivedDttm` | DateTime | Y | 보관 시각 |
+
+응답 예시:
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "tattooSeq": 501,
+        "designImageSeq": 901,
+        "designImageUrl": "https://minio.example/designs/901?X-Amz-Signature=...",
+        "archivedDttm": "2026-08-01T09:30:00Z"
+      }
+    ],
+    "nextCursor": null,
+    "hasNext": false,
+    "size": 1
+  }
+}
+```
 
 ### 처리
 
@@ -323,7 +341,7 @@ PUT /v1/archive/501
 `DELETE`:
 
 1. 현재 회원의 보관 관계 DELETE
-2. 실제 삭제된 경우에만 이전에 반영한 취향 점수 역산
+2. 보관 시 반영한 취향 점수는 행동 이력으로 유지하며 역보정하지 않음
 
 원본 `tattoos`, `tattoo_designs`, `images`는 삭제하지 않는다.
 
@@ -344,7 +362,7 @@ PUT /v1/archive/501
 GET /v1/artists?city=서울&cursor={cursor}&size=20
 ```
 
-### 출력 `ArtistProfile`
+### 출력 `ArtistListItem`
 
 | 필드 | 타입 | 필수 |
 |---|---|---:|
@@ -359,6 +377,16 @@ GET /v1/artists?city=서울&cursor={cursor}&size=20
 | `shopDetails` | String(1000) | N |
 | `verificationStatus` | String | Y |
 | `followerCount` | Long | Y |
+| `posts` | Array | Y, 최대 6개 |
+| `regDttm` | DateTime | Y |
+
+`posts` 항목:
+
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|---:|---|
+| `postSeq` | Long | Y | 게시물 식별자 |
+| `imageUrl` | String | Y | `displayOrder=1` 이미지의 단기 Presigned GET URL |
+| `likeCount` | Integer | Y | 현재 좋아요 수 |
 
 ### 처리
 
@@ -369,6 +397,7 @@ GET /v1/artists?city=서울&cursor={cursor}&size=20
 - `artists.isDeleted=false`
 - `city`가 있으면 `shopCity` 정확 일치
 - 팔로워 수 내림차순, `userSeq` 내림차순
+- 각 아티스트의 `PUBLISHED AND isDeleted=false` 게시물을 `postSeq` 내림차순 최대 6개 반환
 - `popularity` 칼럼과 별도 인기도 점수는 사용하지 않는다.
 
 ## 4.3 타투이스트 프로필 수정
@@ -389,8 +418,9 @@ PATCH /v1/artists/me/profile
 
 ### 트랜잭션
 
-- 프로필이 없으면 `UNVERIFIED` 상태로 생성한다.
-- 있으면 간략한 숍 정보만 수정한다.
+- `users.role=ARTIST`인 회원만 사용할 수 있다.
+- 가입할 때 이미 생성된 `artists` 행의 간략한 숍 정보만 수정한다.
+- `ARTIST` 역할인데 확장 행이 없다면 데이터 불일치로 404 `ARTIST_NOT_FOUND`를 반환한다.
 - 독립적인 `shops` 엔티티는 만들지 않는다.
 - `modDttm`, `modUsrSeq`를 프로필 변경과 함께 저장한다.
 - 이 API만으로 `users.role`이나 인증 상태를 변경하지 않는다.
@@ -424,6 +454,16 @@ POST /v1/auth/social/login
 {
   "provider": "KAKAO",
   "accessToken": "example"
+}
+```
+
+웹 authorization code 방식은 다음과 같다. `accessToken`과 동시에 보낼 수 없다.
+
+```json
+{
+  "provider": "KAKAO",
+  "authorizationCode": "one-time-authorization-code",
+  "redirectUri": "https://app.example.com/auth/kakao/callback"
 }
 ```
 
@@ -462,6 +502,8 @@ POST /v1/auth/social/login
 ### 처리
 
 - 제공자 API에서 액세스 토큰을 검증하고 불변 `providerSubject`를 얻는다.
+- `accessToken` 또는 `authorizationCode` 중 정확히 하나만 필수다.
+- `authorizationCode` 방식에서는 인가 요청 때와 정확히 같은 `redirectUri`가 필수다.
 - 이메일과 `emailVerified`는 저장하지 않는다.
 - 연결 계정이면 `lastLoginDttm`을 갱신하고 토큰을 발급한다.
 - 비활성 계정은 상태별 오류를 반환한다.
@@ -478,7 +520,7 @@ POST /v1/auth/social/login
   "signupToken": "short-lived-signup-token",
   "phoneNumber": "010-1234-5678",
   "nickname": "검은장미1",
-  "requestedRole": "ARTIST",
+  "role": "ARTIST",
   "birthDate": "1998-05-21",
   "gender": "M"
 }
@@ -486,7 +528,7 @@ POST /v1/auth/social/login
 
 ### 제약
 
-- `requestedRole`: `USER`, `ARTIST`만 허용
+- `role`: `USER`, `ARTIST`만 허용하며 가입 즉시 `users.role`에 저장
 - `ADMIN` 공개 가입 금지
 - 휴대폰 번호는 하이픈·공백 제거 후 한국 번호 `+82` E.164 형식으로 정규화
 - 닉네임: `^[가-힣A-Za-z0-9]{2,20}$`
@@ -495,10 +537,9 @@ POST /v1/auth/social/login
 
 ### 역할 정책
 
-- `requestedRole=USER`: 일반 `users` 계정을 생성한다.
-- `requestedRole=ARTIST`: `users`는 우선 `role=USER`로 만들고 `artists` 확장 행을
-  `UNVERIFIED`로 함께 생성한다.
-- 관리자의 인증 승인 트랜잭션에서만 `users.role=ARTIST`가 된다.
+- `role=USER`: 일반 `users` 계정을 생성한다.
+- `role=ARTIST`: `users.role=ARTIST`와 `artists.verificationStatus=UNVERIFIED`를 함께 생성한다.
+- 추후 관리자 인증은 `verificationStatus`만 변경하며 역할은 바꾸지 않는다.
 
 ### 트랜잭션
 
@@ -650,17 +691,7 @@ GET /v1/auth/nicknames/availability?nickname=검은장미1
 }
 ```
 
-삭제된 최상위 댓글에 활성 답글이 있으면 스레드 보존을 위해 tombstone을 반환한다.
-
-```json
-{
-  "commentSeq": 501,
-  "author": null,
-  "content": null,
-  "deleted": true,
-  "replyCount": 2
-}
-```
+삭제된 댓글과 답글은 목록에서 반환하지 않는다.
 
 ## 6.3 최상위 댓글 목록
 
@@ -668,7 +699,7 @@ GET /v1/auth/nicknames/availability?nickname=검은장미1
 GET /v1/posts/2001/comments?cursor={cursor}&size=30
 ```
 
-- `parentCommentSeq IS NULL`인 댓글만 반환한다.
+- `parentCommentSeq IS NULL`, `PUBLISHED`, `isDeleted=false`인 댓글만 반환한다.
 - `commentSeq` 오름차순 커서를 사용한다.
 - 각 댓글에 활성 답글 수 `replyCount`를 포함한다.
 - 차단 관계 사용자의 댓글은 제외한다.
@@ -679,7 +710,7 @@ GET /v1/posts/2001/comments?cursor={cursor}&size=30
 GET /v1/comments/501/replies?cursor={cursor}&size=30
 ```
 
-- 지정 댓글은 최상위 댓글이어야 한다.
+- 지정 댓글은 활성 최상위 댓글이어야 한다.
 - 해당 댓글을 부모로 갖는 1단계 답글만 반환한다.
 - 답글의 `replyCount`는 항상 0이다.
 
@@ -706,19 +737,19 @@ GET /v1/comments/501/replies?cursor={cursor}&size=30
 ### 트랜잭션
 
 1. 대상 게시물 `PUBLISHED` 확인
-2. 답글이면 부모가 같은 게시물의 최상위 댓글인지 확인
+2. 답글이면 부모 최상위 댓글 행을 잠그고 같은 게시물의 활성 댓글인지 확인
 3. 댓글 행 생성
 4. `posts.commentCount = commentCount + 1`
-5. 알림 생성
 
-알림 대상은 최상위 댓글이면 게시물 작성자, 답글이면 부모 댓글 작성자다.
-본인에게는 알림을 만들지 않는다. 커밋 후 WebSocket·FCM 전송을 시도한다.
+댓글·답글 작성으로 서비스 알림을 생성하지 않는다.
 
 ## 6.6 댓글 삭제
 
 - 작성자만 삭제할 수 있다.
-- 댓글을 소프트 삭제하고 `posts.commentCount`를 원자적으로 감소시킨다.
-- 최상위 댓글의 답글을 연쇄 삭제하지 않는다.
+- 답글이면 해당 답글만 소프트 삭제한다.
+- 최상위 댓글이면 해당 댓글과 현재 활성 답글을 모두 소프트 삭제한다.
+- `posts.commentCount`를 실제 소프트 삭제된 행 수만큼 원자적으로 감소시킨다.
+- 최상위 댓글 행 잠금으로 답글 생성과 연쇄 삭제를 직렬화한다.
 - 이미 삭제된 댓글의 반복 삭제는 성공으로 처리한다.
 
 ## 6.7 댓글 좋아요
@@ -729,8 +760,8 @@ GET /v1/comments/501/replies?cursor={cursor}&size=30
 
 - 실제 상태 변경 시에만 `comment_likes` INSERT/DELETE
 - 실제 상태 변경 시에만 `comments.likeCount` 원자적 증감
-- 신규 좋아요일 때만 댓글 작성자 알림 생성
-- 관계·카운트·알림은 같은 트랜잭션
+- 댓글 좋아요 알림은 생성하지 않는다.
+- 관계·카운트는 같은 트랜잭션
 - 같은 상태의 반복 요청은 성공하며 카운트를 중복 변경하지 않는다.
 
 ---
@@ -921,27 +952,37 @@ DM 이벤트:
 {
   "notificationSeq": 8001,
   "actorSeq": 102,
-  "notificationType": "POST_LIKE",
-  "referenceSeq": 2001,
-  "title": "게시글 좋아요",
-  "body": "푸른나비님이 게시글을 좋아합니다.",
+  "notificationType": "NEW_DM",
+  "referenceSeq": 701,
+  "partner": {
+    "userSeq": 102,
+    "nickname": "푸른나비",
+    "profileImageSeq": 302,
+    "profileImageUrl": "https://temporary-download-url"
+  },
+  "unreadCount": 4,
+  "title": "새 메시지",
+  "body": "상담 가능할까요?",
   "regDttm": "2026-07-30T01:30:00Z"
 }
 ```
 
 지원 타입:
 
-- `POST_LIKE`
-- `POST_COMMENT`
-- `COMMENT_LIKE`
-- `FOLLOW`
 - `NEW_DM`
 - `SYSTEM`
 
+`SYSTEM`은 `actorSeq`, `partner`가 `null`이고 `unreadCount=1`이다.
+
 ## 8.3 미확인 알림 목록
 
-- `isRead=false`만 반환한다.
-- `notificationSeq` 내림차순 커서
+- 현재 회원의 `isRead=false`만 대상으로 한다.
+- `NEW_DM`은 전체 미확인 알림을 `referenceSeq=dmRoomSeq`로 먼저 그룹화한다.
+- 그룹 대표값은 `regDttm DESC, notificationSeq DESC`의 첫 알림이다.
+- 대표 알림의 제목·본문·시각과 그룹 원본 행 수 `unreadCount`, 상대 회원 정보를 반환한다.
+- `SYSTEM`은 그룹화하지 않고 각 행을 개별 항목으로 반환한다.
+- 그룹 대표와 SYSTEM을 합쳐 `regDttm DESC, notificationSeq DESC`로 정렬한 후
+  불투명 복합 커서와 `size`를 적용한다.
 - 결과가 없으면 `items=[]`
 - `size=10`을 사용하면 Top 10 기능과 동일하다.
 
@@ -950,24 +991,25 @@ DM 이벤트:
 ```json
 {
   "data": {
-    "total": 12,
+    "total": 7,
     "byType": {
-      "POST_LIKE": 4,
-      "POST_COMMENT": 2,
-      "COMMENT_LIKE": 1,
-      "FOLLOW": 2,
-      "NEW_DM": 3,
-      "SYSTEM": 0
+      "NEW_DM": 5,
+      "SYSTEM": 2
     }
   }
 }
 ```
 
-누락된 타입 없이 모든 타입을 0 이상으로 반환한다.
+개수는 목록의 그룹 수가 아니라 DB의 실제 미확인 알림 행 수다. 메시지 한 건당 `NEW_DM`
+알림 한 건이므로 방 알림이 켜진 채 수신한 미확인 DM 수와 같다. 방 알림이 꺼져 알림 행이
+생성되지 않은 메시지는 포함하지 않는다. 두 타입은 값이 0이어도 항상 반환한다.
 
 ## 8.5 읽음 처리
 
-- 개별 읽음: 현재 회원이 수신한 알림만 처리
+- 개별 `SYSTEM`: 지정한 한 행만 처리
+- 집계 `NEW_DM`: 대표 `notificationSeq`가 가리키는 방의 모든 미확인 NEW_DM 알림 처리
+- 알림 읽음 API는 `dm_messages.readDttm`을 변경하지 않는다.
+- 채팅방 진입 또는 DM 읽음 API에서만 메시지와 해당 방 알림을 함께 처리한다.
 - 전체 읽음: 현재 회원의 `isRead=false`를 한 번의 UPDATE로 처리
 - `isRead=true`와 `readDttm`은 항상 함께 변경
 - 반복 호출은 성공하는 멱등 명령
@@ -1028,22 +1070,23 @@ DM 이벤트:
 
 1. 이미지 소유권 검증
 2. 타투 여부 판별 모델 실행
-3. 하나라도 타투가 아니면 422 `NOT_TATTOO_IMAGE`로 등록 거부
-4. 타투 분석 모델에서 `primaryStyle`, `secondaryStyle` 최대 2개,
+3. 비타투 이미지는 정상 게시물 이미지로 유지하고 타투 분석은 생략
+4. 타투로 판별된 이미지에만 분석 모델을 실행해 `primaryStyle`, `secondaryStyle` 최대 2개,
    `color`, `rendering` 최대 2개, 다중 `subjects` 수신
 5. 분석 성공 후 DB 저장 트랜잭션 시작
 
-모든 이미지의 판별·분석은 동기로 순서대로 완료하며, 하나라도 실패하면 DB 저장을
-시작하지 않는다. 모델 호출 중에는 DB 쓰기 트랜잭션을 열지 않는다.
+모든 이미지의 판별과 타투 이미지 분석은 동기로 순서대로 완료한다. 비타투 판별은 실패가
+아니며, 모델 장애·비정상 분석·시간 초과가 하나라도 발생하면 DB 저장을 시작하지 않는다.
+모델 호출 중에는 DB 쓰기 트랜잭션을 열지 않는다.
 `AI_ENABLED=true`이면 모델 서버를 호출하고, 기본값 `false`에서는 명시적인
 개발용 분석값을 사용한다.
 
 ### DB 트랜잭션
 
-1. 이미지마다 `tattoos` 생성
-2. Subject upsert 및 `tattoo_subjects` 생성
+1. 타투로 판별된 이미지에만 `tattoos` 생성
+2. 해당 타투 분석 결과의 Subject upsert 및 `tattoo_subjects` 생성
 3. `posts` 생성
-4. 요청 순서대로 `post_images` 생성
+4. 타투 여부와 관계없이 요청한 모든 이미지를 순서대로 `post_images`에 연결
 
 중간 하나라도 실패하면 게시글과 모든 이미지 연결을 롤백한다.
 성공 응답은 DB 커밋이 끝난 뒤에만 반환한다.
@@ -1090,15 +1133,15 @@ DM 이벤트:
 1. `post_likes` INSERT
 2. `posts.likeCount = likeCount + 1`
 3. 게시글 내 타투의 중복 제거된 주 스타일·색상에 좋아요 가중치 반영
-4. 작성자가 본인이 아니면 알림 생성
 
 실제 OFF 전환:
 
 1. 관계 DELETE
 2. 카운트 원자적 감소
-3. 취향 점수 역산
+3. ON에서 반영한 취향 점수는 행동 이력으로 유지하고 역보정하지 않음
 
-동일 상태 반복은 관계·카운트·점수를 변경하지 않는다.
+게시글 좋아요 서비스 알림은 생성하지 않는다. 동일 상태 반복은 관계·카운트·점수를
+변경하지 않는다.
 
 좋아요·북마크·관심 없음 출력은 모두 현재 최종 상태다.
 
@@ -1113,7 +1156,8 @@ DM 이벤트:
 ## 9.7 북마크
 
 - 설정은 `PUT`, 해제는 같은 경로의 `DELETE`를 사용하며 요청 바디는 없다.
-- 관계 INSERT/DELETE와 취향 점수 증감·역산을 같은 트랜잭션으로 처리한다.
+- 신규 북마크 INSERT 때만 취향 점수를 가산한다.
+- DELETE에서는 관계만 제거하고 기존 취향 점수는 역보정하지 않는다.
 - 게시글 카운트 칼럼은 별도로 두지 않는다.
 - 작성자 알림은 만들지 않는다.
 
@@ -1122,7 +1166,7 @@ DM 이벤트:
 - 설정은 `PUT`, 해제는 같은 경로의 `DELETE`를 사용하며 요청 바디는 없다.
 - ON이면 `post_hidden_preferences`를 생성하고 이후 해당 회원의 피드에서 제외한다.
 - 주 스타일·색상에 음수 가중치를 적용한다.
-- OFF이면 관계를 삭제하고 기존 감점을 역산한다.
+- OFF이면 관계만 삭제하고 기존 감점은 행동 이력으로 유지한다.
 - 좋아요·북마크 관계를 자동으로 해제하지 않는다.
 
 ## 9.9 게시글 신고
@@ -1165,6 +1209,7 @@ DM 이벤트:
 | 타투 도안 목록 조회 | GET | `/v1/tattoo-designs` | Optional |
 | 타투 상세 조회 | GET | `/v1/tattoos/{tattooSeq}` | Optional |
 | 타투 이미지 조회 | GET | `/v1/tattoos/{tattooSeq}/image` | Optional |
+| 형태 기반 도안 검색 | POST | `/v1/designs/search-by-shape` | Public |
 
 ## 10.2 타투 도안 목록
 
@@ -1176,6 +1221,7 @@ GET /v1/tattoo-designs?cursor={cursor}&size=20
 - 최신 등록순 커서
 - 로그인 회원이면 `archivedByMe`를 계산한다.
 - 원본 타투 이미지가 아니라 가공된 도안 이미지 정보를 반환한다.
+- 주 스타일·색상은 `{code, name}`, Subject는 이름 문자열 목록으로 반환한다.
 
 ## 10.3 타투 상세
 
@@ -1185,27 +1231,25 @@ GET /v1/tattoo-designs?cursor={cursor}&size=20
   "registrantSeq": 101,
   "imageSeq": 301,
   "sourceType": "USER_POST",
-  "primaryStyleSeq": 1,
-  "secondaryStyleSeqs": [2, 3],
-  "renderingStyleSeqs": [1],
-  "colorSeq": 2,
-  "subjects": [
-    {
-      "subjectSeq": 10,
-      "subjectName": "장미"
-    }
+  "primaryStyle": {"code": "BLACKWORK", "name": "블랙워크"},
+  "secondaryStyles": [
+    {"code": "GEOMETRIC", "name": "기하학"}
   ],
+  "renderingStyles": [
+    {"code": "LINE", "name": "라인"}
+  ],
+  "color": {"code": "BLACK", "name": "검정"},
+  "subjects": ["장미", "뱀"],
   "usedForTraining": false,
   "trainedDttm": null,
   "regDttm": "2026-07-30T01:30:00Z"
 }
 ```
 
-- `primaryStyleSeq` 필수 1개
-- `colorSeq` 선택 1개
-- `secondaryStyleSeqs` 최대 2개
-- `renderingStyleSeqs` 최대 2개
-- `subjects` 다중 라벨
+- `primaryStyle`은 필수 `{code, name}` 1개
+- `color`는 선택 `{code, name}` 1개, 미분류이면 `null`
+- `secondaryStyles`, `renderingStyles`는 각각 최대 2개
+- `subjects`는 화면에 바로 표시할 수 있는 이름 문자열 목록
 
 ## 10.4 타투 이미지
 
@@ -1219,6 +1263,51 @@ GET /v1/tattoos/501/image?variant=ORIGINAL
 - `DESIGN`: `tattoo_designs.imageSeq`, 도안이 없으면 404
 
 출력은 `imageSeq`, 단기 `downloadUrl`, `expiresAt`이다.
+
+## 10.5 형태 기반 도안 검색
+
+```http
+POST /v1/designs/search-by-shape
+```
+
+요청:
+
+```json
+{
+  "maskPngB64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+  "mode": "coverup"
+}
+```
+
+| 필드 | 타입 | 필수 | 제약 |
+|---|---|---:|---|
+| `maskPngB64` | String | Y | 검은 배경과 흰 획으로 된 PNG base64, data URI 접두어 허용 |
+| `mode` | String | Y | `coverup` 또는 `shape` |
+
+응답:
+
+```json
+{
+  "data": {
+    "mode": "coverup",
+    "count": 1,
+    "results": [
+      {
+        "tattooSeq": 501,
+        "imageUrl": "https://temporary-design-url",
+        "score": 0.86,
+        "styleCode": "GEOMETRIC",
+        "styleName": "기하학"
+      }
+    ]
+  }
+}
+```
+
+- 검색 엔진 점수 내림차순을 유지한다.
+- DB에서 삭제된 타투·도안·이미지는 제외하므로 엔진 결과보다 `count`가 작을 수 있다.
+- `imageUrl`은 도안 object key로 생성한 단기 Presigned GET URL이다.
+- 엔진 장애·회로 차단 상태는 503 `SERVICE_UNAVAILABLE`로 반환한다.
 
 ---
 
@@ -1404,7 +1493,7 @@ DB INSERT가 실패해 남은 MinIO 객체는 주기적인 orphan cleanup 대상
 ### 트랜잭션
 
 - 자기 자신, ADMIN, 비활성 회원, 차단 관계 거부
-- 실제 ON 전환일 때만 팔로우 관계 생성과 `FOLLOW` 알림 저장
+- 실제 ON 전환일 때만 팔로우 관계 생성
 - OFF 전환은 관계만 삭제
 - 커밋 후 알림 실시간 전송
 
@@ -1601,7 +1690,7 @@ DELETE /v1/devices/901
 
 - 소유 컬렉션 소프트 삭제
 - 컬렉션 전용 `tattoos` 소프트 삭제
-- 기존 취향 점수 역산
+- 등록 시 반영된 취향 점수는 행동 이력으로 유지하고 역보정하지 않음
 
 원본 `images` 행과 MinIO 객체는 삭제하지 않는다.
 
@@ -1965,7 +2054,7 @@ Presigned URL 문자열은 설명을 위한 예시이며 호출할 때마다 달
     "profileImageUrl": "https://minio.example/profile?X-Amz-Signature=...",
     "birthDate": "1998-05-21",
     "gender": "M",
-    "role": "USER",
+    "role": "ARTIST",
     "accountStatus": "ACTIVE",
     "artistProfile": {
       "shopName": "스타투 스튜디오",
@@ -2012,6 +2101,13 @@ Presigned URL 문자열은 설명을 위한 예시이며 호출할 때마다 달
   "shopDetails": "평일 12:00~21:00, 예약제",
   "verificationStatus": "VERIFIED",
   "followerCount": 120,
+  "posts": [
+    {
+      "postSeq": 2001,
+      "imageUrl": "https://minio.example/post?X-Amz-Signature=...",
+      "likeCount": 12
+    }
+  ],
   "regDttm": "2026-07-31T09:00:00Z"
 }
 ```
@@ -2077,14 +2173,9 @@ Presigned URL 문자열은 설명을 위한 예시이며 호출할 때마다 달
   "tattooSeq": 501,
   "designImageSeq": 402,
   "designImageUrl": "https://minio.example/design?X-Amz-Signature=...",
-  "primaryStyleSeq": 1,
-  "colorSeq": 2,
-  "subjects": [
-    {
-      "subjectSeq": 10,
-      "subjectName": "장미"
-    }
-  ],
+  "primaryStyle": {"code": "BLACKWORK", "name": "블랙워크"},
+  "color": {"code": "BLACK", "name": "검정"},
+  "subjects": ["장미"],
   "archivedByMe": false,
   "regDttm": "2026-07-31T10:00:00Z"
 }
@@ -2183,6 +2274,27 @@ Presigned URL 문자열은 설명을 위한 예시이며 호출할 때마다 달
 }
 ```
 
+`GET /v1/notifications`의 `items` 한 건:
+
+```json
+{
+  "notificationSeq": 8004,
+  "actorSeq": 102,
+  "notificationType": "NEW_DM",
+  "referenceSeq": 801,
+  "partner": {
+    "userSeq": 102,
+    "nickname": "푸른나비",
+    "profileImageSeq": 302,
+    "profileImageUrl": "https://minio.example/profile?X-Amz-Signature=..."
+  },
+  "unreadCount": 4,
+  "title": "새 메시지",
+  "body": "상담 가능할까요?",
+  "regDttm": "2026-07-31T10:00:00Z"
+}
+```
+
 `GET /v1/notifications/unread-counts`:
 
 ```json
@@ -2190,12 +2302,8 @@ Presigned URL 문자열은 설명을 위한 예시이며 호출할 때마다 달
   "data": {
     "total": 7,
     "byType": {
-      "POST_LIKE": 2,
-      "POST_COMMENT": 1,
-      "COMMENT_LIKE": 0,
-      "FOLLOW": 1,
-      "NEW_DM": 3,
-      "SYSTEM": 0
+      "NEW_DM": 5,
+      "SYSTEM": 2
     }
   }
 }
@@ -2302,12 +2410,16 @@ Subject 자동완성:
 | 휴대폰 가입 확인 | 미가입이면 provider=null, 가입이면 기존 OAuth provider 반환 |
 | 계정·OAuth | 활성 전화번호당 통합 계정 1개, 가입 API에서 추가 provider 연결 금지 |
 | 탈퇴 식별자 | 탈퇴 계정의 닉네임·휴대폰 번호 재사용 허용 |
-| ARTIST 역할 | 관리자 인증 승인 후 부여 |
+| ARTIST 역할 | 가입 즉시 부여, 관리자는 `verificationStatus`만 승인 처리 |
 | 게시글 노출 | `PUBLISHED`만 |
-| 게시글 생성 | 모든 AI 검증 완료 후 짧은 DB 트랜잭션, 커밋 후 성공 응답 |
+| 게시글 생성 | 모든 AI 판별 완료 후 짧은 DB 트랜잭션, 비타투 허용, 타투 이미지만 분석·저장 |
 | 게시글 수정·삭제 | 카운터를 제외한 명시적 부분 UPDATE |
 | 관계 상태 API | PUT으로 설정, DELETE로 해제, 요청 바디 없음 |
 | 댓글 계층 | 최상위 댓글 + 1단계 답글 |
+| 댓글 삭제 | 최상위 댓글 삭제 시 활성 답글까지 소프트 삭제, 실제 삭제 수만큼 카운트 감소 |
+| 취향 점수 해제 | 좋아요·북마크·관심 없음·보관·컬렉션 삭제 시 역보정하지 않음 |
+| 알림 타입 | `NEW_DM`, `SYSTEM`만 사용 |
+| 알림 목록 | NEW_DM 방별 그룹화 후 대표 최신 시각 내림차순 커서 페이지네이션 |
 | 검색 오타 보정 | 본 검색 내부 fuzzy |
 | 검색 정렬 | exact → prefix → fuzzy1 → fuzzy2 → contains |
 | 검색 클릭 점수 | 사용하지 않음 |
@@ -2324,3 +2436,1898 @@ Subject 자동완성:
 | 이미지 URL | DB에는 MinIO object key만 저장하고 응답 시 Presigned GET URL 생성 |
 | 관리자·테스트·추출 API | 현재 v1에서 제공하지 않음 |
 | 빈 목록 | 항상 `[]` |
+
+---
+
+# 18. 전체 엔드포인트 인덱스
+
+아래 83개 항목은 현재 컨트롤러와 Swagger에 공개되는 v1 HTTP API 전체다.
+각 API의 요청·응답·처리 규칙은 앞선 도메인별 절을 따른다.
+
+| 도메인 | Method | Path |
+|---|---|---|
+| 보관함 | GET | `/v1/archive` |
+| 보관함 | PUT | `/v1/archive/{tattooSeq}` |
+| 보관함 | DELETE | `/v1/archive/{tattooSeq}` |
+| 타투이스트 | GET | `/v1/artists` |
+| 타투이스트 | PATCH | `/v1/artists/me/profile` |
+| 인증 | POST | `/v1/auth/social/login` |
+| 인증 | POST | `/v1/auth/signup` |
+| 인증 | POST | `/v1/auth/token/refresh` |
+| 인증 | POST | `/v1/auth/logout` |
+| 인증 | GET | `/v1/auth/nicknames/suggestions` |
+| 인증 | GET | `/v1/auth/nicknames/availability` |
+| 인증 | GET | `/v1/auth/phones/availability` |
+| 분류 | GET | `/v1/classifications/primary-styles` |
+| 분류 | GET | `/v1/classifications/secondary-styles` |
+| 분류 | GET | `/v1/classifications/rendering-styles` |
+| 분류 | GET | `/v1/classifications/colors` |
+| 컬렉션 | POST | `/v1/collections` |
+| 컬렉션 | GET | `/v1/collections` |
+| 컬렉션 | GET | `/v1/users/{userSeq}/collections` |
+| 컬렉션 | DELETE | `/v1/collections/{collectionSeq}` |
+| 댓글 | POST | `/v1/posts/{postSeq}/comments` |
+| 댓글 | GET | `/v1/posts/{postSeq}/comments` |
+| 댓글 | GET | `/v1/comments/{commentSeq}/replies` |
+| 댓글 | DELETE | `/v1/comments/{commentSeq}` |
+| 댓글 | PUT | `/v1/comments/{commentSeq}/like` |
+| 댓글 | DELETE | `/v1/comments/{commentSeq}/like` |
+| 커버업 검색 | POST | `/v1/designs/search-by-shape` |
+| 기기 | POST | `/v1/devices` |
+| 기기 | DELETE | `/v1/devices/{deviceSeq}` |
+| DM | POST | `/v1/dm/rooms` |
+| DM | GET | `/v1/dm/rooms` |
+| DM | POST | `/v1/dm/rooms/{roomSeq}/messages` |
+| DM | GET | `/v1/dm/rooms/{roomSeq}/messages` |
+| DM | PATCH | `/v1/dm/rooms/{roomSeq}/read` |
+| DM | PATCH | `/v1/dm/rooms/{roomSeq}/notification` |
+| DM | DELETE | `/v1/dm/rooms/{roomSeq}` |
+| 이미지 | POST | `/v1/images/uploads/presign` |
+| 이미지 | POST | `/v1/images/uploads/complete` |
+| 알림 | GET | `/v1/notifications` |
+| 알림 | GET | `/v1/notifications/unread-counts` |
+| 알림 | PATCH | `/v1/notifications/{notificationSeq}/read` |
+| 알림 | PATCH | `/v1/notifications/read-all` |
+| 게시글 | POST | `/v1/posts` |
+| 게시글 | GET | `/v1/posts` |
+| 게시글 | GET | `/v1/posts/me` |
+| 게시글 | GET | `/v1/posts/bookmarked` |
+| 게시글 | GET | `/v1/posts/following` |
+| 게시글 | GET | `/v1/users/{userSeq}/posts` |
+| 게시글 | GET | `/v1/posts/{postSeq}` |
+| 게시글 | PATCH | `/v1/posts/{postSeq}` |
+| 게시글 | DELETE | `/v1/posts/{postSeq}` |
+| 게시글 | PUT | `/v1/posts/{postSeq}/like` |
+| 게시글 | DELETE | `/v1/posts/{postSeq}/like` |
+| 게시글 | PUT | `/v1/posts/{postSeq}/bookmark` |
+| 게시글 | DELETE | `/v1/posts/{postSeq}/bookmark` |
+| 게시글 | PUT | `/v1/posts/{postSeq}/not-interested` |
+| 게시글 | DELETE | `/v1/posts/{postSeq}/not-interested` |
+| 게시글 | POST | `/v1/posts/{postSeq}/dwell` |
+| 게시글 | POST | `/v1/posts/{postSeq}/reports` |
+| 취향 | POST | `/v1/preferences/survey` |
+| 검색 | GET | `/v1/search/accounts/autocomplete` |
+| 검색 | GET | `/v1/search/accounts` |
+| 검색 | GET | `/v1/search/artists/autocomplete` |
+| 검색 | GET | `/v1/search/artists` |
+| 검색 | GET | `/v1/search/subjects/autocomplete` |
+| 검색 | GET | `/v1/search/posts` |
+| 타투 | GET | `/v1/tattoo-designs` |
+| 타투 | GET | `/v1/tattoos/{tattooSeq}` |
+| 타투 | GET | `/v1/tattoos/{tattooSeq}/image` |
+| 사용자 | GET | `/v1/users/me` |
+| 사용자 | PATCH | `/v1/users/me` |
+| 사용자 | PATCH | `/v1/users/me/profile-image` |
+| 사용자 | DELETE | `/v1/users/me` |
+| 사용자 | GET | `/v1/users/{userSeq}` |
+| 사용자 | PUT | `/v1/users/{userSeq}/follow` |
+| 사용자 | DELETE | `/v1/users/{userSeq}/follow` |
+| 사용자 | PUT | `/v1/users/{userSeq}/block` |
+| 사용자 | DELETE | `/v1/users/{userSeq}/block` |
+| 사용자 | GET | `/v1/users/{userSeq}/followers` |
+| 사용자 | GET | `/v1/users/{userSeq}/following` |
+| 사용자 | GET | `/v1/users/me/blocks` |
+| 사용자 | GET | `/v1/users/me/recent-searches` |
+| 사용자 | PATCH | `/v1/users/me/recent-searches` |
+
+---
+
+# 19. API별 상세 계약
+
+이 절은 클라이언트가 API 하나만 읽어도 구현할 수 있도록 모든 공개 API를 같은 형식으로
+정리한다. 성공·실패 응답은 실제 공통 envelope를 사용하며, 예시의 Presigned URL과 토큰은
+설명용 값이다. Bearer 인증 API는 `Authorization: Bearer {accessToken}` 헤더가 필요하다.
+
+## 19.1 인증
+
+### POST `/v1/auth/social/login`
+
+**API 개요:** Google 또는 Kakao 자격 증명을 검증하여 로그인 토큰이나 가입 토큰을 발급한다. 인증은 필요 없다.
+
+**Request:** JSON body. `provider`는 `GOOGLE|KAKAO`, 최대 20자다. `accessToken`과
+`authorizationCode` 중 정확히 하나만 보내며 각각 최대 4096자다. code 방식은
+`redirectUri`(최대 2048자)가 필수다.
+
+```json
+{"provider":"KAKAO","authorizationCode":"oauth-code","redirectUri":"https://app.example.com/auth/callback"}
+```
+
+**Response:** `signupRequired`, `signupToken`, `tokens`를 반환한다. 기존 계정은
+`signupRequired=false`, `tokens=TokenResponse`; 신규 OAuth subject는
+`signupRequired=true`, `signupToken`만 제공한다.
+
+**설명:** 서버가 제공자 API에서 불변 subject를 확인한다. code 방식의 토큰 교환 비밀키는
+서버에만 둔다. 기존 ACTIVE 계정이면 마지막 로그인 시각을 갱신한다.
+
+**성공 예시**
+```json
+{"data":{"signupRequired":true,"signupToken":"signup.jwt","tokens":null}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"accessToken 또는 authorizationCode 중 하나만 제공해야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/auth/signup`
+
+**API 개요:** 소셜 로그인에서 발급된 가입 토큰으로 단일 OAuth 통합 계정을 생성한다. 인증은 필요 없다.
+
+**Request:** JSON body. `signupToken` 필수, `phoneNumber` 필수·최대 30자,
+`nickname`은 한글·영문·숫자 2~20자이며 대소문자를 구분한다. `role`은 `USER|ARTIST`,
+`birthDate`와 `gender(M|F)`는 선택값이다.
+
+```json
+{"signupToken":"signup.jwt","phoneNumber":"010-1234-5678","nickname":"BlackRose1","role":"ARTIST","birthDate":"1998-05-21","gender":"F"}
+```
+
+**Response:** `accessToken`, `accessTokenExpiresAt`, `refreshToken`,
+`refreshTokenExpiresAt`, `tokenType=Bearer`를 반환한다.
+
+**설명:** 전화번호를 `+82` E.164로 정규화한다. ARTIST는 가입 즉시 역할을 부여하고
+`artists.verificationStatus=UNVERIFIED` 행을 만든다. 사용자·OAuth·상태 이력 저장은 한 트랜잭션이다.
+
+**성공 예시**
+```json
+{"data":{"accessToken": "example","accessTokenExpiresAt":"2026-08-01T11:00:00Z","refreshToken": "example","refreshTokenExpiresAt":"2026-08-15T10:00:00Z","tokenType":"Bearer"}}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"DUPLICATE_PHONE_NUMBER","message":"이미 가입된 휴대폰 번호입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/auth/token/refresh`
+
+**API 개요:** 유효한 리프레시 토큰을 새 액세스·리프레시 토큰 쌍으로 회전한다. 인증은 필요 없다.
+
+**Request:** JSON body의 `refreshToken` 필수, 최대 512자다.
+```json
+{"refreshToken": "example"}
+```
+
+**Response:** 회원가입과 같은 `TokenResponse`를 반환한다.
+
+**설명:** 기존 토큰 폐기와 새 토큰 저장을 한 트랜잭션으로 처리한다. 만료되거나 이미
+회전·폐기된 토큰은 재사용할 수 없다.
+
+**성공 예시**
+```json
+{"data":{"accessToken": "example","accessTokenExpiresAt":"2026-08-01T11:00:00Z","refreshToken": "example","refreshTokenExpiresAt":"2026-08-15T10:00:00Z","tokenType":"Bearer"}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"INVALID_TOKEN","message":"유효하지 않은 리프레시 토큰입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/auth/logout`
+
+**API 개요:** 리프레시 토큰과 연결된 현재 기기 세션을 로그아웃한다. 인증은 필요 없다.
+
+**Request:** JSON body의 `refreshToken` 필수, 최대 512자다.
+```json
+{"refreshToken": "example"}
+```
+
+**Response:** 처리 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 토큰을 폐기하고 연결 기기를 비활성화한다. 이미 폐기되거나 없는 토큰에 대한
+반복 요청도 성공하는 멱등 API다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"refreshToken은 필수입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/auth/nicknames/suggestions`
+
+**API 개요:** 요청 시점에 활성 회원과 겹치지 않는 닉네임 후보를 추천한다. 인증은 필요 없다.
+
+**Request:** Query `count`는 선택값이며 기본 5, 범위 1~10이다. Body는 없다.
+
+**Response:** `items: String[]`를 반환하며 결과가 없으면 빈 배열이다.
+
+**설명:** 추천값은 즉시 사용을 보장하는 예약값이 아니다. 최종 중복은 가입 시 DB UNIQUE로 다시 확인한다.
+
+**성공 예시**
+```json
+{"data":{"items":["검은장미7","BlueLine21"]}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"count는 10 이하여야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/auth/nicknames/availability`
+
+**API 개요:** 닉네임 형식과 활성 회원 중복 여부를 확인한다. 인증은 필요 없다.
+
+**Request:** Query `nickname` 필수. 한글·영문·숫자만 허용하며 2~20자, 영문 대소문자를 구분한다.
+
+**Response:** 확인한 `nickname`과 `available`을 반환한다.
+
+**설명:** 탈퇴해 소프트 삭제된 회원의 닉네임은 재사용할 수 있다.
+
+**성공 예시**
+```json
+{"data":{"nickname":"BlackRose1","available":true}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"nickname 형식이 올바르지 않습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/auth/phones/availability`
+
+**API 개요:** 전화번호 가입 여부와 기존 계정의 OAuth provider를 확인한다. 인증은 필요 없다.
+
+**Request:** Query `phoneNumber` 필수, 최대 30자다. 하이픈과 공백을 허용한다.
+
+**Response:** `normalizedPhoneNumber`, `available`, `provider`를 반환한다. 미가입이면
+`provider=null`, 가입 상태면 `GOOGLE|KAKAO`다.
+
+**설명:** 번호를 E.164로 정규화해 DB를 조회한다. 탈퇴 회원 번호는 재사용할 수 있으나
+정지·강퇴 계정의 번호는 사용 불가다.
+
+**성공 예시**
+```json
+{"data":{"normalizedPhoneNumber":"+821012345678","available":false,"provider":"KAKAO"}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"한국 휴대폰 번호 형식이 아닙니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.2 타투이스트
+
+### GET `/v1/artists`
+
+**API 개요:** 인증된 타투이스트 목록과 각 타투이스트의 최신 게시물 최대 6개를 조회한다. 인증은 필요 없다.
+
+**Request:** Query `cursor` 선택, `size` 기본 20·범위 1~50, `city` 선택·최대 100자다.
+
+**Response:** 커서 페이지의 각 항목은 `userSeq`, `nickname`, 프로필 이미지 seq·URL,
+숍 정보, `verificationStatus`, `followerCount`, `posts`, `regDttm`을 갖는다. `posts`는
+`postSeq`, 첫 이미지 `imageUrl`, `likeCount`만 포함한다.
+
+**설명:** `ARTIST+VERIFIED+ACTIVE`만 노출한다. city는 저장값과 정확히 일치하고,
+팔로워 수·userSeq 내림차순으로 정렬한다. 모든 이미지 URL은 요청 시 생성한다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","shopName":"스타투숍","shopCity":"서울","shopAddress":"서울 강남구","shopPhone":"02-1234-5678","shopDetails":"예약제","verificationStatus":"VERIFIED","followerCount":120,"posts":[{"postSeq":2001,"imageUrl":"https://minio.example/post?X-Amz-Signature=...","likeCount":15}],"regDttm":"2026-07-01T09:00:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_CURSOR","message":"유효하지 않은 커서입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/artists/me/profile`
+
+**API 개요:** ARTIST 회원이 가입 시 생성된 숍 프로필을 수정한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. 모든 필드는 선택값이며 `shopName`·`shopCity` 최대 100자,
+`shopAddress` 최대 255자, `shopPhone` 최대 30자, `shopDetails` 최대 2000자다.
+```json
+{"shopName":"스타투숍","shopCity":"서울","shopAddress":"서울 강남구","shopPhone":"02-1234-5678","shopDetails":"예약제"}
+```
+
+**Response:** 수정된 `ArtistProfile`을 반환한다. `verificationStatus`와 `role`은 바뀌지 않는다.
+
+**설명:** USER 역할이거나 artists 행이 없으면 수정할 수 없다. 별도 숍 엔티티는 생성하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","shopName":"스타투숍","shopCity":"서울","shopAddress":"서울 강남구","shopPhone":"02-1234-5678","shopDetails":"예약제","verificationStatus":"UNVERIFIED","followerCount":0,"regDttm":"2026-08-01T09:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"ARTIST 역할이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.3 컬렉션과 보관함
+
+### POST `/v1/collections`
+
+**API 개요:** 회원 소유 타투 이미지를 분석하여 신체 배치 컬렉션으로 등록한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `imageSeq`, `bodyView`(최대 10자), `positionX/Y`(0~1),
+`scaleRatio`(0 초과), `rotationDegree`(-180~180), `flipped`가 모두 필수다.
+```json
+{"imageSeq":201,"bodyView":"front","positionX":0.42,"positionY":0.35,"scaleRatio":0.8,"rotationDegree":-15,"flipped":false}
+```
+
+**Response:** `collectionSeq`, `ownerSeq`, `tattooSeq`, 원본 `imageSeq`·`imageUrl`,
+배치 필드와 `regDttm`을 반환한다.
+
+**설명:** 모델 호출은 DB 트랜잭션 밖에서 동기로 완료한다. 비타투 이미지는 거부하며,
+성공 후 타투·subject·컬렉션·취향 점수를 한 트랜잭션으로 저장한다.
+
+**성공 예시**
+```json
+{"data":{"collectionSeq":701,"ownerSeq":101,"tattooSeq":501,"imageSeq":201,"imageUrl":"https://minio.example/image?X-Amz-Signature=...","bodyView":"front","positionX":0.42,"positionY":0.35,"scaleRatio":0.8,"rotationDegree":-15.0,"flipped":false,"regDttm":"2026-08-01T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":422,"code":"NOT_TATTOO_IMAGE","message":"타투 이미지가 아닙니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/collections`
+
+**API 개요:** 내 활성 타투 컬렉션을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor`는 마지막 `collectionSeq`, `size`는 기본 20·범위 1~50이다.
+
+**Response:** `CollectionResponse` 커서 페이지를 반환한다.
+
+**설명:** `USER_COLLECTION`이며 소프트 삭제되지 않은 항목만 collectionSeq 내림차순으로 반환한다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"collectionSeq":701,"ownerSeq":101,"tattooSeq":501,"imageSeq":201,"imageUrl":"https://minio.example/image?X-Amz-Signature=...","bodyView":"front","positionX":0.42,"positionY":0.35,"scaleRatio":0.8,"rotationDegree":-15.0,"flipped":false,"regDttm":"2026-08-01T10:00:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/users/{userSeq}/collections`
+
+**API 개요:** 공개 가능한 다른 회원의 활성 컬렉션을 조회한다. 인증은 선택이다.
+
+**Request:** Path `userSeq` 필수. Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** `CollectionResponse` 커서 페이지를 반환한다.
+
+**설명:** ACTIVE 비삭제 USER·ARTIST만 대상이다. 로그인 조회자와 양방향 차단 관계면 404다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"USER_NOT_FOUND","message":"회원을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/collections/{collectionSeq}`
+
+**API 개요:** 내 컬렉션과 컬렉션 전용 타투를 소프트 삭제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `collectionSeq` 필수. Body는 없다.
+
+**Response:** 삭제 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 원본 image 행과 MinIO 객체는 유지한다. 등록 당시 취향 점수도 역보정하지 않는다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"RESOURCE_NOT_FOUND","message":"컬렉션을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/archive`
+
+**API 개요:** 내 타투 도안 보관함을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor` 선택, `size` 기본 20·범위 1~50이다. 커서는 보관 시각과 tattooSeq 복합값이다.
+
+**Response:** 각 항목은 `tattooSeq`, `designImageSeq`, `designImageUrl`, `archivedDttm`만 포함한다.
+
+**설명:** 보관 시각·tattooSeq 내림차순이며 활성 tattoo, tattoo_design, image만 반환한다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"tattooSeq":501,"designImageSeq":301,"designImageUrl":"https://minio.example/design?X-Amz-Signature=...","archivedDttm":"2026-08-01T09:30:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_CURSOR","message":"유효하지 않은 커서입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PUT `/v1/archive/{tattooSeq}`
+
+**API 개요:** 공개 타투 도안을 내 보관함에 설정한다. Bearer 인증이 필요하다.
+
+**Request:** Path `tattooSeq` 필수. Body는 없다.
+
+**Response:** 최종 상태 `enabled=true`를 반환한다.
+
+**설명:** 멱등 INSERT이며 실제 신규 보관일 때만 취향 점수를 가산한다.
+
+**성공 예시**
+```json
+{"data":{"enabled":true}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"TATTOO_NOT_FOUND","message":"보관할 타투 도안을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/archive/{tattooSeq}`
+
+**API 개요:** 타투 도안을 내 보관함에서 해제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `tattooSeq` 필수. Body는 없다.
+
+**Response:** 최종 상태 `enabled=false`를 반환한다.
+
+**설명:** 관계가 없어도 성공한다. 기존 취향 점수는 행동 이력으로 유지한다.
+
+**성공 예시**
+```json
+{"data":{"enabled":false}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.4 사용자
+
+### GET `/v1/users/me`
+
+**API 개요:** 로그인한 회원의 계정·프로필 전체 정보를 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Header의 Bearer token 외 Path, Query, Body는 없다.
+
+**Response:** `userSeq`, `nickname`, 전화번호·인증시각, 프로필 이미지 seq·URL,
+`birthDate`, `gender`, `role`, `accountStatus`, 선택 `artistProfile`, `regDttm`을 반환한다.
+
+**설명:** ARTIST이고 확장 행이 있으면 숍 이름과 verificationStatus를 포함한다. URL은 object key로 생성한다.
+
+**성공 예시**
+```json
+{"data":{"userSeq":101,"nickname":"BlackRose1","phoneNumber":"+821012345678","phoneVerifiedDttm":"2026-07-01T09:00:00Z","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","birthDate":"1998-05-21","gender":"F","role":"ARTIST","accountStatus":"ACTIVE","artistProfile":{"shopName":"스타투숍","verificationStatus":"UNVERIFIED"},"regDttm":"2026-07-01T09:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"TOKEN_EXPIRED","message":"Access Token이 만료되었습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/users/me`
+
+**API 개요:** 내 닉네임·생년월일·성별을 수정한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `nickname` 필수·한글/영문/숫자 2~20자, `birthDate` 선택,
+`gender`는 선택 `M|F`다.
+```json
+{"nickname":"BlackRose2","birthDate":"1998-05-21","gender":"F"}
+```
+
+**Response:** 수정 후 `MyProfile` 전체를 반환한다.
+
+**설명:** 닉네임 중복을 DB에서 확인하고 커밋 후 검색 인덱스를 갱신한다. 프로필 이미지는 별도 API를 사용한다.
+
+**성공 예시**
+```json
+{"data":{"userSeq":101,"nickname":"BlackRose2","phoneNumber":"+821012345678","phoneVerifiedDttm":"2026-07-01T09:00:00Z","profileImageSeq":null,"profileImageUrl":null,"birthDate":"1998-05-21","gender":"F","role":"USER","accountStatus":"ACTIVE","artistProfile":null,"regDttm":"2026-07-01T09:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"DUPLICATE_NICKNAME","message":"이미 사용 중인 닉네임입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/users/me/profile-image`
+
+**API 개요:** 내 프로필 이미지를 업로드 완료된 이미지로 교체한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body의 `imageSeq` 필수다.
+```json
+{"imageSeq":302}
+```
+
+**Response:** 교체 후 `MyProfile` 전체를 반환한다.
+
+**설명:** 현재 회원이 `PROFILE` 목적으로 올린 활성 이미지만 사용할 수 있다. 이전 이미지와 객체는 즉시 삭제하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"userSeq":101,"nickname":"BlackRose1","phoneNumber":"+821012345678","phoneVerifiedDttm":"2026-07-01T09:00:00Z","profileImageSeq":302,"profileImageUrl":"https://minio.example/profile302?X-Amz-Signature=...","birthDate":null,"gender":null,"role":"USER","accountStatus":"ACTIVE","artistProfile":null,"regDttm":"2026-07-01T09:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"IMAGE_NOT_FOUND","message":"사용 가능한 프로필 이미지를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/users/me`
+
+**API 개요:** 현재 계정을 탈퇴 상태로 전환한다. Bearer 인증이 필요하다.
+
+**Request:** 별도 Path, Query, Body는 없다.
+
+**Response:** 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 계정을 물리 삭제하지 않고 WITHDRAWN으로 변경하며 모든 리프레시 토큰과 기기를 비활성화한다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"STATE_CONFLICT","message":"이미 탈퇴한 계정입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/users/{userSeq}`
+
+**API 개요:** 공개 가능한 회원 프로필을 조회한다. 인증은 선택이다.
+
+**Request:** Path `userSeq` 필수. Body는 없다.
+
+**Response:** `userSeq`, `nickname`, 프로필 이미지, `role`, follower/following 수,
+`followedByMe`, 선택 `artistProfile`을 반환한다.
+
+**설명:** ADMIN·비활성 회원과 차단 관계는 404로 숨긴다. VERIFIED 아티스트 정보만 공개한다.
+
+**성공 예시**
+```json
+{"data":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","role":"ARTIST","followerCount":120,"followingCount":30,"followedByMe":true,"artistProfile":{"shopName":"스타투숍","verificationStatus":"VERIFIED"}}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"USER_NOT_FOUND","message":"회원을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PUT `/v1/users/{userSeq}/follow`
+
+**API 개요:** 대상 회원 팔로우를 설정한다. Bearer 인증이 필요하다.
+
+**Request:** Path `userSeq` 필수. Body는 없다.
+
+**Response:** `enabled=true`를 반환한다.
+
+**설명:** 멱등 INSERT다. 자기 자신·ADMIN·비활성·차단 회원은 불가하며 팔로우 알림은 생성하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"enabled":true}}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"팔로우할 수 없는 회원입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/users/{userSeq}/follow`
+
+**API 개요:** 대상 회원 팔로우를 해제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `userSeq` 필수. Body는 없다.
+
+**Response:** `enabled=false`를 반환한다.
+
+**설명:** 관계가 없어도 성공하는 멱등 DELETE다.
+
+**성공 예시**
+```json
+{"data":{"enabled":false}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"USER_NOT_FOUND","message":"대상 회원을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PUT `/v1/users/{userSeq}/block`
+
+**API 개요:** 대상 회원을 차단한다. Bearer 인증이 필요하다.
+
+**Request:** Path `userSeq` 필수. Body는 없다.
+
+**Response:** `enabled=true`를 반환한다.
+
+**설명:** 차단 관계를 멱등 생성하고 양방향 팔로우 관계를 같은 트랜잭션에서 삭제한다.
+
+**성공 예시**
+```json
+{"data":{"enabled":true}}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"자기 자신을 차단할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/users/{userSeq}/block`
+
+**API 개요:** 대상 회원 차단을 해제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `userSeq` 필수. Body는 없다.
+
+**Response:** `enabled=false`를 반환한다.
+
+**설명:** 과거 팔로우 관계는 복원하지 않으며 관계가 없어도 성공한다.
+
+**성공 예시**
+```json
+{"data":{"enabled":false}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"USER_NOT_FOUND","message":"대상 회원을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/users/{userSeq}/followers`
+
+**API 개요:** 대상 회원의 팔로워 목록을 조회한다. 인증은 선택이다.
+
+**Request:** Path `userSeq`, Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** `RelationUser` 커서 페이지. 항목은 회원 seq·닉네임·역할·프로필 이미지·`followedByMe`다.
+
+**설명:** 관계 생성 시각 내림차순이며 비활성·삭제·ADMIN 회원은 제외한다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"userSeq":103,"nickname":"LineArt","role":"USER","profileImageSeq":null,"profileImageUrl":null,"followedByMe":false}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_CURSOR","message":"유효하지 않은 커서입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/users/{userSeq}/following`
+
+**API 개요:** 대상 회원의 팔로잉 목록을 조회한다. 인증은 선택이다.
+
+**Request:** Path `userSeq`, Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** `RelationUser` 커서 페이지를 반환한다.
+
+**설명:** 공개 가능 여부와 차단 관계를 검사하고 로그인 조회자의 followedByMe를 계산한다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"USER_NOT_FOUND","message":"회원을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/users/me/blocks`
+
+**API 개요:** 내가 차단한 회원 목록을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** `RelationUser` 커서 페이지를 반환한다.
+
+**설명:** 차단 생성 시각 내림차순이며 비활성·삭제·ADMIN 회원은 제외한다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/users/me/recent-searches`
+
+**API 개요:** 내 최근 검색어 최대 10개를 조회한다. Bearer 인증이 필요하다.
+
+**Request:** 별도 Path, Query, Body는 없다.
+
+**Response:** 최신순 `String[]`를 반환하며 비어 있으면 `[]`다.
+
+**설명:** Redis 우선 조회 후 DB 배열로 복원·폴백한다. Redis 장애 시 DB 반영 주기만큼 오래된 값일 수 있다.
+
+**성공 예시**
+```json
+{"data":["장미","블랙워크"]}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/users/me/recent-searches`
+
+**API 개요:** 최근 검색어를 추가하거나 한 건 제거한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `operation`은 `ADD|REMOVE`, `term`은 필수·최대 100자이며 제어문자를 허용하지 않는다.
+```json
+{"operation":"ADD","term":"검은 장미"}
+```
+
+**Response:** 변경 후 최신순 `String[]`를 반환한다.
+
+**설명:** ADD는 중복을 제거해 맨 앞에 넣고 최대 10개로 자른다. Redis 장애 시 변경 유실 방지를 위해 503이다.
+
+**성공 예시**
+```json
+{"data":["검은 장미","장미"]}
+```
+
+**실패 예시**
+```json
+{"status":503,"code":"SERVICE_UNAVAILABLE","message":"최근 검색어 저장소를 사용할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.5 댓글
+
+### POST `/v1/posts/{postSeq}/comments`
+
+**API 개요:** 게시물에 최상위 댓글 또는 1단계 답글을 작성한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq`. JSON body의 `content`는 필수·최대 1000자,
+`parentCommentSeq`는 최상위 댓글이면 null, 답글이면 최상위 댓글 seq다.
+```json
+{"parentCommentSeq":501,"content":"색감이 정말 좋네요."}
+```
+
+**Response:** `commentSeq`, `postSeq`, 작성자, 부모 seq, 내용, like/reply count,
+`likedByMe`, `deleted`, 등록·수정시각을 반환한다.
+
+**설명:** 답글의 답글은 허용하지 않는다. 댓글 저장과 post.commentCount 증가는 한 트랜잭션이며 알림은 없다.
+
+**성공 예시**
+```json
+{"data":{"commentSeq":502,"postSeq":2001,"author":{"userSeq":101,"nickname":"BlackRose1","profileImageSeq":null,"profileImageUrl":null},"parentCommentSeq":501,"content":"색감이 정말 좋네요.","likeCount":0,"replyCount":0,"likedByMe":false,"deleted":false,"regDttm":"2026-08-01T10:00:00Z","modDttm":"2026-08-01T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_REQUEST","message":"답글에 다시 답글을 작성할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/posts/{postSeq}/comments`
+
+**API 개요:** 게시물의 활성 최상위 댓글 목록을 조회한다. 인증은 선택이다.
+
+**Request:** Path `postSeq`, Query `cursor` 선택, `size` 기본 30·범위 1~100이다.
+
+**Response:** `CommentResponse` 커서 페이지이며 각 항목에 활성 `replyCount`를 포함한다.
+
+**설명:** commentSeq 오름차순이다. 로그인 시 likedByMe를 계산하고 삭제 댓글은 반환하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"commentSeq":501,"postSeq":2001,"author":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=..."},"parentCommentSeq":null,"content":"감사합니다.","likeCount":2,"replyCount":1,"likedByMe":false,"deleted":false,"regDttm":"2026-08-01T09:00:00Z","modDttm":"2026-08-01T09:00:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"POST_NOT_FOUND","message":"게시글을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/comments/{commentSeq}/replies`
+
+**API 개요:** 활성 최상위 댓글의 1단계 답글 목록을 조회한다. 인증은 선택이다.
+
+**Request:** Path `commentSeq`, Query `cursor` 선택, `size` 기본 30·범위 1~100이다.
+
+**Response:** `CommentResponse` 커서 페이지이며 답글 `replyCount`는 항상 0이다.
+
+**설명:** commentSeq 오름차순이며 삭제·숨김·답글 자체를 부모로 요청하면 조회할 수 없다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"COMMENT_NOT_FOUND","message":"댓글을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/comments/{commentSeq}`
+
+**API 개요:** 내가 작성한 댓글을 소프트 삭제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `commentSeq` 필수. Body는 없다.
+
+**Response:** 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 답글은 한 건, 최상위 댓글은 활성 답글까지 삭제한다. 실제 삭제 행 수만큼 commentCount를 감소시킨다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"댓글 작성자만 삭제할 수 있습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PUT `/v1/comments/{commentSeq}/like`
+
+**API 개요:** 댓글 좋아요를 설정한다. Bearer 인증이 필요하다.
+
+**Request:** Path `commentSeq` 필수. Body는 없다.
+
+**Response:** `enabled=true`를 반환한다.
+
+**설명:** 멱등 INSERT이며 실제 생성 시에만 likeCount를 +1 한다. 알림은 생성하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"enabled":true}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"COMMENT_NOT_FOUND","message":"댓글을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/comments/{commentSeq}/like`
+
+**API 개요:** 댓글 좋아요를 해제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `commentSeq` 필수. Body는 없다.
+
+**Response:** `enabled=false`를 반환한다.
+
+**설명:** 멱등 DELETE이며 실제 삭제 시에만 likeCount를 -1 한다.
+
+**성공 예시**
+```json
+{"data":{"enabled":false}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.6 게시글
+
+게시글 응답의 `author`는 회원 seq·닉네임·role·프로필 이미지, `images`는
+`postImageSeq`, `imageSeq`, Presigned `imageUrl`, 선택 `tattooSeq`, `displayOrder`를 갖는다.
+
+### POST `/v1/posts`
+
+**API 개요:** 이미지 1~10개와 선택 본문으로 게시글을 작성한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `content` 선택·최대 3000자, `imageSeqs` 필수·1~10개이며 null과 중복을 허용하지 않는다.
+```json
+{"content":"새로운 장미 작업입니다.","imageSeqs":[101,102]}
+```
+
+**Response:** `postSeq`, author, content, like/comment count, images, `likedByMe`,
+`bookmarkedByMe`, 등록·수정 시각을 포함한 `PostResponse`다.
+
+**설명:** 모든 이미지의 타투 여부를 트랜잭션 밖에서 동기 판별한다. 비타투도 게시 가능하며
+타투 이미지만 분석·tattoos 저장한다. 모델 오류 시 DB 저장 전에 요청 전체가 실패한다.
+
+**성공 예시**
+```json
+{"data":{"postSeq":2001,"author":{"userSeq":101,"nickname":"BlackRose1","role":"USER","profileImageSeq":null,"profileImageUrl":null},"content":"새로운 장미 작업입니다.","likeCount":0,"commentCount":0,"images":[{"postImageSeq":4001,"imageSeq":101,"imageUrl":"https://minio.example/post101?X-Amz-Signature=...","tattooSeq":501,"displayOrder":1},{"postImageSeq":4002,"imageSeq":102,"imageUrl":"https://minio.example/post102?X-Amz-Signature=...","tattooSeq":null,"displayOrder":2}],"likedByMe":false,"bookmarkedByMe":false,"regDttm":"2026-08-01T10:00:00Z","modDttm":"2026-08-01T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":502,"code":"UPSTREAM_SERVICE_ERROR","message":"타투 판별 모델 처리에 실패했습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/posts`
+
+**API 개요:** 공개 게시글 피드를 조회한다. 인증은 선택이다.
+
+**Request:** Query `cursor`는 마지막 postSeq, `size` 기본 20·범위 1~50이다.
+
+**Response:** `PostResponse` 커서 페이지를 반환한다.
+
+**설명:** PUBLISHED 활성 게시글을 postSeq 내림차순으로 반환한다. 로그인 시 차단·관심 없음 항목을 제외한다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"size는 50 이하여야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/posts/me`
+
+**API 개요:** 내 공개 게시글 목록을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** 내 `PostResponse` 커서 페이지를 반환한다.
+
+**설명:** 현재 회원 authorSeq 조건과 일반 PUBLISHED 노출 조건을 함께 적용한다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/posts/bookmarked`
+
+**API 개요:** 내가 북마크한 공개 게시글을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor` 선택, `size` 기본 20·범위 1~50이다. 커서는 북마크 시각·postSeq 복합값이다.
+
+**Response:** `PostResponse` 커서 페이지를 반환한다.
+
+**설명:** 북마크 시각·postSeq 내림차순이며 삭제·차단·관심 없음 게시글을 제외한다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_CURSOR","message":"유효하지 않은 커서입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/posts/following`
+
+**API 개요:** 내가 팔로우한 회원의 공개 게시글을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** `PostResponse` 커서 페이지를 반환한다.
+
+**설명:** 팔로잉 관계를 조인하고 차단·관심 없음 게시글을 제외한 뒤 postSeq 내림차순으로 반환한다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/users/{userSeq}/posts`
+
+**API 개요:** 공개 가능한 회원의 게시글 목록을 조회한다. 인증은 선택이다.
+
+**Request:** Path `userSeq`, Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** 해당 회원의 `PostResponse` 커서 페이지를 반환한다.
+
+**설명:** 대상은 ACTIVE USER·ARTIST여야 하며 ADMIN·비활성·차단 관계는 404로 숨긴다.
+
+**성공 예시**
+```json
+{"data":{"items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"USER_NOT_FOUND","message":"회원을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/posts/{postSeq}`
+
+**API 개요:** 공개 게시글 한 건을 조회한다. 인증은 선택이다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** `PostResponse` 한 건을 반환한다.
+
+**설명:** PUBLISHED 활성 게시글만 제공한다. 로그인 회원의 차단·관심 없음 상태도 확인한다.
+
+**성공 예시**
+```json
+{"data":{"postSeq":2001,"author":{"userSeq":102,"nickname":"InkKim","role":"ARTIST","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=..."},"content":"장미 작업","likeCount":15,"commentCount":3,"images":[],"likedByMe":true,"bookmarkedByMe":false,"regDttm":"2026-07-31T10:00:00Z","modDttm":"2026-07-31T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"POST_NOT_FOUND","message":"게시글을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/posts/{postSeq}`
+
+**API 개요:** 내가 작성한 게시글의 본문만 수정한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq`. JSON body의 `content`는 선택·최대 3000자다.
+```json
+{"content":"수정한 작업 설명입니다."}
+```
+
+**Response:** 수정된 `PostResponse`를 반환한다.
+
+**설명:** 이미지와 like/comment/report count는 수정하지 않는 명시적 부분 UPDATE다.
+
+**성공 예시**
+```json
+{"data":{"postSeq":2001,"author":{"userSeq":101,"nickname":"BlackRose1","role":"USER","profileImageSeq":null,"profileImageUrl":null},"content":"수정한 작업 설명입니다.","likeCount":15,"commentCount":3,"images":[],"likedByMe":false,"bookmarkedByMe":false,"regDttm":"2026-07-31T10:00:00Z","modDttm":"2026-08-01T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"게시글 작성자만 수정할 수 있습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/posts/{postSeq}`
+
+**API 개요:** 내가 작성한 게시글을 소프트 삭제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 상태를 DELETED로 바꾸고 isDeleted를 함께 설정한다. 이미지·타투·MinIO 객체는 즉시 삭제하지 않는다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"게시글 작성자만 삭제할 수 있습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PUT `/v1/posts/{postSeq}/like`
+
+**API 개요:** 게시글 좋아요를 설정한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** `enabled=true`를 반환한다.
+
+**설명:** 실제 신규 관계일 때만 likeCount와 취향 점수를 가산한다. 서비스 알림은 생성하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"enabled":true}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"POST_NOT_FOUND","message":"게시글을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/posts/{postSeq}/like`
+
+**API 개요:** 게시글 좋아요를 해제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** `enabled=false`를 반환한다.
+
+**설명:** 실제 관계 삭제 시 likeCount만 -1 하며 과거 취향 점수는 역보정하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"enabled":false}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PUT `/v1/posts/{postSeq}/bookmark`
+
+**API 개요:** 게시글 북마크를 설정한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** `enabled=true`를 반환한다.
+
+**설명:** 실제 신규 북마크일 때만 주 스타일·색상 취향 점수를 가산한다.
+
+**성공 예시**
+```json
+{"data":{"enabled":true}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"POST_NOT_FOUND","message":"게시글을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/posts/{postSeq}/bookmark`
+
+**API 개요:** 게시글 북마크를 해제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** `enabled=false`를 반환한다.
+
+**설명:** 관계만 제거하고 기존 취향 점수는 역보정하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"enabled":false}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PUT `/v1/posts/{postSeq}/not-interested`
+
+**API 개요:** 게시글을 관심 없음으로 설정해 개인 피드에서 숨긴다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** `enabled=true`를 반환한다.
+
+**설명:** 실제 신규 숨김일 때만 취향 점수를 감점한다.
+
+**성공 예시**
+```json
+{"data":{"enabled":true}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"POST_NOT_FOUND","message":"게시글을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/posts/{postSeq}/not-interested`
+
+**API 개요:** 게시글 관심 없음 설정을 해제한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq` 필수. Body는 없다.
+
+**Response:** `enabled=false`를 반환한다.
+
+**설명:** 개인 숨김 관계만 제거하고 기존 취향 감점은 역보정하지 않는다.
+
+**성공 예시**
+```json
+{"data":{"enabled":false}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/posts/{postSeq}/dwell`
+
+**API 개요:** 게시글 체류시간을 구간화해 취향 점수에 반영한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq`. JSON body `seconds` 필수, 0~3600 정수다.
+```json
+{"seconds":18}
+```
+
+**Response:** 처리 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 원본 체류 통계 행은 만들지 않고 설정된 시간 구간의 가중치만 누적한다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"seconds는 0 이상 3600 이하여야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/posts/{postSeq}/reports`
+
+**API 개요:** 게시글을 사유와 함께 신고한다. Bearer 인증이 필요하다.
+
+**Request:** Path `postSeq`. JSON body `reasonCode` 필수·최대 30자,
+`reasonDetail` 선택·최대 1000자다.
+```json
+{"reasonCode":"INAPPROPRIATE","reasonDetail":"타인의 작업물을 무단 도용했습니다."}
+```
+
+**Response:** 생성된 `reportSeq`와 `reportStatus=PENDING`을 반환한다.
+
+**설명:** 회원 한 명은 게시글 하나에 한 번만 신고할 수 있다. 신고 생성과 reportCount 증가는 한 트랜잭션이다.
+
+**성공 예시**
+```json
+{"data":{"reportSeq":9001,"reportStatus":"PENDING"}}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"DUPLICATE_RESOURCE","message":"이미 신고한 게시글입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.7 이미지·타투·분류
+
+### POST `/v1/images/uploads/presign`
+
+**API 개요:** MinIO 직접 업로드용 단기 Presigned PUT URL을 발급한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `purpose`는 `PROFILE|POST|DM|COLLECTION|EXTRACTION`,
+`contentType`은 `image/jpeg|image/png|image/webp`, `originalFilename`은 필수·최대 150자,
+`fileSize`는 양수다.
+```json
+{"purpose":"POST","contentType":"image/png","originalFilename":"rose.png","fileSize":1024000}
+```
+
+**Response:** 서버가 만든 `objectKey`, `uploadUrl`, 클라이언트가 PUT 시 보낼
+`requiredHeaders`, `expiresInSeconds`를 반환한다.
+
+**설명:** 이 단계에서는 images 행을 만들지 않는다. 클라이언트는 반환된 URL에 파일을 직접 PUT한다.
+
+**성공 예시**
+```json
+{"data":{"objectKey":"users/101/post/uuid.png","uploadUrl":"https://minio.example/bucket/users/101/post/uuid.png?X-Amz-Signature=...","requiredHeaders":{"Content-Type":"image/png"},"expiresInSeconds":600}}
+```
+
+**실패 예시**
+```json
+{"status":413,"code":"FILE_TOO_LARGE","message":"허용된 이미지 크기를 초과했습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/images/uploads/complete`
+
+**API 개요:** MinIO 업로드 결과를 검증하고 images 행으로 등록한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body의 `objectKey` 필수·최대 512자이며 presign 응답값을 그대로 사용한다.
+```json
+{"objectKey":"users/101/post/uuid.png"}
+```
+
+**Response:** `imageSeq`, `objectKey`, 단기 `downloadUrl`, `regDttm`을 반환한다.
+
+**설명:** object key 소유권·구조와 객체 존재·크기·Content-Type을 검증한 뒤 짧은 DB 트랜잭션으로 등록한다.
+
+**성공 예시**
+```json
+{"data":{"imageSeq":301,"objectKey":"users/101/post/uuid.png","downloadUrl":"https://minio.example/bucket/users/101/post/uuid.png?X-Amz-Signature=...","regDttm":"2026-08-01T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"UPLOAD_OBJECT_NOT_FOUND","message":"업로드된 객체를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/tattoo-designs`
+
+**API 개요:** 보관 가능한 공개 타투 도안 목록을 조회한다. 인증은 선택이다.
+
+**Request:** Query `cursor` 선택, `size` 기본 20·범위 1~50이다.
+
+**Response:** 커서 페이지 항목은 `tattooSeq`, `designImageSeq`, Presigned
+`designImageUrl`, `primaryStyle{code,name}`, 선택 `color{code,name}`, subject 이름 배열,
+`archivedByMe`, `regDttm`을 갖는다.
+
+**설명:** 활성 tattoo_designs·tattoos·images만 등록시각·tattooSeq 내림차순으로 반환한다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"tattooSeq":501,"designImageSeq":301,"designImageUrl":"https://minio.example/design?X-Amz-Signature=...","primaryStyle":{"code":"BLACKWORK","name":"블랙워크"},"color":{"code":"BLACK","name":"검정"},"subjects":["장미"],"archivedByMe":false,"regDttm":"2026-07-31T10:00:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_CURSOR","message":"유효하지 않은 커서입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/tattoos/{tattooSeq}`
+
+**API 개요:** 분석 완료 타투의 분류·subject 정보를 조회한다. 인증은 선택이다.
+
+**Request:** Path `tattooSeq` 필수. Body는 없다.
+
+**Response:** 타투·등록자·원본 이미지 seq, `sourceType`, primary/secondary/rendering
+분류 `{code,name}`, 선택 color, subject 이름 배열, 학습 사용 정보와 시각을 반환한다.
+
+**설명:** 분류 seq는 노출하지 않고 기준정보를 조인한 코드와 표시명을 제공한다.
+
+**성공 예시**
+```json
+{"data":{"tattooSeq":501,"registrantSeq":101,"imageSeq":301,"sourceType":"USER_POST","primaryStyle":{"code":"BLACKWORK","name":"블랙워크"},"secondaryStyles":[{"code":"LINE","name":"라인"}],"renderingStyles":[{"code":"REALISTIC","name":"리얼리스틱"}],"color":{"code":"BLACK","name":"검정"},"subjects":["장미"],"usedForTraining":false,"trainedDttm":null,"regDttm":"2026-07-31T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"TATTOO_NOT_FOUND","message":"타투를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/tattoos/{tattooSeq}/image`
+
+**API 개요:** 타투 원본 또는 가공 도안 이미지의 단기 URL을 발급한다. 인증은 선택이다.
+
+**Request:** Path `tattooSeq`, Query `variant=ORIGINAL|DESIGN`이 필수다.
+
+**Response:** 선택된 `imageSeq`, Presigned `downloadUrl`, `expiresAt`을 반환한다.
+
+**설명:** ORIGINAL은 tattoos.imageSeq, DESIGN은 활성 tattoo_designs.imageSeq를 사용한다.
+
+**성공 예시**
+```json
+{"data":{"imageSeq":301,"downloadUrl":"https://minio.example/design?X-Amz-Signature=...","expiresAt":"2026-08-01T11:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"IMAGE_NOT_FOUND","message":"요청한 디자인 이미지를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/classifications/primary-styles`
+
+**API 개요:** 활성 주 스타일 기준정보를 조회한다. 인증은 필요 없다.
+
+**Request:** Path, Query, Body가 없다.
+
+**Response:** seq 오름차순의 `{seq,code,name}[]`를 반환한다.
+
+**설명:** 타투 분석과 취향 점수에 사용하는 현재 활성 항목만 제공한다.
+
+**성공 예시**
+```json
+{"data":[{"seq":1,"code":"BLACKWORK","name":"블랙워크"}]}
+```
+
+**실패 예시**
+```json
+{"status":500,"code":"INTERNAL_SERVER_ERROR","message":"기준정보 조회에 실패했습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/classifications/secondary-styles`
+
+**API 개요:** 활성 보조 스타일 기준정보를 조회한다. 인증은 필요 없다.
+
+**Request:** Path, Query, Body가 없다.
+
+**Response:** seq 오름차순의 `{seq,code,name}[]`를 반환한다.
+
+**설명:** 분석 결과 한 타투에 최대 두 개까지 연결 가능한 보조 스타일 목록이다.
+
+**성공 예시**
+```json
+{"data":[{"seq":1,"code":"LINE","name":"라인"}]}
+```
+
+**실패 예시**
+```json
+{"status":500,"code":"INTERNAL_SERVER_ERROR","message":"기준정보 조회에 실패했습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/classifications/rendering-styles`
+
+**API 개요:** 활성 표현(렌더링) 스타일 기준정보를 조회한다. 인증은 필요 없다.
+
+**Request:** Path, Query, Body가 없다.
+
+**Response:** seq 오름차순의 `{seq,code,name}[]`를 반환한다.
+
+**설명:** 분석 결과 한 타투에 최대 두 개까지 연결 가능한 표현 스타일 목록이다.
+
+**성공 예시**
+```json
+{"data":[{"seq":1,"code":"REALISTIC","name":"리얼리스틱"}]}
+```
+
+**실패 예시**
+```json
+{"status":500,"code":"INTERNAL_SERVER_ERROR","message":"기준정보 조회에 실패했습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/classifications/colors`
+
+**API 개요:** 활성 색상 기준정보를 조회한다. 인증은 필요 없다.
+
+**Request:** Path, Query, Body가 없다.
+
+**Response:** seq 오름차순의 `{seq,code,name}[]`를 반환한다.
+
+**설명:** 타투 분석의 선택 색상과 회원 색상 취향 점수에 사용하는 목록이다.
+
+**성공 예시**
+```json
+{"data":[{"seq":1,"code":"BLACK","name":"검정"}]}
+```
+
+**실패 예시**
+```json
+{"status":500,"code":"INTERNAL_SERVER_ERROR","message":"기준정보 조회에 실패했습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/designs/search-by-shape`
+
+**API 개요:** 캔버스 마스크 형태와 닮은 커버업 도안을 검색한다. 인증은 필요 없다.
+
+**Request:** JSON body. `maskPngB64`는 검은 배경·흰 획 PNG base64 필수이며 `data:`
+접두어를 허용한다. `mode`는 `coverup|shape`다.
+```json
+{"maskPngB64":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA","mode":"coverup"}
+```
+
+**Response:** 요청 `mode`, 결과 `count`, 점수 내림차순 `results`를 반환한다. 항목은
+`tattooSeq`, Presigned `imageUrl`, 소수 2자리 `score`, 선택 style code·name이다.
+
+**설명:** 삭제 도안은 DB에서 재검증해 제외한다. 검색 엔진 장애는 다른 API에 전파하지 않고 이 요청만 503이다.
+
+**성공 예시**
+```json
+{"data":{"mode":"coverup","count":1,"results":[{"tattooSeq":501,"imageUrl":"https://minio.example/design?X-Amz-Signature=...","score":0.86,"styleCode":"BLACKWORK","styleName":"블랙워크"}]}}
+```
+
+**실패 예시**
+```json
+{"status":503,"code":"SERVICE_UNAVAILABLE","message":"도안 검색 엔진을 사용할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.8 DM·기기·알림
+
+### POST `/v1/dm/rooms`
+
+**API 개요:** 상대 회원과 1대1 채팅방을 생성하거나 기존 방에 진입한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body의 `partnerSeq` 필수다.
+```json
+{"partnerSeq":102}
+```
+
+**Response:** `dmRoomSeq`, 상대 회원 정보, `active`, `notificationEnabled`,
+`unreadCount`, 마지막 메시지 미리보기·시각을 반환한다.
+
+**설명:** 두 회원 조합당 방 하나를 보장한다. 진입 시 요청자의 상대 메시지와 해당 방 NEW_DM 알림을 읽음 처리한다.
+
+**성공 예시**
+```json
+{"data":{"dmRoomSeq":801,"partner":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=..."},"active":true,"notificationEnabled":true,"unreadCount":0,"lastMessagePreview":"상담 가능할까요?","lastMessageDttm":"2026-08-01T09:30:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"차단 관계의 회원과 채팅할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/dm/rooms`
+
+**API 개요:** 내 활성 채팅방 목록을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor` 선택, `size` 기본 30·범위 1~100이다. 커서는 마지막 메시지 시각·roomSeq 복합값이다.
+
+**Response:** `RoomResponse` 커서 페이지를 반환한다.
+
+**설명:** 상대 정보, 숨김 기준 이후 미읽음 수, 방 알림 설정, 마지막 메시지 정보를 조합한다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"dmRoomSeq":801,"partner":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=..."},"active":true,"notificationEnabled":true,"unreadCount":3,"lastMessagePreview":"상담 가능할까요?","lastMessageDttm":"2026-08-01T09:30:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_CURSOR","message":"유효하지 않은 커서입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/dm/rooms/{roomSeq}/messages`
+
+**API 개요:** 채팅방에 텍스트·이미지 또는 복합 메시지를 전송한다. Bearer 인증이 필요하다.
+
+**Request:** Path `roomSeq`. JSON body `textContent` 선택·최대 4000자, `imageSeq` 선택이며
+둘 중 하나 이상 필요하다. 이미지는 업로드 완료 후 받은 imageSeq다.
+```json
+{"textContent":"상담 가능할까요?","imageSeq":401}
+```
+
+**Response:** `dmMessageSeq`, room/sender seq, `messageType(TEXT|IMAGE|TEXT_WITH_IMAGE)`,
+텍스트, 이미지 seq·Presigned URL, `readDttm`, `deleted`, `regDttm`을 반환한다.
+
+**설명:** 메시지와 방 상태를 저장한다. 상대가 방 알림 ON이면 NEW_DM 행도 만들고 커밋 후 WebSocket·FCM을 전송한다.
+
+**성공 예시**
+```json
+{"data":{"dmMessageSeq":9001,"dmRoomSeq":801,"senderSeq":101,"messageType":"TEXT_WITH_IMAGE","textContent":"상담 가능할까요?","imageSeq":401,"imageUrl":"https://minio.example/dm?X-Amz-Signature=...","readDttm":null,"deleted":false,"regDttm":"2026-08-01T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"textContent 또는 imageSeq 중 하나 이상이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/dm/rooms/{roomSeq}/messages`
+
+**API 개요:** 채팅방의 과거 메시지를 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Path `roomSeq`, Query `cursor`는 마지막 dmMessageSeq, `size` 기본 30·범위 1~100이다.
+
+**Response:** `MessageResponse` 커서 페이지를 반환한다.
+
+**설명:** messageSeq 내림차순이며 마지막 나가기 시 저장한 숨김 기준 이하 메시지는 제외한다. 삭제 메시지 내용은 null이다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"dmMessageSeq":9001,"dmRoomSeq":801,"senderSeq":102,"messageType":"TEXT","textContent":"안녕하세요","imageSeq":null,"imageUrl":null,"readDttm":null,"deleted":false,"regDttm":"2026-08-01T09:30:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"DM_ROOM_NOT_FOUND","message":"참여 중인 채팅방을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/dm/rooms/{roomSeq}/read`
+
+**API 개요:** 방의 상대방 미읽음 메시지와 NEW_DM 알림을 일괄 읽음 처리한다. Bearer 인증이 필요하다.
+
+**Request:** Path `roomSeq` 필수. Body는 없다.
+
+**Response:** 실제 읽음으로 변경된 DM 메시지 행 수 `Integer`를 반환한다.
+
+**설명:** 메시지와 해당 방 알림 UPDATE는 한 트랜잭션이다. 커밋 후 상대에게 MESSAGES_READ 이벤트를 보낸다.
+
+**성공 예시**
+```json
+{"data":3}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"DM_ROOM_NOT_FOUND","message":"참여 중인 채팅방을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/dm/rooms/{roomSeq}/notification`
+
+**API 개요:** 내 채팅방별 NEW_DM 알림 수신 설정을 변경한다. Bearer 인증이 필요하다.
+
+**Request:** Path `roomSeq`. JSON body `enabled` Boolean 필수다.
+```json
+{"enabled":false}
+```
+
+**Response:** 적용된 Boolean 상태를 반환한다.
+
+**설명:** OFF여도 메시지 저장과 채팅방 미읽음 메시지 수는 유지하고 NEW_DM 알림 행·푸시만 생략한다.
+
+**성공 예시**
+```json
+{"data":false}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"DM_ROOM_NOT_FOUND","message":"참여 중인 채팅방을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/dm/rooms/{roomSeq}`
+
+**API 개요:** 채팅방 목록에서 방을 나가고 이전 메시지를 숨긴다. Bearer 인증이 필요하다.
+
+**Request:** Path `roomSeq` 필수. Body는 없다.
+
+**Response:** 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 현재 마지막 메시지 seq를 숨김 기준으로 저장하고 참여 상태만 비활성화한다. 방과 메시지는 삭제하지 않는다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"DM_ROOM_NOT_FOUND","message":"참여 중인 채팅방을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/devices`
+
+**API 개요:** 푸시 수신 기기를 현재 로그인 세션과 연결한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `pushToken` 필수·최대 512자, `platform`은 `WEB|ANDROID|IOS`,
+`refreshToken` 필수·최대 512자다.
+```json
+{"pushToken":"fcm-token","platform":"ANDROID","refreshToken": "example"}
+```
+
+**Response:** `deviceSeq`, `platform`, `active`, `lastUsedDttm`을 반환한다.
+
+**설명:** pushToken을 전역 고유키로 upsert하고 현재 회원의 리프레시 토큰과 연결한다. 토큰 회전 시 이전 기기를 비활성화한다.
+
+**성공 예시**
+```json
+{"data":{"deviceSeq":601,"platform":"ANDROID","active":true,"lastUsedDttm":"2026-08-01T10:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"리프레시 토큰의 회원이 일치하지 않습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/devices/{deviceSeq}`
+
+**API 개요:** 내 푸시 기기와 연결된 세션을 비활성화한다. Bearer 인증이 필요하다.
+
+**Request:** Path `deviceSeq` 필수. Body는 없다.
+
+**Response:** 완료 여부 `Boolean`을 반환한다.
+
+**설명:** 기기 행은 유지하고 active=false로 변경하며 연결된 유효 리프레시 토큰을 함께 폐기한다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"RESOURCE_NOT_FOUND","message":"소유한 기기를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/notifications`
+
+**API 개요:** 내 미확인 NEW_DM·SYSTEM 알림 목록을 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Query `cursor` 선택, `size` 기본 30·범위 1~100이다. 커서는 대표 시각·notificationSeq 복합값이다.
+
+**Response:** 항목은 notification/actor/reference seq, 타입, NEW_DM 상대 정보,
+`unreadCount`, title, body, regDttm을 갖는 커서 페이지다.
+
+**설명:** 전체 미확인 NEW_DM을 roomSeq로 먼저 그룹화하고 최신 행을 대표로 삼는다. SYSTEM은 개별 행이다.
+
+**성공 예시**
+```json
+{"data":{"items":[{"notificationSeq":8004,"actorSeq":102,"notificationType":"NEW_DM","referenceSeq":801,"partner":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=..."},"unreadCount":4,"title":"새 메시지","body":"상담 가능할까요?","regDttm":"2026-08-01T09:30:00Z"}],"nextCursor":null,"hasNext":false,"size":1}}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"INVALID_CURSOR","message":"유효하지 않은 커서입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/notifications/unread-counts`
+
+**API 개요:** 타입별 미확인 알림 원본 행 수를 조회한다. Bearer 인증이 필요하다.
+
+**Request:** Path, Query, Body가 없다.
+
+**Response:** `total`과 `byType{NEW_DM,SYSTEM}`을 반환하며 없는 타입도 0이다.
+
+**설명:** 목록의 그룹 수가 아니라 DB 미확인 행 수를 센다. NEW_DM은 알림 ON 상태에서 생성된 미확인 메시지 알림 수다.
+
+**성공 예시**
+```json
+{"data":{"total":7,"byType":{"NEW_DM":5,"SYSTEM":2}}}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/notifications/{notificationSeq}/read`
+
+**API 개요:** SYSTEM 한 건 또는 NEW_DM 한 방의 알림 전체를 읽음 처리한다. Bearer 인증이 필요하다.
+
+**Request:** Path `notificationSeq` 필수. Body는 없다.
+
+**Response:** 처리 대상 대표 `NotificationResponse`를 반환한다.
+
+**설명:** NEW_DM이면 대표 알림의 referenceSeq 방에 속한 모든 미확인 NEW_DM을 처리한다. DM 메시지 readDttm은 바꾸지 않는다.
+
+**성공 예시**
+```json
+{"data":{"notificationSeq":8004,"actorSeq":102,"notificationType":"NEW_DM","referenceSeq":801,"partner":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=..."},"unreadCount":4,"title":"새 메시지","body":"상담 가능할까요?","regDttm":"2026-08-01T09:30:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"RESOURCE_NOT_FOUND","message":"알림을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### PATCH `/v1/notifications/read-all`
+
+**API 개요:** 내 모든 미확인 알림을 읽음 처리한다. Bearer 인증이 필요하다.
+
+**Request:** Path, Query, Body가 없다.
+
+**Response:** 실제 변경된 알림 행 수 `Integer`를 반환한다.
+
+**설명:** NEW_DM과 SYSTEM 미확인 행을 한 번의 UPDATE로 처리한다. DM 메시지 자체는 변경하지 않는다.
+
+**성공 예시**
+```json
+{"data":7}
+```
+
+**실패 예시**
+```json
+{"status":401,"code":"UNAUTHORIZED","message":"인증이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.9 검색·취향 설문
+
+### GET `/v1/search/accounts/autocomplete`
+
+**API 개요:** 회원 닉네임 접두어 자동완성 결과를 조회한다. 인증은 필요 없다.
+
+**Request:** Query `q` 필수·한글/자모/영문/숫자 1~20자, `size` 기본 10·범위 1~20이다.
+
+**Response:** `{userSeq,nickname,role}[]`를 반환하며 결과가 없으면 `[]`다.
+
+**설명:** Redis ZSET 접두어 후보를 얻은 뒤 DB에서 ACTIVE·비삭제·ADMIN 제외 조건을 재검증한다.
+
+**성공 예시**
+```json
+{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER"}]}
+```
+
+**실패 예시**
+```json
+{"status":503,"code":"SERVICE_UNAVAILABLE","message":"검색 인덱스를 사용할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/search/accounts`
+
+**API 개요:** 회원 닉네임 본 검색을 수행한다. 인증은 필요 없다.
+
+**Request:** Query `q` 필수·한글/자모/영문/숫자 2~20자, `size` 기본 20·범위 1~50이다.
+
+**Response:** Redis가 결정한 순서의 `{userSeq,nickname,role}[]`를 반환한다.
+
+**설명:** exact → prefix → fuzzy 거리 1 → fuzzy 거리 2 → contains 단계로 검색하고 DB 상태를 재검증한다.
+
+**성공 예시**
+```json
+{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER"}]}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"검색어는 2자 이상이어야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/search/artists/autocomplete`
+
+**API 개요:** 인증 타투이스트 닉네임 접두어 자동완성 결과를 조회한다. 인증은 필요 없다.
+
+**Request:** Query `q` 필수·1~20자, `size` 기본 10·범위 1~20이다.
+
+**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role}[]`를 반환한다.
+
+**설명:** 아티스트 전용 Redis 접두어 사전을 사용하고 DB에서 ARTIST·VERIFIED·ACTIVE를 재검증한다.
+
+**성공 예시**
+```json
+{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST"}]}
+```
+
+**실패 예시**
+```json
+{"status":503,"code":"SERVICE_UNAVAILABLE","message":"검색 인덱스를 사용할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/search/artists`
+
+**API 개요:** 인증 타투이스트 닉네임 본 검색을 수행한다. 인증은 필요 없다.
+
+**Request:** Query `q` 필수·2~20자, `size` 기본 20·범위 1~50이다.
+
+**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role}[]`를 반환한다.
+
+**설명:** Redis fuzzy 단계 순서를 보존하고 DB 상태를 재검증한다. 팔로워 수·취향 점수는 정렬에 사용하지 않는다.
+
+**성공 예시**
+```json
+{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST"}]}
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"검색어는 2자 이상이어야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/search/subjects/autocomplete`
+
+**API 개요:** 타투 이미지 subject 접두어 자동완성 결과를 조회한다. 인증은 필요 없다.
+
+**Request:** Query `q` 필수·한글/자모/영문/숫자 1~50자, `size` 기본 10·범위 1~20이다.
+
+**Response:** `{subjectSeq,subjectName}[]`를 반환한다.
+
+**설명:** 연결 빈도·검색량으로 선별한 Redis ZSET 사전을 사용하며 정확 일치·짧은 이름·사전순으로 정렬한다.
+
+**성공 예시**
+```json
+{"data":[{"subjectSeq":10,"subjectName":"장미"}]}
+```
+
+**실패 예시**
+```json
+{"status":503,"code":"SERVICE_UNAVAILABLE","message":"검색 인덱스를 사용할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/search/posts`
+
+**API 개요:** 입력을 최상위 subject로 보정해 연결 게시글을 검색한다. 인증은 선택이다.
+
+**Request:** Query `q` 필수·2~50자, `cursor` 선택 postSeq, `size` 기본 20·범위 1~50이다.
+
+**Response:** 원문 `query`, `matchedSubject{subjectSeq,subjectName}`, `matchType`,
+`PostResponse items`, `nextCursor`, `hasNext`, `size`를 반환한다.
+
+**설명:** subject를 exact/prefix/fuzzy/contains 순으로 결정한 뒤 PUBLISHED 게시글을 조회한다.
+로그인 회원에게는 차단·관심 없음 항목을 제외하고 실제 보정 subject의 검색량을 기록한다.
+
+**성공 예시**
+```json
+{"data":{"query":"장미","matchedSubject":{"subjectSeq":10,"subjectName":"장미"},"matchType":"EXACT","items":[],"nextCursor":null,"hasNext":false,"size":0}}
+```
+
+**실패 예시**
+```json
+{"status":503,"code":"SERVICE_UNAVAILABLE","message":"검색 인덱스를 사용할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/preferences/survey`
+
+**API 개요:** 회원가입 후 최초 주 스타일·색상 취향 점수를 반영한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `primaryStyleSeqs`는 필수·1~50개, `colorSeqs`는 선택·최대
+50개이며 각 원소는 null일 수 없다. 서버가 중복을 제거한다.
+```json
+{"primaryStyleSeqs":[1,3,5],"colorSeqs":[1,2]}
+```
+
+**Response:** `primaryStyles`, `colors` 배열을 반환하며 각 항목은
+`classificationSeq`, 반영된 `score`를 갖는다.
+
+**설명:** 기존 주 스타일·색상 취향 행이 하나도 없는 회원에게 한 번만 허용하며 전체 upsert는 한 트랜잭션이다.
+
+**성공 예시**
+```json
+{"data":{"primaryStyles":[{"classificationSeq":1,"score":3.0},{"classificationSeq":3,"score":3.0}],"colors":[{"classificationSeq":1,"score":3.0}]}}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"STATE_CONFLICT","message":"최초 취향 설문이 이미 반영되었습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```

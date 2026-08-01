@@ -129,8 +129,8 @@ public class UserController {
             summary = "회원 팔로우",
             description = """
                     ON CONFLICT DO NOTHING으로 팔로우 관계를 멱등하게 생성하고 새로 생성된
-                    경우에만 상대방 알림을 저장한다. 자기 자신, ADMIN, 비활성 회원 및 상호
-                    차단 관계는 허용하지 않는다.
+                    경우에만 관계를 반영한다. 팔로우 서비스 알림은 생성하지 않는다. 자기 자신,
+                    ADMIN, 비활성 회원 및 상호 차단 관계는 허용하지 않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )

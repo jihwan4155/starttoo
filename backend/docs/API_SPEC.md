@@ -2,13 +2,14 @@
 
 기본 경로는 `/v1`이며 별도 표기가 없으면 Bearer JWT 인증이 필요하다. 목록 API는
 `items`, `nextCursor`, `hasNext`, `size`를 갖는 커서 응답을 사용한다.
+현재 v1 공개 범위는 관리자·테스트 API를 제외한 83개 엔드포인트다.
 
 ## 인증·회원
 
 | Method | Path | 인증 | 설명 |
 |---|---|---:|---|
 | POST | `/auth/social/login` | N | Google/Kakao subject 확인, 로그인 또는 가입 토큰 |
-| POST | `/auth/signup` | N | 입력 전화번호 정규화 후 미가입 번호로 단일 OAuth 통합 계정 생성 |
+| POST | `/auth/signup` | N | 입력 전화번호 정규화 후 미가입 번호로 단일 OAuth 통합 계정 생성. `role`은 USER 또는 ARTIST |
 | POST | `/auth/token/refresh` | N | 리프레시 토큰 회전 |
 | POST | `/auth/logout` | N | 리프레시 토큰 폐기와 연결 기기 푸시 비활성화 |
 | GET | `/auth/nicknames/suggestions` | N | 활성 회원과 겹치지 않는 닉네임 후보 |
@@ -37,10 +38,12 @@
 
 | Method | Path | 인증 | 설명 |
 |---|---|---:|---|
-| GET | `/artists` | N | 인증 아티스트 목록 |
-| PATCH | `/artists/me/profile` | Y | 숍 자유 정보 작성·수정 |
+| GET | `/artists` | N | 인증 아티스트 목록. 도시 필터와 최신 게시물 썸네일 최대 6개 포함 |
+| PATCH | `/artists/me/profile` | Y | ARTIST 역할 회원의 기존 숍 정보 수정 |
 
-심사 요청과 관리자 승인 API는 이후 버전의 확장 범위다.
+ARTIST 가입 시 역할은 즉시 저장되고 아티스트 행은 `UNVERIFIED`로 생성된다. 심사 요청과
+관리자 승인 API는 이후 버전의 확장 범위이며, 승인 시 역할이 아니라
+`verificationStatus`만 변경한다.
 
 ## 이미지·타투·분류
 
@@ -48,8 +51,8 @@
 |---|---|---|
 | POST | `/images/uploads/presign` | 백엔드가 MinIO object key와 PUT URL 생성 |
 | POST | `/images/uploads/complete` | 객체 존재와 소유 경로 확인 후 images 행 생성 |
-| GET | `/tattoo-designs` | 보관 가능한 활성 타투 도안 목록 |
-| GET | `/tattoos/{tattooSeq}` | 분석 결과와 다중 subject 조회 |
+| GET | `/tattoo-designs` | 보관 가능한 활성 타투 도안 목록. 분류 코드는 사람이 읽는 이름과 함께 반환 |
+| GET | `/tattoos/{tattooSeq}` | 분석 결과 조회. 분류는 code·name, subject는 이름으로 반환 |
 | GET | `/tattoos/{tattooSeq}/image` | variant에 맞는 단기 Presigned GET URL |
 | GET | `/classifications/primary-styles` | 활성 주 스타일 목록 |
 | GET | `/classifications/secondary-styles` | 활성 보조 스타일 목록 |
@@ -88,7 +91,7 @@ URL이다. DB에는 URL을 저장하지 않는다.
 
 | Method | Path | 설명 |
 |---|---|---|
-| POST | `/posts` | 모든 이미지의 동기 AI 검증 완료 후 게시물 등록 |
+| POST | `/posts` | 모든 이미지의 동기 AI 판별 완료 후 게시물 등록. 비타투 이미지도 허용 |
 | GET | `/posts` | PUBLISHED만 노출 |
 | GET | `/users/{userSeq}/posts` | 공개 회원 게시물 |
 | GET | `/posts/me` | 내 게시물 |
@@ -96,21 +99,24 @@ URL이다. DB에는 URL을 저장하지 않는다.
 | GET | `/posts/following` | 팔로잉 회원 게시물 |
 | GET/PATCH/DELETE | `/posts/{postSeq}` | 상세/작성자 수정/작성자 삭제 |
 | PUT | `/posts/{postSeq}/like` | 좋아요 설정과 count·취향 점수 동시 변경 |
-| DELETE | `/posts/{postSeq}/like` | 좋아요 해제와 count·취향 점수 동시 변경 |
+| DELETE | `/posts/{postSeq}/like` | 좋아요 해제와 count 감소. 기존 취향 점수는 유지 |
 | PUT | `/posts/{postSeq}/bookmark` | 북마크 설정과 취향 점수 동시 변경 |
-| DELETE | `/posts/{postSeq}/bookmark` | 북마크 해제와 취향 점수 동시 변경 |
+| DELETE | `/posts/{postSeq}/bookmark` | 북마크 해제. 기존 취향 점수는 유지 |
 | PUT | `/posts/{postSeq}/not-interested` | 피드 숨김과 음수 취향 점수 |
-| DELETE | `/posts/{postSeq}/not-interested` | 피드 숨김 해제와 취향 점수 역산 |
+| DELETE | `/posts/{postSeq}/not-interested` | 피드 숨김 해제. 기존 취향 감점은 유지 |
 | POST | `/posts/{postSeq}/dwell` | 원본 체류 통계 없이 시간 구간을 점수화 |
 | POST | `/posts/{postSeq}/reports` | 회원당 게시물 1회 신고 |
 | GET/POST | `/posts/{postSeq}/comments` | 댓글 목록/등록 |
 | GET | `/comments/{commentSeq}/replies` | 최상위 댓글의 답글 목록 |
-| DELETE | `/comments/{commentSeq}` | 작성자 소프트 삭제 |
+| DELETE | `/comments/{commentSeq}` | 작성자 소프트 삭제. 최상위 댓글이면 활성 답글도 함께 삭제 |
 | PUT | `/comments/{commentSeq}/like` | 댓글 좋아요 설정 |
 | DELETE | `/comments/{commentSeq}/like` | 댓글 좋아요 해제 |
 
 `PUBLISHED`만 일반 조회에 노출한다. `HIDDEN`은 관리자 처리, `DELETED`는 작성자
 삭제이며 `is_deleted`와 CHECK로 일관성을 보장한다.
+게시글 작성 시 모든 이미지의 타투 여부를 DB 트랜잭션 밖에서 동기 판별하고, 타투로
+판정된 이미지만 분석하여 `tattoos` 행을 만든다. 어느 이미지에서든 모델 오류가 나면
+게시글과 이미지 연결을 저장하지 않고 요청 전체를 실패시킨다.
 
 ## 취향·컬렉션·보관함
 
@@ -120,14 +126,15 @@ URL이다. DB에는 URL을 저장하지 않는다.
 | POST/GET | `/collections` | 동기 AI 검증 후 배치 컬렉션 등록/목록 |
 | GET | `/users/{userSeq}/collections` | 공개 회원의 활성 컬렉션 |
 | DELETE | `/collections/{collectionSeq}` | 컬렉션과 연결 타투 소프트 삭제 |
-| GET | `/archive` | tattoo_designs 기반 보관함 |
+| GET | `/archive` | `tattooSeq`, `designImageSeq`, `designImageUrl`, `archivedDttm` 보관함 |
 | PUT | `/archive/{tattooSeq}` | 보관 설정 |
 | DELETE | `/archive/{tattooSeq}` | 보관 해제 |
 
 컬렉션 배치는 `bodyView`, 0~1의 `positionX/Y`, 양수 `scaleRatio`,
 -180~180의 `rotationDegree`, `flipped`를 모두 저장한다.
-컬렉션과 보관함의 실제 상태가 변경된 경우에만 primary style/color 취향 점수를
-증감하여 동일 요청의 반복으로 점수가 중복 반영되지 않게 한다.
+컬렉션 등록과 도안 보관의 실제 ON 상태 전환에서만 primary style/color 취향 점수를
+가산한다. 컬렉션 삭제와 보관 해제에서는 과거 점수를 역보정하지 않으며, 동일 PUT을
+반복해도 점수를 중복 반영하지 않는다.
 
 ## 검색
 
@@ -164,15 +171,18 @@ DB 커밋 후 증분 갱신하며, 매일 PostgreSQL과 대조한다.
 | PATCH | `/dm/rooms/{roomSeq}/read` | 상대 메시지와 해당 방 NEW_DM 알림 일괄 읽음 |
 | DELETE | `/dm/rooms/{roomSeq}` | 현재까지 메시지를 숨기고 방 목록 비활성 |
 | PATCH | `/dm/rooms/{roomSeq}/notification` | 방별 알림만 설정 |
-| GET | `/notifications` | 알림 목록 |
-| GET | `/notifications/unread-counts` | 전체·유형별 읽지 않은 알림 수 |
-| PATCH | `/notifications/{notificationSeq}/read` | 단건 읽음 |
+| GET | `/notifications` | 미확인 알림 목록. NEW_DM은 방별 집계, SYSTEM은 개별 반환 |
+| GET | `/notifications/unread-counts` | 집계 전 원본 행 기준 전체·유형별 미확인 수 |
+| PATCH | `/notifications/{notificationSeq}/read` | SYSTEM 단건 또는 같은 방 NEW_DM 전체 읽음 |
 | PATCH | `/notifications/read-all` | 전체 읽음 |
 | POST | `/devices` | 푸시 토큰과 현재 리프레시 토큰 연결 |
 | DELETE | `/devices/{deviceSeq}` | 기기와 연결 세션 비활성 |
 
-DM 전송 시 방 알림을 켜둔 수신자에게 `referenceSeq=roomSeq`인 `NEW_DM` 알림을
-생성한다. 방 알림을 꺼도 메시지는 저장되고 읽지 않음 수에 포함된다. 방 읽음 API는
+알림 타입은 `NEW_DM`, `SYSTEM`만 허용한다. DM 전송 시 방 알림을 켜둔 수신자에게
+`referenceSeq=roomSeq`인 `NEW_DM` 알림을 생성한다. 방 알림을 꺼도 메시지는 저장되고
+DM방의 읽지 않음 메시지 수에는 포함되지만 알림 행과 푸시는 만들지 않는다. 알림 목록은
+전체 미확인 `NEW_DM`을 방별로 먼저 묶고 각 방의 최신 알림 시각 내림차순으로 SYSTEM과
+함께 정렬한 뒤 커서 페이지네이션한다. 방 읽음 API는
 상대 메시지와 해당 방의 미읽음 `NEW_DM` 알림을 하나의 트랜잭션으로 처리한다.
 기기 등록 요청은 현재 세션의 리프레시 토큰을 받아 `deviceSeq`와 연결하며, 기기
 비활성화 시 그 기기에 연결된 리프레시 토큰만 폐기한다. `/auth/logout`은 요청한

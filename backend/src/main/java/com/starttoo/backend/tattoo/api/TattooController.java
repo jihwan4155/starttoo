@@ -28,7 +28,8 @@ public class TattooController {
             description = """
                     활성 tattoos 행의 주 스타일 1개, 보조 스타일 최대 2개, 렌더링 스타일 최대
                     2개, 선택 색상과 다중 subject를 반환한다. 추가 학습 사용 여부와 학습 반영
-                    시각도 함께 제공한다.
+                    시각도 함께 제공한다. 분류 seq를 그대로 노출하지 않고 기준정보를 조인해
+                    스타일·색상은 code와 name, subject는 이름 문자열 목록으로 제공한다.
                     """
     )
     public ApiResponse<TattooDtos.TattooResponse> get(@PathVariable Long tattooSeq) {

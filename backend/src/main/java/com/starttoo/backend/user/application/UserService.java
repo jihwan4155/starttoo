@@ -9,8 +9,6 @@ import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.media.domain.Image;
 import com.starttoo.backend.media.domain.ImageRepository;
-import com.starttoo.backend.notification.application.NotificationService;
-import com.starttoo.backend.notification.domain.NotificationType;
 import com.starttoo.backend.search.application.SearchIndexEventPublisher;
 import com.starttoo.backend.user.api.UserDtos;
 import com.starttoo.backend.user.domain.AccountStatus;
@@ -41,7 +39,6 @@ public class UserService {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MediaService mediaService;
-    private final NotificationService notificationService;
     private final SearchIndexEventPublisher searchIndexEventPublisher;
 
     @Transactional(readOnly = true)
@@ -199,16 +196,6 @@ public class UserService {
                     VALUES (?, ?)
                     ON CONFLICT DO NOTHING
                     """, actorSeq, targetSeq);
-            if (inserted > 0) {
-                notificationService.create(
-                        targetSeq,
-                        actorSeq,
-                        NotificationType.FOLLOW,
-                        actorSeq.longValue(),
-                        "새 팔로워",
-                        "새로운 회원이 회원님을 팔로우했습니다."
-                );
-            }
             return inserted > 0 || exists("user_follows", "follower_seq", actorSeq, "following_seq", targetSeq);
         }
         jdbcTemplate.update(

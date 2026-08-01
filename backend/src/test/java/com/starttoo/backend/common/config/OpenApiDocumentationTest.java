@@ -16,7 +16,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.HandlerMethod;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -191,7 +194,8 @@ class OpenApiDocumentationTest {
         new OpenApiConfig().commonErrorResponses().customize(operation, handlerMethod);
 
         assertThat(operation.getResponses())
-                .containsKeys("422", "502", "503", "504");
+                .containsKeys("502", "503", "504")
+                .doesNotContainKey("422");
     }
 
     @Test
@@ -207,6 +211,38 @@ class OpenApiDocumentationTest {
                 "/subjects/corrections",
                 "/posts/{postSeq}/click"
         );
+    }
+
+    @Test
+    void detailedApiSpecIndexesEveryExposedEndpoint() throws IOException {
+        String spec = Files.readString(Path.of("docs/starttoo_api_spec_general_latest.md"));
+        String endpointDetails = spec.substring(spec.indexOf("# 19. API별 상세 계약"));
+
+        assertThat(EXPECTED_V1_ENDPOINTS).allSatisfy(endpoint -> {
+            String[] parts = endpoint.split(" ", 2);
+            String heading = "### " + parts[0] + " `" + parts[1] + "`";
+            assertThat(spec)
+                    .as("API spec must index %s", endpoint)
+                    .contains("| " + parts[0] + " | `" + parts[1] + "` |");
+            assertThat(endpointDetails)
+                    .as("API spec must detail %s", endpoint)
+                    .contains(heading);
+
+            int start = endpointDetails.indexOf(heading);
+            int next = endpointDetails.indexOf("\n### ", start + heading.length());
+            String detail = endpointDetails.substring(
+                    start,
+                    next < 0 ? endpointDetails.length() : next
+            );
+            assertThat(detail).contains(
+                    "**API 개요:**",
+                    "**Request:**",
+                    "**Response:**",
+                    "**설명:**",
+                    "**성공 예시**",
+                    "**실패 예시**"
+            );
+        });
     }
 
     private List<Class<?>> controllers() {

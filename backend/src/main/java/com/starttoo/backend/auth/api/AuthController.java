@@ -64,8 +64,9 @@ public class AuthController {
                     이미 가입된 활성 휴대폰 번호에는 다른 OAuth 계정을 추가 연결하지 않고
                     DUPLICATE_PHONE_NUMBER를 반환한다. 사용 가능한 번호이면 users,
                     user_oauth_accounts, 최초 ACTIVE 상태 이력을 하나의 DB 트랜잭션으로 저장한 뒤
-                    토큰을 발급한다. ARTIST 가입도 users.role은 USER로 만들고 artists 확장 행을
-                    UNVERIFIED로 생성한다. ADMIN 가입은 허용하지 않는다. 닉네임·전화번호·provider
+                    토큰을 발급한다. role=ARTIST이면 users.role=ARTIST와 artists 확장 행의
+                    verificationStatus=UNVERIFIED를 함께 저장한다. 공개 아티스트 목록에는 추후
+                    VERIFIED가 된 계정만 노출된다. ADMIN 가입은 허용하지 않는다. 닉네임·전화번호·provider
                     subject 중복이 발생하면 DB 변경은 롤백된다.
                     가입 토큰은 DB 커밋이 성공한 뒤에만 Redis에서 소비 처리하며, 신규 users 검색
                     인덱스도 커밋 후 갱신한다.

@@ -21,7 +21,7 @@ class AuthDtoValidationTest {
         assertThat(validator.validate(user)).isEmpty();
         assertThat(validator.validate(artist)).isEmpty();
         assertThat(validator.validate(admin))
-                .anyMatch(violation -> "requestedRole".equals(
+                .anyMatch(violation -> "role".equals(
                         violation.getPropertyPath().toString()
                 ));
     }

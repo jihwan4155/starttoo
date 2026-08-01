@@ -12,6 +12,7 @@ import org.springframework.web.client.ResourceAccessException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 @Component
@@ -26,8 +27,19 @@ public class TattooModelClient {
     }
 
     public Analysis analyze(String imageUrl) {
+        return analyzeIfTattoo(imageUrl)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE));
+    }
+
+    public Optional<Analysis> analyzeIfTattoo(String imageUrl) {
         if (!properties.enabled()) {
-            return new Analysis("OTHER", List.of(), List.of("LINE"), "BLACK", List.of("타투"));
+            return Optional.of(new Analysis(
+                    "OTHER",
+                    List.of(),
+                    List.of("LINE"),
+                    "BLACK",
+                    List.of("타투")
+            ));
         }
         try {
             Detection detection = restClient.post()
@@ -40,7 +52,7 @@ public class TattooModelClient {
                 throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
             }
             if (!detection.isTattoo()) {
-                throw BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE);
+                return Optional.empty();
             }
             Analysis result = restClient.post()
                     .uri(properties.tattooAnalysisPath())
@@ -52,7 +64,7 @@ public class TattooModelClient {
                 throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
             }
             validate(result);
-            return result;
+            return Optional.of(result);
         } catch (BusinessException exception) {
             throw exception;
         } catch (ResourceAccessException exception) {

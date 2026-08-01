@@ -5,6 +5,8 @@ import com.starttoo.backend.artist.application.ArtistService;
 import com.starttoo.backend.artist.domain.Artist;
 import com.starttoo.backend.artist.domain.ArtistRepository;
 import com.starttoo.backend.artist.domain.VerificationStatus;
+import com.starttoo.backend.common.error.BusinessException;
+import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.user.application.UserService;
 import com.starttoo.backend.user.domain.AccountStatus;
@@ -17,12 +19,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -40,6 +44,9 @@ class ArtistServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+
+    @Mock
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Mock
     private MediaService mediaService;
@@ -68,16 +75,12 @@ class ArtistServiceTest {
     }
 
     @Test
-    void updateCreatesUnverifiedProfileWhenMissing() {
+    void updateRejectsArtistRoleWhenArtistProfileIsMissing() {
         User user = user(7, null);
         when(userService.find(7)).thenReturn(user);
         when(artistRepository.findActiveForUpdate(7)).thenReturn(Optional.empty());
-        when(artistRepository.save(any(Artist.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(artistRepository.findByUserSeqAndDeletedFalse(7))
-                .thenAnswer(invocation -> Optional.of(savedArtist()));
-        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7))).thenReturn(0L);
 
-        ArtistDtos.ArtistProfile profile = artistService.update(
+        assertThatThrownBy(() -> artistService.update(
                 7,
                 new ArtistDtos.UpdateArtistRequest(
                         "스타투 스튜디오",
@@ -86,12 +89,8 @@ class ArtistServiceTest {
                         "02-1234-5678",
                         "예약제"
                 )
-        );
-
-        assertThat(profile.verificationStatus()).isEqualTo(VerificationStatus.UNVERIFIED);
-        ArgumentCaptor<Artist> saved = ArgumentCaptor.forClass(Artist.class);
-        verify(artistRepository).save(saved.capture());
-        assertThat(saved.getValue().getVerificationStatus()).isEqualTo(VerificationStatus.UNVERIFIED);
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ARTIST_NOT_FOUND));
     }
 
     @Test
@@ -131,10 +130,6 @@ class ArtistServiceTest {
 
         assertThat(profile.profileImageSeq()).isEqualTo(301L);
         assertThat(profile.profileImageUrl()).isEqualTo("https://temporary-download-url");
-    }
-
-    private Artist savedArtist() {
-        return artist(VerificationStatus.UNVERIFIED);
     }
 
     private Artist artist(VerificationStatus status) {
