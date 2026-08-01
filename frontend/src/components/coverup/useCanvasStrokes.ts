@@ -71,9 +71,15 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	/**
 	 * 포인터 좌표를 마스크 좌표계(MASK_W×MASK_H)로 환산한다.
 	 * CSS로 축소돼 있어도 이 비율 보정 덕분에 마스크는 항상 원본 해상도로 남는다.
+	 *
+	 * <p>★ 반드시 이벤트 핸들러 본문에서 즉시 호출해야 한다. setStrokes 업데이터
+	 * 안에서 부르면 React가 그 함수를 렌더 시점에 실행하는데, 그때는 이벤트가 이미
+	 * 정리돼 좌표를 읽을 수 없다. 짧게 그리면 동기 flush 덕에 우연히 통과하고 길게
+	 * 그릴 때만 터지므로, rect 조회도 이벤트가 아닌 캔버스 ref에서 한다.
 	 */
 	const pointFrom = (event: ReactPointerEvent<HTMLCanvasElement>): Point => {
-		const rect = event.currentTarget.getBoundingClientRect();
+		const rect = canvasRef.current?.getBoundingClientRect();
+		if (!rect || rect.width === 0 || rect.height === 0) return { x: 0, y: 0 };
 		return {
 			x: ((event.clientX - rect.left) / rect.width) * MASK_W,
 			y: ((event.clientY - rect.top) / rect.height) * MASK_H,
@@ -84,7 +90,8 @@ export default function useCanvasStrokes(mode: SearchMode) {
 		if (event.button !== 0 && event.pointerType === "mouse") return;
 		event.currentTarget.setPointerCapture(event.pointerId);
 		drawingRef.current = true;
-		setStrokes((previous) => [...previous, [pointFrom(event)]]);
+		const point = pointFrom(event);
+		setStrokes((previous) => [...previous, [point]]);
 	};
 
 	const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
