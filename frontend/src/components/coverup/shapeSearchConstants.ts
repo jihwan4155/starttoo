@@ -1,7 +1,7 @@
 import type { SearchMode } from "../../types/shapeSearch";
 
 /**
- * ★ 마스크 캔버스 크기와 모드별 붓 굵기는 한 세트다.
+ * ★ 마스크 캔버스 크기와 붓 굵기는 한 세트다.
  *
  * 검색 서버 튜닝 상수가 "붓 굵기 대 캔버스 크기" 비율에 맞물려 있다. 캔버스만
  * 키우거나 붓만 건드리면 요청은 정상으로 통과하고 **검색 품질만 조용히 나빠진다.**
@@ -13,23 +13,38 @@ import type { SearchMode } from "../../types/shapeSearch";
 export const MASK_W = 420;
 export const MASK_H = 520;
 
+/**
+ * 붓 굵기. 사용자가 고르지 않고 고정한다.
+ *
+ * <p>참고: 검색 엔진 튜닝 기준값은 shape 6px · coverup 16px 이지만, 두 모드가
+ * 같은 굵기로 그려지도록 6px로 통일했다. coverup 모드는 튜닝값보다 얇은 획을
+ * 보내게 되므로, 커버업 결과가 기대와 다르면 이 값을 먼저 의심할 것.
+ */
+export const BRUSH_PX = 6;
+
+/**
+ * 화면 라벨은 사용자가 그리는 방식을 그대로 부른다.
+ * 면 = 영역을 칠하면 그 안쪽까지 덮는 도안, 선 = 그린 선의 모양을 닮은 도안.
+ * (엔진 내부 이름 line/gate는 노출하지 않는다)
+ */
 export const MODES = {
 	coverup: {
-		label: "커버업",
-		brush: 16,
+		label: "면",
 		hint: "그린 영역 안쪽까지 덮는 도안을 찾아요.",
 	},
 	shape: {
-		label: "형태 탐색",
-		brush: 6,
+		label: "선",
 		hint: "그린 선의 모양을 닮은 도안을 찾아요.",
 	},
 } as const;
 
-/** 토글 표시 순서. 커버업 페이지라 커버업이 먼저다 */
+/** 토글 표시 순서. 커버업 페이지라 면이 먼저다 */
 export const MODE_KEYS = ["coverup", "shape"] as const;
 
 export const DEFAULT_MODE: SearchMode = "coverup";
 
-export const MIN_BRUSH = 2;
-export const MAX_BRUSH = 60;
+/**
+ * 화면에 보여줄 도안 수. 서버는 최대 16장을 주지만 한 화면에 담기도록 잘라 쓴다.
+ * 점수 내림차순이라 앞에서 자르면 상위 N장이 남는다.
+ */
+export const MAX_RESULTS = 8;

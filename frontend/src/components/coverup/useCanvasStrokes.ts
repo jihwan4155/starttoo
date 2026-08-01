@@ -6,7 +6,7 @@ import {
 	isDrawableStroke,
 } from "./maskPainter";
 import type { Point, Stroke } from "./maskPainter";
-import { MASK_H, MASK_W, MODES } from "./shapeSearchConstants";
+import { BRUSH_PX, MASK_H, MASK_W } from "./shapeSearchConstants";
 import type { SearchMode } from "../../types/shapeSearch";
 
 /**
@@ -21,7 +21,6 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	const drawingRef = useRef(false);
 
 	const [strokes, setStrokes] = useState<Stroke[]>([]);
-	const [brush, setBrush] = useState<number>(MODES[mode].brush);
 	// 사진은 비동기로 로드되고 로드가 끝나면 다시 그려야 하므로 state로 둔다
 	const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
 
@@ -35,13 +34,13 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	const redraw = useCallback(() => {
 		const ctx = canvasRef.current?.getContext("2d");
 		if (!ctx) return;
-		drawPreview(ctx, { strokes, brush, mode, photo });
-	}, [strokes, brush, mode, photo]);
+		drawPreview(ctx, { strokes, brush: BRUSH_PX, mode, photo });
+	}, [strokes, mode, photo]);
 
 	/** 서버로 보낼 마스크. 그릴 획이 없으면 null */
 	const buildMask = useCallback(
-		() => buildMaskDataUrl(strokes, brush),
-		[strokes, brush],
+		() => buildMaskDataUrl(strokes, BRUSH_PX),
+		[strokes],
 	);
 
 	/** 배경 사진 교체. null이면 회색 배경으로 되돌린다 */
@@ -61,11 +60,6 @@ export default function useCanvasStrokes(mode: SearchMode) {
 
 	const clear = useCallback(() => {
 		setStrokes([]);
-	}, []);
-
-	/** 모드 기본 붓 굵기로 되돌린다 */
-	const resetBrush = useCallback((next: SearchMode) => {
-		setBrush(MODES[next].brush);
 	}, []);
 
 	/**
@@ -112,9 +106,6 @@ export default function useCanvasStrokes(mode: SearchMode) {
 
 	return {
 		canvasRef,
-		brush,
-		setBrush,
-		resetBrush,
 		// 점 하나만 찍은 획은 마스크에 아무것도 남기지 않으므로 비어 있는 것으로 본다
 		isEmpty: !strokes.some(isDrawableStroke),
 		canUndo: strokes.length > 0,

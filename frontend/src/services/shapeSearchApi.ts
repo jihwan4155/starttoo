@@ -1,5 +1,6 @@
 import { api } from "./api";
 import demoTattoo from "../assets/images/demo-tattoo.png";
+import { MAX_RESULTS } from "../components/coverup/shapeSearchConstants";
 import { DEMO_MODE } from "../constants/config";
 import type {
 	DesignResult,
@@ -16,7 +17,6 @@ import type {
  */
 type Envelope<T> = { data: T };
 
-const DEMO_RESULT_COUNT = 16;
 const DEMO_DELAY_MS = 900;
 
 // 미분류 도안은 서버가 styleCode·styleName 키를 아예 생략한다. 그 경우도 재현한다.
@@ -28,7 +28,7 @@ const DEMO_STYLES: Array<Pick<DesignResult, "styleCode" | "styleName">> = [
 ];
 
 function demoResults(): DesignResult[] {
-	return Array.from({ length: DEMO_RESULT_COUNT }, (_, index) => ({
+	return Array.from({ length: MAX_RESULTS }, (_, index) => ({
 		tattooSeq: 900_000 + index,
 		imageUrl: demoTattoo,
 		// 서버는 점수 내림차순으로 준다
@@ -58,6 +58,7 @@ export async function searchByShape(
 		"/designs/search-by-shape",
 		{ maskPngB64, mode },
 	);
-	// 서버가 이미 점수 내림차순으로 주므로 다시 정렬하지 않는다
-	return data.data.results;
+	// 서버가 이미 점수 내림차순으로 주므로 다시 정렬하지 않는다.
+	// 서버는 최대 16장을 주지만 한 화면에 담기도록 상위 MAX_RESULTS장만 쓴다.
+	return data.data.results.slice(0, MAX_RESULTS);
 }

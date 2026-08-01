@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useSearchParams } from "react-router-dom";
 import SimulationTabs, {
 	type SimulationTab,
@@ -13,8 +13,9 @@ import UploadDropzoneActions from "../components/simulation/UploadDropzoneAction
 import { useImageUpload } from "../components/simulation/useImageUpload";
 import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import MyDesignsModal from "../components/simulation/MyDesignsModal";
-import { useBodyScan } from "../components/simulation/useBodyScan";
+import { useBodyScan, type BodyScanResult } from "../components/simulation/useBodyScan";
 import { useIsMobile } from "../hooks/useIsMobile";
+import useSimulationHandoff from "../store/useSimulationHandoff";
 
 function ChevronLeftIcon() {
 	return (
@@ -74,6 +75,27 @@ export default function SimulationsPage() {
 	const designUpload = useImageUpload();
 	const bodyPhotoUpload = useImageUpload();
 
+	// 커버업에서 넘어온 경우: 신체 사진·도안을 채우고 3D 단계로 바로 들어간다.
+	// 스캔까지 받았으면 그 사진에 한해 재계산 없이 그대로 쓴다.
+	const consumeHandoff = useSimulationHandoff((s) => s.consume);
+	const [handedScan, setHandedScan] = useState<{
+		preview: string;
+		scan: BodyScanResult;
+	} | null>(null);
+
+	useEffect(() => {
+		const handoff = consumeHandoff();
+		if (!handoff) return;
+		const bodyPreview = URL.createObjectURL(handoff.bodyPhoto);
+		bodyPhotoUpload.setFromUrl(bodyPreview);
+		designUpload.setFromUrl(handoff.designUrl);
+		if (handoff.scan) setHandedScan({ preview: bodyPreview, scan: handoff.scan });
+		setTab("image");
+		setImageStep(3);
+		// 마운트 시 한 번만 소비한다 (consume이 스토어를 비우므로 재실행돼도 무해하다)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	const step = tab === "ar" ? arStep : imageStep;
 	const setStep: Dispatch<SetStateAction<number>> =
 		tab === "ar" ? setArStep : setImageStep;
@@ -85,12 +107,19 @@ export default function SimulationsPage() {
 		(step === 1 && Boolean(bodyPhotoUpload.preview)) ||
 		(step === 2 && Boolean(designUpload.preview));
 
+	// 커버업에서 받은 스캔은 그때 쓰던 사진에만 유효하다. 여기서 사진을 바꾸면 버린다.
+	const reusableScan =
+		handedScan && handedScan.preview === bodyPhotoUpload.preview
+			? handedScan.scan
+			: null;
+
 	// 신체 사진 선택 후 도안을 고르는 동안(STEP2~) 백그라운드에서
 	// 인물 마스크·3D 굴곡을 미리 스캔한다.
-	const bodyScan = useBodyScan(
+	const ownScan = useBodyScan(
 		bodyPhotoUpload.preview,
-		tab === "image" && imageStep >= 2,
+		tab === "image" && imageStep >= 2 && !reusableScan,
 	);
+	const bodyScan = reusableScan ?? ownScan;
 
 	const handleNext = () => {
 		if (!canAdvance) return;
@@ -131,9 +160,7 @@ export default function SimulationsPage() {
 					</>
 				)}
 
-				{!mobileArLive && (
-					<StepHeading step={step} description={stepDescription} />
-				)}
+				{!mobileArLive && <StepHeading description={stepDescription} />}
 
 				{mobileArLive ? (
 					/* 모바일 AR 라이브 — 전체 폭, 화살표 없이 (도안+옵션+캡처) */

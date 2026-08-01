@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import ActionButton from "../components/common/ActionButton";
@@ -13,42 +12,61 @@ import useCanvasStrokes from "../components/coverup/useCanvasStrokes";
 import { describeSearchError } from "../components/coverup/shapeSearchError";
 import {
 	DEFAULT_MODE,
-	MAX_BRUSH,
-	MIN_BRUSH,
 	MODE_KEYS,
 	MODES,
 } from "../components/coverup/shapeSearchConstants";
+import { useBodyScan } from "../components/simulation/useBodyScan";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import useShapeSearchMutation from "../hooks/mutations/useShapeSearch";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { saveToArchive } from "../services/archiveApi";
+import useSimulationHandoff from "../store/useSimulationHandoff";
 import type { SearchMode } from "../types/shapeSearch";
 
 type Step = 1 | 2 | 3;
 
-function ReloadIcon() {
+const STEP_DESCRIPTION: Record<Step, string> = {
+	1: "커버업하고 싶은 흉터나 타투가 있는 부위의 사진을 올려주세요",
+	2: "가릴 부위를 따라 그려주세요",
+	3: "그린 형태를 닮은 도안이에요. 저장하거나 내 몸에 시뮬레이션해보세요",
+};
+
+function ChevronLeftIcon() {
 	return (
-		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round">
-			<path d="M21 12a9 9 0 1 1-2.64-6.36" />
-			<path d="M21 3v6h-6" />
+		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+			<path
+				d="M15 6l-6 6 6 6"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}
+
+function ChevronRightIcon() {
+	return (
+		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+			<path
+				d="M9 6l6 6-6 6"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
 		</svg>
 	);
 }
 
 export default function CoverUpPage() {
 	const navigate = useNavigate();
-	const reloadInputRef = useRef<HTMLInputElement>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { requireAuth } = useRequireAuth();
 
 	const [step, setStep] = useState<Step>(1);
+	// 시뮬레이션으로 넘길 때 blob URL은 이 페이지가 언마운트되며 해제되므로 원본 File을 들고 있는다
+	const [bodyFile, setBodyFile] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [mode, setMode] = useState<SearchMode>(DEFAULT_MODE);
@@ -62,6 +80,11 @@ export default function CoverUpPage() {
 	const canvas = useCanvasStrokes(mode);
 	const searchMutation = useShapeSearchMutation();
 	const saveMutation = useMutation({ mutationFn: saveToArchive });
+	const startHandoff = useSimulationHandoff((s) => s.start);
+
+	// 사진을 고르고 그리기 단계로 넘어가는 동안 인물 분할·3D 굴곡 모델을 미리 돌려 둔다.
+	// 도안을 고를 때쯤 끝나 있어서 "시뮬레이션 해보기"가 곧바로 결과로 이어진다.
+	const bodyScan = useBodyScan(previewUrl, step >= 2);
 
 	const results = searchMutation.data ?? [];
 	const selectedResult = results[selectedIndex] ?? null;
@@ -89,6 +112,7 @@ export default function CoverUpPage() {
 		}
 		const nextUrl = URL.createObjectURL(nextFile);
 		setFileError(null);
+		setBodyFile(nextFile);
 		setPreviewUrl(nextUrl);
 		canvas.loadPhoto(nextUrl);
 		canvas.clear();
@@ -97,17 +121,10 @@ export default function CoverUpPage() {
 		setShowEmptyStrokeHint(false);
 	};
 
-	const handleReloadChange = (e: ChangeEvent<HTMLInputElement>) => {
-		const nextFile = e.target.files?.[0];
-		if (nextFile) handleSelectFile(nextFile);
-		e.target.value = "";
-	};
-
-	/** 모드를 바꾸면 붓 굵기를 그 모드 기본값으로 되돌리고 기존 결과를 비운다 */
+	/** 모드를 바꾸면 기존 결과를 비운다 (붓 굵기는 모드와 무관하게 고정) */
 	const switchMode = (next: SearchMode) => {
 		if (next === mode) return;
 		setMode(next);
-		canvas.resetBrush(next);
 		searchMutation.reset();
 		setStale(false);
 		setShowEmptyStrokeHint(false);
@@ -136,17 +153,34 @@ export default function CoverUpPage() {
 	// 기능명세 4-4: 현재 결과를 초기화하고 처음부터 다시 진행
 	const handleReset = () => {
 		setStep(1);
+		setBodyFile(null);
 		setPreviewUrl(null);
 		setFileError(null);
 		setMode(DEFAULT_MODE);
 		canvas.loadPhoto(null);
 		canvas.clear();
-		canvas.resetBrush(DEFAULT_MODE);
 		searchMutation.reset();
 		saveMutation.reset();
 		setStale(false);
 		setShowEmptyStrokeHint(false);
 		setSelectedIndex(0);
+	};
+
+	/**
+	 * 고른 도안을 들고 시뮬레이션 페이지로 넘어간다.
+	 *
+	 * <p>미리 끝난 스캔이 있으면 함께 넘겨 곧바로 3D 단계로 들어가게 한다. 아직
+	 * 진행 중이면 넘기지 않는다 — 이 페이지가 언마운트되면 그 스캔은 더 갱신되지
+	 * 않아 로딩 화면에서 멈추기 때문이다. (모델은 이미 로드돼 있어 다시 돌려도 빠르다)
+	 */
+	const goToSimulation = () => {
+		if (!bodyFile || !selectedResult) return;
+		startHandoff({
+			bodyPhoto: bodyFile,
+			designUrl: selectedResult.imageUrl,
+			scan: bodyScan.status === "ready" ? bodyScan : null,
+		});
+		navigate("/simulations");
 	};
 
 	const handleSave = () => {
@@ -158,187 +192,83 @@ export default function CoverUpPage() {
 		});
 	};
 
+	const canAdvance = step === 1 ? Boolean(previewUrl) : true;
+	const handleBack = () => setStep((current) => (current === 3 ? 2 : 1));
+
+	// 오른쪽 화살표 자리의 동작이 단계마다 다르다: STEP1 다음 / STEP2 검색
+	const handleForward = () => {
+		if (step === 1) {
+			if (canAdvance) setStep(2);
+			return;
+		}
+		if (step === 2) runSearch();
+	};
+
+	const forwardLabel = step === 2 ? "도안 찾기" : "다음";
+	const forwardEnabled =
+		step === 1 ? canAdvance : !searchMutation.isPending && step === 2;
+
 	return (
-		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center bg-surface px-6 pb-10">
-			{/* 기능명세 4-1: 서비스 소개 섹션 */}
-			<p className="mt-6 text-[14px] font-light text-black/60">
-				흉터도, 오래된 타투도 새롭게
-			</p>
-			<h1 className="mt-1 text-[28px] font-extrabold text-black">
-				커버업 타투 도안 추천
-			</h1>
-			<p className="mt-2 text-center text-[14px] font-light text-black/50">
-				사진을 올리고 가릴 부위를 그리면, 그 형태를 닮은 타투 도안을
-				찾아드려요.
-			</p>
+		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
+			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pb-6 pt-6">
+				{/* 기능명세 4-1: 서비스 소개 섹션 */}
+				<p className="shrink-0 text-center text-[13px] font-light text-black/60">
+					흉터도, 오래된 타투도 새롭게
+				</p>
+				<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
+					커버업 타투 도안 추천
+				</h1>
 
-			<div
-				className={`mt-6 flex w-full flex-col items-center ${
-					step === 3 ? "max-w-[880px]" : "max-w-[560px]"
-				}`}>
-				{step === 1 && !previewUrl && (
-					<>
-						<StepHeader
-							step={1}
-							description="커버업하고 싶은 흉터나 타투가 있는 부위의 사진을 업로드해주세요."
-						/>
-						<div className="mt-5 w-full">
-							<UploadBox onSelect={handleSelectFile} />
-						</div>
-						{fileError && (
-							<p className="mt-4 text-[14px] text-brand">{fileError}</p>
-						)}
-					</>
-				)}
+				<StepHeader description={STEP_DESCRIPTION[step]} />
 
-				{step === 1 && previewUrl && (
-					<>
-						<StepHeader
-							step={1}
-							description="커버업하고 싶은 흉터나 타투가 있는 부위의 사진을 업로드해주세요."
-						/>
-						<div className="mt-5 w-full">
-							<ShapeCanvas
-								canvasRef={canvas.canvasRef}
-								redraw={canvas.redraw}
-								handlers={canvas.handlers}
-							/>
-						</div>
-						{fileError && (
-							<p className="mt-4 text-[14px] text-brand">{fileError}</p>
-						)}
-						<div className="mt-5 flex gap-4">
-							<ActionButton
-								variant="outline"
-								onClick={() => reloadInputRef.current?.click()}>
-								<ReloadIcon />
-								다시 올리기
-							</ActionButton>
-							<ActionButton onClick={() => setStep(2)}>다음</ActionButton>
-						</div>
-					</>
-				)}
-
+				{/* 모드 토글 — 그리기 전에 무엇을 그릴지 먼저 고르도록 캔버스 위에 둔다 */}
 				{step === 2 && (
-					<>
-						<StepHeader
-							step={2}
-							description="가릴 부위를 따라 그려주세요. 그린 형태를 닮은 도안을 찾아드려요."
-						/>
+					<div className="mx-auto mt-3 flex h-[40px] w-full max-w-[240px] shrink-0 items-center rounded-[12px] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+						{MODE_KEYS.map((key) => (
+							<button
+								key={key}
+								type="button"
+								onClick={() => switchMode(key)}
+								className={`h-full flex-1 rounded-[9px] text-[14px] font-semibold transition ${
+									mode === key ? "bg-surface text-black" : "text-black/40"
+								}`}>
+								{MODES[key].label}
+							</button>
+						))}
+					</div>
+				)}
 
-						{/* 모드별로 붓 굵기가 다르다 (shape 6px · coverup 16px) */}
-						<div className="mt-5 flex flex-col items-center gap-2">
-							<div className="flex gap-2">
-								{MODE_KEYS.map((key) => (
-									<button
-										key={key}
-										type="button"
-										onClick={() => switchMode(key)}
-										className={`h-9 rounded-full px-4 text-[13px] font-semibold transition ${
-											mode === key
-												? "bg-brand text-white"
-												: "border border-black/15 bg-white text-black/60 hover:bg-black/5"
-										}`}>
-										{MODES[key].label}
-									</button>
-								))}
-							</div>
-							<p className="text-[13px] font-light text-black/50">
-								{MODES[mode].hint}
-							</p>
-						</div>
+				{/* grid-rows-[minmax(0,1fr)]: 행이 콘텐츠 크기로 늘어나 안내 문구를 덮지
+				    않도록 가용 높이로 고정한다. 좌우 열은 이전/다음 화살표 자리 */}
+				<div className="mt-4 grid min-h-0 flex-1 grid-cols-[44px_1fr_44px] grid-rows-[minmax(0,1fr)] gap-2 sm:grid-cols-[100px_1fr_100px] sm:gap-6">
+					<button
+						type="button"
+						onClick={handleBack}
+						aria-label="이전"
+						className={`flex items-center justify-self-end gap-1.5 whitespace-nowrap text-[19px] font-semibold text-black/40 transition hover:text-black/60 ${
+							step === 1 ? "invisible" : ""
+						}`}>
+						<ChevronLeftIcon />
+						<span className="hidden sm:inline">이전</span>
+					</button>
 
-						<label className="mt-4 flex items-center gap-3 text-[13px] font-light text-black/60">
-							<span className="w-[64px]">붓 {canvas.brush}px</span>
-							<input
-								type="range"
-								min={MIN_BRUSH}
-								max={MAX_BRUSH}
-								value={canvas.brush}
-								onChange={(e) => canvas.setBrush(Number(e.target.value))}
-								className="w-[180px] accent-brand"
+					<div className="flex min-h-0 min-w-0 items-center justify-center">
+						{step === 1 && (
+							<UploadBox
+								inputRef={fileInputRef}
+								preview={previewUrl}
+								onPick={() => fileInputRef.current?.click()}
+								onSelect={handleSelectFile}
 							/>
-						</label>
-
-						<div className="mt-4 w-full">
+						)}
+						{step === 2 && (
 							<ShapeCanvas
 								canvasRef={canvas.canvasRef}
 								redraw={canvas.redraw}
 								handlers={canvas.handlers}
-								drawable
 							/>
-						</div>
-
-						<div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-							<button
-								type="button"
-								onClick={canvas.undo}
-								disabled={!canvas.canUndo}
-								className="h-9 rounded-full border border-black/15 bg-white px-4 text-[13px] font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40">
-								되돌리기
-							</button>
-							<button
-								type="button"
-								onClick={canvas.clear}
-								disabled={!canvas.canUndo}
-								className="h-9 rounded-full border border-black/15 bg-white px-4 text-[13px] font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40">
-								지우기
-							</button>
-						</div>
-
-						<div className="mt-5 flex gap-4">
-							<ActionButton
-								variant="outline"
-								onClick={() => reloadInputRef.current?.click()}>
-								<ReloadIcon />
-								다시 올리기
-							</ActionButton>
-							<ActionButton
-								onClick={runSearch}
-								disabled={searchMutation.isPending}>
-								{searchMutation.isPending ? "찾는 중…" : "도안 찾기"}
-							</ActionButton>
-						</div>
-
-						{showEmptyStrokeHint && (
-							<p className="mt-4 text-[14px] text-brand">
-								가릴 부위를 그려주세요.
-							</p>
 						)}
-						{hasEmptyResult && (
-							<p className="mt-4 text-[14px] font-light text-black/60">
-								조건에 맞는 도안이 없습니다. 형태를 조금 바꿔서 다시
-								찾아보세요.
-							</p>
-						)}
-						{errorInfo && (
-							<div className="mt-4 flex flex-col items-center gap-2">
-								<p className="text-[14px] text-brand">{errorInfo.message}</p>
-								{errorInfo.retryable && (
-									<ActionButton variant="outline" onClick={runSearch}>
-										다시 시도
-									</ActionButton>
-								)}
-								{errorInfo.needsLogin && (
-									<ActionButton
-										variant="outline"
-										onClick={() => requireAuth()}>
-										로그인하기
-									</ActionButton>
-								)}
-							</div>
-						)}
-					</>
-				)}
-
-				{step === 3 && results.length > 0 && (
-					<>
-						<StepHeader
-							step={3}
-							description="닮은 도안을 찾았어요! 마음에 드는 도안을 저장해보세요."
-						/>
-
-						<div className="mt-5 w-full">
+						{step === 3 && results.length > 0 && (
 							<ResultsGrid
 								results={results}
 								selectedIndex={selectedIndex}
@@ -349,42 +279,145 @@ export default function CoverUpPage() {
 								onRefresh={runSearch}
 								isRefreshing={searchMutation.isPending}
 							/>
-						</div>
-
-						<div className="mt-5 flex gap-4">
-							<ActionButton variant="outline" onClick={() => setStep(2)}>
-								<ReloadIcon />
-								다시 그리기
-							</ActionButton>
-							<ActionButton
-								onClick={handleSave}
-								disabled={saveMutation.isPending || !selectedResult}>
-								{saveMutation.isPending ? "저장 중…" : "도안 저장하기"}
-							</ActionButton>
-						</div>
-						{saveMutation.isError && (
-							<p className="mt-4 text-[14px] text-brand">
-								{saveMutation.error.message}
-							</p>
 						)}
+					</div>
 
-						<button
-							type="button"
-							onClick={handleReset}
-							className="mt-4 text-[14px] font-light text-black/50 underline underline-offset-4 transition hover:text-black">
-							처음부터 다시 하기
-						</button>
-					</>
-				)}
+					<button
+						type="button"
+						onClick={handleForward}
+						disabled={!forwardEnabled}
+						aria-label={forwardLabel}
+						className={`flex items-center justify-self-start gap-1.5 whitespace-nowrap text-[19px] font-extrabold transition ${
+							forwardEnabled
+								? "text-brand hover:brightness-90"
+								: "cursor-not-allowed text-black/20"
+						} ${step === 3 ? "invisible" : ""}`}>
+						<span className="hidden sm:inline">
+							{searchMutation.isPending && step === 2
+								? "찾는 중…"
+								: forwardLabel}
+						</span>
+						<ChevronRightIcon />
+					</button>
+				</div>
+
+				{/* 하단 액션 — 단계마다 다르지만 높이는 비슷하게 유지해 화면이 덜 흔들리게 한다 */}
+				<div className="mt-3 shrink-0">
+					{step === 1 && (
+						<>
+							<div className="flex justify-center">
+								<ActionButton onClick={() => fileInputRef.current?.click()}>
+									컴퓨터에서 선택
+								</ActionButton>
+							</div>
+							<p className="mt-2 text-center text-[13px] font-light text-black/50">
+								{fileError ?? "내 사진을 사용하면 실제 피부에 어떻게 보일지 확인할 수 있어요"}
+							</p>
+						</>
+					)}
+
+					{step === 2 && (
+						<>
+							<div className="flex flex-wrap items-center justify-center gap-2">
+								<button
+									type="button"
+									onClick={canvas.undo}
+									disabled={!canvas.canUndo}
+									className="h-9 rounded-full border border-black/15 bg-white px-4 text-[13px] font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40">
+									되돌리기
+								</button>
+								<button
+									type="button"
+									onClick={canvas.clear}
+									disabled={!canvas.canUndo}
+									className="h-9 rounded-full border border-black/15 bg-white px-4 text-[13px] font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40">
+									지우기
+								</button>
+							</div>
+
+							<div className="mt-2 flex items-center justify-center gap-3 text-center">
+								{showEmptyStrokeHint && (
+									<p className="text-[13px] text-brand">
+										가릴 부위를 그려주세요.
+									</p>
+								)}
+								{hasEmptyResult && (
+									<p className="text-[13px] font-light text-black/60">
+										조건에 맞는 도안이 없습니다. 형태를 조금 바꿔서 다시
+										찾아보세요.
+									</p>
+								)}
+								{errorInfo && (
+									<>
+										<p className="text-[13px] text-brand">
+											{errorInfo.message}
+										</p>
+										{errorInfo.retryable && (
+											<button
+												type="button"
+												onClick={runSearch}
+												className="h-8 rounded-full border border-black/15 bg-white px-3 text-[13px] font-semibold text-black/70 transition hover:bg-black/5">
+												다시 시도
+											</button>
+										)}
+										{errorInfo.needsLogin && (
+											<button
+												type="button"
+												onClick={() => requireAuth()}
+												className="h-8 rounded-full border border-black/15 bg-white px-3 text-[13px] font-semibold text-black/70 transition hover:bg-black/5">
+												로그인하기
+											</button>
+										)}
+									</>
+								)}
+								{!showEmptyStrokeHint && !hasEmptyResult && !errorInfo && (
+									<p className="text-[13px] font-light text-black/50">
+										{MODES[mode].hint}
+									</p>
+								)}
+							</div>
+						</>
+					)}
+
+					{step === 3 && (
+						<>
+							<div className="flex flex-wrap justify-center gap-3">
+								<ActionButton
+									variant="outline"
+									onClick={handleSave}
+									disabled={saveMutation.isPending || !selectedResult}>
+									{saveMutation.isPending ? "저장 중…" : "도안 저장하기"}
+								</ActionButton>
+								<ActionButton
+									onClick={goToSimulation}
+									disabled={!bodyFile || !selectedResult}>
+									시뮬레이션 해보기
+								</ActionButton>
+							</div>
+							<p className="mt-2 text-center text-[13px] font-light text-black/50">
+								{saveMutation.isError ? (
+									<span className="text-brand">
+										{saveMutation.error.message}
+									</span>
+								) : (
+									<>
+										{/* 스캔이 아직이면 시뮬레이션 진입 후 잠깐 기다린다는 것을 미리 알린다 */}
+										{bodyScan.status === "loading" && (
+											<span className="mr-2">신체 분석 중…</span>
+										)}
+										<button
+											type="button"
+											onClick={handleReset}
+											className="underline underline-offset-4 transition hover:text-black">
+											처음부터 다시 하기
+										</button>
+									</>
+								)}
+							</p>
+						</>
+					)}
+				</div>
 			</div>
-
-			<input
-				ref={reloadInputRef}
-				type="file"
-				accept="image/*"
-				className="hidden"
-				onChange={handleReloadChange}
-			/>
 
 			{selectedResult && (
 				<ImageViewerModal
@@ -403,7 +436,8 @@ export default function CoverUpPage() {
 				confirmText="시뮬레이션 보기"
 				// TODO: 보관함(마이페이지) 라우트 생기면 경로 교체
 				onCancel={() => navigate("/")}
-				onConfirm={() => navigate("/simulations")}
+				// 저장 후 바로 넘어가는 경로도 같은 인계를 태운다
+				onConfirm={goToSimulation}
 			/>
 		</div>
 	);
