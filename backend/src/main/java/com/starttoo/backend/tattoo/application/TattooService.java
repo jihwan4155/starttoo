@@ -192,7 +192,7 @@ public class TattooService {
                    AND image.is_deleted = FALSE
                  WHERE td.is_deleted = FALSE
                    AND (
-                       :cursorDttm IS NULL
+                       CAST(:cursorDttm AS timestamptz) IS NULL
                        OR td.reg_dttm < :cursorDttm
                        OR (
                            td.reg_dttm = :cursorDttm

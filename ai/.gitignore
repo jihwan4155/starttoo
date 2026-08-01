@@ -3,3 +3,8 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+
+# 특징 스토어. 도안 100만 장이면 18GB 다 — git 에 들어갈 것이 아니다.
+# 운영은 볼륨, 로컬은 CLI 로 다시 만든다.
+coverup_store/
+failed.txt

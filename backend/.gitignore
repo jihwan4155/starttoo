@@ -7,3 +7,4 @@ out/
 logs/
 data/
 .env.local
+docker-compose.override.yml

@@ -67,6 +67,41 @@ class RateLimitFilterTest {
                 .doesNotContain("+821012345678");
     }
 
+    @Test
+    void coverupShapeSearchUsesItsOwnBucketInsteadOfMutationLimit() throws Exception {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ApiErrorWriter errorWriter = mock(ApiErrorWriter.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(redisTemplate.execute(
+                any(RedisScript.class),
+                anyList(),
+                any()
+        )).thenReturn(1L);
+        RateLimitFilter filter = new RateLimitFilter(
+                redisTemplate,
+                properties(),
+                errorWriter
+        );
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("POST", "/v1/designs/search-by-shape");
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, chain);
+
+        // 조회성 요청이므로 등록·수정용 mutation 한도(20)가 아니라 자체 한도(30)를 쓴다.
+        assertThat(response.getHeader("X-RateLimit-Limit")).isEqualTo("30");
+        @SuppressWarnings("rawtypes")
+        org.mockito.ArgumentCaptor<List> keys =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                keys.capture(),
+                any()
+        );
+        assertThat(keys.getValue().toString()).contains("coverup-search");
+    }
+
     private RateLimitProperties properties() {
         return new RateLimitProperties(
                 60,
@@ -74,6 +109,8 @@ class RateLimitFilterTest {
                 20,
                 Duration.ofMinutes(1),
                 5,
+                Duration.ofMinutes(1),
+                30,
                 Duration.ofMinutes(1)
         );
     }

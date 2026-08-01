@@ -1,8 +1,8 @@
 import CommunitySection from "../components/home/CommunitySection";
+import DoodleHeroSection from "../components/home/DoodleHeroSection";
 import DualImageFeatureSection from "../components/home/DualImageFeatureSection";
 import FeatureSection from "../components/home/FeatureSection";
 import Footer from "../components/home/Footer";
-import HeroSection from "../components/home/HeroSection";
 import homeAiImage from "../assets/images/home/home-ai.png";
 import homeCoverUpImage from "../assets/images/home/home-coverup.png";
 import homeSimulAfterImage from "../assets/images/home/home-simul-after.png";
@@ -11,7 +11,8 @@ import homeSimulBeforeImage from "../assets/images/home/home-simul-before.png";
 export default function HomePage() {
 	return (
 		<div className="min-h-screen bg-surface">
-			<HeroSection />
+			{/* 기존 이미지 히어로(HeroSection)는 그림판으로 교체 — 되돌릴 때 다시 끼우면 됨 */}
+			<DoodleHeroSection />
 			<div className="mx-auto max-w-[1200px]">
 				<FeatureSection
 					id="ai-design"

@@ -59,6 +59,31 @@
 모든 이미지 URL은 DB의 MinIO object key로 요청 시점에 생성한 단기 Presigned GET
 URL이다. DB에는 URL을 저장하지 않는다.
 
+## 커버업 도안 형태 검색
+
+| Method | Path | 인증 | 설명 |
+|---|---|---:|---|
+| POST | `/designs/search-by-shape` | Y | 캔버스 마스크와 닮은 도안을 점수순으로 조회 |
+
+요청은 `maskPngB64`(검은 배경 + 흰 획 PNG의 base64, `data:` 접두어 허용)와
+`mode`를 받는다. `mode`는 `coverup`(그린 영역 안쪽까지 덮는 도안) 또는
+`shape`(선 형태가 닮은 도안)이며 다른 값은 400이다. `maskPngB64`가 100KB를 넘으면
+`MASK_TOO_LARGE` 400이고, 이 경로는 등록·수정과 분리된 자체 레이트리밋 버킷을 쓴다.
+
+응답 `results`는 검색 점수 내림차순이며 `tattooSeq`, `imageUrl`, `score`(소수 2자리),
+`styleCode`, `styleName`을 갖는다. 검색 엔진 내부 지표는 노출하지 않는다.
+`imageUrl`은 만료 1시간의 Presigned GET URL이라 결과 화면을 열어둔 채 시간이 지나도
+이미지가 깨지지 않는다.
+
+순위는 검색 엔진이 준 순서를 그대로 따르고 DB 조회 순서를 쓰지 않는다. 삭제 판정은
+`tattoos`·`tattoo_designs`·`images` 세 테이블의 `is_deleted`를 모두 확인하므로 삭제된
+도안은 결과에서 빠지며, 그만큼 결과 수가 요청 수보다 적을 수 있다. 검색 엔진 장애는
+이 API만 503으로 끝나고 다른 기능에 전파되지 않는다. 연속 실패가 임계치에 닿으면
+서킷을 열어 일정 시간 호출 없이 곧바로 503을 준다.
+
+엔진 색인은 `tattoo_designs.indexed`로 추적하고, 색인 누락과 삭제 잔존은 주기 정합성
+스캔이 맞춘다. 색인의 식별자는 `tattoo_seq`이므로 값을 바꾸면 안 된다.
+
 ## 게시물·댓글
 
 | Method | Path | 설명 |

@@ -20,6 +20,11 @@ services:
       MAX_IMAGE_BYTES: ${MAX_IMAGE_BYTES:-15728640}
       AI_BASE_URL: ${AI_BASE_URL:-http://ai:8000}
       AI_ENABLED: ${AI_ENABLED:-false}
+      # 커버업 도안 검색 엔진. app.ai 와는 다른 서비스이고 같은 ai 컨테이너에 들어 있다.
+      COVERUP_ENABLED: ${COVERUP_ENABLED:-false}
+      COVERUP_ENGINE_URL: ${COVERUP_ENGINE_URL:-http://ai:8000}
+      COVERUP_INTERNAL_TOKEN: ${COVERUP_INTERNAL_TOKEN:-}
+      COVERUP_INDEX_SYNC_CRON: ${COVERUP_INDEX_SYNC_CRON:-0 */10 * * * *}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
@@ -65,18 +70,41 @@ services:
       retries: 5
       start_period: 10s
 
+  # 커버업 도안 검색 엔진. 내부 전용이라 ports 를 열지 않는다 —
+  # backend 가 starttoo-net 안에서 http://ai:8000 으로 호출한다.
   ai:
     build: ./ai
     container_name: starttoo-ai
     restart: unless-stopped
+    environment:
+      COVERUP_STORE: /data/coverup_store
+      # 리버스 프록시가 이 서비스를 공개로 열어 둘 수 있으므로(nginx 의 /ai-service/)
+      # 토큰으로 막는다. backend 의 COVERUP_INTERNAL_TOKEN 과 같은 값이어야 한다.
+      COVERUP_INTERNAL_TOKEN: ${COVERUP_INTERNAL_TOKEN:-}
+      # 최초 대량 적재 CLI 가 도안 이미지를 받아올 때만 쓴다. 검색 경로는 MinIO 를
+      # 건드리지 않는다(색인할 때 한 번 읽고 끝이다).
+      #   docker compose exec ai python -m coverup.cli index --source minio --manifest ...
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-starttoo}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-starttoo-local-secret}
+      MINIO_BUCKET: ${MINIO_BUCKET:-starttoo}
+      # auto = 도안 3만 장 넘으면 1단계 후보 추림을 켠다. 그 아래는 전수 탐색이 더 정확·빠름
+      COVERUP_STAGE1: ${COVERUP_STAGE1:-auto}
+      # 검색은 CPU 바운드다. 무제한이면 코어를 다 먹는다.
+      COVERUP_MAX_CONCURRENT: ${COVERUP_MAX_CONCURRENT:-3}
+    volumes:
+      # 특징 파일(도안당 18KB). 없으면 재시작마다 전체 재색인을 해야 한다.
+      # 요청당 33MB 랜덤 읽기라 네트워크 스토리지에 두면 안 된다.
+      - ai-store:/data/coverup_store
     networks:
       - starttoo-net
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      # 200 이 아니라 ready 를 본다. 워밍업(인덱스 로드 + 더미 검색)이 끝나야 true 다.
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request; sys.exit(0 if json.load(urllib.request.urlopen('http://localhost:8000/health'))['ready'] else 1)"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 60s
 
   redis:
     image: redis/redis-stack-server:latest
@@ -160,3 +188,5 @@ volumes:
   redis-data:
   minio-data:
   postgres-data:
+  # 커버업 검색 엔진의 특징 파일. 운영 서버에서는 노드 로컬 SSD 바인드 마운트를 권한다.
+  ai-store:
