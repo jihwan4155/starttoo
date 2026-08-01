@@ -1,2 +1,11 @@
-fastapi
-uvicorn
+fastapi>=0.110
+uvicorn>=0.27
+pydantic>=2.6
+
+# 검색 엔진 — 특징 배열 연산과 이미지 처리.
+# GUI 의존성이 없는 headless 를 쓴다(슬림 이미지에 libGL 이 없다).
+numpy>=1.26
+opencv-python-headless>=4.9
+
+# 최초 대량 적재 CLI 가 MinIO 에서 도안 이미지를 받아온다.
+minio>=7.2
