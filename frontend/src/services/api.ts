@@ -65,7 +65,6 @@ export function setUnauthorizedHandler(handler: () => void): void {
 
 // 로그인·회원가입 요청에는 기존 토큰을 붙이지 않는다.
 const AUTH_SKIP_PATHS = [
-	"/test/auth/login",
 	"/auth/social/login",
 	"/auth/signup",
 	"/auth/token/refresh",

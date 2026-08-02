@@ -8,8 +8,6 @@ import type {
 	SignupRequest,
 	SocialLoginRequest,
 	SocialLoginResponse,
-	TestLoginRequest,
-	TestLoginResponse,
 	TokenResponse,
 } from "../types/auth";
 
@@ -73,16 +71,5 @@ export async function checkNicknameAvailability(
 		"/auth/nicknames/availability",
 		{ params: { nickname } },
 	);
-	return data;
-}
-
-/**
- * POST /test/auth/login — 테스트 로그인
- * 로컬 백엔드에만 존재한다. 배포 서버에서는 401이 떨어진다.
- */
-export async function testLogin(
-	body: TestLoginRequest,
-): Promise<TestLoginResponse> {
-	const { data } = await api.post<TestLoginResponse>("/test/auth/login", body);
 	return data;
 }

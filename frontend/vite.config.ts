@@ -11,13 +11,17 @@ export default defineConfig(({ mode }) => {
   // dev 서버가 없어서 브라우저 직접 호출은 403이 되므로, 배포 서버를 볼 때도
   // 반드시 이 프록시를 거쳐야 한다.
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8080';
+  // 자체 서명 인증서를 신뢰하지 못하는 환경(인앱 미리보기 브라우저 등)을 위한 HTTP 모드.
+  // `npm run dev:http`(--mode http)로 켠다. 카메라(getUserMedia)·카카오 SDK는
+  // 보안 컨텍스트가 필요하므로 평소 dev는 HTTPS 유지.
+  const devHttps = mode !== 'http';
 
   return {
     plugins: [
       react(),
       tailwindcss(),
       // 폰 카메라(getUserMedia)는 보안 컨텍스트(HTTPS)에서만 동작 → dev 자체 서명 인증서
-      basicSsl(),
+      ...(devHttps ? [basicSsl()] : []),
     ],
     // 폰(같은 와이파이)에서 PC의 LAN IP로 접속할 수 있도록 0.0.0.0 바인딩
     server: {

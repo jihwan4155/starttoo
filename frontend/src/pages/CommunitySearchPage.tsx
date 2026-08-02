@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
+import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../constants/auth";
 import usePosts from "../hooks/queries/usePosts";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
 import { ApiError } from "../services/api";
+import useAuthStore from "../store/useAuthStore";
 import type { Post } from "../types/community";
 import { filterPostsByKeyword, filterVisiblePosts } from "../utils/filterPosts";
 
@@ -12,6 +14,23 @@ export default function CommunitySearchPage() {
 	const [searchParams] = useSearchParams();
 	const keyword = searchParams.get("q") ?? "";
 	const [activePost, setActivePost] = useState<Post | null>(null);
+	const navigate = useNavigate();
+	const location = useLocation();
+	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
+
+	// 피드 목록은 공개지만 게시글 상세는 로그인이 필요하다.
+	// 로그인 후 이 피드(검색어 포함)로 돌아오도록 목적지를 남긴다.
+	const handleOpenPost = (post: Post) => {
+		if (!isLoggedIn) {
+			sessionStorage.setItem(
+				POST_LOGIN_REDIRECT_STORAGE_KEY,
+				location.pathname + location.search,
+			);
+			navigate("/login");
+			return;
+		}
+		setActivePost(post);
+	};
 
 	const { data, isPending, isError, error } = usePosts({ size: 50 });
 	const hiddenIds = useHiddenIdsForUser();
@@ -68,7 +87,7 @@ export default function CommunitySearchPage() {
 							key={post.id}
 							type="button"
 							aria-label={`${post.author.nickname}의 게시글 보기`}
-							onClick={() => setActivePost(post)}
+							onClick={() => handleOpenPost(post)}
 							className="aspect-square overflow-hidden rounded-[6px] bg-[#D9D9D9]">
 							{post.imageUrl && (
 								<img

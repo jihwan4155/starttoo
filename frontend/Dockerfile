@@ -18,6 +18,11 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ARG VITE_KAKAO_JS_KEY
 ENV VITE_KAKAO_JS_KEY=$VITE_KAKAO_JS_KEY
 
+# 구글 OAuth 클라이언트 ID (secret 아님). 카카오 키와 같은 이유로 build arg로 받고,
+# 브라우저 노출이 정상이며 구글 콘솔에 등록된 리디렉션 URI에서만 동작한다.
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 RUN npm run build
 
 # 2단계: 정적 파일 서빙 (nginx)

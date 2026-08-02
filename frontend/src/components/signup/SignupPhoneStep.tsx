@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { PHONE_CONFIRM_CODE } from "../../constants/auth";
 import { ApiError } from "../../services/api";
 import { checkPhoneAvailability } from "../../services/authApi";
@@ -26,6 +27,10 @@ export default function SignupPhoneStep({
 	const [phone, setPhone] = useState("");
 	const [checking, setChecking] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	/** 이미 다른 소셜 계정으로 가입된 번호일 때 로그인 유도 버튼을 띄운다 */
+	const [existingProvider, setExistingProvider] = useState<string | null>(
+		null,
+	);
 	/** 중복 검사를 통과한 뒤에만 확인 코드 입력을 연다 */
 	const [available, setAvailable] = useState<string | null>(null);
 	const [code, setCode] = useState("");
@@ -43,11 +48,15 @@ export default function SignupPhoneStep({
 				const provider = result.provider
 					? PROVIDER_LABEL[result.provider]
 					: null;
-				setError(
-					provider
-						? `이미 ${provider} 계정으로 가입된 휴대폰 번호입니다.`
-						: "사용할 수 없는 휴대폰 번호입니다.",
-				);
+				if (provider) {
+					// 기존 가입 제공자를 알려주고 로그인 화면으로 안내한다.
+					setExistingProvider(provider);
+					setError(
+						`이미 ${provider} 계정으로 가입된 번호예요. ${provider} 로그인으로 이용해주세요.`,
+					);
+					return;
+				}
+				setError("사용할 수 없는 휴대폰 번호입니다.");
 				return;
 			}
 			setAvailable(result.normalizedPhoneNumber);
@@ -66,6 +75,7 @@ export default function SignupPhoneStep({
 		setAvailable(null);
 		setCode("");
 		setError(null);
+		setExistingProvider(null);
 	};
 
 	return (
@@ -105,6 +115,15 @@ export default function SignupPhoneStep({
 				<p role="alert" className="mt-3 text-[13px] leading-5 text-brand">
 					{error}
 				</p>
+			)}
+
+			{existingProvider && (
+				<Link
+					to="/login"
+					replace
+					className="mt-4 flex h-[52px] w-full items-center justify-center rounded-[10px] bg-brand text-[16px] font-semibold text-white transition hover:brightness-95">
+					{existingProvider} 로그인하러 가기
+				</Link>
 			)}
 
 			{available && (

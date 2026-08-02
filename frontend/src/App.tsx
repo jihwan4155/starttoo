@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import RequireAuth from "./components/auth/RequireAuth";
 import MainLayout from "./components/layout/MainLayout";
 import ScrollToTop from "./components/layout/ScrollToTop";
 import OrbitLoader from "./components/orbit-loader/OrbitLoader";
@@ -19,10 +20,13 @@ import SimulationsPage from "./pages/SimulationsPage";
 import ArJoinPage from "./pages/ArJoinPage";
 import TattooistPage from "./pages/TattooistPage";
 import LoginPage from "./pages/LoginPage";
-import KakaoCallbackPage from "./pages/KakaoCallbackPage";
+import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import SignupPage from "./pages/SignupPage";
 import OnboardingPage from "./pages/OnboardingPage";
-import { KAKAO_CALLBACK_PATH } from "./constants/auth";
+import {
+	GOOGLE_CALLBACK_PATH,
+	KAKAO_CALLBACK_PATH,
+} from "./constants/auth";
 
 export default function App() {
 	// 앱 진입 시 로고 공전 로딩 화면 → load 완료 후 페이드아웃하고 메인으로
@@ -48,36 +52,47 @@ export default function App() {
 					<Route path="/" element={<HomePage />} />
 					{/* API: POST /auth/social/login */}
 					<Route path="/login" element={<LoginPage />} />
-					<Route path={KAKAO_CALLBACK_PATH} element={<KakaoCallbackPage />} />
+					<Route
+						path={KAKAO_CALLBACK_PATH}
+						element={<OAuthCallbackPage provider="KAKAO" />}
+					/>
+					<Route
+						path={GOOGLE_CALLBACK_PATH}
+						element={<OAuthCallbackPage provider="GOOGLE" />}
+					/>
 					{/* API: POST /auth/signup */}
 					<Route path="/signup" element={<SignupPage />} />
 					{/* API: PATCH /users/me · PATCH /artists/me/profile · POST /preferences/survey */}
 					<Route path="/onboarding" element={<OnboardingPage />} />
-					{/* API: POST /ai/generations */}
-					<Route path="/ai" element={<AiPage />} />
-					{/* API: POST /simulations/ar-sessions */}
-					<Route path="/simulations" element={<SimulationsPage />} />
-					{/* API: POST /coverups/recommendations */}
-					<Route path="/coverups" element={<CoverUpPage />} />
-					{/* API: GET /posts */}
-					<Route path="/posts" element={<CommunityPage />} />
-					{/* API: GET /posts/search */}
-					<Route path="/posts/search" element={<CommunitySearchPage />} />
-					{/* API: GET /dm/rooms */}
-					<Route path="/dm" element={<DmPage />} />
-					{/* API: GET /notifications/unread */}
-					<Route path="/notifications" element={<NotificationsPage />} />
 					{/* API: GET /artists */}
 					<Route path="/artists" element={<TattooistPage />} />
-					{/* API: GET /users/me */}
-					<Route path="/mypage" element={<MyPage />} />
-					{/* API: PATCH /users/me */}
-					<Route path="/mypage/edit" element={<MyPageEditPage />} />
-					{/* API: PATCH /artists/me */}
-					<Route
-						path="/mypage/artist/edit"
-						element={<ArtistProfileEditPage />}
-					/>
+					{/* 피드 — 목록은 공개, 게시글 상세 진입만 로그인 필요 (페이지 안에서 처리) */}
+					{/* API: GET /posts/search */}
+					<Route path="/posts/search" element={<CommunitySearchPage />} />
+					{/* 로그인 필요 페이지 — 미로그인 접근 시 /login으로 보낸다 */}
+					<Route element={<RequireAuth />}>
+						{/* API: POST /ai/generations */}
+						<Route path="/ai" element={<AiPage />} />
+						{/* API: POST /simulations/ar-sessions */}
+						<Route path="/simulations" element={<SimulationsPage />} />
+						{/* API: POST /coverups/recommendations */}
+						<Route path="/coverups" element={<CoverUpPage />} />
+						{/* API: GET /posts */}
+						<Route path="/posts" element={<CommunityPage />} />
+						{/* API: GET /dm/rooms */}
+						<Route path="/dm" element={<DmPage />} />
+						{/* API: GET /notifications/unread */}
+						<Route path="/notifications" element={<NotificationsPage />} />
+						{/* API: GET /users/me */}
+						<Route path="/mypage" element={<MyPage />} />
+						{/* API: PATCH /users/me */}
+						<Route path="/mypage/edit" element={<MyPageEditPage />} />
+						{/* API: PATCH /artists/me */}
+						<Route
+							path="/mypage/artist/edit"
+							element={<ArtistProfileEditPage />}
+						/>
+					</Route>
 					{/* API: GET /users/{nickname} */}
 					<Route path="/profile/:userId" element={<ProfilePage />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
