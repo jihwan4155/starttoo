@@ -8,15 +8,6 @@ import type {
 	SearchResponse,
 } from "../types/shapeSearch";
 
-/**
- * 백엔드 성공 응답은 ApiResponse<T>로 한 겹 감싸져 있다.
- * 예: {"data":{"mode":"coverup","count":16,"results":[...]}}
- *
- * 전역 언랩(api.ts 응답 인터셉터)이 올바른 해결이지만 기존 서비스 전체에 영향이
- * 가므로 별도 작업으로 뺐다. 그때까지는 이 서비스에서만 벗긴다.
- */
-type Envelope<T> = { data: T };
-
 const DEMO_DELAY_MS = 900;
 
 // 미분류 도안은 서버가 styleCode·styleName 키를 아예 생략한다. 그 경우도 재현한다.
@@ -54,11 +45,12 @@ export async function searchByShape(
 		return demoResults();
 	}
 
-	const { data } = await api.post<Envelope<SearchResponse>>(
-		"/designs/search-by-shape",
-		{ maskPngB64, mode },
-	);
+	// 백엔드 ApiResponse<T> 봉투는 api.ts 응답 인터셉터가 벗겨서 준다
+	const { data } = await api.post<SearchResponse>("/designs/search-by-shape", {
+		maskPngB64,
+		mode,
+	});
 	// 서버가 이미 점수 내림차순으로 주므로 다시 정렬하지 않는다.
 	// 서버는 최대 16장을 주지만 한 화면에 담기도록 상위 MAX_RESULTS장만 쓴다.
-	return data.data.results.slice(0, MAX_RESULTS);
+	return data.results.slice(0, MAX_RESULTS);
 }
