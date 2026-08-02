@@ -3,13 +3,10 @@ import { persist } from "zustand/middleware";
 import { setAccessToken, setUnauthorizedHandler } from "../services/api";
 import useCommunityStore from "./useCommunityStore";
 import useUserStore from "./useUserStore";
-import {
-	logout as logoutRequest,
-	testLogin as testLoginRequest,
-} from "../services/authApi";
-import type { TestUser, UserSummary } from "../types/auth";
+import { logout as logoutRequest } from "../services/authApi";
+import type { UserSummary } from "../types/auth";
 
-type SessionUser = UserSummary | TestUser | null;
+type SessionUser = UserSummary | null;
 
 type AuthState = {
 	accessToken: string | null;
@@ -25,8 +22,6 @@ type AuthState = {
 	clearSession: () => void;
 	/** 서버 로그아웃 호출 후 로컬 세션 초기화 */
 	logout: () => Promise<void>;
-	/** 개발용 테스트 로그인 (POST /test/auth/login) */
-	devLogin: (userId: number) => Promise<void>;
 };
 
 const useAuthStore = create<AuthState>()(
@@ -67,15 +62,6 @@ const useAuthStore = create<AuthState>()(
 				} finally {
 					get().clearSession();
 				}
-			},
-
-			devLogin: async (userId) => {
-				setAccessToken(null);
-				const res = await testLoginRequest({ userId });
-				get().setSession({
-					accessToken: res.accessToken,
-					user: res.user,
-				});
 			},
 		}),
 		{

@@ -109,28 +109,3 @@ export type UserSummary = {
 	accountStatus: string;
 	profileImageUrl?: string | null;
 };
-
-/* ─── 로컬 백엔드 전용 ─── */
-
-/**
- * POST /test/auth/login 요청 (로컬 백엔드에만 존재)
- * 배포 서버(starttoo.duckdns.org)에는 이 엔드포인트가 없다.
- */
-export type TestLoginRequest = {
-	userId: number;
-};
-
-export type TestUser = {
-	userId: number;
-	nickname: string;
-	role: string;
-	accountStatus: string;
-};
-
-/** POST /test/auth/login 응답 (refreshToken 미포함) */
-export type TestLoginResponse = {
-	accessToken: string;
-	tokenType: string;
-	expiresIn: number;
-	user: TestUser;
-};

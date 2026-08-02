@@ -7,6 +7,8 @@ interface ImportMetaEnv {
 	readonly VITE_API_PROXY_TARGET?: string;
 	/** 카카오 개발자 콘솔의 JavaScript 앱 키 (REST API 키 아님) */
 	readonly VITE_KAKAO_JS_KEY?: string;
+	/** 구글 클라우드 콘솔의 OAuth 2.0 클라이언트 ID (secret 아님 — 브라우저 노출 정상) */
+	readonly VITE_GOOGLE_CLIENT_ID?: string;
 	/** 도안 추출 서버 base URL */
 	readonly VITE_EXTRACT_API_BASE_URL?: string;
 }

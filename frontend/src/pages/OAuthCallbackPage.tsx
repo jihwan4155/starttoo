@@ -1,18 +1,37 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { OAUTH_STATE_STORAGE_KEY, kakaoRedirectUri } from "../constants/auth";
+import {
+	OAUTH_STATE_STORAGE_KEY,
+	POST_LOGIN_REDIRECT_STORAGE_KEY,
+	googleRedirectUri,
+	kakaoRedirectUri,
+} from "../constants/auth";
 import { socialLogin } from "../services/authApi";
 import { ApiError } from "../services/api";
 import useAuthStore from "../store/useAuthStore";
 import useSignupStore from "../store/useSignupStore";
+import type { SocialProvider } from "../types/auth";
+
+const PROVIDER_META: Record<
+	SocialProvider,
+	{ label: string; redirectUri: () => string }
+> = {
+	KAKAO: { label: "카카오", redirectUri: kakaoRedirectUri },
+	GOOGLE: { label: "구글", redirectUri: googleRedirectUri },
+};
 
 /**
- * 카카오 동의 화면에서 돌아오는 지점.
+ * 제공자(카카오/구글) 동의 화면에서 돌아오는 지점.
  *
- * 받은 authorization code를 백엔드로 넘겨(서버가 카카오와 토큰을 교환한다)
+ * 받은 authorization code를 백엔드로 넘겨(서버가 제공자와 토큰을 교환한다)
  * 기존 회원이면 세션을 세우고 홈으로, 미가입이면 가입 토큰을 들고 가입 플로우로 보낸다.
+ * 두 제공자 모두 표준 authorization code 흐름이라 처리 로직이 같다.
  */
-export default function KakaoCallbackPage() {
+export default function OAuthCallbackPage({
+	provider,
+}: {
+	provider: SocialProvider;
+}) {
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
 	const setSession = useAuthStore((s) => s.setSession);
@@ -24,6 +43,8 @@ export default function KakaoCallbackPage() {
 	useEffect(() => {
 		if (exchanged.current) return;
 
+		const { label, redirectUri } = PROVIDER_META[provider];
+
 		// 인가 코드를 읽은 뒤 주소창에서 지운다. 1회용이라 유출돼도 쓸 수 없지만
 		// 히스토리·Referer에 남기지 않는 편이 낫다. (실패해도 이 화면에 머무르므로 필요)
 		const clearQuery = () =>
@@ -33,7 +54,8 @@ export default function KakaoCallbackPage() {
 		if (denied) {
 			// 사용자가 동의 화면에서 취소한 경우도 여기로 온다.
 			setError(
-				searchParams.get("error_description") ?? "카카오 인증이 취소되었습니다.",
+				searchParams.get("error_description") ??
+					`${label} 인증이 취소되었습니다.`,
 			);
 			clearQuery();
 			return;
@@ -57,10 +79,10 @@ export default function KakaoCallbackPage() {
 		exchanged.current = true;
 		clearQuery();
 		socialLogin({
-			provider: "KAKAO",
+			provider,
 			authorizationCode: code,
 			// 인가 때 쓴 값과 같아야 서버의 토큰 교환이 통과한다.
-			redirectUri: kakaoRedirectUri(),
+			redirectUri: redirectUri(),
 		})
 			.then((result) => {
 				if (result.signupRequired) {
@@ -80,7 +102,12 @@ export default function KakaoCallbackPage() {
 					accessToken: result.tokens.accessToken,
 					refreshToken: result.tokens.refreshToken,
 				});
-				navigate("/", { replace: true });
+				// 로그인 필요 페이지에서 튕겨져 왔다면 원래 가려던 곳으로 돌려보낸다.
+				const redirect = sessionStorage.getItem(
+					POST_LOGIN_REDIRECT_STORAGE_KEY,
+				);
+				sessionStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
+				navigate(redirect ?? "/", { replace: true });
 			})
 			.catch((cause: unknown) => {
 				setError(
@@ -89,7 +116,7 @@ export default function KakaoCallbackPage() {
 						: "로그인 처리 중 문제가 발생했습니다.",
 				);
 			});
-	}, [searchParams, navigate, setSession, setSignupToken]);
+	}, [provider, searchParams, navigate, setSession, setSignupToken]);
 
 	return (
 		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center gap-4 px-6 text-center">

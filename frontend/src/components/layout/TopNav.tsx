@@ -221,11 +221,77 @@ function NotificationBell() {
 	);
 }
 
+/** 설정(톱니) 버튼 — 누르면 로그아웃 등 메뉴가 토글로 열린다 */
+function SettingMenu() {
+	const navigate = useNavigate();
+	const [open, setOpen] = useState(false);
+	const wrapRef = useRef<HTMLDivElement>(null);
+	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
+	const logout = useAuthStore((s) => s.logout);
+
+	useEffect(() => {
+		if (!open) return undefined;
+		const onDown = (e: MouseEvent) => {
+			if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+				setOpen(false);
+			}
+		};
+		const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+		document.addEventListener("mousedown", onDown);
+		document.addEventListener("keydown", onKey);
+		return () => {
+			document.removeEventListener("mousedown", onDown);
+			document.removeEventListener("keydown", onKey);
+		};
+	}, [open]);
+
+	const handleLogout = async () => {
+		setOpen(false);
+		await logout();
+		// 로그인 필요 페이지에 있었다면 가드가 /login으로 보내므로 홈으로 명시 이동
+		navigate("/", { replace: true });
+	};
+
+	return (
+		<div ref={wrapRef} className="relative">
+			<button
+				type="button"
+				aria-label="설정"
+				aria-expanded={open}
+				onClick={() => setOpen((v) => !v)}
+				className="flex size-6 items-center justify-center">
+				<SettingIcon />
+			</button>
+
+			{open && (
+				<div className="absolute right-0 top-[calc(100%+14px)] z-50 w-[160px] overflow-hidden rounded-[14px] bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
+					{isLoggedIn ? (
+						<button
+							type="button"
+							onClick={() => void handleLogout()}
+							className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-black transition hover:bg-black/[0.04]">
+							로그아웃
+						</button>
+					) : (
+						<Link
+							to="/login"
+							onClick={() => setOpen(false)}
+							className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-black transition hover:bg-black/[0.04]">
+							로그인
+						</Link>
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
 export default function TopNav() {
 	const { pathname } = useLocation();
 	const showSearch = pathname.startsWith("/posts/search");
 	const showArtistSearch = pathname.startsWith("/artists");
 	const avatarUrl = useUserStore((s) => s.avatarUrl);
+	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 
 	return (
 		<header
@@ -253,15 +319,11 @@ export default function TopNav() {
 
 				<div className="flex items-center gap-5">
 					<NotificationBell />
-					<button
-						type="button"
-						aria-label="설정"
-						className="flex size-6 items-center justify-center">
-						<SettingIcon />
-					</button>
+					<SettingMenu />
+					{/* 미로그인 상태에서는 로그인 화면으로 안내한다 */}
 					<Link
-						to="/mypage"
-						aria-label="마이페이지"
+						to={isLoggedIn ? "/mypage" : "/login"}
+						aria-label={isLoggedIn ? "마이페이지" : "로그인"}
 						className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
 						<img
 							src={resolveAvatar(avatarUrl)}
