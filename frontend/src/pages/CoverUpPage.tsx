@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ActionButton from "../components/common/ActionButton";
 import ConfirmModal from "../components/common/ConfirmModal";
 import ImageViewerModal from "../components/common/ImageViewerModal";
@@ -62,10 +62,10 @@ function ChevronRightIcon() {
 
 export default function CoverUpPage() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { requireAuth } = useRequireAuth();
 
-	const [step, setStep] = useState<Step>(1);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [mode, setMode] = useState<SearchMode>(DEFAULT_MODE);
@@ -80,11 +80,42 @@ export default function CoverUpPage() {
 	const searchMutation = useShapeSearchMutation();
 	const saveMutation = useMutation({ mutationFn: saveToArchive });
 
+	const results = searchMutation.data ?? [];
+
+	/*
+	 * 단계를 router history에 싣는다.
+	 *
+	 * state로만 들고 있으면 히스토리 항목이 쌓이지 않아 브라우저 뒤로가기가 이 페이지를
+	 * 통째로 떠나 버린다(직전에 보던 화면으로 튄다). 단계마다 항목을 남겨 두면
+	 * 뒤로가기가 이전 커버업 단계로 돌아간다.
+	 *
+	 * 재료(사진·검색 결과)는 메모리에만 있는데 history.state는 새로고침 후에도 남으므로,
+	 * 실제로 도달 가능한 단계까지만 인정해 STEP 4로 복원되며 빈 화면이 뜨는 것을 막는다.
+	 */
+	const historyStep = (location.state as { coverupStep?: number } | null)
+		?.coverupStep;
+	const maxStep: Step = !previewUrl ? 1 : results.length === 0 ? 2 : 4;
+	const step = Math.min(Math.max(historyStep ?? 1, 1), maxStep) as Step;
+
+	const goToStep = (next: Step) => {
+		navigate(location.pathname, { state: { coverupStep: next } });
+	};
+
+	// 잘려 나간 단계는 히스토리에서도 지운다. 그대로 두면 사진을 다시 올리는 순간
+	// 남아 있던 값(예: 4)이 되살아나 "다음"을 누르지 않았는데 다음 단계로 튄다.
+	useEffect(() => {
+		if (historyStep != null && historyStep > step) {
+			navigate(location.pathname, {
+				state: { coverupStep: step },
+				replace: true,
+			});
+		}
+	}, [historyStep, step, navigate, location.pathname]);
+
 	// 사진을 고르고 그리기 단계로 넘어가는 동안 인물 분할·3D 굴곡 모델을 미리 돌려 둔다.
 	// 도안을 고를 때쯤 끝나 있어서 "시뮬레이션 해보기"가 곧바로 결과로 이어진다.
 	const bodyScan = useBodyScan(previewUrl, step >= 2);
 
-	const results = searchMutation.data ?? [];
 	const selectedResult = results[selectedIndex] ?? null;
 	const errorInfo = searchMutation.isError
 		? describeSearchError(searchMutation.error)
@@ -141,7 +172,7 @@ export default function CoverUpPage() {
 				onSuccess: (nextResults) => {
 					setSelectedIndex(0);
 					// 결과가 없으면 그림을 바로 고칠 수 있게 STEP 2에 머문다
-					if (nextResults.length > 0) setStep(3);
+					if (nextResults.length > 0) goToStep(3);
 				},
 			},
 		);
@@ -156,7 +187,7 @@ export default function CoverUpPage() {
 	 */
 	const goToSimulation = () => {
 		if (!previewUrl || !selectedResult) return;
-		setStep(4);
+		goToStep(4);
 	};
 
 	const handleSave = () => {
@@ -169,13 +200,13 @@ export default function CoverUpPage() {
 	};
 
 	const canAdvance = step === 1 ? Boolean(previewUrl) : true;
-	const handleBack = () =>
-		setStep((current) => (current > 1 ? ((current - 1) as Step) : 1));
+	// 화면의 "이전"과 브라우저 뒤로가기가 같은 동작이 되도록 히스토리를 되감는다
+	const handleBack = () => navigate(-1);
 
 	// 오른쪽 화살표 자리의 동작이 단계마다 다르다: STEP1 다음 / STEP2 검색
 	const handleForward = () => {
 		if (step === 1) {
-			if (canAdvance) setStep(2);
+			if (canAdvance) goToStep(2);
 			return;
 		}
 		if (step === 2) runSearch();
