@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
 import UnfollowConfirmModal from "../components/common/UnfollowConfirmModal";
 import PostDetailModal from "../components/community/PostDetailModal";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageShopInfo from "../components/mypage/MyPageShopInfo";
 import PostThumbnailGrid from "../components/mypage/PostThumbnailGrid";
@@ -98,9 +99,7 @@ export default function ProfilePage() {
 				</button>
 
 				{isProfilePending && (
-					<p className="py-20 text-center text-[14px] text-black/40">
-						프로필을 불러오는 중…
-					</p>
+					<StarttooLoader variant="block" label="프로필을 불러오는 중…" />
 				)}
 
 				{isProfileError && (
@@ -152,9 +151,11 @@ export default function ProfilePage() {
 
 						<div className="mt-8">
 							{isPostsPending && (
-								<p className="py-10 text-center text-[14px] text-black/40">
-									게시글을 불러오는 중…
-								</p>
+								<StarttooLoader
+									variant="block"
+									size={180}
+									label="게시글을 불러오는 중…"
+								/>
 							)}
 							{isPostsError && (
 								<MyPageEmptyState message="게시글을 불러오지 못했습니다" />

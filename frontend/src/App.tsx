@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import RequireAuth from "./components/auth/RequireAuth";
 import MainLayout from "./components/layout/MainLayout";
 import ScrollToTop from "./components/layout/ScrollToTop";
-import OrbitLoader from "./components/orbit-loader/OrbitLoader";
+import StarttooLoader from "./components/loader/StarttooLoader";
 import { useAppReady } from "./hooks/useAppReady";
 import CommunityPage from "./pages/CommunityPage";
 import CommunitySearchPage from "./pages/CommunitySearchPage";
@@ -29,18 +29,17 @@ import {
 } from "./constants/auth";
 
 export default function App() {
-	// 앱 진입 시 로고 공전 로딩 화면 → load 완료 후 페이드아웃하고 메인으로
+	// 앱 진입 시 로고 로딩 화면 → load 완료 후 페이드아웃하고 메인으로
 	const { ready } = useAppReady({ minMs: 900 });
 	const [showLoader, setShowLoader] = useState(true);
 
 	return (
 		<BrowserRouter>
 			{showLoader && (
-				<OrbitLoader
+				<StarttooLoader
+					variant="page"
 					visible={!ready}
 					label={null}
-					durationMs={3000}
-					size={200}
 					onExited={() => setShowLoader(false)}
 				/>
 			)}

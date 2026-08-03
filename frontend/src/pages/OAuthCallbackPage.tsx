@@ -6,6 +6,7 @@ import {
 	googleRedirectUri,
 	kakaoRedirectUri,
 } from "../constants/auth";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import { socialLogin } from "../services/authApi";
 import { ApiError } from "../services/api";
 import useAuthStore from "../store/useAuthStore";
@@ -121,7 +122,7 @@ export default function OAuthCallbackPage({
 	return (
 		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center gap-4 px-6 text-center">
 			{error === null ? (
-				<p className="text-[15px] font-light text-black/60">로그인 중…</p>
+				<StarttooLoader variant="block" label="로그인 중…" />
 			) : (
 				<>
 					<h1 className="text-[20px] font-bold text-black">

@@ -1,0 +1,297 @@
+/* ==========================================================================
+   starttoo loader
+   로고의 점선 궤도 2개 위를 점 3개가 돈다. 워드마크는 고정.
+   궤도는 둘 다 닫힌 루프(시작점 = 끝점)라서 점이 끊김 없이 순환한다.
+   별 3개는 궤도 위에 거의 정확히 얹혀 있어서, 점이 지날 때 반짝이는 경유 마커가 된다.
+
+   기하 데이터는 loaderArt.ts 가 소유한다. 궤도 경로 문자열은 컴포넌트가
+   인스턴스마다 --st-orbit 로 주입하므로 여기서 중복하지 않는다.
+   ========================================================================== */
+
+.st-load {
+	--st-p: 0; /* determinate 진행률 0~1 */
+	--st-dur: 2.5s; /* 점이 궤도를 한 바퀴 도는 시간 */
+	--st-spin-dur: 0.82s; /* mark 변형의 별 회전 */
+
+	--st-ink: #0a0a0a;
+	--st-bg: #fff;
+	--st-star-dim: 0.3;
+	--st-w: 240px;
+
+	/* 점선 두께는 viewBox(867) 유저 단위라 표시 크기에 비례해 얇아진다.
+	   원본값 3을 그대로 쓰면 240px에서 0.83px이 되고, 여기에 불투명도까지
+	   곱하면 실측 최대 알파가 0.26까지 떨어져 궤적이 거의 안 보인다.
+	   → 변형별로 두께를 조정해 렌더 두께를 1.4~1.5px대에 맞춘다. */
+	--st-stroke: 3;
+	--st-track-opacity: 0.5;
+
+	color: var(--st-ink);
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	/* 사라질 때: opacity가 다 빠진 뒤에 visibility를 끊어야 페이드아웃이 보인다 */
+	transition:
+		opacity 0.18s ease,
+		visibility 0s linear 0.18s;
+}
+
+.st-load[data-state="loading"] {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 0.18s ease;
+}
+
+/* 숨겨져 있을 때는 애니메이션을 돌리지 않는다.
+   로딩 중에는 메인 스레드가 바쁘므로 불필요한 작업을 남기지 않는 게 중요하다. */
+.st-load:not([data-state="loading"]) * {
+	animation-play-state: paused;
+}
+
+/* --- 변형 ---------------------------------------------------------------- */
+
+/* 페이지 전체 오버레이: 최초 부팅, 라우트 전환.
+   완전 불투명 배경은 화면 전환이 끊겨 보여서, 뒤가 비치는 반투명 베일 위에
+   작은 로고만 가운데 띄운다. */
+.st-load[data-variant="page"] {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: grid;
+	place-content: center;
+	justify-items: center;
+	gap: 1rem;
+	background: rgba(255, 255, 255, 0.55);
+	-webkit-backdrop-filter: blur(5px);
+	backdrop-filter: blur(5px);
+	--st-w: min(180px, 50vw);
+}
+.st-load[data-variant="page"][data-state="loading"] {
+	pointer-events: auto; /* 오버레이는 뒤쪽 클릭을 막는다 */
+}
+
+/* 인라인 블록: 카드·섹션·테이블 자리를 채울 때 */
+.st-load[data-variant="block"] {
+	display: grid;
+	place-content: center;
+	justify-items: center;
+	gap: 0.75rem;
+	min-height: 200px;
+	padding: 1.5rem;
+	--st-w: 240px;
+	--st-stroke: 5; /* 240px에서 약 1.4px */
+}
+
+/* 마크 온리: 버튼·인풋 안 16~32px.
+   이 크기에서는 궤도도 워드마크도 판독이 안 되므로 별 하나만 회전시킨다. */
+.st-load[data-variant="mark"] {
+	display: inline-grid;
+	place-items: center;
+	width: 1.15em;
+	height: 1.15em;
+	vertical-align: -0.15em;
+}
+
+/* --- 아트워크 ------------------------------------------------------------ */
+
+.st-load__art {
+	display: block;
+	width: var(--st-w);
+	height: auto;
+	overflow: visible;
+}
+.st-load[data-variant="mark"] .st-load__art {
+	width: 100%;
+}
+
+.st-load__mark path {
+	fill: currentColor;
+}
+/* 원본에서 일부 글리프는 fill과 stroke를 함께 써서 두께를 맞추고 있다 */
+.st-load__mark path[data-stroked] {
+	stroke: currentColor;
+}
+
+/* 점선 궤도: 로고 원본의 점선 그대로. 항상 보이는 배경 트랙 */
+.st-load__track {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: var(--st-stroke);
+	stroke-dasharray: 12 20;
+	opacity: var(--st-track-opacity);
+}
+
+/* 진행 라인: determinate에서만 보인다.
+   pathLength="1000"으로 정규화하고, 값 자체는 컴포넌트가 인라인으로 넣는다
+   (1px = 궤도의 0.1%). */
+.st-load__fill {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: var(--st-stroke);
+	stroke-dasharray: 1000px;
+	stroke-dashoffset: 1000px;
+	opacity: 0;
+}
+.st-load[data-mode="determinate"] .st-load__fill {
+	opacity: 1;
+	transition: stroke-dashoffset 0.3s linear;
+}
+
+/* 궤도를 도는 점.
+   --st-orbit(경로)과 --st-phase(0~1 출발 위치)는 컴포넌트가 인스턴스마다 넣는다. */
+.st-load__dot {
+	fill: currentColor;
+	offset-path: var(--st-orbit);
+	offset-rotate: 0deg;
+	offset-distance: 0%;
+	animation: st-travel var(--st-dur) linear infinite;
+	animation-delay: calc(var(--st-phase) * var(--st-dur) * -1);
+}
+
+/* determinate: 점이 진행률 위치로 간다.
+   한 궤도에 점이 2개면 겹치므로 대표 점만 남긴다. */
+.st-load[data-mode="determinate"] .st-load__dot {
+	animation: none;
+	offset-distance: calc(var(--st-p) * 100%);
+	transition: offset-distance 0.3s linear;
+}
+.st-load[data-mode="determinate"] .st-load__dot:not([data-primary]) {
+	display: none;
+}
+
+/* offset-path 미지원 브라우저: 점을 버리고 점선만 남긴다 */
+.st-load[data-motion-path="false"] .st-load__dot {
+	display: none;
+}
+.st-load[data-motion-path="false"] .st-load__track {
+	opacity: 0.55;
+}
+
+/* 경유 별: 점이 지나갈 때 반짝인다.
+   --st-flash-dur / --st-flash-delay 는 별의 궤도상 위치와 그 궤도의 점 개수로
+   컴포넌트가 계산한다. 음수 delay로 "점이 도착하는 시점"에 키프레임 0%를 맞춘다. */
+.st-load__star {
+	fill: currentColor;
+	opacity: var(--st-star-dim);
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: st-flash var(--st-flash-dur) linear infinite;
+	animation-delay: var(--st-flash-delay);
+}
+/* determinate에서는 별을 마일스톤으로 쓰지 않는다.
+   별의 실제 위치가 31.5% / 35.9% / 79.0% 라 4.4% 안에 둘이 몰리고
+   그다음 43%가 텅 빈다. "두 단계 통과!" 뒤 긴 정체로 읽혀서 진행 표시를 오히려 해친다.
+   → 로고 그대로 정적으로 두고, 진행은 궤도가 채워지는 것으로만 보여준다. */
+.st-load[data-mode="determinate"] .st-load__star {
+	animation: none;
+	opacity: 1;
+}
+
+/* mark 변형: 별 하나만 */
+.st-load__pip {
+	fill: currentColor;
+	transform-box: fill-box;
+	transform-origin: center;
+	animation:
+		st-spin var(--st-spin-dur) linear infinite,
+		st-breathe calc(var(--st-spin-dur) * 2) ease-in-out infinite;
+}
+
+/* --- 텍스트 -------------------------------------------------------------- */
+
+.st-load__text {
+	display: grid;
+	justify-items: center;
+	gap: 0.375rem;
+	font: 500 0.875rem/1.4 system-ui, -apple-system, "Segoe UI", "Malgun Gothic",
+		sans-serif;
+	text-align: center;
+}
+.st-load[data-variant="mark"] .st-load__text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.st-load__label {
+	opacity: 0.75;
+}
+
+/* 오래 걸릴 때만 노출 */
+.st-load__slow {
+	font-size: 0.8125rem;
+	opacity: 0;
+	transition: opacity 0.25s ease;
+}
+.st-load[data-slow="true"] .st-load__slow {
+	opacity: 0.55;
+}
+
+/* --- 키프레임 ------------------------------------------------------------ */
+
+@keyframes st-travel {
+	to {
+		offset-distance: 100%;
+	}
+}
+@keyframes st-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@keyframes st-breathe {
+	0%,
+	100% {
+		opacity: 1;
+		scale: 1;
+	}
+	50% {
+		opacity: 0.5;
+		scale: 0.78;
+	}
+}
+@keyframes st-flash {
+	0% {
+		opacity: 1;
+		scale: 1.3;
+	}
+	12% {
+		opacity: var(--st-star-dim);
+		scale: 1;
+	}
+	100% {
+		opacity: var(--st-star-dim);
+		scale: 1;
+	}
+}
+
+/* --- 모션 축소 -----------------------------------------------------------
+   이동은 없애되 "작동 중" 신호는 남긴다.
+   진행률은 장식이 아니라 정보이므로 determinate는 그대로 유지한다. */
+@media (prefers-reduced-motion: reduce) {
+	/* 무한 모드에서 점은 움직일 수 없으므로 숨긴다.
+	   offset-distance:0%로 세워두면 한 궤도의 두 점(위상 0 / 0.5)이 같은 지점에
+	   겹쳐 정체불명의 점이 박혀 있는 것처럼 보인다.
+	   determinate에서는 점 위치가 진행률 정보이므로 남긴다. */
+	.st-load[data-mode="indeterminate"] .st-load__dot {
+		display: none;
+	}
+	.st-load__star {
+		animation: st-breathe 2s ease-in-out infinite;
+		animation-delay: calc(var(--st-stagger) * 0.5s);
+	}
+	.st-load__pip {
+		animation: st-breathe 2s ease-in-out infinite;
+	}
+	.st-load__track {
+		opacity: 0.45;
+	}
+	.st-load[data-mode="determinate"] .st-load__fill {
+		transition-duration: 0.01s;
+	}
+	.st-load[data-mode="determinate"] .st-load__dot {
+		transition-duration: 0.01s;
+	}
+}

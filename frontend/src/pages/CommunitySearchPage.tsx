@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../constants/auth";
 import usePosts from "../hooks/queries/usePosts";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
@@ -61,11 +62,7 @@ export default function CommunitySearchPage() {
 					</p>
 				)}
 
-				{isPending && (
-					<p className="py-20 text-center text-[14px] text-black/40">
-						불러오는 중…
-					</p>
-				)}
+				{isPending && <StarttooLoader variant="block" />}
 
 				{isError && (
 					<p className="py-20 text-center text-[14px] text-black/60">

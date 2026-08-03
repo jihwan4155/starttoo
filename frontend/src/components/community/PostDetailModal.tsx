@@ -8,6 +8,7 @@ import {
 	HeartIcon,
 	MoreIcon,
 } from "./icons";
+import StarttooLoader from "../loader/StarttooLoader";
 import useCreateComment from "../../hooks/mutations/useCreateComment";
 import useDeleteComment from "../../hooks/mutations/useDeleteComment";
 import useDeletePost from "../../hooks/mutations/useDeletePost";
@@ -237,9 +238,10 @@ function CommentRow({
 						</button>
 					)}
 					{repliesOpen && isRepliesPending && (
-						<p className="mt-2 text-[11px] text-black/40">
-							답글을 불러오는 중…
-						</p>
+						<div className="mt-2 flex items-center gap-1.5 text-[11px] text-black/40">
+							<StarttooLoader variant="mark" label={null} /> 답글을 불러오는
+							중…
+						</div>
 					)}
 					{repliesOpen && isRepliesError && (
 						<button
@@ -671,9 +673,10 @@ export default function PostDetailModal({
 						</p>
 
 						{isCommentsPending && (
-							<p className="mt-8 text-center text-[13px] text-black/40">
-								댓글을 불러오는 중…
-							</p>
+							<div className="mt-8 flex items-center justify-center gap-2 text-[13px] text-black/40">
+								<StarttooLoader variant="mark" label={null} /> 댓글을
+								불러오는 중…
+							</div>
 						)}
 
 						{isCommentsError && (

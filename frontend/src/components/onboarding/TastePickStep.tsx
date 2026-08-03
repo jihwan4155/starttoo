@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import StarttooLoader from "../loader/StarttooLoader";
 import { fetchTattooDesigns } from "../../services/tattooApi";
 import type { TattooDesignItem } from "../../types/tattoo";
 
@@ -64,9 +65,7 @@ export default function TastePickStep({
 
 	if (designs === null) {
 		return (
-			<p className="py-12 text-center text-[14px] font-light text-black/50">
-				도안을 불러오는 중…
-			</p>
+			<StarttooLoader variant="block" size={170} label="도안을 불러오는 중…" />
 		);
 	}
 

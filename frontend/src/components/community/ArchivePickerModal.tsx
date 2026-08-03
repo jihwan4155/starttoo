@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
+import StarttooLoader from "../loader/StarttooLoader";
 import useArchive from "../../hooks/queries/useArchive";
 import { ApiError } from "../../services/api";
 import type { ArchiveItem } from "../../types/archive";
@@ -52,9 +53,11 @@ export default function ArchivePickerModal({
 
 				<div className="flex-1 overflow-y-auto p-5">
 					{isPending && (
-						<p className="py-10 text-center text-[13px] text-black/40">
-							보관함을 불러오는 중…
-						</p>
+						<StarttooLoader
+							variant="block"
+							size={170}
+							label="보관함을 불러오는 중…"
+						/>
 					)}
 					{isError && (
 						<p className="py-10 text-center text-[13px] text-black/60">
