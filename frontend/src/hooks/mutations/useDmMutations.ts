@@ -45,10 +45,14 @@ export function useSendDmMessage() {
 			return sendDmMessage(roomSeq, body);
 		},
 		onSuccess: (_data, { roomSeq }) => {
+			// 서버가 보낸 사람에게도 MESSAGE_CREATED를 주지만 중복 재조회는 실시간
+			// 쪽에서 걸러낸다. 푸시가 실패해도(스펙상 롤백하지 않는다) 보낸 사람이
+			// 자기 메시지를 못 보는 일이 없도록 여기서 갱신하는 쪽을 남긴다.
 			void queryClient.invalidateQueries({
 				queryKey: dmMessagesQueryKey(roomSeq),
 			});
-			invalidateRoomsAndBadges(queryClient);
+			// 내 메시지는 나에게 알림을 만들지 않으므로 알림 캐시는 건드리지 않는다.
+			void queryClient.invalidateQueries({ queryKey: dmRoomsQueryKey });
 		},
 	});
 }
@@ -56,17 +60,15 @@ export function useSendDmMessage() {
 /**
  * PATCH /dm/rooms/{roomSeq}/read
  *
- * 이 방의 NEW_DM 알림까지 서버가 같은 트랜잭션에서 처리하므로 알림 캐시도 비운다.
+ * 이 방의 NEW_DM 알림까지 서버가 같은 트랜잭션에서 처리하므로 알림 캐시를 비운다.
+ * 메시지는 readDttm만 바뀌고 화면에 읽음 표시를 하지 않으므로 재조회하지 않는다.
  */
 export function useMarkDmRoomRead() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: (roomSeq: number) => markDmRoomRead(roomSeq),
-		onSuccess: (_count, roomSeq) => {
-			void queryClient.invalidateQueries({
-				queryKey: dmMessagesQueryKey(roomSeq),
-			});
+		onSuccess: () => {
 			invalidateRoomsAndBadges(queryClient);
 		},
 	});

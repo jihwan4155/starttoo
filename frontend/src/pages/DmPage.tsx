@@ -93,6 +93,7 @@ export default function DmPage() {
 		data: messagesData,
 		isPending: isMessagesPending,
 		isError: isMessagesError,
+		error: messagesError,
 		hasNextPage: hasOlderMessages,
 		fetchNextPage: fetchOlderMessages,
 		isFetchingNextPage: isFetchingOlder,
@@ -325,7 +326,9 @@ export default function DmPage() {
 							<StarttooLoader variant="block" size={170} label={null} />
 						) : isMessagesError ? (
 							<p className="py-10 text-center text-[13px] text-black/60">
-								메시지를 불러오지 못했습니다.
+								{messagesError instanceof ApiError
+									? messagesError.message
+									: "메시지를 불러오지 못했습니다."}
 							</p>
 						) : messages.length === 0 ? (
 							<p className="py-10 text-center text-[13px] font-light text-black/40">

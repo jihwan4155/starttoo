@@ -2,8 +2,13 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchDmMessages } from "../../services/dmApi";
 import useAuthStore from "../../store/useAuthStore";
 
+/**
+ * 방 목록 키(["dm","rooms"])의 접두사에 걸리지 않도록 별도 공간을 쓴다.
+ * invalidateQueries는 접두사 매칭이라 ["dm","rooms",seq,"messages"]로 두면
+ * 목록을 무효화할 때마다 열어 본 모든 방의 메시지까지 다시 받는다.
+ */
 export const dmMessagesQueryKey = (roomSeq: number) =>
-	["dm", "rooms", roomSeq, "messages"] as const;
+	["dm", "messages", roomSeq] as const;
 
 type DmMessagesParams = {
 	size?: number;
@@ -25,6 +30,8 @@ export default function useDmMessages(
 	return useInfiniteQuery({
 		queryKey: dmMessagesQueryKey(roomSeq ?? 0),
 		enabled: Boolean(accessToken) && roomSeq != null,
+		// 새 메시지는 실시간 이벤트가 무효화해 준다.
+		staleTime: 30_000,
 		initialPageParam: undefined as string | undefined,
 		queryFn: ({ pageParam }) =>
 			fetchDmMessages(roomSeq as number, { size, cursor: pageParam }),
