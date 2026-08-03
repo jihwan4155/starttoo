@@ -158,8 +158,6 @@ export default function DmPage() {
 				) : rooms.length === 0 ? (
 					<p className="px-5 py-10 text-center text-[13px] font-light text-black/40">
 						아직 대화가 없습니다.
-						<br />
-						아티스트 프로필에서 문의를 남겨보세요.
 					</p>
 				) : (
 					<ul className="flex-1 overflow-y-auto">

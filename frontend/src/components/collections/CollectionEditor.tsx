@@ -24,6 +24,8 @@ export default function CollectionEditor({
 	const isEditMode = useCollectionStore((s) => s.isEditMode);
 	const saveCollection = useCollectionStore((s) => s.saveCollection);
 	const enterEditMode = useCollectionStore((s) => s.enterEditMode);
+	// 내 컬렉션은 아직 localStorage가 원본이다 (저장 API 연동은 별도 작업).
+	const myPlacements = useCollectionStore((s) => s.byUser?.[String(userId)]);
 
 	useDeselectPlacementOnOutsideClick(isEditMode);
 
@@ -50,7 +52,7 @@ export default function CollectionEditor({
 				</>
 			) : (
 				<>
-					<CollectionPreview userId={userId} />
+					<CollectionPreview placements={myPlacements ?? []} />
 					<div className="mt-6 flex justify-center">
 						<CtaButton
 							onClick={enterEditMode}

@@ -39,3 +39,26 @@ export type ArchiveDragPayload = {
 	tattooId: number;
 	imageUrl: string;
 };
+
+/**
+ * GET /collections · GET /users/{userSeq}/collections (Swagger CollectionResponse)
+ *
+ * positionX·positionY는 뷰 크기 기준 0~1 정규화, scaleRatio는 기준 크기 대비
+ * 배율이라 로컬 CollectionPlacement의 x·y·scale과 좌표계가 같다.
+ * bodyView는 서버에서 자유 문자열(최대 10자)이고 프론트가 front·back을 쓴다.
+ */
+export type CollectionResponse = {
+	collectionSeq: number;
+	ownerSeq: number;
+	tattooSeq: number;
+	imageSeq: number;
+	/** 원본 이미지의 단기 Presigned GET URL */
+	imageUrl: string | null;
+	bodyView: string;
+	positionX: number;
+	positionY: number;
+	scaleRatio: number;
+	rotationDegree: number;
+	flipped: boolean;
+	regDttm: string;
+};
