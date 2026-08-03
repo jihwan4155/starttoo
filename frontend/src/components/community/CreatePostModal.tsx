@@ -213,7 +213,7 @@ export default function CreatePostModal({
 		setSubmitError(null);
 		try {
 			const files = croppedUrls.map((url, index) =>
-				dataUrlToFile(url, `post-${index + 1}.jpg`),
+				dataUrlToFile(url, `post-${index + 1}`),
 			);
 			await createPostMutate({ files, caption: caption.trim() });
 			handleClose();

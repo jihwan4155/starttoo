@@ -169,7 +169,7 @@ export default function MyPageEditPage() {
 			}
 
 			if (avatarChanged && avatarInput) {
-				const file = dataUrlToFile(avatarInput, "profile.webp");
+				const file = dataUrlToFile(avatarInput, "profile");
 				await saveProfileImage(file);
 			}
 
