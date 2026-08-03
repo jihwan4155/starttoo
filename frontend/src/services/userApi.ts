@@ -1,19 +1,26 @@
 import { api } from "./api";
+import type { CursorPage } from "../types/community";
 import type {
 	BeMyProfile,
 	BeProfileImageRequest,
 	BePublicProfile,
 	BeRecentSearchUpdateRequest,
 	BeRelationState,
+	BeRelationUser,
 	BeUpdateProfileRequest,
 } from "../types/beUser";
 import type {
 	FollowResponse,
 	MeResponse,
 	PublicProfileResponse,
+	RelationUser,
 	UpdateMeRequest,
 } from "../types/user";
-import { mapMyProfile, mapPublicProfile } from "../utils/mapUser";
+import {
+	mapMyProfile,
+	mapPublicProfile,
+	mapRelationUser,
+} from "../utils/mapUser";
 
 /** GET /users/me */
 export async function fetchMe(): Promise<MeResponse> {
@@ -66,6 +73,36 @@ export async function followUser(userId: number): Promise<FollowResponse> {
 export async function unfollowUser(userId: number): Promise<FollowResponse> {
 	const { data } = await api.delete<BeRelationState>(`/users/${userId}/follow`);
 	return { userId, following: data.enabled };
+}
+
+export type FollowListParams = {
+	cursor?: string;
+	/** 서버 최대 50 */
+	size?: number;
+};
+
+async function fetchRelationPage(
+	path: string,
+	params: FollowListParams,
+): Promise<CursorPage<RelationUser>> {
+	const { data } = await api.get<CursorPage<BeRelationUser>>(path, { params });
+	return { ...data, items: (data.items ?? []).map(mapRelationUser) };
+}
+
+/** GET /users/{userSeq}/followers — 이 회원을 팔로우하는 사람 목록 */
+export async function fetchFollowers(
+	userId: number,
+	params: FollowListParams = {},
+): Promise<CursorPage<RelationUser>> {
+	return fetchRelationPage(`/users/${userId}/followers`, params);
+}
+
+/** GET /users/{userSeq}/following — 이 회원이 팔로우하는 사람 목록 */
+export async function fetchFollowing(
+	userId: number,
+	params: FollowListParams = {},
+): Promise<CursorPage<RelationUser>> {
+	return fetchRelationPage(`/users/${userId}/following`, params);
 }
 
 /** GET /users/me/recent-searches */

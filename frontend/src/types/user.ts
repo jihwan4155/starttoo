@@ -55,3 +55,13 @@ export type FollowResponse = {
 	userId: number;
 	following: boolean;
 };
+
+/** GET /users/{userSeq}/followers · /following 의 항목 (Swagger RelationUser) */
+export type RelationUser = {
+	userId: number;
+	nickname: string;
+	role: string;
+	profileImageUrl: string | null;
+	/** 조회한 사람(나) 기준 팔로우 여부 */
+	isFollowing: boolean;
+};

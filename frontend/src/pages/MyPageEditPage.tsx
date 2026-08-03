@@ -5,11 +5,15 @@ import useUpdateMe from "../hooks/mutations/useUpdateMe";
 import useUpdateArtist from "../hooks/mutations/useUpdateArtist";
 import useUpdateProfileImage from "../hooks/mutations/useUpdateProfileImage";
 import useMe from "../hooks/queries/useMe";
+import useMyArtistProfile from "../hooks/queries/useMyArtistProfile";
 import useRequireAuth from "../hooks/useRequireAuth";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import ArtistShopProfileSection from "../components/mypage/ArtistShopProfileSection";
 import {
 	buildArtistShopPatch,
+	hasArtistShopChanges,
+	toArtistShopForm,
+	EMPTY_ARTIST_SHOP_FORM,
 	type ArtistShopFormValues,
 } from "../components/mypage/artistShopPatch";
 import { checkNicknameAvailability } from "../services/authApi";
@@ -65,16 +69,18 @@ export default function MyPageEditPage() {
 		string | null
 	>(null);
 	const [formError, setFormError] = useState<string | null>(null);
-	const [shopForm, setShopForm] = useState<ArtistShopFormValues>({
-		shopName: "",
-		shopCity: "",
-		shopAddress: "",
-		shopPhone: "",
-		shopDetails: "",
-	});
+	const [shopForm, setShopForm] = useState<ArtistShopFormValues>(
+		EMPTY_ARTIST_SHOP_FORM,
+	);
 
 	// artistProfile은 role=ARTIST이고 artists 확장 행이 있을 때만 내려온다.
 	const artist = me?.artist;
+	// 도시·주소·전화·영업 안내는 공개 목록(GET /artists)에서만 읽어올 수 있다.
+	// 인증 전이면 null이라 매장명 말고는 프리필하지 못한다.
+	const { data: artistDetail, isPending: isArtistDetailPending } =
+		useMyArtistProfile(me?.userId ?? 0, Boolean(artist));
+	// 저장이 전체 덮어쓰기라, 프리필한 이 값이 "안 건드리면 그대로 남을 값"이다.
+	const shopBaseline = toArtistShopForm(artistDetail, artist);
 
 	useEffect(() => {
 		if (!me) return;
@@ -84,14 +90,13 @@ export default function MyPageEditPage() {
 		setAvatarInput(me.profileImageUrl);
 		setNicknameCheckMessage(null);
 		setFormError(null);
-		if (me.artist) {
-			// 프로필 조회로 알 수 있는 숍 필드는 이름뿐이다.
-			setShopForm((prev) => ({
-				...prev,
-				shopName: me.artist?.shopName ?? "",
-			}));
-		}
 	}, [me]);
+
+	// 숍 폼은 조회가 끝난 뒤 채운다 — 먼저 채우면 사용자가 입력하는 중에 덮어쓴다.
+	useEffect(() => {
+		if (!artist || isArtistDetailPending) return;
+		setShopForm(toArtistShopForm(artistDetail, artist));
+	}, [artist, artistDetail, isArtistDetailPending]);
 
 	const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -159,10 +164,9 @@ export default function MyPageEditPage() {
 				hasProfileChanges = true;
 			}
 
-			const artistPatch = artist
-				? buildArtistShopPatch(shopForm, artist)
-				: {};
-			const hasArtistChanges = Object.keys(artistPatch).length > 0;
+			const hasArtistChanges = Boolean(
+				artist && hasArtistShopChanges(shopForm, shopBaseline),
+			);
 
 			if (!hasProfileChanges && !avatarChanged && !hasArtistChanges) {
 				setFormError("변경된 내용이 없습니다.");
@@ -179,7 +183,7 @@ export default function MyPageEditPage() {
 			}
 
 			if (hasArtistChanges) {
-				await saveArtist(artistPatch);
+				await saveArtist(buildArtistShopPatch(shopForm));
 			}
 
 			navigate("/mypage");
@@ -325,6 +329,7 @@ export default function MyPageEditPage() {
 							setShopForm((prev) => ({ ...prev, ...patch }))
 						}
 						verificationStatus={artist.verificationStatus}
+						isPrefilled={Boolean(artistDetail)}
 					/>
 				)}
 

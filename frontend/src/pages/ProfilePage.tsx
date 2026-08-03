@@ -1,21 +1,24 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import CollectionPreview from "../components/collections/CollectionPreview";
 import ArtistBadge from "../components/common/ArtistBadge";
 import UnfollowConfirmModal from "../components/common/UnfollowConfirmModal";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
+import FollowListModal from "../components/mypage/FollowListModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageShopInfo from "../components/mypage/MyPageShopInfo";
 import PostThumbnailGrid from "../components/mypage/PostThumbnailGrid";
 import ProfileTabs, { type ProfileTab } from "../components/profile/ProfileTabs";
 import { useCreateDmRoom } from "../hooks/mutations/useDmMutations";
+import type { FollowListKind } from "../hooks/queries/useFollowList";
 import useToggleFollow from "../hooks/mutations/useToggleFollow";
 import useUserCollections from "../hooks/queries/useUserCollections";
 import useUserPosts from "../hooks/queries/useUserPosts";
 import useUserProfile from "../hooks/queries/useUserProfile";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { ApiError } from "../services/api";
+import useAuthStore from "../store/useAuthStore";
 import useDmStore from "../store/useDmStore";
 import type { Post } from "../types/community";
 import { resolveAvatar } from "../utils/profile";
@@ -28,8 +31,14 @@ export default function ProfilePage() {
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	const [isUnfollowOpen, setUnfollowOpen] = useState(false);
 	const [tab, setTab] = useState<ProfileTab>("feed");
+	// null이면 닫힘 — 어느 탭으로 열지까지 이 값이 들고 있다.
+	const [followListKind, setFollowListKind] = useState<FollowListKind | null>(
+		null,
+	);
 	const { requireAuth } = useRequireAuth();
 	const openDmRoom = useDmStore((s) => s.openRoom);
+	// isMe와 같은 출처 — 프로필 조회를 기다리지 않고 바로 판단할 수 있다.
+	const myUserId = useAuthStore((s) => s.user?.userId);
 
 	const {
 		data: profile,
@@ -126,6 +135,17 @@ export default function ProfilePage() {
 		);
 	}
 
+	/*
+	 * 내 계정이면 마이페이지가 정식 화면이다.
+	 *
+	 * 팔로우 목록·커뮤니티 작성자·타투이스트 목록·DM 등 /profile/{id}로 보내는 곳이
+	 * 여러 군데라, 각 호출부를 고치는 대신 여기서 한 번에 넘긴다. replace로 바꿔서
+	 * 뒤로 가기가 이 경로를 다시 밟지 않게 한다.
+	 */
+	if (myUserId != null && myUserId === userId) {
+		return <Navigate to="/mypage" replace />;
+	}
+
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-6">
 			<div className="mx-auto w-full max-w-[900px]">
@@ -158,12 +178,20 @@ export default function ProfilePage() {
 										<span className="truncate">{profile.nickname}</span>
 										{isArtist && <ArtistBadge size={18} />}
 									</p>
-									<div className="mt-2 flex items-center gap-4 text-[15px] font-light text-black/60">
+									<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px] font-light text-black/60">
 										<span>게시물 {posts.length}</span>
-										<span>팔로워 {profile.followerCount.toLocaleString()}명</span>
-										<span>
-											팔로잉 {profile.followingCount.toLocaleString()}명
-										</span>
+										<button
+											type="button"
+											onClick={() => setFollowListKind("followers")}
+											className="rounded transition hover:text-black">
+											팔로워 {profile.followerCount.toLocaleString()}명
+										</button>
+										<button
+											type="button"
+											onClick={() => setFollowListKind("following")}
+											className="rounded transition hover:text-black">
+											팔로우 {profile.followingCount.toLocaleString()}명
+										</button>
 									</div>
 								</div>
 							</div>
@@ -253,6 +281,14 @@ export default function ProfilePage() {
 					isPending={isFollowPending}
 				/>
 			)}
+
+			<FollowListModal
+				isOpen={followListKind !== null}
+				userId={userId}
+				kind={followListKind ?? "followers"}
+				onChangeKind={setFollowListKind}
+				onClose={() => setFollowListKind(null)}
+			/>
 		</div>
 	);
 }
