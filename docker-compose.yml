@@ -59,6 +59,7 @@ services:
       # env 파일의 VITE_KAKAO_JS_KEY를 반드시 build arg로 넘겨야 카카오 로그인이 동작한다.
       args:
         VITE_KAKAO_JS_KEY: ${VITE_KAKAO_JS_KEY:-}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     container_name: starttoo-frontend
     restart: unless-stopped
     networks:
