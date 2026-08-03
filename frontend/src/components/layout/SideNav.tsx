@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import useDmStore from "../../store/useDmStore";
+import useUnreadCounts from "../../hooks/queries/useUnreadCounts";
 
 type NavItem = {
 	id: string;
@@ -169,9 +169,9 @@ export default function SideNav() {
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const [communityHovered, setCommunityHovered] = useState(false);
 	const { pathname } = useLocation();
-	// 안읽은 메시지가 있는 채팅방 수 (읽으면 실시간으로 줄어듦)
-	const rooms = useDmStore((s) => s.rooms);
-	const unreadDmCount = rooms.filter((room) => room.unreadCount > 0).length;
+	// 미확인 NEW_DM 알림 수 — 방을 읽으면 서버가 함께 읽음 처리해 줄어든다.
+	const { data: unreadCounts } = useUnreadCounts();
+	const unreadDmCount = unreadCounts?.byType.NEW_DM ?? 0;
 
 	// 커뮤니티 관련 페이지에서는 하위 아이콘을 항상 펼쳐둔다
 	const onCommunityPage = COMMUNITY_ITEMS.some((item) =>

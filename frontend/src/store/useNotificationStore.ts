@@ -1,9 +1,11 @@
 import { create } from "zustand";
-import { MOCK_DM_ROOMS } from "../mocks/dm";
 
 /**
- * 우상단 알림(벨) 상태
- * TODO: 백엔드 연동 시 알림 목록은 API(GET /notifications)로 대체
+ * 우상단 알림(벨)의 비로그인 폴백 상태.
+ *
+ * 로그인 상태에서는 TopNav가 GET /notifications·/notifications/unread-counts를
+ * 쓰고 이 store는 쓰지 않는다. DM 목업으로 채워 두던 초기 알림은 실제 DM 연동과
+ * 함께 제거했다.
  */
 export type AppNotification = {
 	id: number;
@@ -37,24 +39,11 @@ type NotificationState = {
 	markAllRead: () => void;
 };
 
-// 시연용 초기 알림 — 안읽은 DM이 있는 방을 알림으로 미리 채워둔다
-const SEED_NOTIFICATIONS: AppNotification[] = MOCK_DM_ROOMS.filter(
-	(room) => room.unreadCount > 0,
-).map((room) => ({
-	id: 1000 + room.id,
-	type: "dm" as const,
-	roomId: room.id,
-	title: room.nickname,
-	body: room.lastMessage,
-	time: room.lastTime,
-	read: false,
-}));
-
 let notifIdSeq = 2000;
 const nextNotifId = () => (notifIdSeq += 1);
 
 const useNotificationStore = create<NotificationState>((set) => ({
-	notifications: SEED_NOTIFICATIONS,
+	notifications: [],
 	addNotification: ({ type, roomId, title, body, time }) =>
 		set((state) => ({
 			notifications: [
