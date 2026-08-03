@@ -39,6 +39,22 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        // STOMP over WebSocket (DM·알림 실시간 수신). dev가 https면 브라우저는
+        // wss로 붙고 여기서 평문 ws로 백엔드에 넘긴다. ws:true 없으면 업그레이드가
+        // 프록시되지 않아 연결이 즉시 끊긴다.
+        '/ws': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          ws: true,
+          // /v1과 같은 이유 — 핸드셰이크 Origin이 BE 허용 목록(5173 http)과 달라
+          // setAllowedOriginPatterns에서 거부되고 소켓이 1006으로 끊긴다.
+          configure: (proxy) => {
+            proxy.on('proxyReqWs', (proxyReq: ClientRequest) => {
+              proxyReq.removeHeader('origin');
+              proxyReq.removeHeader('referer');
+            });
+          },
+        },
       },
     },
   };

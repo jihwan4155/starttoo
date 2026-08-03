@@ -5,7 +5,7 @@ import { meQueryKey } from "../queries/useMe";
 import { userProfileQueryKey } from "../queries/useUserProfile";
 import type { UpdateArtistRequest } from "../../types/artist";
 
-/** PATCH /artists/me */
+/** PATCH /artists/me/profile */
 export default function useUpdateArtist() {
 	const queryClient = useQueryClient();
 

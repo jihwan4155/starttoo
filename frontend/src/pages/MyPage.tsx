@@ -15,6 +15,7 @@ import useBookmarkedPosts from "../hooks/queries/useBookmarkedPosts";
 import useArchive from "../hooks/queries/useArchive";
 import useMe from "../hooks/queries/useMe";
 import useMyPosts from "../hooks/queries/useMyPosts";
+import useUserProfile from "../hooks/queries/useUserProfile";
 import useRemoveFromArchive from "../hooks/mutations/useRemoveFromArchive";
 import useRequireAuth from "../hooks/useRequireAuth";
 import useAuthStore from "../store/useAuthStore";
@@ -35,7 +36,7 @@ function isMyPageTab(value: string | null): value is MyPageTab {
 	);
 }
 
-/** 마이페이지 — GET /users/me, /users/me/posts, /users/me/bookmarked-posts */
+/** 마이페이지 — GET /users/me, /users/{me}, /posts/me, /posts/me/bookmarks, /archive */
 export default function MyPage() {
 	const [searchParams] = useSearchParams();
 	const tabParam = searchParams.get("tab");
@@ -55,8 +56,12 @@ export default function MyPage() {
 
 	const nickname = useUserStore((s) => s.nickname);
 	const avatarUrl = useUserStore((s) => s.avatarUrl);
+	const accessToken = useAuthStore((s) => s.accessToken);
 	const authUser = useAuthStore((s) => s.user);
 	const authUserId = authUser?.userId;
+	// 세션 사용자는 GET /users/me가 돌아온 뒤에 채워진다. "로그인했는지"는 토큰으로,
+	// "내가 누군지"가 필요한 곳만 authUserId로 판단한다.
+	const isLoggedIn = Boolean(accessToken);
 	const { requireAuth } = useRequireAuth();
 
 	const {
@@ -65,6 +70,9 @@ export default function MyPage() {
 		isError: isMeError,
 		error: meError,
 	} = useMe();
+
+	// GET /users/me에는 팔로워·팔로잉 수가 없다. 공개 프로필 조회로 따로 받아온다.
+	const { data: publicMe } = useUserProfile(me?.userId ?? 0);
 
 	useEffect(() => {
 		setActivePost(null);
@@ -102,8 +110,8 @@ export default function MyPage() {
 			archiveData?.pages.flatMap((page) =>
 				page.items.map(mapArchiveItemToSavedDesign),
 			) ?? [];
-		return authUser ? mergeWithDemoArchiveDesigns(fromApi) : [];
-	}, [archiveData?.pages, authUser]);
+		return isLoggedIn ? mergeWithDemoArchiveDesigns(fromApi) : [];
+	}, [archiveData?.pages, isLoggedIn]);
 
 	const meErrorMessage =
 		meError instanceof ApiError
@@ -134,11 +142,13 @@ export default function MyPage() {
 		isArchivePending || (isArchiveFetching && savedDesigns.length === 0);
 
 	const isArtist = me?.role === "ARTIST" || authUser?.role === "ARTIST";
+	// artistProfile은 role=ARTIST이고 확장 행이 있을 때만 내려온다.
+	const artist = me?.artist;
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
 			<div className="mx-auto w-full max-w-[900px]">
-				{authUser && isMeError && (
+				{isLoggedIn && isMeError && (
 					<p className="mb-4 text-center text-[14px] text-black/60">
 						{meErrorMessage}
 					</p>
@@ -146,17 +156,14 @@ export default function MyPage() {
 				<MyPageHeader
 					nickname={me?.nickname ?? nickname}
 					avatarUrl={me?.profileImageUrl ?? avatarUrl}
-					followerCount={me?.followerCount}
-					followingCount={me?.followingCount}
-					isLoading={Boolean(authUser) && isMePending}
+					followerCount={publicMe?.followerCount}
+					followingCount={publicMe?.followingCount}
+					isLoading={isLoggedIn && isMePending}
 					isArtist={isArtist}
 				/>
 
-				{isArtist && (
-					<MyPageShopInfo
-						artist={me?.artist}
-						isLoading={Boolean(authUser) && isMePending}
-					/>
+				{artist && (
+					<MyPageShopInfo artist={artist} isLoading={isMePending} />
 				)}
 
 				<div className="mt-8">
@@ -165,7 +172,7 @@ export default function MyPage() {
 
 				<div className="mt-8">
 					{tab === "feed" &&
-						(!authUser ? (
+						(!isLoggedIn ? (
 							<MyPageEmptyState
 								message="로그인 후 내 게시글을 확인할 수 있습니다"
 								actionLabel="게시글 작성"
@@ -184,7 +191,7 @@ export default function MyPage() {
 						))}
 
 					{tab === "designs" &&
-						(!authUser ? (
+						(!isLoggedIn ? (
 							<MyPageEmptyState message="로그인 후 도안 보관함을 확인할 수 있습니다" />
 						) : isArchiveLoading ? (
 							<StarttooLoader variant="block" />
@@ -202,7 +209,7 @@ export default function MyPage() {
 						))}
 
 					{tab === "bookmarks" &&
-						(!authUser ? (
+						(!isLoggedIn ? (
 							<MyPageEmptyState message="로그인 후 북마크를 확인할 수 있습니다" />
 						) : isBookmarkLoading ? (
 							<StarttooLoader variant="block" />
@@ -216,10 +223,12 @@ export default function MyPage() {
 						))}
 
 					{tab === "collection" &&
-						(!authUser ? (
+						(!isLoggedIn ? (
 							<MyPageEmptyState message="로그인 후 내 컬렉션을 확인할 수 있습니다" />
 						) : !authUserId ? (
-							<MyPageEmptyState message="사용자 정보를 불러올 수 없습니다" />
+							<p className="py-16 text-center text-[14px] text-black/40">
+								불러오는 중…
+							</p>
 						) : (
 							<CollectionEditor
 								userId={authUserId}

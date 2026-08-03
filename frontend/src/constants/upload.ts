@@ -18,3 +18,4 @@ export type UploadPurpose =
 
 export const PROFILE_UPLOAD_PURPOSE: UploadPurpose = "PROFILE";
 export const POST_UPLOAD_PURPOSE: UploadPurpose = "POST";
+export const DM_UPLOAD_PURPOSE: UploadPurpose = "DM";

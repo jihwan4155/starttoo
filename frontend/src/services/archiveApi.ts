@@ -16,6 +16,7 @@ function mapTattooDesignItem(dto: TattooDesignItemDto): ArchiveItem {
 
 	return {
 		tattooId: dto.tattooSeq,
+		designImageSeq: dto.designImageSeq,
 		originalImageUrl: dto.designImageUrl,
 		designImageUrl: dto.designImageUrl,
 		primaryStyle,
