@@ -16,6 +16,8 @@ export default function useDmRooms(params?: DmRoomsParams) {
 	return useInfiniteQuery({
 		queryKey: [...dmRoomsQueryKey, { size }],
 		enabled: Boolean(accessToken),
+		// 변경이 생기면 무효화로 즉시 갱신된다. 화면을 드나들 때마다 다시 받을 이유는 없다.
+		staleTime: 30_000,
 		initialPageParam: undefined as string | undefined,
 		queryFn: ({ pageParam }) => fetchDmRooms({ size, cursor: pageParam }),
 		getNextPageParam: (lastPage) =>
