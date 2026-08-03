@@ -5,6 +5,7 @@ import {
 	setRefreshHandler,
 	setUnauthorizedHandler,
 } from "../services/api";
+import { queryClient } from "../services/queryClient";
 import useCommunityStore from "./useCommunityStore";
 import useUserStore from "./useUserStore";
 import {
@@ -25,6 +26,14 @@ type AuthState = {
 		refreshToken?: string | null;
 		user?: SessionUser;
 	}) => void;
+	/**
+	 * GET /users/me 응답으로 세션 사용자를 채운다.
+	 *
+	 * 로그인·가입 응답(TokenResponse)에는 사용자 정보가 없어서 토큰만으로 세션이
+	 * 시작된다. userId를 아는 시점이 여기뿐이라, /users/me 이외의 "내 것" 조회는
+	 * 모두 이 호출 뒤에야 켜진다. (useSyncMeProfile이 호출)
+	 */
+	setUser: (user: UserSummary) => void;
 	/** 로컬 세션만 초기화 (서버 호출 없음) */
 	clearSession: () => void;
 	/** 서버 로그아웃 호출 후 로컬 세션 초기화 */
@@ -52,11 +61,21 @@ const useAuthStore = create<AuthState>()(
 				}
 			},
 
+			setUser: (user) => {
+				const prevUserId = get().user?.userId;
+				set({ user });
+				if (user.userId !== prevUserId) {
+					useCommunityStore.getState().clearEngagement();
+				}
+			},
+
 			clearSession: () => {
 				setAccessToken(null);
 				set({ accessToken: null, refreshToken: null, user: null });
 				useCommunityStore.getState().clearEngagement();
 				useUserStore.getState().clearProfile();
+				// 다음 계정 화면에 이전 계정의 응답이 비치지 않도록 캐시를 비운다.
+				queryClient.clear();
 			},
 
 			logout: async () => {

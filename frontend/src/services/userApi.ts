@@ -21,21 +21,16 @@ export async function fetchMe(): Promise<MeResponse> {
 	return mapMyProfile(data);
 }
 
-/** PATCH /users/me */
+/**
+ * PATCH /users/me
+ *
+ * nickname은 서버 필수라 호출자가 항상 현재 값을 넣어 준다.
+ * birthDate·gender는 키를 빼면 유지, null이면 해제다.
+ */
 export async function updateMe(body: UpdateMeRequest): Promise<MeResponse> {
-	const payload: BeUpdateProfileRequest = {};
-
-	if (body.nickname != null) payload.nickname = body.nickname;
-	if (body.removeBirthDate) {
-		payload.birthDate = null;
-	} else if (body.birthDate != null) {
-		payload.birthDate = body.birthDate;
-	}
-	if (body.removeGender) {
-		payload.gender = null;
-	} else if (body.gender != null) {
-		payload.gender = body.gender;
-	}
+	const payload: BeUpdateProfileRequest = { nickname: body.nickname };
+	if ("birthDate" in body) payload.birthDate = body.birthDate ?? null;
+	if ("gender" in body) payload.gender = body.gender ?? null;
 
 	const { data } = await api.patch<BeMyProfile>("/users/me", payload);
 	return mapMyProfile(data);
@@ -64,21 +59,13 @@ export async function fetchUserProfile(
 /** PUT /users/{userSeq}/follow */
 export async function followUser(userId: number): Promise<FollowResponse> {
 	const { data } = await api.put<BeRelationState>(`/users/${userId}/follow`);
-	return {
-		userId,
-		following: data.enabled,
-		followerCount: 0,
-	};
+	return { userId, following: data.enabled };
 }
 
 /** DELETE /users/{userSeq}/follow */
 export async function unfollowUser(userId: number): Promise<FollowResponse> {
 	const { data } = await api.delete<BeRelationState>(`/users/${userId}/follow`);
-	return {
-		userId,
-		following: data.enabled,
-		followerCount: 0,
-	};
+	return { userId, following: data.enabled };
 }
 
 /** GET /users/me/recent-searches */

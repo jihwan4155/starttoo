@@ -55,36 +55,31 @@ export type FetchArtistsParams = {
 
 /**
  * PATCH /artists/me/profile 요청 (전부 선택)
- * 빈 본문으로 호출하면 아티스트 프로필이 UNVERIFIED 상태로 생성된다.
+ *
+ * users.role=ARTIST이고 artists 확장 행이 있는 계정만 통과한다.
+ * USER 역할이거나 행이 없으면 서버가 403으로 거부한다 — 생성 용도로는 쓸 수 없다.
+ * verificationStatus는 이 API로 바뀌지 않는다.
  */
-export type UpdateArtistProfileRequest = {
-	shopName?: string;
-	shopCity?: string;
-	shopAddress?: string;
-	shopPhone?: string;
-	shopDetails?: string;
-};
-
-/** PATCH /artists/me 요청 */
 export type UpdateArtistRequest = {
 	shopName?: string;
 	shopCity?: string;
 	shopAddress?: string;
 	shopPhone?: string;
-	businessHours?: string;
+	/** 영업시간·휴무일·예약 방식 자유 안내 */
+	shopDetails?: string;
 };
 
-/** PATCH /artists/me 응답 */
+/** PATCH /artists/me/profile 응답 (Swagger ArtistProfile) */
 export type ArtistProfileResponse = {
 	userId: number;
+	nickname: string;
+	profileImageUrl: string | null;
 	shopName: string | null;
 	shopCity: string | null;
 	shopAddress: string | null;
 	shopPhone: string | null;
-	businessHours: string | null;
-	popularity: number | null;
-	approvalStatus: string | null;
-	rejectionReason: string | null;
-	approvedAt: string | null;
-	updatedAt: string;
+	shopDetails: string | null;
+	verificationStatus: string | null;
+	followerCount: number;
+	createdAt: string | null;
 };
