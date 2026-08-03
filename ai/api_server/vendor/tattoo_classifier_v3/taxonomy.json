@@ -1,0 +1,116 @@
+{
+  "schema_version": "tattoo_0729_specialist_taxonomy_v3",
+  "source_schema_version": "tattoo_four_axis_taxonomy_0729_v8_missing_secondary_completed",
+  "primary": {
+    "classes": [
+      "western_traditional",
+      "japanese",
+      "realism",
+      "new_school",
+      "minimal",
+      "abstract_experimental",
+      "geometric",
+      "ornamental",
+      "tribal_indigenous",
+      "lettering",
+      "graphic_illustrative"
+    ]
+  },
+  "secondary": {
+    "parent_classes": [
+      "western_traditional",
+      "japanese",
+      "realism",
+      "new_school",
+      "minimal",
+      "abstract_experimental",
+      "geometric",
+      "ornamental",
+      "tribal_indigenous",
+      "lettering",
+      "graphic_illustrative"
+    ],
+    "children": {
+      "western_traditional": [
+        "american_traditional",
+        "neo_traditional"
+      ],
+      "japanese": [
+        "traditional_irezumi",
+        "neo_japanese"
+      ],
+      "realism": [
+        "photorealism",
+        "illustrative_realism",
+        "micro_realism",
+        "surreal_realism",
+        "chicano_realism"
+      ],
+      "new_school": [
+        "classic_new_school",
+        "cartoon_pop",
+        "anime_manga",
+        "kawaii"
+      ],
+      "minimal": [],
+      "abstract_experimental": [
+        "gestural_abstract",
+        "fluid_organic",
+        "abstract_geometry",
+        "cyber_sigil",
+        "surrealism"
+      ],
+      "geometric": [
+        "figurative_geometric",
+        "polygonal",
+        "optical",
+        "geometric_pattern",
+        "geometric_abstraction"
+      ],
+      "ornamental": [
+        "mandala",
+        "floral_ornamental",
+        "filigree_ornamental",
+        "ornamental_pattern"
+      ],
+      "tribal_indigenous": [
+        "polynesian",
+        "celtic",
+        "neo_tribal"
+      ],
+      "lettering": [
+        "script",
+        "blackletter",
+        "typewriter"
+      ],
+      "graphic_illustrative": [
+        "naturalist_illustration",
+        "editorial_illustration",
+        "folk_naive",
+        "dark_art"
+      ]
+    },
+    "cardinality": "zero_or_one"
+  },
+  "color": {
+    "classes": [
+      "black_only",
+      "black_and_gray",
+      "black_with_color_accent",
+      "full_color"
+    ]
+  },
+  "rendering": {
+    "classes": [
+      "linework",
+      "fine_line",
+      "sketch",
+      "engraving_etching",
+      "dotwork",
+      "blackwork",
+      "watercolor"
+    ],
+    "cardinality": "multi_label",
+    "supervision": "positive_negative_unknown"
+  }
+}

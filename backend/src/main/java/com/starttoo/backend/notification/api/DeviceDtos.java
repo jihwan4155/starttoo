@@ -13,11 +13,8 @@ public final class DeviceDtos {
     }
 
     public record RegisterDeviceRequest(
-            @Schema(
-                    description = "Firebase Installations SDK가 발급한 Firebase Installation ID",
-                    example = "c1234567890abcdefghijk"
-            )
-            @NotBlank @Size(max = 128) String fid,
+            @Schema(description = "FCM/APNs/Web Push가 발급한 푸시 토큰")
+            @NotBlank @Size(max = 512) String pushToken,
             @Schema(description = "클라이언트 플랫폼", example = "ANDROID",
                     allowableValues = {"WEB", "ANDROID", "IOS"})
             @NotBlank @Pattern(regexp = "WEB|ANDROID|IOS") String platform,

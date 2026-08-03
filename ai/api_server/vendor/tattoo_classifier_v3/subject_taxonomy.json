@@ -1,0 +1,333 @@
+{
+  "schema_version": "2.0.0",
+  "description": "Hierarchical tattoo labels for model training, structured search, similarity retrieval, and recommendation.",
+  "principles": [
+    "Preserve source annotations and migrate uncertain values to explicit unknown states.",
+    "Use broad families for routing, major styles for user filters, and multi-label subtypes for detail.",
+    "Keep recommendation facets atomic so search terms can combine them without changing model labels.",
+    "Treat missing multi-label annotations as unknown unless a reviewer explicitly marked them negative."
+  ],
+  "attributes": {
+    "primary_family": {
+      "mode": "single",
+      "values": [
+        {"id": "pictorial", "label_ko": "그림 중심", "label_en": "Pictorial"},
+        {"id": "pattern_ornamental", "label_ko": "패턴·장식 중심", "label_en": "Pattern and Ornamental"},
+        {"id": "lettering", "label_ko": "레터링 중심", "label_en": "Lettering"}
+      ]
+    },
+    "primary_style": {
+      "mode": "single",
+      "values": [
+        {"id": "western_traditional", "label_ko": "웨스턴 트래디셔널", "label_en": "Western Traditional"},
+        {"id": "japanese", "label_ko": "재패니즈", "label_en": "Japanese"},
+        {"id": "realism", "label_ko": "리얼리즘", "label_en": "Realism"},
+        {"id": "new_school", "label_ko": "뉴스쿨", "label_en": "New School"},
+        {"id": "illustrative", "label_ko": "일러스트레이티브", "label_en": "Illustrative"},
+        {"id": "geometric_ornamental", "label_ko": "지오메트릭·오너멘탈", "label_en": "Geometric and Ornamental"},
+        {"id": "tribal_indigenous", "label_ko": "트라이벌·인디지너스", "label_en": "Tribal and Indigenous"},
+        {"id": "lettering", "label_ko": "레터링", "label_en": "Lettering"},
+        {"id": "abstract_experimental", "label_ko": "추상·실험적", "label_en": "Abstract and Experimental"}
+      ],
+      "family_map": {
+        "pictorial": ["western_traditional", "japanese", "realism", "new_school", "illustrative", "abstract_experimental"],
+        "pattern_ornamental": ["geometric_ornamental", "tribal_indigenous"],
+        "lettering": ["lettering"]
+      }
+    },
+    "secondary_style": {
+      "mode": "multi",
+      "max_values": 4,
+      "values": [
+        {"id": "american_traditional", "label_ko": "아메리칸 트래디셔널", "label_en": "American Traditional"},
+        {"id": "neo_traditional", "label_ko": "네오 트래디셔널", "label_en": "Neo Traditional"},
+        {"id": "european_traditional", "label_ko": "유러피언 트래디셔널", "label_en": "European Traditional"},
+        {"id": "traditional_irezumi", "label_ko": "전통 이레즈미", "label_en": "Traditional Irezumi"},
+        {"id": "neo_japanese", "label_ko": "네오 재패니즈", "label_en": "Neo Japanese"},
+        {"id": "portrait_realism", "label_ko": "인물 리얼리즘", "label_en": "Portrait Realism"},
+        {"id": "micro_realism", "label_ko": "마이크로 리얼리즘", "label_en": "Micro Realism"},
+        {"id": "chicano", "label_ko": "치카노", "label_en": "Chicano"},
+        {"id": "surrealism", "label_ko": "초현실주의", "label_en": "Surrealism"},
+        {"id": "biomechanical", "label_ko": "바이오메카니컬", "label_en": "Biomechanical"},
+        {"id": "bio_organic", "label_ko": "바이오 오가닉", "label_en": "Bio Organic"},
+        {"id": "cartoon", "label_ko": "카툰", "label_en": "Cartoon"},
+        {"id": "anime_manga", "label_ko": "애니·망가", "label_en": "Anime and Manga"},
+        {"id": "kawaii", "label_ko": "카와이", "label_en": "Kawaii"},
+        {"id": "graffiti", "label_ko": "그래피티", "label_en": "Graffiti"},
+        {"id": "engraving_etching", "label_ko": "판화·에칭", "label_en": "Engraving and Etching"},
+        {"id": "sketch", "label_ko": "스케치", "label_en": "Sketch"},
+        {"id": "dark_art", "label_ko": "다크 아트", "label_en": "Dark Art"},
+        {"id": "ignorant", "label_ko": "이그노런트", "label_en": "Ignorant"},
+        {"id": "folk", "label_ko": "포크", "label_en": "Folk"},
+        {"id": "minimal", "label_ko": "미니멀", "label_en": "Minimal"},
+        {"id": "geometric", "label_ko": "지오메트릭", "label_en": "Geometric"},
+        {"id": "sacred_geometry", "label_ko": "신성 기하학", "label_en": "Sacred Geometry"},
+        {"id": "ornamental", "label_ko": "오너멘탈", "label_en": "Ornamental"},
+        {"id": "mandala", "label_ko": "만다라", "label_en": "Mandala"},
+        {"id": "optical", "label_ko": "옵아트", "label_en": "Optical"},
+        {"id": "polynesian", "label_ko": "폴리네시안", "label_en": "Polynesian"},
+        {"id": "maori", "label_ko": "마오리", "label_en": "Maori"},
+        {"id": "samoan", "label_ko": "사모안", "label_en": "Samoan"},
+        {"id": "filipino", "label_ko": "필리피노", "label_en": "Filipino"},
+        {"id": "borneo", "label_ko": "보르네오", "label_en": "Borneo"},
+        {"id": "celtic", "label_ko": "켈틱", "label_en": "Celtic"},
+        {"id": "sak_yant", "label_ko": "삭얀트", "label_en": "Sak Yant"},
+        {"id": "neo_tribal", "label_ko": "네오 트라이벌", "label_en": "Neo Tribal"},
+        {"id": "script", "label_ko": "스크립트", "label_en": "Script"},
+        {"id": "calligraphy", "label_ko": "캘리그래피", "label_en": "Calligraphy"},
+        {"id": "blackletter", "label_ko": "블랙레터", "label_en": "Blackletter"},
+        {"id": "typewriter", "label_ko": "타자기체", "label_en": "Typewriter"},
+        {"id": "ambigram", "label_ko": "앰비그램", "label_en": "Ambigram"},
+        {"id": "numeric", "label_ko": "숫자", "label_en": "Numeric"},
+        {"id": "abstract", "label_ko": "추상", "label_en": "Abstract"},
+        {"id": "trash_polka", "label_ko": "트래시 폴카", "label_en": "Trash Polka"},
+        {"id": "cyber_sigilism", "label_ko": "사이버 시질리즘", "label_en": "Cyber Sigilism"},
+        {"id": "glitch", "label_ko": "글리치", "label_en": "Glitch"},
+        {"id": "collage", "label_ko": "콜라주", "label_en": "Collage"}
+      ],
+      "parent_map": {
+        "western_traditional": ["american_traditional", "neo_traditional", "european_traditional"],
+        "japanese": ["traditional_irezumi", "neo_japanese"],
+        "realism": ["portrait_realism", "micro_realism", "chicano", "surrealism", "biomechanical", "bio_organic"],
+        "new_school": ["cartoon", "anime_manga", "kawaii", "graffiti"],
+        "illustrative": ["engraving_etching", "sketch", "dark_art", "ignorant", "folk", "minimal"],
+        "geometric_ornamental": ["geometric", "sacred_geometry", "ornamental", "mandala", "optical"],
+        "tribal_indigenous": ["polynesian", "maori", "samoan", "filipino", "borneo", "celtic", "sak_yant", "neo_tribal"],
+        "lettering": ["script", "calligraphy", "blackletter", "typewriter", "ambigram", "numeric", "chicano"],
+        "abstract_experimental": ["abstract", "trash_polka", "cyber_sigilism", "glitch", "collage", "surrealism"]
+      }
+    },
+    "color_family": {
+      "mode": "single",
+      "values": [
+        {"id": "achromatic", "label_ko": "무채색", "label_en": "Achromatic"},
+        {"id": "chromatic", "label_ko": "유채색", "label_en": "Chromatic"}
+      ]
+    },
+    "color": {
+      "mode": "single",
+      "values": [
+        {"id": "black_only", "label_ko": "검정 단색", "label_en": "Black Only"},
+        {"id": "black_and_gray", "label_ko": "블랙 앤 그레이", "label_en": "Black and Gray"},
+        {"id": "white_ink", "label_ko": "화이트 잉크", "label_en": "White Ink", "training_status": "deferred_search_only"},
+        {"id": "black_with_color_accent", "label_ko": "포인트 컬러", "label_en": "Black with Color Accent"},
+        {"id": "limited_color", "label_ko": "제한된 컬러", "label_en": "Limited Color"},
+        {"id": "full_color", "label_ko": "풀 컬러", "label_en": "Full Color"}
+      ],
+      "family_map": {
+        "achromatic": ["black_only", "black_and_gray", "white_ink"],
+        "chromatic": ["black_with_color_accent", "limited_color", "full_color"]
+      },
+      "training_labels": ["black_only", "black_and_gray", "black_with_color_accent", "limited_color", "full_color"]
+    },
+    "technique": {
+      "mode": "multi",
+      "values": [
+        {"id": "fine_line", "label_ko": "파인 라인", "label_en": "Fine Line"},
+        {"id": "bold_line", "label_ko": "굵은 라인", "label_en": "Bold Line"},
+        {"id": "linework", "label_ko": "라인워크", "label_en": "Linework"},
+        {"id": "blackwork", "label_ko": "블랙워크", "label_en": "Blackwork"},
+        {"id": "solid_fill", "label_ko": "솔리드 필", "label_en": "Solid Fill"},
+        {"id": "color_packing", "label_ko": "컬러 패킹", "label_en": "Color Packing"},
+        {"id": "smooth_shading", "label_ko": "부드러운 셰이딩", "label_en": "Smooth Shading"},
+        {"id": "whip_shading", "label_ko": "휩 셰이딩", "label_en": "Whip Shading"},
+        {"id": "dotwork", "label_ko": "도트워크", "label_en": "Dotwork"},
+        {"id": "cross_hatching", "label_ko": "크로스 해칭", "label_en": "Cross Hatching"},
+        {"id": "negative_space", "label_ko": "네거티브 스페이스", "label_en": "Negative Space"},
+        {"id": "watercolor_wash", "label_ko": "수채화 번짐", "label_en": "Watercolor Wash"},
+        {"id": "brushstroke", "label_ko": "붓 터치", "label_en": "Brushstroke"},
+        {"id": "sketchwork", "label_ko": "스케치워크", "label_en": "Sketchwork"},
+        {"id": "blackout", "label_ko": "블랙아웃", "label_en": "Blackout"}
+      ]
+    },
+    "subject": {
+      "mode": "multi",
+      "values": [
+        {"id": "rose", "label_ko": "장미", "label_en": "Rose"},
+        {"id": "flower", "label_ko": "꽃", "label_en": "Flower"},
+        {"id": "lotus", "label_ko": "연꽃", "label_en": "Lotus"},
+        {"id": "peony", "label_ko": "모란", "label_en": "Peony"},
+        {"id": "botanical", "label_ko": "식물", "label_en": "Botanical"},
+        {"id": "tree", "label_ko": "나무", "label_en": "Tree"},
+        {"id": "leaf", "label_ko": "잎", "label_en": "Leaf"},
+        {"id": "lion", "label_ko": "사자", "label_en": "Lion"},
+        {"id": "wolf", "label_ko": "늑대", "label_en": "Wolf"},
+        {"id": "snake", "label_ko": "뱀", "label_en": "Snake"},
+        {"id": "eagle", "label_ko": "독수리", "label_en": "Eagle"},
+        {"id": "butterfly", "label_ko": "나비", "label_en": "Butterfly"},
+        {"id": "bird", "label_ko": "새", "label_en": "Bird"},
+        {"id": "cat", "label_ko": "고양이", "label_en": "Cat"},
+        {"id": "dog", "label_ko": "개", "label_en": "Dog"},
+        {"id": "bear", "label_ko": "곰", "label_en": "Bear"},
+        {"id": "fox", "label_ko": "여우", "label_en": "Fox"},
+        {"id": "tiger", "label_ko": "호랑이", "label_en": "Tiger"},
+        {"id": "panther", "label_ko": "표범", "label_en": "Panther"},
+        {"id": "fish", "label_ko": "물고기", "label_en": "Fish"},
+        {"id": "koi", "label_ko": "잉어", "label_en": "Koi"},
+        {"id": "shark", "label_ko": "상어", "label_en": "Shark"},
+        {"id": "owl", "label_ko": "부엉이", "label_en": "Owl"},
+        {"id": "raven", "label_ko": "까마귀", "label_en": "Raven"},
+        {"id": "swallow", "label_ko": "제비", "label_en": "Swallow"},
+        {"id": "frog", "label_ko": "개구리", "label_en": "Frog"},
+        {"id": "spider", "label_ko": "거미", "label_en": "Spider"},
+        {"id": "moth", "label_ko": "나방", "label_en": "Moth"},
+        {"id": "animal", "label_ko": "동물", "label_en": "Animal"},
+        {"id": "dragon", "label_ko": "용", "label_en": "Dragon"},
+        {"id": "phoenix", "label_ko": "불사조", "label_en": "Phoenix"},
+        {"id": "skull", "label_ko": "해골", "label_en": "Skull"},
+        {"id": "portrait", "label_ko": "인물", "label_en": "Portrait"},
+        {"id": "face", "label_ko": "얼굴", "label_en": "Face"},
+        {"id": "character", "label_ko": "캐릭터", "label_en": "Character"},
+        {"id": "samurai", "label_ko": "사무라이", "label_en": "Samurai"},
+        {"id": "geisha", "label_ko": "게이샤", "label_en": "Geisha"},
+        {"id": "heart", "label_ko": "하트", "label_en": "Heart"},
+        {"id": "dagger", "label_ko": "단검", "label_en": "Dagger"},
+        {"id": "sword", "label_ko": "칼", "label_en": "Sword"},
+        {"id": "anchor", "label_ko": "닻", "label_en": "Anchor"},
+        {"id": "clock", "label_ko": "시계", "label_en": "Clock"},
+        {"id": "compass", "label_ko": "나침반", "label_en": "Compass"},
+        {"id": "moon", "label_ko": "달", "label_en": "Moon"},
+        {"id": "sun", "label_ko": "태양", "label_en": "Sun"},
+        {"id": "star", "label_ko": "별", "label_en": "Star"},
+        {"id": "eye", "label_ko": "눈", "label_en": "Eye"},
+        {"id": "cross", "label_ko": "십자가", "label_en": "Cross"},
+        {"id": "mandala", "label_ko": "만다라", "label_en": "Mandala"},
+        {"id": "lettering", "label_ko": "글자", "label_en": "Lettering"},
+        {"id": "numeric", "label_ko": "숫자", "label_en": "Numeric"},
+        {"id": "mountain", "label_ko": "산", "label_en": "Mountain"},
+        {"id": "wave", "label_ko": "파도", "label_en": "Wave"},
+        {"id": "landscape", "label_ko": "풍경", "label_en": "Landscape"},
+        {"id": "architecture", "label_ko": "건축물", "label_en": "Architecture"},
+        {"id": "abstract", "label_ko": "추상", "label_en": "Abstract"},
+        {"id": "geometric", "label_ko": "기하학", "label_en": "Geometric"},
+        {"id": "ornamental", "label_ko": "장식 문양", "label_en": "Ornamental"},
+        {"id": "tribal_pattern", "label_ko": "트라이벌 문양", "label_en": "Tribal Pattern"},
+        {"id": "food", "label_ko": "음식", "label_en": "Food"},
+        {"id": "object", "label_ko": "사물", "label_en": "Object"},
+        {"id": "symbol", "label_ko": "상징", "label_en": "Symbol"}
+      ]
+    },
+    "subject_group": {
+      "mode": "multi",
+      "values": [
+        {"id": "animal", "label_ko": "동물", "label_en": "Animal"},
+        {"id": "flower_plant", "label_ko": "꽃·식물", "label_en": "Flower and Plant"},
+        {"id": "person_portrait", "label_ko": "사람·인물", "label_en": "Person and Portrait"},
+        {"id": "object", "label_ko": "사물", "label_en": "Object"},
+        {"id": "symbol", "label_ko": "상징", "label_en": "Symbol"},
+        {"id": "lettering", "label_ko": "글자", "label_en": "Lettering"},
+        {"id": "landscape", "label_ko": "풍경", "label_en": "Landscape"},
+        {"id": "abstract", "label_ko": "추상", "label_en": "Abstract"},
+        {"id": "mythology_religion", "label_ko": "신화·종교", "label_en": "Mythology and Religion"}
+      ]
+    },
+    "visual_tag": {
+      "mode": "multi",
+      "values": [
+        {"id": "traditional", "label_ko": "전통적인", "label_en": "Traditional"},
+        {"id": "modern", "label_ko": "현대적인", "label_en": "Modern"},
+        {"id": "realistic", "label_ko": "사실적인", "label_en": "Realistic"},
+        {"id": "abstract", "label_ko": "추상적인", "label_en": "Abstract"},
+        {"id": "ornamental", "label_ko": "장식적인", "label_en": "Ornamental"},
+        {"id": "minimal", "label_ko": "미니멀", "label_en": "Minimal"},
+        {"id": "delicate", "label_ko": "섬세한", "label_en": "Delicate"},
+        {"id": "bold", "label_ko": "강렬한", "label_en": "Bold"},
+        {"id": "dark", "label_ko": "어두운", "label_en": "Dark"},
+        {"id": "cute", "label_ko": "귀여운", "label_en": "Cute"},
+        {"id": "graphic", "label_ko": "그래픽적인", "label_en": "Graphic"},
+        {"id": "high_detail", "label_ko": "디테일한", "label_en": "High Detail"},
+        {"id": "monochrome", "label_ko": "흑백", "label_en": "Monochrome"},
+        {"id": "colorful", "label_ko": "컬러풀한", "label_en": "Colorful"}
+      ]
+    },
+    "aesthetic": {
+      "mode": "multi",
+      "deprecated_alias_of": "visual_tag",
+      "values": [
+        {"id": "traditional", "label_ko": "전통적인", "label_en": "Traditional"},
+        {"id": "modern", "label_ko": "현대적인", "label_en": "Modern"},
+        {"id": "realistic", "label_ko": "사실적인", "label_en": "Realistic"},
+        {"id": "abstract", "label_ko": "추상적인", "label_en": "Abstract"},
+        {"id": "ornamental", "label_ko": "장식적인", "label_en": "Ornamental"},
+        {"id": "minimal", "label_ko": "미니멀", "label_en": "Minimal"},
+        {"id": "delicate", "label_ko": "섬세한", "label_en": "Delicate"},
+        {"id": "bold", "label_ko": "강렬한", "label_en": "Bold"},
+        {"id": "dark", "label_ko": "어두운", "label_en": "Dark"},
+        {"id": "cute", "label_ko": "귀여운", "label_en": "Cute"},
+        {"id": "graphic", "label_ko": "그래픽적인", "label_en": "Graphic"},
+        {"id": "high_detail", "label_ko": "디테일한", "label_en": "High Detail"},
+        {"id": "monochrome", "label_ko": "흑백", "label_en": "Monochrome"},
+        {"id": "colorful", "label_ko": "컬러풀한", "label_en": "Colorful"}
+      ]
+    },
+    "size": {
+      "mode": "single",
+      "values": [
+        {"id": "small", "label_ko": "작은", "label_en": "Small"},
+        {"id": "medium", "label_ko": "중간", "label_en": "Medium"},
+        {"id": "large", "label_ko": "큰", "label_en": "Large"}
+      ]
+    },
+    "placement": {
+      "mode": "multi",
+      "values": [
+        {"id": "arm", "label_ko": "팔", "label_en": "Arm"},
+        {"id": "forearm", "label_ko": "아래팔", "label_en": "Forearm"},
+        {"id": "upper_arm", "label_ko": "위팔", "label_en": "Upper Arm"},
+        {"id": "back", "label_ko": "등", "label_en": "Back"},
+        {"id": "chest", "label_ko": "가슴", "label_en": "Chest"},
+        {"id": "leg", "label_ko": "다리", "label_en": "Leg"},
+        {"id": "hand", "label_ko": "손", "label_en": "Hand"},
+        {"id": "neck", "label_ko": "목", "label_en": "Neck"},
+        {"id": "shoulder", "label_ko": "어깨", "label_en": "Shoulder"},
+        {"id": "rib", "label_ko": "옆구리", "label_en": "Rib"}
+      ]
+    },
+    "composition": {
+      "mode": "single",
+      "values": [
+        {"id": "single_object", "label_ko": "단일 도안", "label_en": "Single Object"},
+        {"id": "multiple_objects", "label_ko": "복합 도안", "label_en": "Multiple Objects"},
+        {"id": "sleeve", "label_ko": "슬리브", "label_en": "Sleeve"},
+        {"id": "patchwork", "label_ko": "패치워크", "label_en": "Patchwork"}
+      ]
+    },
+    "orientation": {
+      "mode": "single",
+      "values": [
+        {"id": "vertical", "label_ko": "세로형", "label_en": "Vertical"},
+        {"id": "horizontal", "label_ko": "가로형", "label_en": "Horizontal"},
+        {"id": "circular", "label_ko": "원형", "label_en": "Circular"}
+      ]
+    }
+  },
+  "terms": [
+    {"id": "old_school", "label_ko": "올드스쿨", "aliases": ["올드스쿨", "올드 스쿨", "old school", "american traditional"], "mode": "hard_filter", "filters": {"primary_style": ["western_traditional"], "secondary_style": ["american_traditional"]}},
+    {"id": "traditional_mood", "label_ko": "전통적인", "aliases": ["전통적인", "전통풍", "traditional look"], "mode": "soft_boost", "boosts": [{"attribute": "visual_tag", "value": "traditional", "weight": 1.0}, {"attribute": "primary_style", "value": "western_traditional", "weight": 0.8}, {"attribute": "primary_style", "value": "japanese", "weight": 0.75}]},
+    {"id": "colorful", "label_ko": "컬러풀한", "aliases": ["컬러풀한", "컬러풀", "다채로운", "colorful"], "mode": "soft_boost", "boosts": [{"attribute": "visual_tag", "value": "colorful", "weight": 1.0}, {"attribute": "color", "value": "full_color", "weight": 0.9}, {"attribute": "color", "value": "limited_color", "weight": 0.5}]},
+    {"id": "black_and_white", "label_ko": "흑백", "aliases": ["흑백", "무채색", "black and gray", "black and grey", "블랙 앤 그레이"], "mode": "hard_filter", "filters": {"color_family": ["achromatic"]}},
+    {"id": "white_ink", "label_ko": "화이트 잉크", "aliases": ["화이트 잉크", "흰색 타투", "white ink", "white tattoo"], "mode": "hard_filter", "filters": {"color": ["white_ink"]}},
+    {"id": "color_accent", "label_ko": "포인트 컬러", "aliases": ["포인트 컬러", "포인트색", "color accent"], "mode": "hard_filter", "filters": {"color": ["black_with_color_accent"]}},
+    {"id": "minimal", "label_ko": "미니멀", "aliases": ["미니멀", "미니멀한", "minimal", "minimalist"], "mode": "soft_boost", "boosts": [{"attribute": "visual_tag", "value": "minimal", "weight": 1.0}, {"attribute": "secondary_style", "value": "minimal", "weight": 0.9}, {"attribute": "technique", "value": "fine_line", "weight": 0.45}]},
+    {"id": "delicate", "label_ko": "섬세한", "aliases": ["섬세한", "여리여리한", "delicate", "dainty"], "mode": "soft_boost", "boosts": [{"attribute": "visual_tag", "value": "delicate", "weight": 1.0}, {"attribute": "technique", "value": "fine_line", "weight": 0.8}]},
+    {"id": "bold", "label_ko": "강렬한", "aliases": ["강렬한", "볼드한", "bold", "powerful"], "mode": "soft_boost", "boosts": [{"attribute": "visual_tag", "value": "bold", "weight": 1.0}, {"attribute": "technique", "value": "bold_line", "weight": 0.75}, {"attribute": "technique", "value": "solid_fill", "weight": 0.6}]},
+    {"id": "watercolor", "label_ko": "수채화", "aliases": ["수채화", "수채화풍", "watercolor", "watercolour"], "mode": "hard_filter", "filters": {"technique": ["watercolor_wash"]}},
+    {"id": "dark", "label_ko": "다크한", "aliases": ["다크한", "어두운 분위기", "고딕한", "dark", "gothic"], "mode": "soft_boost", "boosts": [{"attribute": "visual_tag", "value": "dark", "weight": 1.0}, {"attribute": "secondary_style", "value": "dark_art", "weight": 0.8}]},
+    {"id": "japanese", "label_ko": "재패니즈", "aliases": ["재패니즈", "이레즈미", "irezumi", "japanese tattoo"], "mode": "hard_filter", "filters": {"primary_style": ["japanese"]}},
+    {"id": "lettering", "label_ko": "레터링", "aliases": ["레터링", "글자 타투", "lettering", "script tattoo"], "mode": "hard_filter", "filters": {"primary_style": ["lettering"]}},
+    {"id": "realism", "label_ko": "리얼리즘", "aliases": ["리얼리즘", "사실적인", "realism", "realistic tattoo"], "mode": "hard_filter", "filters": {"primary_style": ["realism"]}},
+    {"id": "geometric", "label_ko": "지오메트릭", "aliases": ["지오메트릭", "기하학적인", "geometric"], "mode": "hard_filter", "filters": {"primary_style": ["geometric_ornamental"], "secondary_style": ["geometric"]}},
+    {"id": "ornamental", "label_ko": "오너멘탈", "aliases": ["오너멘탈", "장식 문양", "ornamental"], "mode": "hard_filter", "filters": {"primary_style": ["geometric_ornamental"], "secondary_style": ["ornamental"]}},
+    {"id": "tribal", "label_ko": "트라이벌", "aliases": ["트라이벌", "부족 문양", "tribal"], "mode": "hard_filter", "filters": {"primary_style": ["tribal_indigenous"]}},
+    {"id": "new_school", "label_ko": "뉴스쿨", "aliases": ["뉴스쿨", "뉴 스쿨", "new school"], "mode": "hard_filter", "filters": {"primary_style": ["new_school"]}},
+    {"id": "subject_rose", "label_ko": "장미", "aliases": ["장미", "rose", "roses"], "mode": "hard_filter", "filters": {"subject": ["rose"]}},
+    {"id": "subject_lion", "label_ko": "사자", "aliases": ["사자", "lion", "lions"], "mode": "hard_filter", "filters": {"subject": ["lion"]}},
+    {"id": "subject_snake", "label_ko": "뱀", "aliases": ["뱀", "snake", "serpent"], "mode": "hard_filter", "filters": {"subject": ["snake"]}},
+    {"id": "subject_dragon", "label_ko": "용", "aliases": ["용", "dragon", "dragons"], "mode": "hard_filter", "filters": {"subject": ["dragon"]}},
+    {"id": "subject_eagle", "label_ko": "독수리", "aliases": ["독수리", "eagle", "eagles"], "mode": "hard_filter", "filters": {"subject": ["eagle"]}},
+    {"id": "subject_butterfly", "label_ko": "나비", "aliases": ["나비", "butterfly", "butterflies"], "mode": "hard_filter", "filters": {"subject": ["butterfly"]}},
+    {"id": "subject_skull", "label_ko": "해골", "aliases": ["해골", "skull", "skulls"], "mode": "hard_filter", "filters": {"subject": ["skull"]}},
+    {"id": "subject_flower", "label_ko": "꽃", "aliases": ["꽃 타투", "flower tattoo", "floral tattoo"], "mode": "hard_filter", "filters": {"subject_group": ["flower_plant"]}}
+  ],
+  "stopwords": ["타투", "문신", "도안", "사진", "이미지", "스타일", "느낌", "느낌의", "분위기", "분위기의", "위주의", "할", "하고 싶은", "보여줘", "찾아줘"]
+}

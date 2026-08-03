@@ -6,12 +6,17 @@ RUN groupadd -r app && useradd -r -g app app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY api_server/requirements.txt ./api_server-requirements.txt
+RUN pip install --no-cache-dir -r api_server-requirements.txt
+
 COPY coverup coverup
+COPY api_server api_server
 
 # 특징 파일이 사는 곳. compose 가 볼륨을 여기 마운트한다.
 # non-root 로 실행하면서 색인 쓰기를 해야 하므로 소유권을 미리 넘긴다.
 ENV COVERUP_STORE=/data/coverup_store
-RUN mkdir -p /data/coverup_store && chown -R app:app /data
+RUN mkdir -p /data/coverup_store /app/api_server/runtime \
+    && chown -R app:app /data /app
 USER app
 
 EXPOSE 8000

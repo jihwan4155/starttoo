@@ -17,7 +17,7 @@ public class NoOpPushNotificationSender implements PushNotificationSender {
 
     @Override
     public List<String> send(
-            List<String> fids,
+            List<String> pushTokens,
             NotificationDtos.NotificationResponse notification
     ) {
         return List.of();

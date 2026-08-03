@@ -135,9 +135,7 @@ FIREBASE_CREDENTIALS_PATH=/run/secrets/firebase-service-account.json
 FIREBASE_PROJECT_ID=starttoo-production
 ```
 
-기기 등록은 `POST /v1/devices`에서 Firebase Installations SDK가 발급한 FID와 현재
-리프레시 토큰을 연결한다. 프론트엔드는 FCM registration token이 아니라 FID를 전달하며,
-백엔드는 Firebase Admin SDK의 `setFid`로 해당 installation에 푸시를 전송한다.
+기기 등록은 `POST /v1/devices`에서 FCM 토큰과 현재 리프레시 토큰을 연결한다.
 로그아웃하면 해당 리프레시 토큰과 연결된 기기의 푸시가 같은 트랜잭션에서
 비활성화된다. 클라이언트도 로그아웃 시 WebSocket 연결과 로컬 인증 정보를 정리한다.
 

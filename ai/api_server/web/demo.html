@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="INKLIFT V11.7 타투 도안 추출 API 테스트"
+    />
+    <title>INKLIFT · Tattoo Extractor</title>
+    <link rel="stylesheet" href="/demo-assets/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="/demo" aria-label="INKLIFT 홈">
+          <span class="brand-mark">I</span>
+          <span>
+            <strong>INKLIFT</strong>
+            <small>V11.7 NO-FLAT</small>
+          </span>
+        </a>
+        <div id="model-status" class="status status-loading" role="status">
+          <span class="status-dot"></span>
+          <span id="status-text">모델 상태 확인 중</span>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">TATTOO DESIGN EXTRACTION</p>
+          <h1>사진 속 타투를<br />투명한 도안으로.</h1>
+        </div>
+        <p class="hero-copy">
+          타투 사진을 올리면 V11.7 모델이 피부와 배경을 분리하고,
+          원본 색감과 명암을 살린 PNG 도안을 생성합니다.
+        </p>
+      </section>
+
+      <section class="workspace" aria-label="타투 도안 추출">
+        <div class="controls">
+          <div
+            id="drop-zone"
+            class="drop-zone"
+            tabindex="0"
+            role="button"
+            aria-label="타투 사진 선택"
+          >
+            <input
+              id="file-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+            />
+            <div class="upload-icon" aria-hidden="true">＋</div>
+            <strong>타투 사진을 놓아주세요</strong>
+            <span>클릭해서 선택하거나 드래그 앤 드롭</span>
+            <small>JPG · PNG · WEBP / 최대 20MB</small>
+          </div>
+
+          <div id="selected-file" class="selected-file" hidden>
+            <div>
+              <span class="file-label">선택한 사진</span>
+              <strong id="file-name"></strong>
+            </div>
+            <button id="remove-file" class="text-button" type="button">
+              변경
+            </button>
+          </div>
+
+          <fieldset class="output-field">
+            <legend>결과 형식</legend>
+            <div class="segments">
+              <label>
+                <input
+                  type="radio"
+                  name="output"
+                  value="transparent"
+                  checked
+                />
+                <span>투명 PNG</span>
+              </label>
+              <label>
+                <input type="radio" name="output" value="white" />
+                <span>흰 배경</span>
+              </label>
+              <label>
+                <input type="radio" name="output" value="mask" />
+                <span>마스크</span>
+              </label>
+              <label>
+                <input type="radio" name="output" value="alpha" />
+                <span>알파</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <button id="extract-button" class="primary-button" type="button" disabled>
+            <span id="button-label">도안 추출하기</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+
+          <p id="error-message" class="error-message" role="alert" hidden></p>
+        </div>
+
+        <div class="preview-panel">
+          <div id="empty-preview" class="empty-preview">
+            <span>PREVIEW</span>
+            <p>사진을 선택하면<br />이곳에서 결과를 비교할 수 있습니다.</p>
+          </div>
+
+          <div id="comparison" class="comparison" hidden>
+            <article class="preview-card">
+              <div class="preview-heading">
+                <span>01</span>
+                <strong>원본 사진</strong>
+              </div>
+              <div class="image-stage">
+                <img id="original-preview" alt="업로드한 원본 사진" />
+              </div>
+            </article>
+
+            <article class="preview-card">
+              <div class="preview-heading">
+                <span>02</span>
+                <strong>추출 결과</strong>
+              </div>
+              <div class="image-stage checkerboard">
+                <div id="result-placeholder" class="result-placeholder">
+                  추출 버튼을 눌러주세요
+                </div>
+                <div id="processing" class="processing" hidden>
+                  <span class="spinner"></span>
+                  <strong>V11.7 모델이 추출 중입니다</strong>
+                  <small>GPU에서 이미지 영역을 분석하고 있어요.</small>
+                </div>
+                <img id="result-preview" alt="배경이 제거된 타투 도안" hidden />
+              </div>
+            </article>
+          </div>
+
+          <div id="result-actions" class="result-actions" hidden>
+            <dl class="metrics">
+              <div>
+                <dt>처리 시간</dt>
+                <dd id="processing-time">-</dd>
+              </div>
+              <div>
+                <dt>이미지 크기</dt>
+                <dd id="image-size">-</dd>
+              </div>
+              <div>
+                <dt>추출 영역</dt>
+                <dd id="predicted-ratio">-</dd>
+              </div>
+            </dl>
+            <a id="download-button" class="download-button" download>
+              PNG 다운로드
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="log-panel" aria-label="AI 서버 로그">
+        <div class="log-heading">
+          <div>
+            <p class="eyebrow">LIVE SERVER EVENTS</p>
+            <h2>AI 서버 로그</h2>
+          </div>
+          <div class="live-indicator">
+            <span></span>
+            자동 업데이트
+          </div>
+        </div>
+        <div id="log-empty" class="log-empty">
+          아직 기록된 요청이 없습니다.
+        </div>
+        <ol id="log-list" class="log-list" aria-live="polite"></ol>
+      </section>
+
+      <footer>
+        <span>Local inference · Images are not uploaded externally</span>
+        <a href="/docs">API 문서 보기</a>
+      </footer>
+    </main>
+
+    <script src="/demo-assets/demo.js" defer></script>
+  </body>
+</html>

@@ -175,7 +175,7 @@ DB 커밋 후 증분 갱신하며, 매일 PostgreSQL과 대조한다.
 | GET | `/notifications/unread-counts` | 집계 전 원본 행 기준 전체·유형별 미확인 수 |
 | PATCH | `/notifications/{notificationSeq}/read` | SYSTEM 단건 또는 같은 방 NEW_DM 전체 읽음 |
 | PATCH | `/notifications/read-all` | 전체 읽음 |
-| POST | `/devices` | Firebase Installation ID와 현재 리프레시 토큰 연결 |
+| POST | `/devices` | 푸시 토큰과 현재 리프레시 토큰 연결 |
 | DELETE | `/devices/{deviceSeq}` | 기기와 연결 세션 비활성 |
 
 알림 타입은 `NEW_DM`, `SYSTEM`만 허용한다. DM 전송 시 방 알림을 켜둔 수신자에게
@@ -187,8 +187,8 @@ DM방의 읽지 않음 메시지 수에는 포함되지만 알림 행과 푸시�
 기기 등록 요청은 현재 세션의 리프레시 토큰을 받아 `deviceSeq`와 연결하며, 기기
 비활성화 시 그 기기에 연결된 리프레시 토큰만 폐기한다. `/auth/logout`은 요청한
 리프레시 토큰을 폐기하면서 해당 토큰의 기기만 `is_active=false`로 변경한다.
-현재 리프레시 토큰에 다른 기기가 연결되어 있으면 이전 기기를 비활성화하고 새 FID
-기기에 연결한다. FCM이 `UNREGISTERED`로 반환한 FID도 후속 전송 대상에서 제외한다.
+FCM 토큰이 회전하면 이전 기기 연결을 비활성화하고 현재 리프레시 토큰을 새 기기에
+연결한다. FCM이 `UNREGISTERED`로 반환한 토큰도 후속 전송 대상에서 제외한다.
 
 ### DM 실시간 연결
 

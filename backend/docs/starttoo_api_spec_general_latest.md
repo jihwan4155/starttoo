@@ -1578,22 +1578,22 @@ PATCH /v1/users/me/recent-searches
 - Redis 장애 시 조회는 DB 폴백, 수정은 503
 - 전체 삭제 operation은 제공하지 않음
 
-## 12.11 Firebase Installation ID
+## 12.11 푸시토큰
 
 등록·재활성화:
 
 ```json
 {
-  "fid": "c1234567890abcdefghijk",
+  "pushToken": "fcm-token",
   "platform": "ANDROID",
   "refreshToken": "example"
 }
 ```
 
-- FID 전역 upsert
+- push token 전역 upsert
 - 현재 회원·플랫폼으로 연결하고 활성화
 - 현재 Refresh Token과 기기 연결
-- 같은 세션에 연결된 이전 기기 비활성화
+- 토큰 회전 시 이전 기기 연결 비활성화
 
 비활성화:
 
@@ -4062,15 +4062,15 @@ Subject 자동완성:
 
 **API 개요:** 푸시 수신 기기를 현재 로그인 세션과 연결한다. Bearer 인증이 필요하다.
 
-**Request:** JSON body. `fid` 필수·최대 128자, `platform`은 `WEB|ANDROID|IOS`,
+**Request:** JSON body. `pushToken` 필수·최대 512자, `platform`은 `WEB|ANDROID|IOS`,
 `refreshToken` 필수·최대 512자다.
 ```json
-{"fid":"c1234567890abcdefghijk","platform":"ANDROID","refreshToken": "example"}
+{"pushToken":"fcm-token","platform":"ANDROID","refreshToken": "example"}
 ```
 
 **Response:** `deviceSeq`, `platform`, `active`, `lastUsedDttm`을 반환한다.
 
-**설명:** Firebase Installations SDK가 발급한 FID를 전역 고유키로 upsert하고 현재 회원의 리프레시 토큰과 연결한다. FCM registration token은 받지 않는다. 현재 세션에 다른 기기가 연결되어 있으면 이전 기기를 비활성화한다.
+**설명:** pushToken을 전역 고유키로 upsert하고 현재 회원의 리프레시 토큰과 연결한다. 토큰 회전 시 이전 기기를 비활성화한다.
 
 **성공 예시**
 ```json
