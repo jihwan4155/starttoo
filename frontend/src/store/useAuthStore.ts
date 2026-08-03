@@ -1,9 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { setAccessToken, setUnauthorizedHandler } from "../services/api";
+import {
+	setAccessToken,
+	setRefreshHandler,
+	setUnauthorizedHandler,
+} from "../services/api";
 import useCommunityStore from "./useCommunityStore";
 import useUserStore from "./useUserStore";
-import { logout as logoutRequest } from "../services/authApi";
+import {
+	logout as logoutRequest,
+	refreshToken as refreshTokenRequest,
+} from "../services/authApi";
 import type { UserSummary } from "../types/auth";
 
 type SessionUser = UserSummary | null;
@@ -83,6 +90,24 @@ const useAuthStore = create<AuthState>()(
 
 setUnauthorizedHandler(() => {
 	useAuthStore.getState().clearSession();
+});
+
+// 401 시 axios 인터셉터가 호출 — refreshToken으로 토큰 쌍을 재발급한다.
+// 실패(리프레시 만료·무효) 시 null을 돌려주고, 세션 정리는 인터셉터 쪽
+// unauthorized 흐름에 맡긴다.
+setRefreshHandler(async () => {
+	const { refreshToken } = useAuthStore.getState();
+	if (!refreshToken) return null;
+	try {
+		const tokens = await refreshTokenRequest({ refreshToken });
+		useAuthStore.getState().setSession({
+			accessToken: tokens.accessToken,
+			refreshToken: tokens.refreshToken,
+		});
+		return tokens.accessToken;
+	} catch {
+		return null;
+	}
 });
 
 export default useAuthStore;
