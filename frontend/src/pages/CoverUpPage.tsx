@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ActionButton from "../components/common/ActionButton";
 import ConfirmModal from "../components/common/ConfirmModal";
 import ImageViewerModal from "../components/common/ImageViewerModal";
@@ -15,20 +15,21 @@ import {
 	MODE_KEYS,
 	MODES,
 } from "../components/coverup/shapeSearchConstants";
+import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import { useBodyScan } from "../components/simulation/useBodyScan";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import useShapeSearchMutation from "../hooks/mutations/useShapeSearch";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { saveToArchive } from "../services/archiveApi";
-import useSimulationHandoff from "../store/useSimulationHandoff";
 import type { SearchMode } from "../types/shapeSearch";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 const STEP_DESCRIPTION: Record<Step, string> = {
 	1: "커버업하고 싶은 흉터나 타투가 있는 부위의 사진을 올려주세요",
 	2: "가릴 부위를 따라 그려주세요",
 	3: "그린 형태를 닮은 도안이에요. 저장하거나 내 몸에 시뮬레이션해보세요",
+	4: "타투를 배치하고 완성된 결과를 확인하세요",
 };
 
 function ChevronLeftIcon() {
@@ -61,12 +62,10 @@ function ChevronRightIcon() {
 
 export default function CoverUpPage() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { requireAuth } = useRequireAuth();
 
-	const [step, setStep] = useState<Step>(1);
-	// 시뮬레이션으로 넘길 때 blob URL은 이 페이지가 언마운트되며 해제되므로 원본 File을 들고 있는다
-	const [bodyFile, setBodyFile] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [mode, setMode] = useState<SearchMode>(DEFAULT_MODE);
@@ -80,13 +79,43 @@ export default function CoverUpPage() {
 	const canvas = useCanvasStrokes(mode);
 	const searchMutation = useShapeSearchMutation();
 	const saveMutation = useMutation({ mutationFn: saveToArchive });
-	const startHandoff = useSimulationHandoff((s) => s.start);
+
+	const results = searchMutation.data ?? [];
+
+	/*
+	 * 단계를 router history에 싣는다.
+	 *
+	 * state로만 들고 있으면 히스토리 항목이 쌓이지 않아 브라우저 뒤로가기가 이 페이지를
+	 * 통째로 떠나 버린다(직전에 보던 화면으로 튄다). 단계마다 항목을 남겨 두면
+	 * 뒤로가기가 이전 커버업 단계로 돌아간다.
+	 *
+	 * 재료(사진·검색 결과)는 메모리에만 있는데 history.state는 새로고침 후에도 남으므로,
+	 * 실제로 도달 가능한 단계까지만 인정해 STEP 4로 복원되며 빈 화면이 뜨는 것을 막는다.
+	 */
+	const historyStep = (location.state as { coverupStep?: number } | null)
+		?.coverupStep;
+	const maxStep: Step = !previewUrl ? 1 : results.length === 0 ? 2 : 4;
+	const step = Math.min(Math.max(historyStep ?? 1, 1), maxStep) as Step;
+
+	const goToStep = (next: Step) => {
+		navigate(location.pathname, { state: { coverupStep: next } });
+	};
+
+	// 잘려 나간 단계는 히스토리에서도 지운다. 그대로 두면 사진을 다시 올리는 순간
+	// 남아 있던 값(예: 4)이 되살아나 "다음"을 누르지 않았는데 다음 단계로 튄다.
+	useEffect(() => {
+		if (historyStep != null && historyStep > step) {
+			navigate(location.pathname, {
+				state: { coverupStep: step },
+				replace: true,
+			});
+		}
+	}, [historyStep, step, navigate, location.pathname]);
 
 	// 사진을 고르고 그리기 단계로 넘어가는 동안 인물 분할·3D 굴곡 모델을 미리 돌려 둔다.
 	// 도안을 고를 때쯤 끝나 있어서 "시뮬레이션 해보기"가 곧바로 결과로 이어진다.
 	const bodyScan = useBodyScan(previewUrl, step >= 2);
 
-	const results = searchMutation.data ?? [];
 	const selectedResult = results[selectedIndex] ?? null;
 	const errorInfo = searchMutation.isError
 		? describeSearchError(searchMutation.error)
@@ -112,7 +141,6 @@ export default function CoverUpPage() {
 		}
 		const nextUrl = URL.createObjectURL(nextFile);
 		setFileError(null);
-		setBodyFile(nextFile);
 		setPreviewUrl(nextUrl);
 		canvas.loadPhoto(nextUrl);
 		canvas.clear();
@@ -144,43 +172,22 @@ export default function CoverUpPage() {
 				onSuccess: (nextResults) => {
 					setSelectedIndex(0);
 					// 결과가 없으면 그림을 바로 고칠 수 있게 STEP 2에 머문다
-					if (nextResults.length > 0) setStep(3);
+					if (nextResults.length > 0) goToStep(3);
 				},
 			},
 		);
 	};
 
-	// 기능명세 4-4: 현재 결과를 초기화하고 처음부터 다시 진행
-	const handleReset = () => {
-		setStep(1);
-		setBodyFile(null);
-		setPreviewUrl(null);
-		setFileError(null);
-		setMode(DEFAULT_MODE);
-		canvas.loadPhoto(null);
-		canvas.clear();
-		searchMutation.reset();
-		saveMutation.reset();
-		setStale(false);
-		setShowEmptyStrokeHint(false);
-		setSelectedIndex(0);
-	};
-
 	/**
-	 * 고른 도안을 들고 시뮬레이션 페이지로 넘어간다.
+	 * 고른 도안을 이 페이지 안에서 바로 시뮬레이션한다.
 	 *
-	 * <p>미리 끝난 스캔이 있으면 함께 넘겨 곧바로 3D 단계로 들어가게 한다. 아직
-	 * 진행 중이면 넘기지 않는다 — 이 페이지가 언마운트되면 그 스캔은 더 갱신되지
-	 * 않아 로딩 화면에서 멈추기 때문이다. (모델은 이미 로드돼 있어 다시 돌려도 빠르다)
+	 * <p>시뮬레이션 페이지로 넘기지 않는 이유는 도안을 다시 고르려면 되돌아와
+	 * 사진 업로드부터 다시 해야 하기 때문이다. STEP 4로만 이동하면 "이전"으로
+	 * 결과 목록에 돌아가 다른 도안을 바로 시뮬레이션할 수 있다.
 	 */
 	const goToSimulation = () => {
-		if (!bodyFile || !selectedResult) return;
-		startHandoff({
-			bodyPhoto: bodyFile,
-			designUrl: selectedResult.imageUrl,
-			scan: bodyScan.status === "ready" ? bodyScan : null,
-		});
-		navigate("/simulations");
+		if (!previewUrl || !selectedResult) return;
+		goToStep(4);
 	};
 
 	const handleSave = () => {
@@ -193,12 +200,13 @@ export default function CoverUpPage() {
 	};
 
 	const canAdvance = step === 1 ? Boolean(previewUrl) : true;
-	const handleBack = () => setStep((current) => (current === 3 ? 2 : 1));
+	// 화면의 "이전"과 브라우저 뒤로가기가 같은 동작이 되도록 히스토리를 되감는다
+	const handleBack = () => navigate(-1);
 
 	// 오른쪽 화살표 자리의 동작이 단계마다 다르다: STEP1 다음 / STEP2 검색
 	const handleForward = () => {
 		if (step === 1) {
-			if (canAdvance) setStep(2);
+			if (canAdvance) goToStep(2);
 			return;
 		}
 		if (step === 2) runSearch();
@@ -211,13 +219,18 @@ export default function CoverUpPage() {
 	return (
 		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pb-6 pt-6">
-				{/* 기능명세 4-1: 서비스 소개 섹션 */}
-				<p className="shrink-0 text-center text-[13px] font-light text-black/60">
-					흉터도, 오래된 타투도 새롭게
-				</p>
-				<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
-					커버업 타투 도안 추천
-				</h1>
+				{/* 기능명세 4-1: 서비스 소개 섹션.
+				    시뮬레이션 단계에서는 캔버스에 높이를 넘겨주려고 접는다 */}
+				{step !== 4 && (
+					<>
+						<p className="shrink-0 text-center text-[13px] font-light text-black/60">
+							흉터도, 오래된 타투도 새롭게
+						</p>
+						<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
+							커버업 타투 도안 추천
+						</h1>
+					</>
+				)}
 
 				<StepHeader description={STEP_DESCRIPTION[step]} />
 
@@ -280,6 +293,13 @@ export default function CoverUpPage() {
 								isRefreshing={searchMutation.isPending}
 							/>
 						)}
+						{/* 시뮬레이션도 이 페이지 안에서 끝낸다 — "이전"으로 도안을 다시 고를 수 있게 */}
+						{step === 4 && (
+							<Simulation3DStep
+								designUrl={selectedResult?.imageUrl ?? null}
+								scan={bodyScan}
+							/>
+						)}
 					</div>
 
 					<button
@@ -291,7 +311,7 @@ export default function CoverUpPage() {
 							forwardEnabled
 								? "text-brand hover:brightness-90"
 								: "cursor-not-allowed text-black/20"
-						} ${step === 3 ? "invisible" : ""}`}>
+						} ${step >= 3 ? "invisible" : ""}`}>
 						<span className="hidden sm:inline">
 							{searchMutation.isPending && step === 2
 								? "찾는 중…"
@@ -390,7 +410,7 @@ export default function CoverUpPage() {
 								</ActionButton>
 								<ActionButton
 									onClick={goToSimulation}
-									disabled={!bodyFile || !selectedResult}>
+									disabled={!previewUrl || !selectedResult}>
 									시뮬레이션 해보기
 								</ActionButton>
 							</div>
@@ -400,18 +420,8 @@ export default function CoverUpPage() {
 										{saveMutation.error.message}
 									</span>
 								) : (
-									<>
-										{/* 스캔이 아직이면 시뮬레이션 진입 후 잠깐 기다린다는 것을 미리 알린다 */}
-										{bodyScan.status === "loading" && (
-											<span className="mr-2">신체 분석 중…</span>
-										)}
-										<button
-											type="button"
-											onClick={handleReset}
-											className="underline underline-offset-4 transition hover:text-black">
-											처음부터 다시 하기
-										</button>
-									</>
+									/* 스캔이 아직이면 시뮬레이션 진입 후 잠깐 기다린다는 것을 미리 알린다 */
+									bodyScan.status === "loading" && <span>신체 분석 중…</span>
 								)}
 							</p>
 						</>
@@ -436,8 +446,11 @@ export default function CoverUpPage() {
 				confirmText="시뮬레이션 보기"
 				// TODO: 보관함(마이페이지) 라우트 생기면 경로 교체
 				onCancel={() => navigate("/")}
-				// 저장 후 바로 넘어가는 경로도 같은 인계를 태운다
-				onConfirm={goToSimulation}
+				// 저장 후 바로 넘어가는 경로도 같은 STEP 4로 들어간다
+				onConfirm={() => {
+					setSavedOpen(false);
+					goToSimulation();
+				}}
 			/>
 		</div>
 	);
