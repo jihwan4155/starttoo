@@ -23,6 +23,22 @@ export const OAUTH_STATE_STORAGE_KEY = "starttoo-oauth-state";
 export const POST_LOGIN_REDIRECT_STORAGE_KEY = "starttoo-post-login-redirect";
 
 /**
+ * 사용자가 직접 로그아웃했다는 표시 — 다음 로그인까지 남는다.
+ *
+ * 우리 로그아웃은 서비스 토큰만 폐기하고 브라우저에 남은 카카오·구글 계정 세션에는
+ * 손대지 않는다. 그래서 로그아웃 직후 다시 로그인 버튼을 누르면 같은 계정으로 조용히
+ * 통과된다. 이 표시가 있으면 인가 요청에 프롬프트를 붙인다.
+ *
+ * · 카카오 — `prompt=login`. 계정 세션이 남아 있어도 아이디·비밀번호를 다시 받는다.
+ * · 구글  — `prompt=select_account`. 구글은 `login`에 해당하는 값이 없어 비밀번호
+ *           재입력은 강제할 수 없고, 계정 선택 화면까지만 보장된다.
+ *
+ * 탭을 닫았다 열어도 유지돼야 하므로(공용 PC에서 다음 사람이 이전 계정으로 자동
+ * 로그인되는 것을 막는다) sessionStorage가 아니라 localStorage에 둔다.
+ */
+export const REAUTH_REQUIRED_STORAGE_KEY = "starttoo-reauth-required";
+
+/**
  * 번호 확인용 고정 코드.
  *
  * SMS 발송 비용 때문에 실제 인증은 하지 않기로 했다. 서버로 보내지 않고

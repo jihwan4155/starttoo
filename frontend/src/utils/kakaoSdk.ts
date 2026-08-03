@@ -15,6 +15,12 @@ type KakaoAuthorizeParams = {
 	/** 콜백에서 되돌려받을 임의 문자열 — CSRF 방지용 */
 	state?: string;
 	scope?: string;
+	/**
+	 * 인가 화면에 상호작용을 추가로 요구한다.
+	 * `login`은 브라우저에 카카오계정 세션이 남아 있어도 로그인 화면을 다시 띄워
+	 * 사용자 인증을 처음부터 받는다.
+	 */
+	prompt?: "login" | "none" | "create" | "select_account";
 };
 
 type KakaoSdk = {

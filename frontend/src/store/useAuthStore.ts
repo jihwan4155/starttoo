@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { REAUTH_REQUIRED_STORAGE_KEY } from "../constants/auth";
 import {
 	setAccessToken,
 	setRefreshHandler,
@@ -49,6 +50,10 @@ const useAuthStore = create<AuthState>()(
 
 			setSession: ({ accessToken, refreshToken, user }) => {
 				const prevUserId = get().user?.userId;
+				// 재인증 표시는 여기서 소진한다. 인가 요청 시점에 지우면, 사용자가
+				// 카카오 로그인 화면에서 취소하고 돌아왔을 때 표시가 이미 없어져
+				// 다음 시도가 다시 자동 통과된다.
+				localStorage.removeItem(REAUTH_REQUIRED_STORAGE_KEY);
 				setAccessToken(accessToken);
 				const nextUser = user ?? get().user;
 				set({
@@ -86,6 +91,10 @@ const useAuthStore = create<AuthState>()(
 						await logoutRequest({ refreshToken });
 					}
 				} finally {
+					// 카카오·구글 모두 우리 로그아웃으로는 브라우저에 남은 계정 세션이
+					// 끊기지 않는다. 다음 로그인에서 계정 인증을 다시 받도록 표시를
+					// 남긴다 (LoginPage가 읽어 prompt=login을 붙인다).
+					localStorage.setItem(REAUTH_REQUIRED_STORAGE_KEY, "1");
 					get().clearSession();
 				}
 			},

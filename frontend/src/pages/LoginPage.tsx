@@ -2,6 +2,7 @@ import { useState } from "react";
 import googleLoginBtn from "../assets/images/auth/google-login-btn.png";
 import {
 	OAUTH_STATE_STORAGE_KEY,
+	REAUTH_REQUIRED_STORAGE_KEY,
 	kakaoRedirectUri,
 } from "../constants/auth";
 import { buildGoogleAuthorizeUrl } from "../utils/googleOauth";
@@ -17,6 +18,18 @@ function KakaoIcon() {
 			/>
 		</svg>
 	);
+}
+
+/**
+ * 직접 로그아웃한 뒤인지 — 인가 요청에 재인증 프롬프트를 붙일지 결정한다.
+ *
+ * 카카오·구글 모두 우리 로그아웃으로는 브라우저에 남은 계정 세션이 끊기지 않아,
+ * 프롬프트 없이 요청하면 같은 계정으로 조용히 통과된다. 표시를 지우는 것은 로그인이
+ * 실제로 성공한 시점(useAuthStore.setSession)이다 — 인가 화면에서 취소하고 돌아온
+ * 경우에는 다음 시도에도 프롬프트가 남아 있어야 한다.
+ */
+function needsReauth(): boolean {
+	return localStorage.getItem(REAUTH_REQUIRED_STORAGE_KEY) !== null;
 }
 
 /** 인가 화면으로 이동 중인 제공자 — 버튼별 라벨을 구분하기 위해 boolean이 아니다 */
@@ -36,9 +49,16 @@ export default function LoginPage() {
 			// 콜백에서 대조할 임의 state — 인가 요청과 응답이 같은 세션인지 확인한다.
 			const state = crypto.randomUUID();
 			sessionStorage.setItem(OAUTH_STATE_STORAGE_KEY, state);
+			// 로그아웃 뒤라면 prompt=login — 브라우저에 카카오계정 세션이 남아 있어도
+			// 로그인 화면을 다시 띄워 아이디·비밀번호를 새로 받는다.
+			const reauth = needsReauth();
 			// authorize()는 카카오 동의 화면으로 이동시키고, 끝나면 redirectUri로
 			// ?code=... 를 붙여 돌아온다. 브라우저에 액세스 토큰은 오지 않는다.
-			kakao.Auth.authorize({ redirectUri: kakaoRedirectUri(), state });
+			kakao.Auth.authorize({
+				redirectUri: kakaoRedirectUri(),
+				state,
+				...(reauth ? { prompt: "login" as const } : {}),
+			});
 		} catch (cause) {
 			setError(
 				cause instanceof Error
@@ -56,8 +76,17 @@ export default function LoginPage() {
 			// 콜백에서 대조할 임의 state — 인가 요청과 응답이 같은 세션인지 확인한다.
 			const state = crypto.randomUUID();
 			sessionStorage.setItem(OAUTH_STATE_STORAGE_KEY, state);
+			// 로그아웃 뒤라면 prompt=select_account — 구글은 카카오의 login에 해당하는
+			// 값이 없어(none·consent·select_account만) 비밀번호 재입력까지는 강제할 수
+			// 없다. 대신 계정 선택 화면을 반드시 거치게 해서 같은 계정으로 조용히 다시
+			// 로그인되는 것을 막는다.
 			// 구글 동의 화면으로 이동. 끝나면 redirectUri로 ?code=... 를 붙여 돌아온다.
-			window.location.assign(buildGoogleAuthorizeUrl(state));
+			window.location.assign(
+				buildGoogleAuthorizeUrl(
+					state,
+					needsReauth() ? "select_account" : undefined,
+				),
+			);
 		} catch (cause) {
 			setError(
 				cause instanceof Error
