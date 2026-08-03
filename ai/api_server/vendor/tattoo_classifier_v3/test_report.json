@@ -1,0 +1,661 @@
+{
+  "schema_version": "tattoo_0729_specialist_system_test_v3",
+  "protocol": "Evaluation on the unchanged 0729 fixed test split. Checkpoints and thresholds were selected only from the validation split.",
+  "rows": 394,
+  "primary": {
+    "accuracy": 0.8223350253807107,
+    "macro_f1": 0.8275986373643671,
+    "weighted_f1": 0.8219241461289083,
+    "per_class": {
+      "western_traditional": {
+        "precision": 0.8235294117647058,
+        "recall": 0.8235294117647058,
+        "f1": 0.8235294117647058,
+        "support": 34
+      },
+      "japanese": {
+        "precision": 0.96,
+        "recall": 0.8275862068965517,
+        "f1": 0.8888888888888888,
+        "support": 29
+      },
+      "realism": {
+        "precision": 0.78,
+        "recall": 0.9512195121951219,
+        "f1": 0.8571428571428571,
+        "support": 41
+      },
+      "new_school": {
+        "precision": 0.7407407407407407,
+        "recall": 0.8,
+        "f1": 0.7692307692307693,
+        "support": 25
+      },
+      "minimal": {
+        "precision": 0.78,
+        "recall": 0.8666666666666667,
+        "f1": 0.8210526315789474,
+        "support": 45
+      },
+      "abstract_experimental": {
+        "precision": 0.72,
+        "recall": 0.6666666666666666,
+        "f1": 0.6923076923076923,
+        "support": 27
+      },
+      "geometric": {
+        "precision": 0.8666666666666667,
+        "recall": 0.7878787878787878,
+        "f1": 0.8253968253968254,
+        "support": 33
+      },
+      "ornamental": {
+        "precision": 0.9473684210526315,
+        "recall": 0.782608695652174,
+        "f1": 0.8571428571428571,
+        "support": 23
+      },
+      "tribal_indigenous": {
+        "precision": 0.8888888888888888,
+        "recall": 0.9411764705882353,
+        "f1": 0.9142857142857143,
+        "support": 34
+      },
+      "lettering": {
+        "precision": 0.9722222222222222,
+        "recall": 0.9210526315789473,
+        "f1": 0.9459459459459459,
+        "support": 38
+      },
+      "graphic_illustrative": {
+        "precision": 0.7258064516129032,
+        "recall": 0.6923076923076923,
+        "f1": 0.7086614173228346,
+        "support": 65
+      }
+    },
+    "top_2_accuracy": 0.9213197969543148,
+    "top_3_accuracy": 0.9517766497461929
+  },
+  "secondary_parent_internal": {
+    "accuracy": 0.8147208121827412,
+    "macro_f1": 0.8192922282097519,
+    "weighted_f1": 0.8152469310827333,
+    "per_class": {
+      "western_traditional": {
+        "precision": 0.6976744186046512,
+        "recall": 0.8823529411764706,
+        "f1": 0.7792207792207793,
+        "support": 34
+      },
+      "japanese": {
+        "precision": 0.9523809523809523,
+        "recall": 0.6896551724137931,
+        "f1": 0.8,
+        "support": 29
+      },
+      "realism": {
+        "precision": 0.8,
+        "recall": 0.8780487804878049,
+        "f1": 0.8372093023255814,
+        "support": 41
+      },
+      "new_school": {
+        "precision": 0.8,
+        "recall": 0.8,
+        "f1": 0.8,
+        "support": 25
+      },
+      "minimal": {
+        "precision": 0.8409090909090909,
+        "recall": 0.8222222222222222,
+        "f1": 0.8314606741573034,
+        "support": 45
+      },
+      "abstract_experimental": {
+        "precision": 0.8260869565217391,
+        "recall": 0.7037037037037037,
+        "f1": 0.76,
+        "support": 27
+      },
+      "geometric": {
+        "precision": 0.8709677419354839,
+        "recall": 0.8181818181818182,
+        "f1": 0.84375,
+        "support": 33
+      },
+      "ornamental": {
+        "precision": 0.8181818181818182,
+        "recall": 0.782608695652174,
+        "f1": 0.8,
+        "support": 23
+      },
+      "tribal_indigenous": {
+        "precision": 0.9375,
+        "recall": 0.8823529411764706,
+        "f1": 0.9090909090909091,
+        "support": 34
+      },
+      "lettering": {
+        "precision": 0.9230769230769231,
+        "recall": 0.9473684210526315,
+        "f1": 0.935064935064935,
+        "support": 38
+      },
+      "graphic_illustrative": {
+        "precision": 0.6956521739130435,
+        "recall": 0.7384615384615385,
+        "f1": 0.7164179104477612,
+        "support": 65
+      }
+    },
+    "top_2_accuracy": 0.9238578680203046,
+    "top_3_accuracy": 0.9670050761421319
+  },
+  "secondary_child_oracle_primary": {
+    "evaluated_rows": 349,
+    "accuracy": 0.6905444126074498,
+    "macro_f1": 0.5971468075138652,
+    "top_2_recall": 0.8710601719197708
+  },
+  "secondary_child_external_primary": {
+    "evaluated_rows": 349,
+    "accuracy": 0.5816618911174785,
+    "macro_f1": 0.5185244015775471,
+    "top_2_recall": 0.7249283667621776
+  },
+  "color": {
+    "accuracy": 0.8527918781725888,
+    "macro_f1": 0.8257958070020124,
+    "weighted_f1": 0.8504748116543805,
+    "per_class": {
+      "black_only": {
+        "precision": 0.8860759493670886,
+        "recall": 0.9271523178807947,
+        "f1": 0.9061488673139159,
+        "support": 151
+      },
+      "black_and_gray": {
+        "precision": 0.84375,
+        "recall": 0.84375,
+        "f1": 0.84375,
+        "support": 96
+      },
+      "black_with_color_accent": {
+        "precision": 0.7608695652173914,
+        "recall": 0.6363636363636364,
+        "f1": 0.693069306930693,
+        "support": 55
+      },
+      "full_color": {
+        "precision": 0.851063829787234,
+        "recall": 0.8695652173913043,
+        "f1": 0.8602150537634409,
+        "support": 92
+      }
+    },
+    "top_2_accuracy": 0.9695431472081218
+  },
+  "rendering": {
+    "micro_f1_on_known": 0.6491228070175439,
+    "macro_f1_on_known": 0.5789910102236154,
+    "macro_pr_auc_on_known": 0.6206602031844908,
+    "per_class": {
+      "linework": {
+        "known": 394,
+        "positive": 136,
+        "threshold": 0.6749999999999998,
+        "precision": 0.7077922077922078,
+        "recall": 0.8014705882352942,
+        "f1": 0.7517241379310344,
+        "pr_auc": 0.8122618867739196
+      },
+      "fine_line": {
+        "known": 394,
+        "positive": 76,
+        "threshold": 0.7499999999999999,
+        "precision": 0.5638297872340425,
+        "recall": 0.6973684210526315,
+        "f1": 0.6235294117647059,
+        "pr_auc": 0.6351138022065101
+      },
+      "sketch": {
+        "known": 394,
+        "positive": 15,
+        "threshold": 0.8499999999999998,
+        "precision": 0.6666666666666666,
+        "recall": 0.13333333333333333,
+        "f1": 0.2222222222222222,
+        "pr_auc": 0.28666495912572143
+      },
+      "engraving_etching": {
+        "known": 394,
+        "positive": 41,
+        "threshold": 0.6249999999999999,
+        "precision": 0.5135135135135135,
+        "recall": 0.4634146341463415,
+        "f1": 0.48717948717948717,
+        "pr_auc": 0.47153223186760007
+      },
+      "dotwork": {
+        "known": 394,
+        "positive": 41,
+        "threshold": 0.1,
+        "precision": 0.391304347826087,
+        "recall": 0.6585365853658537,
+        "f1": 0.4909090909090909,
+        "pr_auc": 0.486197271128275
+      },
+      "blackwork": {
+        "known": 394,
+        "positive": 68,
+        "threshold": 0.1,
+        "precision": 0.5288461538461539,
+        "recall": 0.8088235294117647,
+        "f1": 0.6395348837209303,
+        "pr_auc": 0.7378784351917365
+      },
+      "watercolor": {
+        "known": 394,
+        "positive": 39,
+        "threshold": 0.8249999999999998,
+        "precision": 0.8857142857142857,
+        "recall": 0.7948717948717948,
+        "f1": 0.8378378378378378,
+        "pr_auc": 0.9149728359976723
+      }
+    }
+  },
+  "confusion_matrices": {
+    "primary": {
+      "labels": [
+        "western_traditional",
+        "japanese",
+        "realism",
+        "new_school",
+        "minimal",
+        "abstract_experimental",
+        "geometric",
+        "ornamental",
+        "tribal_indigenous",
+        "lettering",
+        "graphic_illustrative"
+      ],
+      "matrix": [
+        [
+          28,
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3
+        ],
+        [
+          0,
+          24,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          39,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          2,
+          0,
+          1,
+          20,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          1,
+          1,
+          39,
+          0,
+          1,
+          0,
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          3,
+          18,
+          1,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          2,
+          1,
+          26,
+          0,
+          1,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          18,
+          2,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          32,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          35,
+          0
+        ],
+        [
+          2,
+          1,
+          5,
+          3,
+          1,
+          6,
+          2,
+          0,
+          0,
+          0,
+          45
+        ]
+      ],
+      "top_confusions": [
+        {
+          "actual": "graphic_illustrative",
+          "predicted": "abstract_experimental",
+          "count": 6
+        },
+        {
+          "actual": "graphic_illustrative",
+          "predicted": "realism",
+          "count": 5
+        },
+        {
+          "actual": "geometric",
+          "predicted": "graphic_illustrative",
+          "count": 3
+        },
+        {
+          "actual": "graphic_illustrative",
+          "predicted": "new_school",
+          "count": 3
+        },
+        {
+          "actual": "abstract_experimental",
+          "predicted": "minimal",
+          "count": 3
+        },
+        {
+          "actual": "japanese",
+          "predicted": "graphic_illustrative",
+          "count": 3
+        },
+        {
+          "actual": "lettering",
+          "predicted": "minimal",
+          "count": 3
+        },
+        {
+          "actual": "western_traditional",
+          "predicted": "graphic_illustrative",
+          "count": 3
+        },
+        {
+          "actual": "abstract_experimental",
+          "predicted": "realism",
+          "count": 2
+        },
+        {
+          "actual": "geometric",
+          "predicted": "minimal",
+          "count": 2
+        },
+        {
+          "actual": "minimal",
+          "predicted": "graphic_illustrative",
+          "count": 2
+        },
+        {
+          "actual": "graphic_illustrative",
+          "predicted": "geometric",
+          "count": 2
+        },
+        {
+          "actual": "abstract_experimental",
+          "predicted": "graphic_illustrative",
+          "count": 2
+        },
+        {
+          "actual": "ornamental",
+          "predicted": "tribal_indigenous",
+          "count": 2
+        },
+        {
+          "actual": "new_school",
+          "predicted": "graphic_illustrative",
+          "count": 2
+        },
+        {
+          "actual": "graphic_illustrative",
+          "predicted": "western_traditional",
+          "count": 2
+        },
+        {
+          "actual": "new_school",
+          "predicted": "western_traditional",
+          "count": 2
+        },
+        {
+          "actual": "ornamental",
+          "predicted": "minimal",
+          "count": 2
+        },
+        {
+          "actual": "western_traditional",
+          "predicted": "new_school",
+          "count": 2
+        },
+        {
+          "actual": "realism",
+          "predicted": "graphic_illustrative",
+          "count": 1
+        },
+        {
+          "actual": "graphic_illustrative",
+          "predicted": "minimal",
+          "count": 1
+        },
+        {
+          "actual": "geometric",
+          "predicted": "abstract_experimental",
+          "count": 1
+        },
+        {
+          "actual": "abstract_experimental",
+          "predicted": "new_school",
+          "count": 1
+        },
+        {
+          "actual": "abstract_experimental",
+          "predicted": "geometric",
+          "count": 1
+        },
+        {
+          "actual": "geometric",
+          "predicted": "tribal_indigenous",
+          "count": 1
+        },
+        {
+          "actual": "ornamental",
+          "predicted": "graphic_illustrative",
+          "count": 1
+        },
+        {
+          "actual": "graphic_illustrative",
+          "predicted": "japanese",
+          "count": 1
+        },
+        {
+          "actual": "japanese",
+          "predicted": "tribal_indigenous",
+          "count": 1
+        },
+        {
+          "actual": "japanese",
+          "predicted": "realism",
+          "count": 1
+        },
+        {
+          "actual": "minimal",
+          "predicted": "lettering",
+          "count": 1
+        }
+      ]
+    },
+    "color": {
+      "labels": [
+        "black_only",
+        "black_and_gray",
+        "black_with_color_accent",
+        "full_color"
+      ],
+      "matrix": [
+        [
+          140,
+          11,
+          0,
+          0
+        ],
+        [
+          15,
+          81,
+          0,
+          0
+        ],
+        [
+          3,
+          3,
+          35,
+          14
+        ],
+        [
+          0,
+          1,
+          11,
+          80
+        ]
+      ],
+      "top_confusions": [
+        {
+          "actual": "black_and_gray",
+          "predicted": "black_only",
+          "count": 15
+        },
+        {
+          "actual": "black_with_color_accent",
+          "predicted": "full_color",
+          "count": 14
+        },
+        {
+          "actual": "black_only",
+          "predicted": "black_and_gray",
+          "count": 11
+        },
+        {
+          "actual": "full_color",
+          "predicted": "black_with_color_accent",
+          "count": 11
+        },
+        {
+          "actual": "black_with_color_accent",
+          "predicted": "black_only",
+          "count": 3
+        },
+        {
+          "actual": "black_with_color_accent",
+          "predicted": "black_and_gray",
+          "count": 3
+        },
+        {
+          "actual": "full_color",
+          "predicted": "black_and_gray",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "checkpoints": {
+    "encoder": "models\\classification\\convnextv2_tiny_tattoo_domain_0729_v3\\best_model.pt",
+    "primary": "models\\classification\\convnextv2_tiny_primary_0729_v3\\best_model.pt",
+    "secondary": "models\\classification\\convnextv2_tiny_secondary_0729_v3\\best_model.pt",
+    "color": "models\\classification\\convnextv2_tiny_color_0729_v3\\best_model.pt",
+    "rendering": "models\\classification\\convnextv2_tiny_rendering_0729_v3\\best_model.pt"
+  }
+}

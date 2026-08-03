@@ -18,7 +18,7 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-starttoo}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       MAX_IMAGE_BYTES: ${MAX_IMAGE_BYTES:-15728640}
-      AI_BASE_URL: ${AI_BASE_URL:-http://ai:8000}
+      AI_BASE_URL: ${AI_BASE_URL:-http://ai-api:8000}
       AI_ENABLED: ${AI_ENABLED:-false}
       # 커버업 도안 검색 엔진. app.ai 와는 다른 서비스이고 같은 ai 컨테이너에 들어 있다.
       COVERUP_ENABLED: ${COVERUP_ENABLED:-false}
@@ -107,6 +107,36 @@ services:
       retries: 5
       start_period: 60s
 
+  ai-api:
+    build: ./ai
+    container_name: starttoo-ai-api
+    restart: unless-stopped
+    command: ["python", "-m", "api_server"]
+    environment:
+      APP_NAME: ${AI_APP_NAME:-Tattoo AI API}
+      APP_ENV: ${AI_APP_ENV:-local}
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      APP_RELOAD: ${AI_APP_RELOAD:-false}
+      APP_LOG_LEVEL: ${AI_APP_LOG_LEVEL:-info}
+      API_PREFIX: ${AI_API_PREFIX:-/api/v1}
+      CORS_ORIGINS: ${AI_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}
+      TATTOO_EXTRACTOR_ROOT: ${TATTOO_EXTRACTOR_ROOT:-/app/api_server/vendor/inklift_v11_7}
+      TATTOO_GENERATOR_ROOT: ${TATTOO_GENERATOR_ROOT:-/app/api_server/vendor/tattoo_generator_sd15}
+      TATTOO_CLASSIFIER_ROOT: ${TATTOO_CLASSIFIER_ROOT:-/app/api_server/vendor/tattoo_classifier_v3}
+      MODEL_LOAD_ON_STARTUP: ${MODEL_LOAD_ON_STARTUP:-true}
+      GENERATOR_LOAD_ON_STARTUP: ${GENERATOR_LOAD_ON_STARTUP:-false}
+      CLASSIFIER_LOAD_ON_STARTUP: ${CLASSIFIER_LOAD_ON_STARTUP:-false}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+    networks:
+      - starttoo-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request; sys.exit(0 if json.load(urllib.request.urlopen('http://localhost:8000/health'))['status'] == 'ok' else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
   redis:
     image: redis/redis-stack-server:latest
     container_name: starttoo-redis
@@ -159,6 +189,8 @@ services:
       frontend:
         condition: service_healthy
       ai:
+        condition: service_healthy
+      ai-api:
         condition: service_healthy
     networks:
       - starttoo-net

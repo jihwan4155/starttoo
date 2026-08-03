@@ -254,7 +254,7 @@ public class UserController {
             summary = "내 차단 회원 목록",
             description = """
                     현재 회원이 차단한 관계를 생성 시각 내림차순 커서로 반환한다. 대상 중
-                    비활성·삭제·ADMIN 회원은 제외하고 실제 FID 등 기기 정보는 포함하지
+                    비활성·삭제·ADMIN 회원은 제외하고 실제 pushToken 등 보안 정보는 포함하지
                     않는다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")

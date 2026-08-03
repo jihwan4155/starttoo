@@ -30,9 +30,9 @@ public class DeviceService {
     ) {
         List<Long> deviceSeqs = jdbcTemplate.queryForList("""
                 INSERT INTO user_devices (
-                    user_seq, firebase_installation_id, platform, is_active, last_used_dttm
+                    user_seq, push_token, platform, is_active, last_used_dttm
                 ) VALUES (?, ?, ?, TRUE, CURRENT_TIMESTAMP)
-                ON CONFLICT (firebase_installation_id)
+                ON CONFLICT (push_token)
                 DO UPDATE SET
                     user_seq = EXCLUDED.user_seq,
                     platform = EXCLUDED.platform,
@@ -42,11 +42,11 @@ public class DeviceService {
                 WHERE user_devices.user_seq = EXCLUDED.user_seq
                    OR user_devices.is_active = FALSE
                 RETURNING device_seq
-                """, Long.class, userSeq, request.fid(), request.platform());
+                """, Long.class, userSeq, request.pushToken(), request.platform());
         if (deviceSeqs.isEmpty()) {
             throw new BusinessException(
                     ErrorCode.STATE_CONFLICT,
-                    "다른 활성 계정에 연결된 Firebase Installation ID입니다."
+                    "다른 활성 계정에 연결된 푸시 토큰입니다."
             );
         }
         Long deviceSeq = deviceSeqs.get(0);
@@ -57,7 +57,7 @@ public class DeviceService {
                 .orElseThrow(() -> BusinessException.of(ErrorCode.INVALID_TOKEN));
         if (refreshToken.getDeviceSeq() != null
                 && !Objects.equals(refreshToken.getDeviceSeq(), deviceSeq)) {
-            // 같은 세션을 새 Firebase installation에 연결할 때 이전 기기를 비활성화한다.
+            // 변경: FCM 토큰 회전으로 새 deviceSeq가 생기면 이전 푸시 연결을 닫고 재연결한다.
             jdbcTemplate.update("""
                     UPDATE user_devices
                        SET is_active = FALSE, mod_dttm = CURRENT_TIMESTAMP
@@ -99,9 +99,9 @@ public class DeviceService {
     }
 
     @Transactional(readOnly = true)
-    public List<String> activeFids(Integer userSeq) {
+    public List<String> activePushTokens(Integer userSeq) {
         return jdbcTemplate.queryForList("""
-                SELECT firebase_installation_id
+                SELECT push_token
                   FROM user_devices
                  WHERE user_seq = ?
                    AND is_active = TRUE
@@ -110,17 +110,17 @@ public class DeviceService {
     }
 
     @Transactional
-    public void deactivateInvalidFids(Integer userSeq, List<String> fids) {
-        if (fids == null || fids.isEmpty()) {
+    public void deactivateInvalidPushTokens(Integer userSeq, List<String> pushTokens) {
+        if (pushTokens == null || pushTokens.isEmpty()) {
             return;
         }
         jdbcTemplate.batchUpdate("""
                 UPDATE user_devices
                    SET is_active = FALSE, mod_dttm = CURRENT_TIMESTAMP
-                 WHERE user_seq = ? AND firebase_installation_id = ?
-                """, fids, fids.size(), (statement, fid) -> {
+                 WHERE user_seq = ? AND push_token = ?
+                """, pushTokens, pushTokens.size(), (statement, pushToken) -> {
             statement.setInt(1, userSeq);
-            statement.setString(2, fid);
+            statement.setString(2, pushToken);
         });
     }
 

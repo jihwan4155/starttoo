@@ -198,7 +198,7 @@ public class AuthService {
                 .ifPresent(token -> {
                     token.revoke(OffsetDateTime.now());
                     if (token.getDeviceSeq() != null) {
-                        // 로그아웃 세션에 연결된 Firebase installation도 같은 트랜잭션에서 비활성화한다.
+                        // 변경: 로그아웃 세션에 연결된 FCM 토큰도 같은 트랜잭션에서 비활성화한다.
                         deviceService.deactivateForLogout(
                                 token.getUserSeq(),
                                 token.getDeviceSeq()

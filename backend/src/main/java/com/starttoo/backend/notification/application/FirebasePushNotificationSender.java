@@ -23,19 +23,19 @@ public class FirebasePushNotificationSender implements PushNotificationSender {
 
     @Override
     public List<String> send(
-            List<String> fids,
+            List<String> pushTokens,
             NotificationDtos.NotificationResponse notification
     ) {
-        List<String> invalidFids = new ArrayList<>();
-        for (String fid : fids) {
+        List<String> invalidTokens = new ArrayList<>();
+        for (String pushToken : pushTokens) {
             try {
-                firebaseMessaging.send(message(fid, notification));
+                firebaseMessaging.send(message(pushToken, notification));
             } catch (FirebaseMessagingException exception) {
                 if (exception.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
-                    invalidFids.add(fid);
-                    log.info("Firebase installation is no longer registered.");
+                    invalidTokens.add(pushToken);
+                    log.info("FCM registration token is no longer registered.");
                 } else {
-                    // 일시 오류 때문에 로그인 기기 연결을 제거하지 않는다.
+                    // 변경: 일시 오류 때문에 로그인 기기 연결을 제거하지 않는다.
                     log.warn(
                             "FCM send failed. notificationSeq={}, errorCode={}",
                             notification.notificationSeq(),
@@ -44,15 +44,15 @@ public class FirebasePushNotificationSender implements PushNotificationSender {
                 }
             }
         }
-        return List.copyOf(invalidFids);
+        return List.copyOf(invalidTokens);
     }
 
     private Message message(
-            String fid,
+            String pushToken,
             NotificationDtos.NotificationResponse notification
     ) {
         Message.Builder builder = Message.builder()
-                .setFid(fid)
+                .setToken(pushToken)
                 .setNotification(com.google.firebase.messaging.Notification.builder()
                         .setTitle(notification.title())
                         .setBody(notification.body())

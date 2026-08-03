@@ -1,0 +1,19 @@
+{
+  "schema_version": "tattoo_api_classifier_bundle_v1",
+  "specialist_system": "convnextv2_specialist_system_0729_v3",
+  "taxonomy": "taxonomy.json",
+  "subject_taxonomy": "subject_taxonomy.json",
+  "checkpoints": {
+    "encoder": "checkpoints/encoder.pt",
+    "primary": "checkpoints/primary.pt",
+    "secondary": "checkpoints/secondary.pt",
+    "color": "checkpoints/color.pt",
+    "rendering": "checkpoints/rendering.pt"
+  },
+  "subject_model": {
+    "id": "google/siglip2-so400m-patch16-384",
+    "revision": "e1f8487d18a602d5d815334613e958d6e64915ee",
+    "path": "siglip2-so400m-patch16-384"
+  },
+  "test_report": "test_report.json"
+}

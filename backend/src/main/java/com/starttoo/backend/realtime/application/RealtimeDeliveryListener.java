@@ -62,15 +62,15 @@ public class RealtimeDeliveryListener {
         }
 
         try {
-            List<String> fids = deviceService.activeFids(event.receiverSeq());
-            if (fids.isEmpty()) {
+            List<String> tokens = deviceService.activePushTokens(event.receiverSeq());
+            if (tokens.isEmpty()) {
                 return;
             }
-            List<String> invalidFids = pushNotificationSender.send(
-                    fids,
+            List<String> invalidTokens = pushNotificationSender.send(
+                    tokens,
                     event.notification()
             );
-            deviceService.deactivateInvalidFids(event.receiverSeq(), invalidFids);
+            deviceService.deactivateInvalidPushTokens(event.receiverSeq(), invalidTokens);
         } catch (RuntimeException exception) {
             // 변경: 외부 푸시 실패는 이미 커밋된 메시지·알림을 롤백하지 않는다.
             log.error(
