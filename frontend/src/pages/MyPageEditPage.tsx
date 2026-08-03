@@ -6,6 +6,7 @@ import useUpdateArtist from "../hooks/mutations/useUpdateArtist";
 import useUpdateProfileImage from "../hooks/mutations/useUpdateProfileImage";
 import useMe from "../hooks/queries/useMe";
 import useRequireAuth from "../hooks/useRequireAuth";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import ArtistShopProfileSection from "../components/mypage/ArtistShopProfileSection";
 import {
 	buildArtistShopPatch,
@@ -210,9 +211,7 @@ export default function MyPageEditPage() {
 	if (isMePending) {
 		return (
 			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
-				<p className="py-20 text-center text-[14px] text-black/40">
-					프로필을 불러오는 중…
-				</p>
+				<StarttooLoader variant="block" label="프로필을 불러오는 중…" />
 			</div>
 		);
 	}

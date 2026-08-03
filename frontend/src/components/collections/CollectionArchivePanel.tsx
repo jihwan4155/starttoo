@@ -1,3 +1,4 @@
+import StarttooLoader from "../loader/StarttooLoader";
 import type { SavedDesign } from "../../types/designExtract";
 import type { ArchiveDragPayload } from "../../types/collection";
 import { ARCHIVE_DRAG_MIME } from "../../constants/collectionDrag";
@@ -60,9 +61,7 @@ export default function CollectionArchivePanel({
 				</p>
 
 				{isLoading ? (
-					<p className="mt-6 text-center text-[13px] text-black/40">
-						불러오는 중…
-					</p>
+					<StarttooLoader variant="block" size={150} className="mt-2" />
 				) : designs.length === 0 ? (
 					<p className="mt-6 text-center text-[13px] leading-relaxed text-black/40">
 						저장한 도안이 없습니다.

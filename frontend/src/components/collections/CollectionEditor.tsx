@@ -5,6 +5,7 @@ import useCollectionStore from "../../store/useCollectionStore";
 import useDeselectPlacementOnOutsideClick from "../../hooks/useDeselectPlacementOnOutsideClick";
 import { ApiError } from "../../services/api";
 import type { SavedDesign } from "../../types/designExtract";
+import StarttooLoader from "../loader/StarttooLoader";
 import CtaButton from "../ui/CtaButton";
 import CollectionArchivePanel from "./CollectionArchivePanel";
 import CollectionPreview from "./CollectionPreview";
@@ -105,9 +106,7 @@ export default function CollectionEditor({
 			) : (
 				<>
 					{isLoadingSaved ? (
-						<p className="py-16 text-center text-[14px] text-black/40">
-							컬렉션을 불러오는 중…
-						</p>
+						<StarttooLoader variant="block" label="컬렉션을 불러오는 중…" />
 					) : (
 						<CollectionPreview placements={savedPlacements ?? []} />
 					)}

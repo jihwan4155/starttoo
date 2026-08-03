@@ -4,6 +4,7 @@ import ImageViewerModal from "../components/common/ImageViewerModal";
 import CreatePostModal from "../components/community/CreatePostModal";
 import PostDetailModal from "../components/community/PostDetailModal";
 import CollectionEditor from "../components/collections/CollectionEditor";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import DesignThumbnailGrid from "../components/mypage/DesignThumbnailGrid";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageHeader from "../components/mypage/MyPageHeader";
@@ -178,9 +179,7 @@ export default function MyPage() {
 								onAction={() => requireAuth(() => setWriteOpen(true))}
 							/>
 						) : isFeedLoading ? (
-							<p className="py-16 text-center text-[14px] text-black/40">
-								불러오는 중…
-							</p>
+							<StarttooLoader variant="block" />
 						) : myPosts.length === 0 ? (
 							<MyPageEmptyState
 								message="게시글이 없습니다"
@@ -195,9 +194,7 @@ export default function MyPage() {
 						(!isLoggedIn ? (
 							<MyPageEmptyState message="로그인 후 도안 보관함을 확인할 수 있습니다" />
 						) : isArchiveLoading ? (
-							<p className="py-16 text-center text-[14px] text-black/40">
-								불러오는 중…
-							</p>
+							<StarttooLoader variant="block" />
 						) : isArchiveError ? (
 							<MyPageEmptyState message={archiveErrorMessage} />
 						) : savedDesigns.length === 0 ? (
@@ -215,9 +212,7 @@ export default function MyPage() {
 						(!isLoggedIn ? (
 							<MyPageEmptyState message="로그인 후 북마크를 확인할 수 있습니다" />
 						) : isBookmarkLoading ? (
-							<p className="py-16 text-center text-[14px] text-black/40">
-								불러오는 중…
-							</p>
+							<StarttooLoader variant="block" />
 						) : bookmarkedPosts.length === 0 ? (
 							<MyPageEmptyState message="북마크한 게시글이 없습니다" />
 						) : (
@@ -231,9 +226,7 @@ export default function MyPage() {
 						(!isLoggedIn ? (
 							<MyPageEmptyState message="로그인 후 내 컬렉션을 확인할 수 있습니다" />
 						) : !authUserId ? (
-							<p className="py-16 text-center text-[14px] text-black/40">
-								불러오는 중…
-							</p>
+							<StarttooLoader variant="block" />
 						) : (
 							<CollectionEditor
 								userId={authUserId}

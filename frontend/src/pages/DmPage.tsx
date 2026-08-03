@@ -5,6 +5,7 @@ import { MoreIcon, ShareIcon } from "../components/community/icons";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import DmRoomMenu from "../components/dm/DmRoomMenu";
 import MessageBubble from "../components/dm/MessageBubble";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import { formatDmDateLabel } from "../components/dm/dmTime";
 import {
 	useMarkDmRoomRead,
@@ -203,9 +204,7 @@ export default function DmPage() {
 				</div>
 
 				{isRoomsPending ? (
-					<p className="px-5 py-10 text-center text-[13px] text-black/40">
-						불러오는 중…
-					</p>
+					<StarttooLoader variant="block" size={150} label={null} />
 				) : isRoomsError ? (
 					<p className="px-5 py-10 text-center text-[13px] text-black/60">
 						{roomsError instanceof ApiError
@@ -323,9 +322,7 @@ export default function DmPage() {
 						)}
 
 						{isMessagesPending ? (
-							<p className="py-10 text-center text-[13px] text-black/40">
-								불러오는 중…
-							</p>
+							<StarttooLoader variant="block" size={170} label={null} />
 						) : isMessagesError ? (
 							<p className="py-10 text-center text-[13px] text-black/60">
 								메시지를 불러오지 못했습니다.

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import useArtists from "../hooks/queries/useArtists";
 import { ApiError } from "../services/api";
 import { profilePath, resolveAvatar } from "../utils/profile";
@@ -62,9 +63,7 @@ export default function TattooistPage() {
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
 			<div className="mx-auto flex w-full max-w-[820px] flex-col gap-6 px-4">
 				{isPending && (
-					<p className="py-20 text-center text-[14px] text-black/40">
-						타투이스트를 불러오는 중…
-					</p>
+					<StarttooLoader variant="block" label="타투이스트를 불러오는 중…" />
 				)}
 
 				{isError && artists.length === 0 && (
@@ -152,7 +151,9 @@ export default function TattooistPage() {
 				{!isPending && !isError && artists.length > 0 && (
 					<div ref={loadMoreRef} className="py-4 text-center">
 						{isFetchingNextPage && (
-							<p className="text-[13px] text-black/40">더 불러오는 중…</p>
+							<div className="flex items-center justify-center gap-2 text-[13px] text-black/40">
+								<StarttooLoader variant="mark" label={null} /> 더 불러오는 중…
+							</div>
 						)}
 						{!hasNextPage && !isFetchingNextPage && (
 							<p className="text-[13px] text-black/30">마지막입니다</p>

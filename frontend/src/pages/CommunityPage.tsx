@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import CreatePostModal from "../components/community/CreatePostModal";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import PostCard from "../components/community/PostCard";
 import PostDetailModal from "../components/community/PostDetailModal";
 import { PlusIcon } from "../components/community/icons";
@@ -106,9 +107,7 @@ export default function CommunityPage() {
 				</div>
 
 				{isPending && (
-					<p className="py-20 text-center text-[14px] text-black/40">
-						피드를 불러오는 중…
-					</p>
+					<StarttooLoader variant="block" label="피드를 불러오는 중…" />
 				)}
 
 				{isError && feedPosts.length === 0 && (
@@ -142,7 +141,9 @@ export default function CommunityPage() {
 				{!isPending && !isError && feedPosts.length > 0 && (
 					<div ref={loadMoreRef} className="py-6 text-center">
 						{isFetchingNextPage && (
-							<p className="text-[13px] text-black/40">더 불러오는 중…</p>
+							<div className="flex items-center justify-center gap-2 text-[13px] text-black/40">
+								<StarttooLoader variant="mark" label={null} /> 더 불러오는 중…
+							</div>
 						)}
 						{!hasNextPage && !isFetchingNextPage && (
 							<p className="text-[13px] text-black/30">마지막 게시물입니다</p>

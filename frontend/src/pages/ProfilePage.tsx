@@ -4,6 +4,7 @@ import CollectionPreview from "../components/collections/CollectionPreview";
 import ArtistBadge from "../components/common/ArtistBadge";
 import UnfollowConfirmModal from "../components/common/UnfollowConfirmModal";
 import PostDetailModal from "../components/community/PostDetailModal";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageShopInfo from "../components/mypage/MyPageShopInfo";
 import PostThumbnailGrid from "../components/mypage/PostThumbnailGrid";
@@ -136,9 +137,7 @@ export default function ProfilePage() {
 				</button>
 
 				{isProfilePending && (
-					<p className="py-20 text-center text-[14px] text-black/40">
-						프로필을 불러오는 중…
-					</p>
+					<StarttooLoader variant="block" label="프로필을 불러오는 중…" />
 				)}
 
 				{isProfileError && (
@@ -205,9 +204,11 @@ export default function ProfilePage() {
 							{tab === "feed" ? (
 								<>
 									{isPostsPending && (
-										<p className="py-10 text-center text-[14px] text-black/40">
-											게시글을 불러오는 중…
-										</p>
+										<StarttooLoader
+											variant="block"
+											size={180}
+											label="게시글을 불러오는 중…"
+										/>
 									)}
 									{isPostsError && (
 										<MyPageEmptyState message="게시글을 불러오지 못했습니다" />
@@ -220,17 +221,16 @@ export default function ProfilePage() {
 									)}
 								</>
 							) : isCollectionPending ? (
-								<p className="py-10 text-center text-[14px] text-black/40">
-									컬렉션을 불러오는 중…
-								</p>
+								<StarttooLoader
+									variant="block"
+									size={180}
+									label="컬렉션을 불러오는 중…"
+								/>
 							) : isCollectionError ? (
 								<MyPageEmptyState message="컬렉션을 불러오지 못했습니다" />
 							) : (
 								// 배치가 없어도 마네킹은 보여준다 (빈 컬렉션도 하나의 상태)
-								<CollectionPreview
-									placements={placements ?? []}
-									skin="white"
-								/>
+								<CollectionPreview placements={placements ?? []} skin="white" />
 							)}
 						</div>
 					</>

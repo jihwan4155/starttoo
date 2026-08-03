@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import StarttooLoader from "../components/loader/StarttooLoader";
 import NotificationListItem from "../components/notifications/NotificationListItem";
 import SystemNotificationModal from "../components/notifications/SystemNotificationModal";
 import { useMarkAllNotificationsRead } from "../hooks/mutations/useMarkNotificationsRead";
@@ -115,9 +116,7 @@ export default function NotificationsPage() {
 
 				<div className="mt-6 overflow-hidden rounded-[14px] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
 					{isPending && (
-						<p className="px-5 py-16 text-center text-[14px] text-black/40">
-							알림을 불러오는 중…
-						</p>
+						<StarttooLoader variant="block" label="알림을 불러오는 중…" />
 					)}
 
 					{isError && items.length === 0 && (
@@ -159,9 +158,9 @@ export default function NotificationsPage() {
 				{items.length > 0 && (
 					<div ref={loadMoreRef} className="py-6 text-center">
 						{isFetchingNextPage && (
-							<p className="text-[13px] text-black/40">
-								더 불러오는 중…
-							</p>
+							<div className="flex items-center justify-center gap-2 text-[13px] text-black/40">
+								<StarttooLoader variant="mark" label={null} /> 더 불러오는 중…
+							</div>
 						)}
 						{!hasNextPage && !isFetchingNextPage && (
 							<p className="text-[13px] text-black/30">

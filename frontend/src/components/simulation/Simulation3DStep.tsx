@@ -17,7 +17,7 @@ import {
 	type TattooTransform,
 } from "./inkproof/image-engine";
 import { loadImage, type BodyScanResult } from "./useBodyScan";
-import OrbitLoader from "../orbit-loader/OrbitLoader";
+import StarttooLoader from "../loader/StarttooLoader";
 
 type InteractionMode = "idle" | "drag" | "scale" | "rotate";
 
@@ -446,7 +446,7 @@ export default function Simulation3DStep({
 
 				{!ready && !errorMessage && (
 					<div className="absolute inset-0 flex items-center justify-center rounded-[12px] bg-[#f0f0ec]/55 backdrop-blur-[3px]">
-						<OrbitLoader inline size={180} label={null} durationMs={3000} />
+						<StarttooLoader variant="block" size={180} label={null} />
 					</div>
 				)}
 
