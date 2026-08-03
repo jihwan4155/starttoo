@@ -59,7 +59,7 @@ export type SignupRequest = {
 	 * 가입 후 PATCH /artists/me/profile 로도 같은 상태를 만들 수 있어,
 	 * 온보딩에서 역할을 고르게 하려면 여기서는 USER로 보내면 된다.
 	 */
-	requestedRole: RequestedRole;
+	role: RequestedRole;
 	/** YYYY-MM-DD */
 	birthDate?: string;
 	gender?: SignupGender;
