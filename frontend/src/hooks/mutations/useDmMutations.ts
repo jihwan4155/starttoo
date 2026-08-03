@@ -6,6 +6,8 @@ import {
 	sendDmMessage,
 	setDmRoomNotification,
 } from "../../services/dmApi";
+import { DM_UPLOAD_PURPOSE } from "../../constants/upload";
+import { uploadImage } from "../../services/uploadApi";
 import { dmMessagesQueryKey } from "../queries/useDmMessages";
 import { dmRoomsQueryKey } from "../queries/useDmRooms";
 import type { SendDmMessageRequest } from "../../types/dm";
@@ -18,18 +20,30 @@ function invalidateRoomsAndBadges(
 	void queryClient.invalidateQueries({ queryKey: ["notifications"] });
 }
 
-/** POST /dm/rooms/{roomSeq}/messages */
+/**
+ * POST /dm/rooms/{roomSeq}/messages
+ *
+ * 이미지를 붙이면 presigned 업로드로 imageSeq를 먼저 만든 뒤 함께 보낸다.
+ * 텍스트·이미지 조합에 따라 메시지 타입은 서버가 정한다.
+ */
 export function useSendDmMessage() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			roomSeq,
-			body,
+			textContent,
+			image,
 		}: {
 			roomSeq: number;
-			body: SendDmMessageRequest;
-		}) => sendDmMessage(roomSeq, body),
+			textContent?: string;
+			image?: File | null;
+		}) => {
+			const body: SendDmMessageRequest = {};
+			if (textContent) body.textContent = textContent;
+			if (image) body.imageSeq = await uploadImage(image, DM_UPLOAD_PURPOSE);
+			return sendDmMessage(roomSeq, body);
+		},
 		onSuccess: (_data, { roomSeq }) => {
 			void queryClient.invalidateQueries({
 				queryKey: dmMessagesQueryKey(roomSeq),

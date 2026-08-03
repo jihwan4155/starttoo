@@ -70,3 +70,22 @@ export type DmPageQuery = {
 	cursor?: string;
 	size?: number;
 };
+
+export type DmRealtimeEventType = "MESSAGE_CREATED" | "MESSAGES_READ";
+
+/**
+ * STOMP `/user/queue/dm-events` 페이로드 (Swagger 밖 — DmDtos.RealtimeEvent)
+ *
+ * MESSAGE_CREATED면 message가, MESSAGES_READ면 readerSeq·readDttm·
+ * changedMessageCount가 채워진다. eventId는 재연결·중복 수신을 걸러내기 위한 값이다.
+ */
+export type DmRealtimeEvent = {
+	eventId: string;
+	eventType: DmRealtimeEventType;
+	dmRoomSeq: number;
+	message: DmMessageResponse | null;
+	readerSeq: number | null;
+	readDttm: string | null;
+	changedMessageCount: number | null;
+	occurredDttm: string;
+};

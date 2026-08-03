@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { MoreIcon, ShareIcon } from "../components/community/icons";
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import DmRoomMenu from "../components/dm/DmRoomMenu";
 import MessageBubble from "../components/dm/MessageBubble";
 import { formatDmDateLabel } from "../components/dm/dmTime";
@@ -18,6 +20,24 @@ import { ApiError } from "../services/api";
 import type { DmMessageResponse } from "../types/dm";
 import { profilePath, resolveAvatar } from "../utils/profile";
 import { formatDmTime } from "../components/dm/dmTime";
+
+function ImageAttachIcon() {
+	return (
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinejoin="round"
+			aria-hidden>
+			<rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+			<circle cx="8.5" cy="9.5" r="1.6" />
+			<path d="M4 17l4.8-4.8 3.4 3.4 2.6-2.6L20 18" />
+		</svg>
+	);
+}
 
 /** 목록 우측의 마지막 메시지 시각 — 오늘이면 시각, 아니면 날짜 */
 function formatRoomTime(iso: string | null): string {
@@ -46,7 +66,10 @@ export default function DmPage() {
 
 	const [input, setInput] = useState("");
 	const [sendError, setSendError] = useState<string | null>(null);
+	const [image, setImage] = useState<File | null>(null);
+	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const imageInputRef = useRef<HTMLInputElement>(null);
 
 	const {
 		data: roomsData,
@@ -99,25 +122,59 @@ export default function DmPage() {
 		if (el) el.scrollTop = el.scrollHeight;
 	}, [activeRoomSeq, messages.length, isFetchingOlder]);
 
+	const clearImage = () => {
+		setImage(null);
+		setImagePreview((prev) => {
+			if (prev) URL.revokeObjectURL(prev);
+			return null;
+		});
+	};
+
 	const handleOpenRoom = (roomSeq: number) => {
 		openRoom(roomSeq);
 		setInput("");
 		setSendError(null);
+		clearImage();
+	};
+
+	const handlePickImage = (e: ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		e.target.value = "";
+		if (!file) return;
+		if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
+			setSendError("JPG, PNG, WEBP 이미지만 보낼 수 있습니다.");
+			return;
+		}
+		if (file.size > MAX_IMAGE_SIZE) {
+			setSendError("이미지는 최대 10MB까지 보낼 수 있습니다.");
+			return;
+		}
+		setSendError(null);
+		clearImage();
+		setImage(file);
+		setImagePreview(URL.createObjectURL(file));
 	};
 
 	const handleSend = async () => {
 		const textContent = input.trim();
-		if (!textContent || !selectedRoom || isSending) return;
+		// 서버는 텍스트·이미지 중 최소 하나를 요구한다.
+		if ((!textContent && !image) || !selectedRoom || isSending) return;
 		setSendError(null);
 		try {
 			await sendMessage({
 				roomSeq: selectedRoom.dmRoomSeq,
-				body: { textContent },
+				textContent: textContent || undefined,
+				image,
 			});
 			setInput("");
+			clearImage();
 		} catch (err) {
 			setSendError(
-				err instanceof ApiError ? err.message : "메시지를 보내지 못했습니다.",
+				err instanceof ApiError
+					? err.message
+					: err instanceof Error
+						? err.message
+						: "메시지를 보내지 못했습니다.",
 			);
 		}
 	};
@@ -293,12 +350,49 @@ export default function DmPage() {
 						<p className="px-5 pb-1 text-[12px] text-red-600">{sendError}</p>
 					)}
 
+					{imagePreview && (
+						<div className="flex items-center gap-3 px-5 pb-2">
+							<div className="relative">
+								<img
+									src={imagePreview}
+									alt="보낼 이미지"
+									className="size-16 rounded-[10px] border border-black/10 object-cover"
+								/>
+								<button
+									type="button"
+									onClick={clearImage}
+									aria-label="이미지 첨부 취소"
+									className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-black/70 text-[11px] font-bold leading-none text-white transition hover:bg-black">
+									×
+								</button>
+							</div>
+							<span className="text-[12px] font-light text-black/45">
+								{image?.name}
+							</span>
+						</div>
+					)}
+
 					<form
 						className="flex items-center gap-2 border-t border-black/10 px-5 py-3"
 						onSubmit={(e) => {
 							e.preventDefault();
 							void handleSend();
 						}}>
+						<button
+							type="button"
+							onClick={() => imageInputRef.current?.click()}
+							disabled={isSending}
+							aria-label="이미지 첨부"
+							className="flex size-10 shrink-0 items-center justify-center rounded-full border border-black/15 text-black/55 transition hover:bg-black/5 disabled:opacity-40">
+							<ImageAttachIcon />
+						</button>
+						<input
+							ref={imageInputRef}
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							className="hidden"
+							onChange={handlePickImage}
+						/>
 						<input
 							value={input}
 							onChange={(e) => setInput(e.target.value)}
@@ -308,7 +402,7 @@ export default function DmPage() {
 						/>
 						<button
 							type="submit"
-							disabled={!input.trim() || isSending}
+							disabled={(!input.trim() && !image) || isSending}
 							aria-label="전송"
 							className="flex h-10 items-center gap-1.5 rounded-full bg-brand px-4 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:opacity-40">
 							<ShareIcon size={16} />
