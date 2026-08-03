@@ -62,7 +62,7 @@ export default function SignupPage() {
 				signupToken,
 				phoneNumber,
 				nickname,
-				requestedRole: "USER",
+				role: "USER",
 			});
 			setSession({
 				accessToken: tokens.accessToken,
