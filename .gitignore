@@ -1,4 +1,6 @@
 .env
 **/.env
+*.env.txt
+starttoo.env.txt
 **/__pycache__/
 *.pyc
