@@ -23,6 +23,11 @@ export type DesignExtractResult = {
 export type SavedDesign = DesignExtractResult & {
 	id: number;
 	createdAt: string;
+	/**
+	 * POST /collections의 imageSeq. 로컬 샘플 도안에는 없다.
+	 * 없으면 컬렉션에 서버 저장을 할 수 없다.
+	 */
+	imageSeq?: number;
 	/** BE 보관함이 아닌 로컬 샘플 도안 */
 	isDemo?: boolean;
 };

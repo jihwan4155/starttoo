@@ -1,26 +1,33 @@
 import useCollectionStore from "../../store/useCollectionStore";
 import { isMannequinSkin } from "../../types/collection";
+import type { CollectionPlacement, MannequinSkin } from "../../types/collection";
 import MannequinPreviewPane from "./MannequinPreviewPane";
 
 type CollectionPreviewProps = {
-	userId: number;
+	placements: CollectionPlacement[];
+	/** 없으면 내 저장값을 쓴다 (다른 사람 컬렉션은 톤이 응답에 없어 기본 톤) */
+	skin?: MannequinSkin;
 };
 
-/** 저장된 컬렉션 미리보기 — 앞·뒤 동시 표시 (피부 톤은 저장값 유지) */
-export default function CollectionPreview({ userId }: CollectionPreviewProps) {
+/** 저장된 컬렉션 미리보기 — 앞·뒤 동시 표시 */
+export default function CollectionPreview({
+	placements,
+	skin,
+}: CollectionPreviewProps) {
 	const savedSkin = useCollectionStore((s) => s.savedSkin);
-	const safeSkin = isMannequinSkin(savedSkin) ? savedSkin : "white";
+	const resolved = skin ?? savedSkin;
+	const safeSkin = isMannequinSkin(resolved) ? resolved : "white";
 
 	return (
 		<div className="flex flex-col items-stretch gap-8 sm:flex-row sm:justify-center sm:gap-6">
 			<MannequinPreviewPane
-				userId={userId}
+				placements={placements}
 				view="front"
 				skin={safeSkin}
 				label="앞"
 			/>
 			<MannequinPreviewPane
-				userId={userId}
+				placements={placements}
 				view="back"
 				skin={safeSkin}
 				label="뒤"

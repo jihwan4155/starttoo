@@ -3,7 +3,7 @@ import {
 	markAllNotificationsRead,
 	markNotificationRead,
 } from "../../services/notificationApi";
-import { markDmNotificationRead } from "../../services/dmApi";
+import { markDmRoomRead } from "../../services/dmApi";
 import type { NotificationItem } from "../../types/notification";
 import {
 	optimisticallyRemoveDmRoomBundle,
@@ -41,16 +41,22 @@ export function useMarkNotificationRead() {
 	});
 }
 
-/** DM 방 알림 일괄 읽음 */
+/**
+ * DM 방 알림 일괄 읽음
+ *
+ * PATCH /dm/rooms/{seq}/read 가 상대 메시지와 그 방의 NEW_DM 알림을 같은
+ * 트랜잭션에서 처리하므로 호출 한 번으로 끝난다. referenceSeq(방 seq)가 없는
+ * 비정상 알림만 개별 읽음으로 처리한다.
+ */
 export function useMarkDmNotificationRead() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ notificationSeq, item }: MarkOneVariables) => {
+		mutationFn: async ({ notificationSeq, item }: MarkOneVariables) => {
 			if (item.referenceSeq == null) {
 				return markNotificationRead(notificationSeq);
 			}
-			return markDmNotificationRead(notificationSeq, item.referenceSeq);
+			await markDmRoomRead(item.referenceSeq);
 		},
 		onMutate: ({ item }) => {
 			optimisticallyRemoveDmRoomBundle(queryClient, item);

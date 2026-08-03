@@ -5,6 +5,7 @@ import type { SavedDesign } from "../types/designExtract";
 export function mapArchiveItemToSavedDesign(item: ArchiveItem): SavedDesign {
 	return {
 		id: item.tattooId,
+		imageSeq: item.designImageSeq,
 		previewUrl: item.designImageUrl || item.originalImageUrl,
 		downloadUrl: item.designImageUrl || item.originalImageUrl,
 		createdAt: item.savedAt,

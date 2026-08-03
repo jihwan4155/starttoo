@@ -1,11 +1,15 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MANNEQUIN_ASSETS } from "../../constants/mannequinAssets";
-import useCollectionStore from "../../store/useCollectionStore";
-import type { MannequinSkin, MannequinView } from "../../types/collection";
+import type {
+	CollectionPlacement,
+	MannequinSkin,
+	MannequinView,
+} from "../../types/collection";
 import MannequinWarpedTattoos from "./MannequinWarpedTattoos";
 
 type MannequinPreviewPaneProps = {
-	userId: number;
+	/** 양쪽 뷰의 배치 전체 — 이 컴포넌트가 view로 걸러 쓴다 */
+	placements: CollectionPlacement[];
 	view: MannequinView;
 	skin: MannequinSkin;
 	label: string;
@@ -13,19 +17,17 @@ type MannequinPreviewPaneProps = {
 
 /** 미리보기용 단일 마네킹 (읽기 전용) */
 export default function MannequinPreviewPane({
-	userId,
+	placements: allPlacements,
 	view,
 	skin,
 	label,
 }: MannequinPreviewPaneProps) {
 	const canvasRef = useRef<HTMLDivElement>(null);
 	const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-	const byUser = useCollectionStore((s) => s.byUser ?? {});
 
 	const placements = useMemo(
-		() =>
-			(byUser[String(userId)] ?? []).filter((p) => p.view === view),
-		[byUser, userId, view],
+		() => allPlacements.filter((p) => p.view === view),
+		[allPlacements, view],
 	);
 
 	const mannequinSrc = MANNEQUIN_ASSETS[skin][view];

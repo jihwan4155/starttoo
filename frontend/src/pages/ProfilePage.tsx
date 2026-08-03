@@ -1,16 +1,21 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import CollectionPreview from "../components/collections/CollectionPreview";
 import ArtistBadge from "../components/common/ArtistBadge";
 import UnfollowConfirmModal from "../components/common/UnfollowConfirmModal";
 import PostDetailModal from "../components/community/PostDetailModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageShopInfo from "../components/mypage/MyPageShopInfo";
 import PostThumbnailGrid from "../components/mypage/PostThumbnailGrid";
+import ProfileTabs, { type ProfileTab } from "../components/profile/ProfileTabs";
+import { useCreateDmRoom } from "../hooks/mutations/useDmMutations";
 import useToggleFollow from "../hooks/mutations/useToggleFollow";
+import useUserCollections from "../hooks/queries/useUserCollections";
 import useUserPosts from "../hooks/queries/useUserPosts";
 import useUserProfile from "../hooks/queries/useUserProfile";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { ApiError } from "../services/api";
+import useDmStore from "../store/useDmStore";
 import type { Post } from "../types/community";
 import { resolveAvatar } from "../utils/profile";
 
@@ -21,7 +26,9 @@ export default function ProfilePage() {
 	const userId = Number(rawUserId);
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	const [isUnfollowOpen, setUnfollowOpen] = useState(false);
+	const [tab, setTab] = useState<ProfileTab>("feed");
 	const { requireAuth } = useRequireAuth();
+	const openDmRoom = useDmStore((s) => s.openRoom);
 
 	const {
 		data: profile,
@@ -41,8 +48,16 @@ export default function ProfilePage() {
 		[postsData?.pages],
 	);
 
+	const {
+		data: placements,
+		isPending: isCollectionPending,
+		isError: isCollectionError,
+	} = useUserCollections(tab === "collection" ? userId : 0);
+
 	const { mutate: toggleFollow, isPending: isFollowPending } =
 		useToggleFollow();
+	const { mutate: createDmRoom, isPending: isCreatingDmRoom } =
+		useCreateDmRoom();
 
 	const isArtist = profile?.role === "ARTIST";
 	const avatarUrl = resolveAvatar(profile?.profileImageUrl, profile?.nickname);
@@ -76,6 +91,29 @@ export default function ProfilePage() {
 				return;
 			}
 			executeFollowToggle();
+		});
+	};
+
+	/**
+	 * 메시지 보내기 — POST /dm/rooms 로 방을 만들거나 기존 방을 되살린 뒤 DM으로 이동.
+	 * 서버가 이 호출을 채팅방 진입으로 보고 안읽음·알림까지 정리해 준다.
+	 */
+	const handleSendMessage = () => {
+		if (!profile || profile.isMe) return;
+		requireAuth(() => {
+			createDmRoom(profile.userId, {
+				onSuccess: (room) => {
+					openDmRoom(room.dmRoomSeq);
+					navigate("/dm");
+				},
+				onError: (err) => {
+					window.alert(
+						err instanceof ApiError
+							? err.message
+							: "대화를 시작하지 못했습니다.",
+					);
+				},
+			});
 		});
 	};
 
@@ -132,17 +170,26 @@ export default function ProfilePage() {
 							</div>
 
 							{!profile.isMe && (
-								<button
-									type="button"
-									onClick={handleFollow}
-									disabled={isFollowPending}
-									className={`h-[42px] shrink-0 rounded-full px-7 text-[14px] font-semibold transition disabled:opacity-50 ${
-										profile.isFollowing
-											? "border border-black/15 bg-white text-black/60 hover:bg-black/5"
-											: "bg-brand text-white hover:brightness-95"
-									}`}>
-									{profile.isFollowing ? "팔로잉" : "팔로우"}
-								</button>
+								<div className="flex shrink-0 items-center gap-2">
+									<button
+										type="button"
+										onClick={handleFollow}
+										disabled={isFollowPending}
+										className={`h-[42px] rounded-full px-7 text-[14px] font-semibold transition disabled:opacity-50 ${
+											profile.isFollowing
+												? "border border-black/15 bg-white text-black/60 hover:bg-black/5"
+												: "bg-brand text-white hover:brightness-95"
+										}`}>
+										{profile.isFollowing ? "팔로우 취소" : "팔로우"}
+									</button>
+									<button
+										type="button"
+										onClick={handleSendMessage}
+										disabled={isCreatingDmRoom}
+										className="h-[42px] whitespace-nowrap rounded-full bg-brand px-6 text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50">
+										{isCreatingDmRoom ? "이동 중…" : "메시지 보내기"}
+									</button>
+								</div>
 							)}
 						</div>
 
@@ -151,19 +198,39 @@ export default function ProfilePage() {
 						)}
 
 						<div className="mt-8">
-							{isPostsPending && (
+							<ProfileTabs active={tab} onChange={setTab} />
+						</div>
+
+						<div className="mt-8">
+							{tab === "feed" ? (
+								<>
+									{isPostsPending && (
+										<p className="py-10 text-center text-[14px] text-black/40">
+											게시글을 불러오는 중…
+										</p>
+									)}
+									{isPostsError && (
+										<MyPageEmptyState message="게시글을 불러오지 못했습니다" />
+									)}
+									{!isPostsPending && !isPostsError && posts.length === 0 && (
+										<MyPageEmptyState message="게시글이 없습니다" />
+									)}
+									{!isPostsPending && posts.length > 0 && (
+										<PostThumbnailGrid posts={posts} onOpen={setActivePost} />
+									)}
+								</>
+							) : isCollectionPending ? (
 								<p className="py-10 text-center text-[14px] text-black/40">
-									게시글을 불러오는 중…
+									컬렉션을 불러오는 중…
 								</p>
-							)}
-							{isPostsError && (
-								<MyPageEmptyState message="게시글을 불러오지 못했습니다" />
-							)}
-							{!isPostsPending && !isPostsError && posts.length === 0 && (
-								<MyPageEmptyState message="게시글이 없습니다" />
-							)}
-							{!isPostsPending && posts.length > 0 && (
-								<PostThumbnailGrid posts={posts} onOpen={setActivePost} />
+							) : isCollectionError ? (
+								<MyPageEmptyState message="컬렉션을 불러오지 못했습니다" />
+							) : (
+								// 배치가 없어도 마네킹은 보여준다 (빈 컬렉션도 하나의 상태)
+								<CollectionPreview
+									placements={placements ?? []}
+									skin="white"
+								/>
 							)}
 						</div>
 					</>
