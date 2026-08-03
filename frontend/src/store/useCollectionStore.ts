@@ -22,6 +22,9 @@ type CollectionState = {
 	setEditorView: (view: MannequinView) => void;
 	setSelectedPlacementId: (id: string | null) => void;
 	enterEditMode: () => void;
+	/** 서버 배치로 편집 버퍼를 덮어쓴다 (편집 진입·저장 완료 시) */
+	setPlacements: (userId: number, placements: CollectionPlacement[]) => void;
+	/** 편집 종료 — 서버 저장은 useSaveCollection이 담당한다 */
 	saveCollection: () => void;
 	addPlacement: (
 		userId: number,
@@ -82,6 +85,12 @@ const useCollectionStore = create<CollectionState>()(
 					selectedPlacementId: null,
 					editorSkin: state.savedSkin,
 				})),
+			setPlacements: (userId, placements) =>
+				set((state) => ({
+					selectedPlacementId: null,
+					byUser: { ...state.byUser, [userKey(userId)]: placements },
+				})),
+
 			saveCollection: () =>
 				set((state) => ({
 					isEditMode: false,

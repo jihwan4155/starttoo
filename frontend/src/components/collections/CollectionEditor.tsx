@@ -1,5 +1,9 @@
+import { useState } from "react";
+import useSaveCollection from "../../hooks/mutations/useSaveCollection";
+import useMyCollections from "../../hooks/queries/useMyCollections";
 import useCollectionStore from "../../store/useCollectionStore";
 import useDeselectPlacementOnOutsideClick from "../../hooks/useDeselectPlacementOnOutsideClick";
+import { ApiError } from "../../services/api";
 import type { SavedDesign } from "../../types/designExtract";
 import CtaButton from "../ui/CtaButton";
 import CollectionArchivePanel from "./CollectionArchivePanel";
@@ -15,19 +19,61 @@ type CollectionEditorProps = {
 const collectionCtaClassName =
 	"!h-auto !w-auto min-w-[132px] px-5 py-2.5 !text-[14px] !font-medium !leading-normal";
 
-/** 내 컬렉션 — 미리보기 / 편집 모드 */
+/** 내 컬렉션 — 미리보기 / 편집 모드 (GET·POST·DELETE /collections) */
 export default function CollectionEditor({
 	userId,
 	designs,
 	isArchiveLoading = false,
 }: CollectionEditorProps) {
 	const isEditMode = useCollectionStore((s) => s.isEditMode);
-	const saveCollection = useCollectionStore((s) => s.saveCollection);
+	const exitEditMode = useCollectionStore((s) => s.saveCollection);
 	const enterEditMode = useCollectionStore((s) => s.enterEditMode);
-	// 내 컬렉션은 아직 localStorage가 원본이다 (저장 API 연동은 별도 작업).
-	const myPlacements = useCollectionStore((s) => s.byUser?.[String(userId)]);
+	const setPlacements = useCollectionStore((s) => s.setPlacements);
+	const editorPlacements = useCollectionStore(
+		(s) => s.byUser?.[String(userId)],
+	);
+	const [saveError, setSaveError] = useState<string | null>(null);
+
+	const {
+		data: savedPlacements,
+		isPending: isLoadingSaved,
+		isError: isSavedError,
+	} = useMyCollections();
+	const { mutateAsync: saveCollection, isPending: isSaving } =
+		useSaveCollection();
 
 	useDeselectPlacementOnOutsideClick(isEditMode);
+
+	// 편집은 서버에 저장된 배치에서 시작한다.
+	const handleEnterEditMode = () => {
+		setSaveError(null);
+		setPlacements(userId, savedPlacements ?? []);
+		enterEditMode();
+	};
+
+	const handleSave = async () => {
+		setSaveError(null);
+		try {
+			const result = await saveCollection({
+				userId,
+				placements: editorPlacements ?? [],
+				saved: savedPlacements ?? [],
+			});
+			exitEditMode();
+			if (result.skipped > 0) {
+				window.alert(
+					`${result.skipped}개 배치는 저장하지 못했습니다.\n` +
+						"샘플 도안이거나, 같은 도안을 이미 다른 위치에 배치한 경우입니다.",
+				);
+			}
+		} catch (err) {
+			setSaveError(
+				err instanceof ApiError
+					? err.message
+					: "컬렉션을 저장하지 못했습니다.",
+			);
+		}
+	};
 
 	return (
 		<div>
@@ -35,11 +81,17 @@ export default function CollectionEditor({
 				<>
 					<div className="mx-auto max-w-[420px]">
 						<MannequinCanvas userId={userId} />
+						{saveError && (
+							<p className="mt-4 text-center text-[13px] text-red-600">
+								{saveError}
+							</p>
+						)}
 						<div className="mt-6 flex justify-center">
 							<CtaButton
-								onClick={saveCollection}
+								onClick={() => void handleSave()}
+								disabled={isSaving}
 								className={collectionCtaClassName}>
-								저장하기
+								{isSaving ? "저장 중…" : "저장하기"}
 							</CtaButton>
 						</div>
 					</div>
@@ -52,10 +104,22 @@ export default function CollectionEditor({
 				</>
 			) : (
 				<>
-					<CollectionPreview placements={myPlacements ?? []} />
+					{isLoadingSaved ? (
+						<p className="py-16 text-center text-[14px] text-black/40">
+							컬렉션을 불러오는 중…
+						</p>
+					) : (
+						<CollectionPreview placements={savedPlacements ?? []} />
+					)}
+					{isSavedError && (
+						<p className="mt-4 text-center text-[13px] text-black/60">
+							컬렉션을 불러오지 못했습니다.
+						</p>
+					)}
 					<div className="mt-6 flex justify-center">
 						<CtaButton
-							onClick={enterEditMode}
+							onClick={handleEnterEditMode}
+							disabled={isLoadingSaved}
 							className={`${collectionCtaClassName} border border-black/20 !bg-white !text-black hover:!brightness-100 hover:bg-black/5`}>
 							편집하기
 						</CtaButton>

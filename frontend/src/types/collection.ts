@@ -12,10 +12,17 @@ export function isMannequinView(value: unknown): value is MannequinView {
 	return value === "front" || value === "back";
 }
 
-/** 마네킹 위 도안 배치 (Phase 1 localStorage) */
+/** 마네킹 위 도안 배치 */
 export type CollectionPlacement = {
 	id: string;
 	tattooId: number;
+	/**
+	 * 서버 배치 식별자. 아직 저장되지 않은 배치는 없다.
+	 * DELETE /collections/{collectionSeq}에 쓴다.
+	 */
+	collectionSeq?: number;
+	/** POST /collections의 imageSeq. 로컬 샘플 도안에는 없어 저장할 수 없다. */
+	imageSeq?: number;
 	imageUrl: string;
 	bodyPart: string;
 	/** @deprecated 피부 톤과 무관 — view만 사용 */
@@ -38,6 +45,8 @@ export type CollectionPlacementMeta = Pick<
 export type ArchiveDragPayload = {
 	tattooId: number;
 	imageUrl: string;
+	/** 없으면 로컬 샘플 도안 — 마네킹에는 놓이지만 서버 저장에서 빠진다 */
+	imageSeq?: number;
 };
 
 /**
@@ -47,6 +56,22 @@ export type ArchiveDragPayload = {
  * 배율이라 로컬 CollectionPlacement의 x·y·scale과 좌표계가 같다.
  * bodyView는 서버에서 자유 문자열(최대 10자)이고 프론트가 front·back을 쓴다.
  */
+/** POST /collections 요청 */
+export type CreateCollectionRequest = {
+	/** 본인 소유이고 아직 타투로 등록되지 않은 이미지 seq */
+	imageSeq: number;
+	/** front · back */
+	bodyView: string;
+	/** 0~1 정규화 */
+	positionX: number;
+	positionY: number;
+	/** 0 초과 */
+	scaleRatio: number;
+	/** -180~180 */
+	rotationDegree: number;
+	flipped: boolean;
+};
+
 export type CollectionResponse = {
 	collectionSeq: number;
 	ownerSeq: number;

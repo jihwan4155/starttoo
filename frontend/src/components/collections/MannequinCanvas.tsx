@@ -149,6 +149,7 @@ export default function MannequinCanvas({ userId }: MannequinCanvasProps) {
 
 		addPlacement(userId, {
 			tattooId: payload.tattooId,
+			imageSeq: payload.imageSeq,
 			imageUrl: payload.imageUrl,
 			bodyPart: inferBodyPart(position.y),
 			view: safeView,

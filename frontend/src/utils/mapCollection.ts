@@ -20,6 +20,9 @@ export function mapCollectionToPlacement(
 ): CollectionPlacement {
 	return {
 		id: String(dto.collectionSeq),
+		// 저장 시 삭제·생성을 가리는 기준 — 없으면 매번 전부 재생성되어 409가 난다.
+		collectionSeq: dto.collectionSeq,
+		imageSeq: dto.imageSeq,
 		tattooId: dto.tattooSeq,
 		imageUrl: dto.imageUrl ?? "",
 		bodyPart: inferBodyPart(dto.positionY),

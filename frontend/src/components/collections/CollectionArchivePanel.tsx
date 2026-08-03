@@ -28,6 +28,7 @@ export default function CollectionArchivePanel({
 		const payload: ArchiveDragPayload = {
 			tattooId: design.id,
 			imageUrl: design.previewUrl,
+			imageSeq: design.imageSeq,
 		};
 		event.dataTransfer.setData(
 			ARCHIVE_DRAG_MIME,
