@@ -31,7 +31,7 @@ export default function ArchivePickerModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-6"
+			className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 sm:p-6"
 			onClick={onClose}
 			role="presentation">
 			<div
@@ -40,7 +40,7 @@ export default function ArchivePickerModal({
 				role="dialog"
 				aria-modal="true"
 				aria-label={title}>
-				<div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
+				<div className="flex items-center justify-between border-b border-black/10 px-4 py-3 sm:px-5 sm:py-4">
 					<p className="text-[15px] font-semibold text-black">{title}</p>
 					<button
 						type="button"
@@ -51,7 +51,7 @@ export default function ArchivePickerModal({
 					</button>
 				</div>
 
-				<div className="flex-1 overflow-y-auto p-5">
+				<div className="flex-1 overflow-y-auto p-3 sm:p-5">
 					{isPending && (
 						<StarttooLoader
 							variant="block"
@@ -70,7 +70,7 @@ export default function ArchivePickerModal({
 						</p>
 					)}
 					{items.length > 0 && (
-						<div className="grid grid-cols-3 gap-3">
+						<div className="grid grid-cols-3 gap-2 sm:gap-3">
 							{items.map((item) => (
 								<button
 									key={item.tattooId}

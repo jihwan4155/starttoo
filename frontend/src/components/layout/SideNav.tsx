@@ -250,7 +250,7 @@ export default function SideNav() {
 	const [communityItem, ...communitySubItems] = COMMUNITY_ITEMS;
 
 	return (
-		<aside className="fixed bottom-0 left-0 top-[60px] z-40 flex w-20 flex-col items-center gap-3 bg-white pt-6">
+		<aside className="fixed bottom-0 left-0 top-[60px] z-40 hidden w-20 flex-col items-center gap-3 bg-white pt-6 lg:flex">
 			{MAIN_ITEMS.map((item) => renderItem(item))}
 
 			{/* 커버업 타투와 커뮤니티 사이 구분선 */}

@@ -16,10 +16,10 @@ type ArOptions = {
 };
 
 const DEFAULT_OPTIONS: ArOptions = {
-	size: 100,
+	size: 50,
 	direction: 0,
-	curvature: 85,
-	opacity: 72,
+	curvature: 50,
+	opacity: 50,
 };
 
 /** PoC 기본 배율 — UI 100%가 이 값이 되도록 매핑 */
@@ -127,7 +127,7 @@ export default function ArCustomizeScreen({
 			/>
 
 			{/* 도안 레일 */}
-			<div className="mx-auto w-full max-w-[320px]">
+			<div className="mx-auto w-full lg:max-w-[320px]">
 				<p className="mb-2 text-[13px] font-semibold text-black/60">
 					내 타투 보관함
 				</p>
@@ -183,7 +183,7 @@ export default function ArCustomizeScreen({
 			</div>
 
 			{/* 옵션 슬라이더 */}
-			<div className="mx-auto flex w-full max-w-[320px] flex-col gap-2.5 rounded-[14px] bg-white p-4 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+			<div className="mx-auto flex w-full flex-col gap-2.5 rounded-[14px] bg-white p-4 shadow-[0_2px_10px_rgba(0,0,0,0.06)] lg:max-w-[320px]">
 				<SliderRow
 					label="크기"
 					value={options.size}

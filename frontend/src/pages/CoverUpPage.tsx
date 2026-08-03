@@ -22,6 +22,8 @@ import useShapeSearchMutation from "../hooks/mutations/useShapeSearch";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { saveToArchive } from "../services/archiveApi";
 import type { SearchMode } from "../types/shapeSearch";
+import { useIsMobile } from "../hooks/useIsMobile";
+import MobileCoverUpFlow from "../components/coverup/MobileCoverUpFlow";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -63,6 +65,7 @@ function ChevronRightIcon() {
 export default function CoverUpPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const isMobile = useIsMobile();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { requireAuth } = useRequireAuth();
 
@@ -215,6 +218,46 @@ export default function CoverUpPage() {
 	const forwardLabel = step === 2 ? "도안 찾기" : "다음";
 	const forwardEnabled =
 		step === 1 ? canAdvance : !searchMutation.isPending && step === 2;
+	const mobileSearchMessage = showEmptyStrokeHint
+		? "가릴 부위를 그려주세요."
+		: hasEmptyResult
+			? "조건에 맞는 도안이 없습니다. 영역을 조금 바꿔 다시 시도해주세요."
+			: errorInfo?.message ?? null;
+
+	if (isMobile) {
+		return (
+			<MobileCoverUpFlow
+				step={step === 4 ? 3 : step}
+				fileInputRef={fileInputRef}
+				previewUrl={previewUrl}
+				fileError={fileError}
+				onSelectFile={handleSelectFile}
+				onPickFile={() => fileInputRef.current?.click()}
+				canvasProps={{
+					canvasRef: canvas.canvasRef,
+					redraw: canvas.redraw,
+					handlers: canvas.handlers,
+				}}
+				canUndo={canvas.canUndo}
+				onUndo={canvas.undo}
+				onClear={canvas.clear}
+				onBack={() => step === 1 ? navigate(-1) : handleBack()}
+				onNext={handleForward}
+				nextDisabled={!forwardEnabled}
+				isSearching={searchMutation.isPending}
+				searchMessage={mobileSearchMessage}
+				results={results}
+				selectedIndex={selectedIndex}
+				onSelectResult={setSelectedIndex}
+				onSave={handleSave}
+				onSimulate={goToSimulation}
+				isSaving={saveMutation.isPending}
+				saveError={saveMutation.isError ? saveMutation.error.message : null}
+				isSavedOpen={isSavedOpen}
+				onCloseSaved={() => setSavedOpen(false)}
+			/>
+		);
+	}
 
 	return (
 		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">

@@ -5,6 +5,9 @@ import StarttooLoader from "../components/loader/StarttooLoader";
 import useArtists from "../hooks/queries/useArtists";
 import { ApiError } from "../services/api";
 import { profilePath, resolveAvatar } from "../utils/profile";
+import ArtistSearchBar from "../components/artist/ArtistSearchBar";
+import { mockArtists } from "../mocks/community";
+import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
 /** 타투이스트 모아보기 — GET /artists */
 export default function TattooistPage() {
@@ -28,8 +31,13 @@ export default function TattooistPage() {
 	});
 
 	const artists = useMemo(
-		() => data?.pages.flatMap((page) => page.items) ?? [],
-		[data?.pages],
+		() => {
+			const items = data?.pages.flatMap((page) => page.items) ?? [];
+			const source = QA_MOCK_DATA_ENABLED && items.length === 0 ? mockArtists : items;
+			const normalized = query.trim().toLowerCase();
+			return normalized ? source.filter((artist) => artist.name.toLowerCase().includes(normalized) || artist.categories.some((category) => category.toLowerCase().includes(normalized))) : source;
+		},
+		[data?.pages, query],
 	);
 
 	useEffect(() => {
@@ -60,9 +68,10 @@ export default function TattooistPage() {
 			: "타투이스트 목록을 불러오지 못했습니다.";
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
-			<div className="mx-auto flex w-full max-w-[820px] flex-col gap-6 px-4">
-				{isPending && (
+		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
+			<div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-4 lg:gap-6">
+				<div className="hidden max-lg:block [&>div>div]:h-12 [&>div>div]:shadow-none"><ArtistSearchBar /></div>
+				{isPending && artists.length === 0 && (
 					<StarttooLoader variant="block" label="타투이스트를 불러오는 중…" />
 				)}
 
@@ -85,7 +94,7 @@ export default function TattooistPage() {
 					artists.map((artist) => (
 						<article
 							key={artist.id}
-							className="flex flex-col gap-4 rounded-[20px] bg-white p-6 shadow-sm">
+							className="flex flex-col gap-4 rounded-[12px] bg-white p-4 shadow-sm lg:rounded-[20px] lg:p-6">
 							<div className="flex items-center gap-4">
 								<Link
 									to={profilePath(artist.id)}
@@ -120,14 +129,14 @@ export default function TattooistPage() {
 								</div>
 							</div>
 
-							{/* 작업물 미리보기 — feedPreviews, 최대 6칸 */}
-							<div className="grid grid-cols-6 gap-1.5">
+							{/* 작업물 미리보기 — 모바일 4칸, 데스크톱 6칸 */}
+							<div className="grid grid-cols-4 gap-1 lg:grid-cols-6 lg:gap-1.5">
 								{Array.from({ length: 6 }, (_, i) => {
 									const imageUrl = artist.imageUrls[i];
 									return (
 										<span
 											key={i}
-											className="aspect-square overflow-hidden rounded-[4px] bg-[#D9D9D9]">
+											className={`aspect-square overflow-hidden rounded-[4px] bg-[#D9D9D9] ${i >= 4 ? "max-lg:hidden" : ""}`}>
 											{imageUrl && (
 												<img
 													src={imageUrl}

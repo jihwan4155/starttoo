@@ -10,14 +10,14 @@ export default function PostThumbnailGrid({
 	onOpen,
 }: PostThumbnailGridProps) {
 	return (
-		<div className="grid grid-cols-4 gap-4">
+		<div className="grid grid-cols-3 gap-0.5 px-4 lg:grid-cols-4 lg:gap-4 lg:px-0">
 			{posts.map((post) => (
 				<button
 					key={post.id}
 					type="button"
 					onClick={() => onOpen(post)}
 					aria-label={`${post.author.nickname}의 게시글`}
-					className="aspect-square overflow-hidden rounded-[6px] bg-[#D9D9D9] transition hover:opacity-90">
+					className="aspect-square overflow-hidden bg-[#D9D9D9] transition hover:opacity-90 lg:rounded-[6px]">
 					{post.imageUrl && (
 						<img
 							src={post.imageUrl}

@@ -14,14 +14,14 @@ const TABS: { id: MyPageTab; label: string }[] = [
 
 export default function MyPageTabs({ active, onChange }: MyPageTabsProps) {
 	return (
-		<div className="flex gap-4 border-b border-black/10">
+		<div className="grid grid-cols-4 border-b border-black/10 lg:flex lg:gap-4">
 			{TABS.map((tab) => (
 				<button
 					key={tab.id}
 					type="button"
 					onClick={() => onChange(tab.id)}
 					aria-current={active === tab.id ? "true" : undefined}
-					className={`-mb-px border-b-2 px-3 pb-3 text-[15px] transition ${
+					className={`-mb-px whitespace-nowrap border-b-2 px-1 pb-2.5 text-[12px] transition lg:px-3 lg:pb-3 lg:text-[15px] ${
 						active === tab.id
 							? "border-black font-semibold text-black"
 							: "border-transparent font-light text-black/40 hover:text-black/60"

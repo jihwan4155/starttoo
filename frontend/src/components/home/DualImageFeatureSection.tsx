@@ -26,31 +26,31 @@ export default function DualImageFeatureSection({
 	return (
 		<section
 			id={id}
-			className="mx-auto flex w-full max-w-[1199px] flex-col items-center py-24">
-			<p className="text-[24px] font-normal leading-7 text-black">
+			className="mx-auto flex w-full max-w-[1199px] flex-col items-center px-5 py-13 lg:px-0 lg:py-24">
+			<p className="text-center text-[16px] font-normal leading-6 text-black lg:text-[24px] lg:leading-7">
 				{eyebrow}
 			</p>
-			<h2 className="mt-3 text-center text-[48px] font-extrabold leading-[57px] text-black">
+			<h2 className="mt-2.5 text-center text-[27px] font-extrabold leading-[34px] tracking-[-0.04em] text-black lg:mt-3 lg:text-[48px] lg:leading-[57px]">
 				{heading}
 			</h2>
-			<p className="mt-4 max-w-[688px] text-center text-[18px] font-light leading-[21px] text-black">
+			<p className="mt-4 max-w-[688px] text-center text-[15px] font-light leading-6 text-black/70 lg:text-[18px] lg:leading-[21px] lg:text-black">
 				{description}
 			</p>
 
-			<div className="mt-6 flex items-center justify-center gap-8">
+			<div className="mt-7 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:mt-6 lg:flex lg:w-auto lg:items-center lg:justify-center lg:gap-8">
 				<img
 					src={imageBefore}
 					alt={`${imageAlt} - Before`}
-					className="h-[284px] w-[380px] shrink-0 rounded-[10px] object-cover"
+					className="aspect-[1.34/1] h-auto w-full shrink-0 rounded-[10px] object-cover lg:h-[284px] lg:w-[380px]"
 				/>
 				<img
 					src={imageAfter}
 					alt={`${imageAlt} - After`}
-					className="h-[284px] w-[380px] shrink-0 rounded-[10px] object-cover"
+					className="aspect-[1.34/1] h-auto w-full shrink-0 rounded-[10px] object-cover lg:h-[284px] lg:w-[380px]"
 				/>
 			</div>
 
-			<CtaButton to={buttonTo} className="mt-10">
+			<CtaButton to={buttonTo} className="mt-7 lg:mt-10">
 				{buttonLabel}
 			</CtaButton>
 		</section>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
+import mobileLogo from "../../assets/images/mobile-logo.png";
 import topnavGrain from "../../assets/images/topnav-grain.png";
 import ArtistSearchBar from "../artist/ArtistSearchBar";
 import LoginModal from "../auth/LoginModal";
@@ -319,6 +320,143 @@ function SettingMenu({ onRequestLogin }: { onRequestLogin: () => void }) {
 	);
 }
 
+function MenuIcon() {
+	return (
+		<span className="relative block h-[18px] w-[21px]" aria-hidden>
+			<span className="absolute left-0 top-0.5 h-0.5 w-[21px] rounded-full bg-black" />
+			<span className="absolute left-0 top-2 h-0.5 w-[21px] rounded-full bg-black" />
+			<span className="absolute left-0 top-[14px] h-0.5 w-[21px] rounded-full bg-black" />
+		</span>
+	);
+}
+
+const MOBILE_MENU_ITEMS = [
+	{ label: "홈", to: "/" },
+	{ label: "AI 도안 생성", to: "/ai" },
+	{ label: "타투 시뮬레이션", to: "/simulations" },
+	{ label: "커버업 타투", to: "/coverups" },
+	{ label: "커뮤니티", to: "/posts", dividerBefore: true },
+	{ label: "피드", to: "/posts/search" },
+	{ label: "메시지", to: "/dm" },
+	{ label: "타투이스트", to: "/artists" },
+	{ label: "마이페이지", to: "/mypage" },
+] as const;
+
+function MobileTopNav() {
+	const { pathname } = useLocation();
+	const navigate = useNavigate();
+	const [open, setOpen] = useState(false);
+	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
+	const logout = useAuthStore((s) => s.logout);
+
+	useEffect(() => setOpen(false), [pathname]);
+
+	useEffect(() => {
+		if (!open) return undefined;
+		const previousOverflow = document.body.style.overflow;
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") setOpen(false);
+		};
+		document.body.style.overflow = "hidden";
+		document.addEventListener("keydown", handleKeyDown);
+		return () => {
+			document.body.style.overflow = previousOverflow;
+			document.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [open]);
+
+	const handleLogout = async () => {
+		setOpen(false);
+		await logout();
+		navigate("/", { replace: true });
+	};
+
+	return (
+		<>
+			<header className="fixed inset-x-0 top-0 z-[60] h-[50px] border-b border-black/10 bg-white lg:hidden">
+				<div className="grid h-full grid-cols-[48px_1fr_48px] items-center px-4">
+					<button
+						type="button"
+						aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
+						aria-expanded={open}
+						onClick={() => setOpen((value) => !value)}
+						className="flex size-10 items-center justify-start outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
+						<MenuIcon />
+					</button>
+
+					<Link
+						to="/"
+						aria-label="starttoo 홈"
+						className="justify-self-center">
+						<img
+							src={mobileLogo}
+							alt="starttoo"
+							className="h-5 w-[120px] object-contain"
+						/>
+					</Link>
+
+					<div className="flex size-10 items-center justify-end justify-self-end">
+						<NotificationBell />
+					</div>
+				</div>
+			</header>
+
+			{open && (
+				<div
+					className="fixed inset-x-0 bottom-0 top-[50px] z-50 bg-black/45 lg:hidden"
+					onClick={() => setOpen(false)}>
+					<div
+						role="dialog"
+						aria-modal="true"
+						aria-label="전체 메뉴"
+						onClick={(event) => event.stopPropagation()}
+						className="max-h-[calc(100dvh-50px)] overflow-y-auto rounded-b-[24px] bg-white pb-6 shadow-[0_20px_45px_rgba(0,0,0,0.12)]">
+						<nav className="flex flex-col items-center gap-4 px-6 pb-4 pt-3">
+							{MOBILE_MENU_ITEMS.map((item) => {
+								const active =
+									item.to === "/"
+										? pathname === "/"
+										: pathname === item.to || pathname.startsWith(`${item.to}/`);
+								return (
+									<div key={item.to} className={`flex w-full justify-center ${"dividerBefore" in item && item.dividerBefore ? "border-t border-black/15 pt-4" : ""}`}>
+										<Link
+											to={item.to}
+											aria-current={active ? "page" : undefined}
+											className={`text-[17px] leading-6 tracking-[-0.03em] transition ${active ? "font-semibold text-black" : "font-normal text-black/90"}`}>
+											{item.label}
+										</Link>
+									</div>
+								);
+							})}
+						</nav>
+
+						<div className="mx-6 border-t border-black/15" />
+						<div className="flex flex-col items-center gap-4 px-6 pt-4">
+							<Link
+								to="/notifications"
+								className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-black/90">
+								설정
+							</Link>
+							{isLoggedIn ? (
+								<button
+									type="button"
+									onClick={() => void handleLogout()}
+									className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-black/90">
+									로그아웃
+								</button>
+							) : (
+								<Link to="/login" className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-black/90">
+									로그인
+								</Link>
+							)}
+						</div>
+					</div>
+				</div>
+			)}
+		</>
+	);
+}
+
 export default function TopNav() {
 	const { pathname } = useLocation();
 	const showSearch = pathname.startsWith("/posts/search");
@@ -329,8 +467,10 @@ export default function TopNav() {
 	const [loginOpen, setLoginOpen] = useState(false);
 
 	return (
+		<>
+			<MobileTopNav />
 		<header
-			className="fixed inset-x-0 top-0 z-50 h-[60px]"
+			className="fixed inset-x-0 top-0 z-50 hidden h-[60px] lg:block"
 			style={{
 				background: `url(${topnavGrain}) center / 100% 100% no-repeat, linear-gradient(90.22deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 80, 38, 0.7) 100.62%), #FFFFFF`,
 			}}>
@@ -385,5 +525,6 @@ export default function TopNav() {
 
 			<LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 		</header>
+		</>
 	);
 }

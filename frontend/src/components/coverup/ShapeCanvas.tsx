@@ -44,7 +44,7 @@ export default function ShapeCanvas({
 			width={MASK_W}
 			height={MASK_H}
 			aria-label="가릴 부위를 그리는 캔버스"
-			className="max-h-full max-w-full cursor-crosshair touch-none rounded-[12px] border border-black/10 bg-[#f4f4f5]"
+			className="max-h-full max-w-full cursor-crosshair touch-none rounded-[12px] border border-black/10 bg-[#f4f4f5] max-lg:h-auto max-lg:w-full"
 			{...handlers}
 		/>
 	);

@@ -22,6 +22,14 @@ import type { DmMessageResponse } from "../types/dm";
 import { profilePath, resolveAvatar } from "../utils/profile";
 import { formatDmTime } from "../components/dm/dmTime";
 
+function BackIcon() {
+	return (
+		<svg viewBox="0 0 24 24" className="size-6" fill="none" aria-hidden>
+			<path d="m15 5-7 7 7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+		</svg>
+	);
+}
+
 function ImageAttachIcon() {
 	return (
 		<svg
@@ -192,10 +200,10 @@ export default function DmPage() {
 	}
 
 	return (
-		<div className="flex h-[calc(100vh-60px)] bg-white">
+		<div className="flex h-[calc(100dvh-50px)] min-h-0 bg-white lg:h-[calc(100vh-60px)]">
 			{/* 좌: 채팅방 목록 */}
-			<aside className="flex w-full max-w-[340px] flex-col border-r border-black/10">
-				<div className="flex items-center justify-between px-5 pb-3 pt-5">
+			<aside className={`${selectedRoom ? "hidden lg:flex" : "flex"} w-full flex-col border-r border-black/10 lg:max-w-[340px]`}>
+				<div className="flex h-[58px] shrink-0 items-center justify-between border-b border-black/10 px-5 lg:h-auto lg:border-b-0 lg:pb-3 lg:pt-5">
 					<h1 className="truncate text-[20px] font-extrabold text-black">
 						{myNickname || "메시지"}
 					</h1>
@@ -217,16 +225,16 @@ export default function DmPage() {
 						아직 대화가 없습니다.
 					</p>
 				) : (
-					<ul className="flex-1 overflow-y-auto">
+					<ul className="min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
 						{rooms.map((room) => {
 							const isSelected = room.dmRoomSeq === activeRoomSeq;
 							const unread = room.unreadCount;
 							return (
-								<li key={room.dmRoomSeq}>
+								<li key={room.dmRoomSeq} className="border-b border-black/[0.06] lg:border-b-0">
 									<button
 										type="button"
 										onClick={() => handleOpenRoom(room.dmRoomSeq)}
-										className={`flex w-full items-center gap-3 px-5 py-3 text-left transition ${
+									className={`flex w-full items-center gap-3 px-5 py-4 text-left transition lg:py-3 ${
 											isSelected ? "bg-brand/5" : "hover:bg-black/[0.03]"
 										}`}>
 										<img
@@ -235,10 +243,10 @@ export default function DmPage() {
 												room.partner.nickname,
 											)}
 											alt=""
-											className="size-11 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+										className="size-12 shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-11"
 										/>
 										<span className="min-w-0 flex-1">
-											<span className="block truncate text-[14px] font-semibold text-black">
+											<span className="block truncate text-[15px] font-semibold text-black lg:text-[14px]">
 												{room.partner.nickname}
 											</span>
 											<span
@@ -281,8 +289,9 @@ export default function DmPage() {
 
 			{/* 우: 대화창 */}
 			{selectedRoom ? (
-				<section className="flex min-w-0 flex-1 flex-col">
-					<div className="flex items-center gap-3 border-b border-black/10 px-6 py-3">
+				<section className="flex min-w-0 flex-1 flex-col bg-white">
+					<div className="flex h-[58px] shrink-0 items-center gap-2 border-b border-black/10 px-3 lg:h-auto lg:gap-3 lg:px-6 lg:py-3">
+						<button type="button" aria-label="대화 목록으로 돌아가기" onClick={leaveDm} className="flex size-9 shrink-0 items-center justify-center text-black/65 lg:hidden"><BackIcon /></button>
 						<Link
 							to={profilePath(selectedRoom.partner.userSeq)}
 							aria-label={`${selectedRoom.partner.nickname} 프로필`}>
@@ -309,7 +318,7 @@ export default function DmPage() {
 						</DmRoomMenu>
 					</div>
 
-					<div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
+					<div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6">
 						{hasOlderMessages && (
 							<div className="mb-3 flex justify-center">
 								<button
@@ -373,7 +382,7 @@ export default function DmPage() {
 					)}
 
 					<form
-						className="flex items-center gap-2 border-t border-black/10 px-5 py-3"
+						className="flex shrink-0 items-center gap-2 border-t border-black/10 bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 lg:px-5 lg:py-3"
 						onSubmit={(e) => {
 							e.preventDefault();
 							void handleSend();
@@ -398,20 +407,20 @@ export default function DmPage() {
 							onChange={(e) => setInput(e.target.value)}
 							placeholder="메시지 입력..."
 							maxLength={4000}
-							className="h-10 min-w-0 flex-1 rounded-full border border-black/15 bg-white px-4 text-[13px] font-light text-black outline-none placeholder:text-black/35 focus:border-brand/50"
+							className="h-11 min-w-0 flex-1 rounded-full border border-black/15 bg-white px-4 text-[14px] font-light text-black outline-none placeholder:text-black/35 focus:border-brand/50 lg:h-10 lg:text-[13px]"
 						/>
 						<button
 							type="submit"
 							disabled={(!input.trim() && !image) || isSending}
 							aria-label="전송"
-							className="flex h-10 items-center gap-1.5 rounded-full bg-brand px-4 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:opacity-40">
-							<ShareIcon size={16} />
-							{isSending ? "전송 중…" : "전송"}
+							className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition hover:brightness-95 disabled:bg-[#D9D9D9] disabled:text-black/35 lg:h-10 lg:w-auto lg:gap-1.5 lg:px-4">
+							<ShareIcon size={17} />
+							<span className="hidden text-[13px] font-semibold lg:inline">{isSending ? "전송 중…" : "전송"}</span>
 						</button>
 					</form>
 				</section>
 			) : (
-				<section className="flex flex-1 items-center justify-center bg-surface">
+				<section className="hidden flex-1 items-center justify-center bg-surface lg:flex">
 					<div className="text-center">
 						<p className="text-[16px] font-semibold text-black">
 							대화를 선택해주세요

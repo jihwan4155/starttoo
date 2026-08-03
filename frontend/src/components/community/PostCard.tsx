@@ -124,8 +124,8 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	};
 
 	return (
-		<article className="w-full">
-			<div className="flex items-center gap-3">
+		<article className="w-full overflow-hidden rounded-[12px] bg-white pb-4 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:pb-0">
+			<div className="flex items-center gap-3 px-3 py-3 lg:px-0 lg:py-0">
 				<Link to={profileTo} aria-label={`${nickname} 프로필`}>
 					<img
 						src={avatarUrl}
@@ -208,7 +208,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 				</div>
 			</div>
 
-			<div className="relative mt-3">
+			<div className="relative lg:mt-3">
 				<div
 					className={
 						isHidden
@@ -219,20 +219,20 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						type="button"
 						onClick={() => !isHidden && onOpen(post)}
 						disabled={isHidden}
-						className="block w-full overflow-hidden rounded-[10px] disabled:cursor-default"
+						className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
 						aria-label="게시글 상세 보기">
 						{post.imageUrl ? (
 							<img
 								src={post.imageUrl}
 								alt={`${post.author.nickname}의 게시글`}
-								className="h-[clamp(320px,52vh,460px)] w-full object-cover transition hover:scale-[1.01]"
+								className="aspect-square h-auto w-full object-cover transition hover:scale-[1.01] lg:h-[clamp(320px,52vh,460px)] lg:aspect-auto"
 							/>
 						) : (
-							<div className="h-[clamp(320px,52vh,460px)] w-full bg-[#D9D9D9]" />
+							<div className="aspect-square w-full bg-[#D9D9D9] lg:h-[clamp(320px,52vh,460px)] lg:aspect-auto" />
 						)}
 					</button>
 
-					<div className="mt-3 flex items-center gap-4 text-black">
+					<div className="mt-3 flex items-center gap-4 px-3 text-black lg:px-0">
 						<button
 							type="button"
 							aria-label="좋아요"
@@ -302,7 +302,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						</button>
 					</div>
 
-					<p className="mt-2 line-clamp-2 text-[13px] font-light leading-5 text-black">
+					<p className="mt-2 line-clamp-2 px-3 text-[13px] font-light leading-5 text-black lg:px-0">
 						<Link
 							to={profileTo}
 							className="mr-2 font-semibold hover:underline"

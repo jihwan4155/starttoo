@@ -20,11 +20,11 @@ function CloseIcon() {
 export default function SaveConfirmModal({ onClose }: SaveConfirmModalProps) {
 	return (
 		<div
-			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-6"
+			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-3 sm:px-6"
 			onClick={onClose}
 			role="presentation">
 			<div
-				className="relative w-full max-w-[480px] rounded-[20px] bg-white px-10 py-12"
+				className="relative w-full max-w-[480px] rounded-[16px] bg-white px-4 pb-6 pt-10 sm:rounded-[20px] sm:px-10 sm:py-12"
 				onClick={(event) => event.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
@@ -33,25 +33,25 @@ export default function SaveConfirmModal({ onClose }: SaveConfirmModalProps) {
 					type="button"
 					onClick={onClose}
 					aria-label="닫기"
-					className="absolute right-5 top-5 flex size-8 items-center justify-center">
+					className="absolute right-3 top-3 flex size-8 items-center justify-center sm:right-5 sm:top-5">
 					<CloseIcon />
 				</button>
 
-				<p className="text-center text-[28px] font-bold leading-8 text-black">
+				<p className="text-center text-[21px] font-bold leading-7 text-black sm:text-[28px] sm:leading-8">
 					저장되었습니다
 				</p>
 
-				<div className="mt-10 flex items-center justify-center gap-4">
+				<div className="mt-7 grid grid-cols-2 gap-2 sm:mt-10 sm:gap-4">
 					<Link
 						to="/mypage?tab=designs"
 						onClick={onClose}
-						className="inline-flex h-[52px] min-w-[140px] items-center justify-center rounded-[50px] border border-black bg-white px-6 text-[18px] font-semibold text-black transition hover:bg-gray-50">
+						className="inline-flex h-12 min-w-0 items-center justify-center rounded-[50px] border border-black bg-white px-2 text-[14px] font-semibold text-black transition hover:bg-gray-50 sm:h-[52px] sm:min-w-[140px] sm:px-6 sm:text-[18px]">
 						보관함 가기
 					</Link>
 					<Link
 						to="/simulations"
 						onClick={onClose}
-						className="inline-flex h-[52px] min-w-[140px] items-center justify-center rounded-[50px] bg-brand px-6 text-[18px] font-semibold text-white transition hover:brightness-95">
+						className="inline-flex h-12 min-w-0 items-center justify-center rounded-[50px] bg-brand px-2 text-[14px] font-semibold text-white transition hover:brightness-95 sm:h-[52px] sm:min-w-[140px] sm:px-6 sm:text-[18px]">
 						시뮬레이션 보기
 					</Link>
 				</div>

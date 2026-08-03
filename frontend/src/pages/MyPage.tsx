@@ -30,6 +30,8 @@ import { ApiError } from "../services/api";
 import { isDemoArchiveDesign } from "../constants/demoArchiveDesigns";
 import { mapArchiveItemToSavedDesign } from "../utils/mapArchive";
 import mergeWithDemoArchiveDesigns from "../utils/mergeArchiveDesigns";
+import { mockPosts } from "../mocks/community";
+import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
 function isMyPageTab(value: string | null): value is MyPageTab {
 	return (
@@ -107,11 +109,17 @@ export default function MyPage() {
 		useRemoveFromArchive();
 
 	const myPosts = useMemo(
-		() => myFeedData?.pages.flatMap((page) => page.items) ?? [],
+		() => {
+			const items = myFeedData?.pages.flatMap((page) => page.items) ?? [];
+			return QA_MOCK_DATA_ENABLED && items.length === 0 ? mockPosts.slice(0, 7) : items;
+		},
 		[myFeedData?.pages],
 	);
 	const bookmarkedPosts = useMemo(
-		() => bookmarkData?.pages.flatMap((page) => page.items) ?? [],
+		() => {
+			const items = bookmarkData?.pages.flatMap((page) => page.items) ?? [];
+			return QA_MOCK_DATA_ENABLED && items.length === 0 ? mockPosts.slice(3, 10) : items;
+		},
 		[bookmarkData?.pages],
 	);
 	const savedDesigns = useMemo(() => {
@@ -119,7 +127,8 @@ export default function MyPage() {
 			archiveData?.pages.flatMap((page) =>
 				page.items.map(mapArchiveItemToSavedDesign),
 			) ?? [];
-		return isLoggedIn ? mergeWithDemoArchiveDesigns(fromApi) : [];
+		if (!isLoggedIn) return [];
+		return QA_MOCK_DATA_ENABLED ? mergeWithDemoArchiveDesigns(fromApi) : fromApi;
 	}, [archiveData?.pages, isLoggedIn]);
 
 	const meErrorMessage =
@@ -159,14 +168,22 @@ export default function MyPage() {
 		useMyArtistProfile(me?.userId ?? 0, isArtist);
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
+		<div className="min-h-[calc(100vh-60px)] bg-surface px-0 pb-28 pt-5 lg:px-6 lg:pb-16 lg:pt-10">
 			<div className="mx-auto w-full max-w-[900px]">
 				{isLoggedIn && isMeError && (
 					<p className="mb-4 text-center text-[14px] text-black/60">
 						{meErrorMessage}
 					</p>
 				)}
-				<MyPageHeader
+				{!isArtist && (
+					<button
+						type="button"
+						onClick={() => setBadgeRequestOpen(true)}
+						className="mb-2 ml-auto block px-4 text-right text-[13px] text-black/70">
+						타투이스트 인증 뱃지 신청
+					</button>
+				)}
+				<div className="px-4 lg:px-0"><MyPageHeader
 					nickname={me?.nickname ?? nickname}
 					avatarUrl={me?.profileImageUrl ?? avatarUrl}
 					postCount={isFeedLoading ? undefined : myPosts.length}
@@ -175,8 +192,7 @@ export default function MyPage() {
 					isLoading={isLoggedIn && isMePending}
 					isArtist={isArtist}
 					onOpenFollowList={setFollowListKind}
-					onRequestArtistBadge={() => setBadgeRequestOpen(true)}
-				/>
+				/></div>
 
 				{isArtist && (
 					<MyPageShopInfo
@@ -186,11 +202,11 @@ export default function MyPage() {
 					/>
 				)}
 
-				<div className="mt-8">
+				<div className="mt-8 lg:mt-8">
 					<MyPageTabs active={tab} onChange={setTab} />
 				</div>
 
-				<div className="mt-8">
+				<div className="mt-4 lg:mt-8">
 					{tab === "feed" &&
 						(!isLoggedIn ? (
 							<MyPageEmptyState

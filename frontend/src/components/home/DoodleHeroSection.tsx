@@ -40,7 +40,7 @@ export default function DoodleHeroSection() {
 	};
 
 	return (
-		<section className="relative h-[calc(100vh-60px)] min-h-[600px] w-full overflow-hidden bg-surface">
+		<section className="relative h-[calc(100svh-50px)] min-h-[620px] w-full overflow-hidden bg-surface lg:h-[calc(100vh-60px)] lg:min-h-[600px]">
 			{/* 모눈 배경 — 캔버스에는 사용자가 그린 선만 남도록 CSS로 그린다.
 			    작은 칸 20px, 5칸마다 굵은 칸 100px로 모눈종이 느낌을 낸다 */}
 			<div
@@ -66,25 +66,25 @@ export default function DoodleHeroSection() {
 			/>
 
 			{/* 안내 문구 — 그리기를 막지 않도록 클릭을 통과시킨다 */}
-			<div className="pointer-events-none absolute inset-x-0 top-14 flex flex-col items-center px-6 text-center">
-				<p className="text-[24px] font-normal leading-7 text-black">
+			<div className="pointer-events-none absolute inset-x-0 top-8 flex flex-col items-center px-5 text-center lg:top-14 lg:px-6">
+				<p className="text-[15px] font-normal leading-5 text-black lg:text-[24px] lg:leading-7">
 					그림 한 장으로 취향을 읽어드려요
 				</p>
-				<h1 className="mt-4 text-[48px] font-extrabold leading-[57px] text-black">
+				<h1 className="mt-2.5 text-[30px] font-extrabold leading-[37px] tracking-[-0.04em] text-black lg:mt-4 lg:text-[48px] lg:leading-[57px]">
 					떠오르는 대로 그려보세요
 				</h1>
-				<p className="mt-4 text-[18px] font-light leading-[21px] text-black/60">
+				<p className="mt-2.5 max-w-[310px] text-[13px] font-light leading-[19px] text-black/60 lg:mt-4 lg:max-w-none lg:text-[18px] lg:leading-[21px]">
 					다 그렸다면 아래 버튼을 눌러 어울리는 타투 도안을 추천받아 보세요.
 				</p>
 			</div>
 
 			{isEmpty && (
-				<p className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] font-light text-black/25">
+				<p className="pointer-events-none absolute left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 px-5 text-center text-[16px] font-light text-black/25 lg:w-auto lg:px-0 lg:text-[20px]">
 					이 종이를 자유롭게 채워주세요
 				</p>
 			)}
 
-			<div className="pointer-events-none absolute inset-x-0 bottom-8 flex flex-col items-center gap-4 px-6">
+			<div className="pointer-events-none absolute inset-x-0 bottom-5 flex flex-col items-center gap-3 px-3 lg:bottom-8 lg:gap-4 lg:px-6">
 				<div className="pointer-events-auto">
 					<DoodleToolbar
 						tool={tool}

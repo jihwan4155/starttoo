@@ -483,11 +483,11 @@ export default function PostDetailModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+			className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 lg:p-6"
 			onClick={onClose}
 			role="presentation">
 			<div
-				className="flex max-h-[85vh] w-full max-w-[960px] overflow-hidden rounded-2xl bg-white"
+				className="flex max-h-[80dvh] w-full max-w-[960px] overflow-hidden rounded-[12px] bg-white lg:max-h-[85vh] lg:rounded-2xl"
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"

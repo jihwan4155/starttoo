@@ -45,6 +45,10 @@ function ChevronIcon({ direction }: { direction: "left" | "right" }) {
 	);
 }
 
+function HomeIcon() {
+	return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M3 10.8 12 3l9 7.8V21h-6v-6H9v6H3V10.8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
+}
+
 /** 이미지 캐러셀 (자르기·작성 단계 공용) */
 function ImageCarousel({
 	images,
@@ -143,6 +147,11 @@ export default function CreatePostModal({
 		onClose();
 	};
 
+	const handleHome = () => {
+		handleClose();
+		window.location.assign("/");
+	};
+
 	const addFiles = (files: FileList | null) => {
 		if (!files) return;
 		const next = [...files]
@@ -231,85 +240,42 @@ export default function CreatePostModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+			className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-6 max-lg:bg-surface max-lg:p-0"
 			onClick={handleClose}
 			role="presentation">
 			<div
-				className="w-full max-w-[640px] rounded-2xl bg-white"
+				className="w-full max-w-[640px] rounded-2xl bg-white max-lg:flex max-lg:min-h-dvh max-lg:max-w-none max-lg:flex-col max-lg:rounded-none max-lg:bg-surface"
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
 				aria-label="새 게시물 만들기">
 				{/* 헤더 */}
-				<div className="relative flex h-[52px] items-center justify-center border-b border-black/10 px-4">
-					{step !== "select" && (
-						<button
-							type="button"
-							onClick={() =>
-								setStep(step === "write" ? "crop" : "select")
-							}
-							className="absolute left-4 flex items-center gap-0.5 text-[13px] font-light text-black/60 transition hover:text-black">
-							<ChevronIcon direction="left" />
-							이전
-						</button>
-					)}
+				<div className="relative flex h-[52px] shrink-0 items-center justify-center border-b border-black/10 bg-white px-4 max-lg:fixed max-lg:inset-x-0 max-lg:top-0 max-lg:z-20">
+					<button type="button" onClick={handleHome} aria-label="홈으로 가기" className="absolute left-4 hidden size-8 items-center justify-center text-[#555] max-lg:flex"><HomeIcon /></button>
 					<p className="text-[15px] font-semibold text-black">
 						{step === "select" && "새 게시물 만들기"}
 						{step === "crop" && "자르기"}
 						{step === "write" && "새 게시물 만들기"}
 					</p>
-					{step === "select" &&
-						(images.length > 0 ? (
-							<button
-								type="button"
-								onClick={() => {
-									setImageIndex(0);
-									setStep("crop");
-								}}
-								className="absolute right-4 flex items-center gap-0.5 text-[14px] font-semibold text-brand transition hover:brightness-90">
-								다음
-								<ChevronIcon direction="right" />
-							</button>
-						) : (
-							<button
-								type="button"
-								aria-label="닫기"
-								onClick={handleClose}
-								className="absolute right-4 text-black/60 transition hover:text-black">
-								<CloseIcon size={18} />
-							</button>
-						))}
-					{step === "crop" && (
-						<button
-							type="button"
-							onClick={handleCropDone}
-							disabled={isCropping}
-							className="absolute right-4 flex items-center gap-0.5 text-[14px] font-semibold text-brand transition hover:brightness-90 disabled:opacity-50">
-							{isCropping ? "적용 중..." : "다음"}
-							{!isCropping && <ChevronIcon direction="right" />}
-						</button>
-					)}
-					{step === "write" && (
-						<button
-							type="button"
-							onClick={handleSubmit}
-							disabled={isSubmitting || isCreatePending}
-							className="absolute right-4 text-[14px] font-semibold text-brand transition hover:brightness-90 disabled:opacity-50">
-							{isSubmitting || isCreatePending ? "올리는 중..." : "게시물 올리기"}
-						</button>
-					)}
+					{step !== "select" && <button type="button" onClick={() => setStep(step === "write" ? "crop" : "select")} className="absolute left-4 flex items-center gap-0.5 text-[13px] text-black/60 max-lg:hidden"><ChevronIcon direction="left" />이전</button>}
+					<div className="absolute right-4 max-lg:hidden">
+						{step === "select" && images.length === 0 && <button type="button" aria-label="닫기" onClick={handleClose} className="text-black/60"><CloseIcon size={18} /></button>}
+						{step === "select" && images.length > 0 && <button type="button" onClick={() => { setImageIndex(0); setStep("crop"); }} className="text-[14px] font-semibold text-brand">다음</button>}
+						{step === "crop" && <button type="button" onClick={handleCropDone} disabled={isCropping} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>}
+						{step === "write" && <button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "게시물 올리기"}</button>}
+					</div>
 				</div>
 
 				{/* 1단계: 이미지 선택 */}
 				{step === "select" && (
-					<div className="p-6">
+					<div className="p-6 max-lg:flex max-lg:flex-1 max-lg:flex-col max-lg:px-4 max-lg:pb-24 max-lg:pt-[76px]">
 						{images.length === 0 ? (
 							<div
 								role="presentation"
 								onClick={() => fileInputRef.current?.click()}
 								onDragOver={(e) => e.preventDefault()}
 								onDrop={handleDrop}
-								className="flex h-[240px] cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-black/15 transition hover:border-brand/40">
+								className="flex h-[240px] cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-black/15 bg-white transition hover:border-brand/40 max-lg:h-[300px]">
 								<p className="text-center text-[13px] font-light leading-6 text-black/40">
 									드래그 하거나 클릭해 사진을 업로드해주세요
 									<br />
@@ -355,7 +321,7 @@ export default function CreatePostModal({
 							</>
 						)}
 
-						<div className="mt-5 flex justify-center gap-4">
+						<div className="mt-5 flex justify-center gap-4 max-lg:mt-8 max-lg:flex-col max-lg:px-12">
 							<ActionButton
 								variant="outline"
 								onClick={() => fileInputRef.current?.click()}>
@@ -372,7 +338,7 @@ export default function CreatePostModal({
 
 				{/* 2단계: 자르기 — 드래그로 영역 이동, 슬라이더로 확대/축소 */}
 				{step === "crop" && (
-					<div className="p-8">
+					<div className="p-8 max-lg:flex-1 max-lg:px-8 max-lg:pb-24 max-lg:pt-[84px]">
 						<div className="mx-auto max-w-[380px]">
 							{images.length > 1 && (
 								<div className="mb-3 flex items-center justify-center gap-4">
@@ -415,8 +381,8 @@ export default function CreatePostModal({
 
 				{/* 3단계: 문구 작성 */}
 				{step === "write" && (
-					<div className="flex gap-5 p-6">
-						<div className="w-[280px] shrink-0">
+					<div className="flex gap-5 p-6 max-lg:flex-1 max-lg:flex-col max-lg:px-5 max-lg:pb-24 max-lg:pt-[84px]">
+						<div className="w-[280px] shrink-0 max-lg:hidden">
 							{/* 크롭이 적용된 결과 이미지 미리보기 */}
 							<ImageCarousel
 								images={
@@ -439,7 +405,7 @@ export default function CreatePostModal({
 									{nickname}
 								</span>
 							</div>
-							<div className="relative mt-3 flex-1">
+							<div className="relative mt-3 flex-1 max-lg:min-h-[300px]">
 								<textarea
 									value={caption}
 									onChange={(e) =>
@@ -448,7 +414,7 @@ export default function CreatePostModal({
 										)
 									}
 									placeholder="문구를 입력해주세요..."
-									className="h-full min-h-[200px] w-full resize-none rounded-[10px] border border-black/15 p-3 text-[13px] font-light leading-5 text-black outline-none placeholder:text-black/35 focus:border-brand/50"
+									className="h-full min-h-[200px] w-full resize-none rounded-[10px] border border-black/15 bg-white p-3 text-[13px] font-light leading-5 text-black outline-none placeholder:text-black/35 focus:border-brand/50"
 								/>
 								<span className="absolute bottom-2.5 right-3 text-[11px] font-light text-black/35">
 									{caption.length}/{MAX_CAPTION_LENGTH}
@@ -460,6 +426,22 @@ export default function CreatePostModal({
 						</div>
 					</div>
 				)}
+
+				{/* 모바일 단계 이동 — 헤더가 아닌 본문 하단에 배치 */}
+				<div className="fixed inset-x-0 bottom-0 z-20 hidden h-[68px] items-center gap-3 border-t border-black/5 bg-white px-4 max-lg:flex">
+					{step !== "select" && (
+						<button type="button" onClick={() => setStep(step === "write" ? "crop" : "select")} disabled={isCropping || isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full border border-black bg-white text-[16px] font-semibold disabled:opacity-40">이전</button>
+					)}
+					{step === "select" && (
+						<button type="button" disabled={images.length === 0} onClick={() => { setImageIndex(0); setStep("crop"); }} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:bg-[#D9D9D9] disabled:text-[#888]">다음</button>
+					)}
+					{step === "crop" && (
+						<button type="button" onClick={handleCropDone} disabled={isCropping} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>
+					)}
+					{step === "write" && (
+						<button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "게시물 올리기"}</button>
+					)}
+				</div>
 
 				<input
 					ref={fileInputRef}

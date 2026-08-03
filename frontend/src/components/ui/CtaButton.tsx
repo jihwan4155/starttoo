@@ -16,7 +16,7 @@ export default function CtaButton({
 	disabled = false,
 	className = "",
 }: CtaButtonProps) {
-	const sharedClassName = `inline-flex h-[66px] w-[360px] shrink-0 items-center justify-center whitespace-nowrap rounded-[50px] bg-brand px-8 text-[30px] font-semibold leading-[35px] text-white transition hover:brightness-95 active:scale-[0.99] ${className}`;
+	const sharedClassName = `inline-flex h-11 w-full max-w-[360px] shrink-0 items-center justify-center whitespace-nowrap rounded-[50px] bg-brand px-6 text-[15px] font-semibold leading-5 text-white transition hover:brightness-95 active:scale-[0.99] lg:h-[66px] lg:w-[360px] lg:px-8 lg:text-[30px] lg:leading-[35px] ${className}`;
 
 	if (to) {
 		return (
