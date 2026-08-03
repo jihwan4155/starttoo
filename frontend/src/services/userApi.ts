@@ -36,6 +36,17 @@ export async function updateMe(body: UpdateMeRequest): Promise<MeResponse> {
 	return mapMyProfile(data);
 }
 
+/**
+ * DELETE /users/me — 회원 탈퇴
+ *
+ * 서버는 계정 상태를 WITHDRAWN으로 바꾸고 Refresh Token과 푸시 기기를 모두 정리한다.
+ * 이 호출이 성공한 시점에 보유 토큰은 이미 무효라, 호출자는 곧바로 로컬 세션을
+ * 비워야 한다(서버 로그아웃을 다시 호출할 필요 없다).
+ */
+export async function withdrawMe(): Promise<void> {
+	await api.delete("/users/me");
+}
+
 /** PATCH /users/me/profile-image */
 export async function updateProfileImage(
 	body: BeProfileImageRequest,
