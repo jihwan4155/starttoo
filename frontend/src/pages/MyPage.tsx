@@ -5,7 +5,9 @@ import CreatePostModal from "../components/community/CreatePostModal";
 import PostDetailModal from "../components/community/PostDetailModal";
 import CollectionEditor from "../components/collections/CollectionEditor";
 import StarttooLoader from "../components/loader/StarttooLoader";
+import ArtistBadgeRequestModal from "../components/mypage/ArtistBadgeRequestModal";
 import DesignThumbnailGrid from "../components/mypage/DesignThumbnailGrid";
+import FollowListModal from "../components/mypage/FollowListModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageHeader from "../components/mypage/MyPageHeader";
 import MyPageShopInfo from "../components/mypage/MyPageShopInfo";
@@ -13,7 +15,9 @@ import MyPageTabs, { type MyPageTab } from "../components/mypage/MyPageTabs";
 import PostThumbnailGrid from "../components/mypage/PostThumbnailGrid";
 import useBookmarkedPosts from "../hooks/queries/useBookmarkedPosts";
 import useArchive from "../hooks/queries/useArchive";
+import type { FollowListKind } from "../hooks/queries/useFollowList";
 import useMe from "../hooks/queries/useMe";
+import useMyArtistProfile from "../hooks/queries/useMyArtistProfile";
 import useMyPosts from "../hooks/queries/useMyPosts";
 import useUserProfile from "../hooks/queries/useUserProfile";
 import useRemoveFromArchive from "../hooks/mutations/useRemoveFromArchive";
@@ -46,6 +50,11 @@ export default function MyPage() {
 	const [isWriteOpen, setWriteOpen] = useState(false);
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	const [activeDesign, setActiveDesign] = useState<SavedDesign | null>(null);
+	// null이면 닫힘 — 어느 탭으로 열지까지 이 값이 들고 있다.
+	const [followListKind, setFollowListKind] = useState<FollowListKind | null>(
+		null,
+	);
+	const [isBadgeRequestOpen, setBadgeRequestOpen] = useState(false);
 
 	useEffect(() => {
 		if (isMyPageTab(tabParam)) {
@@ -144,6 +153,10 @@ export default function MyPage() {
 	const isArtist = me?.role === "ARTIST" || authUser?.role === "ARTIST";
 	// artistProfile은 role=ARTIST이고 확장 행이 있을 때만 내려온다.
 	const artist = me?.artist;
+	// 숍 도시·주소·전화·영업 안내는 공개 목록(GET /artists)에서 나를 찾아 읽는다.
+	// 인증(VERIFIED) 전이면 목록에 없어 null이고, 매장명·인증 상태만 보여준다.
+	const { data: artistDetail, isPending: isArtistDetailPending } =
+		useMyArtistProfile(me?.userId ?? 0, isArtist);
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
@@ -156,14 +169,21 @@ export default function MyPage() {
 				<MyPageHeader
 					nickname={me?.nickname ?? nickname}
 					avatarUrl={me?.profileImageUrl ?? avatarUrl}
+					postCount={isFeedLoading ? undefined : myPosts.length}
 					followerCount={publicMe?.followerCount}
 					followingCount={publicMe?.followingCount}
 					isLoading={isLoggedIn && isMePending}
 					isArtist={isArtist}
+					onOpenFollowList={setFollowListKind}
+					onRequestArtistBadge={() => setBadgeRequestOpen(true)}
 				/>
 
-				{artist && (
-					<MyPageShopInfo artist={artist} isLoading={isMePending} />
+				{isArtist && (
+					<MyPageShopInfo
+						artist={artist}
+						detail={artistDetail ?? null}
+						isLoading={isMePending || isArtistDetailPending}
+					/>
 				)}
 
 				<div className="mt-8">
@@ -251,6 +271,17 @@ export default function MyPage() {
 				alt="저장한 도안"
 				isOpen={!!activeDesign}
 				onClose={() => setActiveDesign(null)}
+			/>
+			<FollowListModal
+				isOpen={followListKind !== null && !!me?.userId}
+				userId={me?.userId ?? 0}
+				kind={followListKind ?? "followers"}
+				onChangeKind={setFollowListKind}
+				onClose={() => setFollowListKind(null)}
+			/>
+			<ArtistBadgeRequestModal
+				isOpen={isBadgeRequestOpen}
+				onClose={() => setBadgeRequestOpen(false)}
 			/>
 		</div>
 	);

@@ -8,6 +8,13 @@ type ArtistShopProfileSectionProps = {
 	values: ArtistShopFormValues;
 	onChange: (patch: Partial<ArtistShopFormValues>) => void;
 	verificationStatus: string | null;
+	/**
+	 * 현재 숍 정보를 서버에서 읽어와 채웠는지.
+	 *
+	 * 저장이 전체 덮어쓰기라, 못 읽어온 상태로 저장하면 빈 칸이 그대로 반영된다.
+	 * 그 경우엔 다시 입력해야 한다고 알려 준다.
+	 */
+	isPrefilled: boolean;
 };
 
 /** PATCH /artists/me/profile — 숍 프로필 입력 섹션 */
@@ -15,6 +22,7 @@ export default function ArtistShopProfileSection({
 	values,
 	onChange,
 	verificationStatus,
+	isPrefilled,
 }: ArtistShopProfileSectionProps) {
 	return (
 		<div className="mt-10 border-t border-black/10 pt-10">
@@ -28,6 +36,14 @@ export default function ArtistShopProfileSection({
 				{" · "}
 				{formatApprovalStatus(verificationStatus)}
 			</div>
+
+			{!isPrefilled && (
+				<p className="mt-3 rounded-[10px] bg-brand/[0.07] px-4 py-3 text-[12px] font-light leading-5 text-black/70">
+					인증이 끝나기 전에는 저장된 숍 정보를 다시 불러올 수 없어 아래 칸이 비어
+					있습니다. 저장하면 빈 칸까지 그대로 반영되니, 남겨 둘 내용은 다시 입력해
+					주세요.
+				</p>
+			)}
 
 			<div className="mt-6">
 				<p className="text-[16px] font-bold text-black">숍 이름</p>
@@ -92,8 +108,8 @@ export default function ArtistShopProfileSection({
 			</div>
 
 			<p className="mt-4 text-[12px] font-light leading-5 text-black/40">
-				도시·주소·전화번호·영업 안내는 조회 API가 없어 저장 후 이 화면에 다시
-				표시되지 않습니다. 비워 두면 기존 값을 그대로 유지합니다.
+				여기 입력한 매장명·영업 안내·전화번호·주소가 마이페이지와 타투이스트
+				프로필에 그대로 표시됩니다. 저장하면 이 화면의 내용으로 전체가 바뀝니다.
 			</p>
 		</div>
 	);

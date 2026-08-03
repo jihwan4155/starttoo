@@ -3,11 +3,13 @@ import type {
 	BeArtistProfileSummary,
 	BeMyProfile,
 	BePublicProfile,
+	BeRelationUser,
 } from "../types/beUser";
 import type { ArtistProfileResponse } from "../types/artist";
 import type {
 	MeResponse,
 	PublicProfileResponse,
+	RelationUser,
 	UserArtistSummary,
 } from "../types/user";
 
@@ -54,6 +56,17 @@ export function mapPublicProfile(
 		isFollowing: dto.followedByMe ?? false,
 		isMe: viewerUserId != null && viewerUserId === dto.userSeq,
 		artist: mapArtistSummary(dto.artistProfile),
+	};
+}
+
+/** GET /users/{userSeq}/followers · /following 항목 → UI RelationUser */
+export function mapRelationUser(dto: BeRelationUser): RelationUser {
+	return {
+		userId: dto.userSeq,
+		nickname: dto.nickname,
+		role: dto.role,
+		profileImageUrl: dto.profileImageUrl ?? null,
+		isFollowing: dto.followedByMe ?? false,
 	};
 }
 

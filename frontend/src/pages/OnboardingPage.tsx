@@ -70,6 +70,9 @@ export default function OnboardingPage() {
 			if (role === "ARTIST") {
 				// 서버가 역할 승격을 해 주지 않아 role=USER인 계정에서는 403이 온다.
 				// 숍 정보를 못 담아도 계정은 살아 있으니 온보딩을 막지는 않는다.
+				//
+				// 이 PATCH는 전체 덮어쓰기라 본문에서 뺀 필드는 NULL이 된다. 가입
+				// 직후라 어차피 비어 있으므로 여기서는 아는 두 값만 실어도 안전하다.
 				try {
 					await upsertArtistProfile({
 						...(values.shopName ? { shopName: values.shopName } : {}),

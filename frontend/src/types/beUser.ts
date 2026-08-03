@@ -63,6 +63,16 @@ export type BeRelationState = {
 	enabled: boolean;
 };
 
+/** GET /users/{userSeq}/followers · /following 항목 (Swagger RelationUser) */
+export type BeRelationUser = {
+	userSeq: number;
+	nickname: string;
+	role: string;
+	profileImageSeq: number | null;
+	profileImageUrl: string | null;
+	followedByMe: boolean;
+};
+
 export type BeRecentSearchUpdateRequest = {
 	operation: "ADD" | "REMOVE";
 	term: string;
