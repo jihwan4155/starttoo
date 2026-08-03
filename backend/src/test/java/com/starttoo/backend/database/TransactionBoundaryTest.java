@@ -58,7 +58,7 @@ class TransactionBoundaryTest {
                 ref(DeviceService.class, "register"),
                 ref(DeviceService.class, "deactivate"),
                 ref(DeviceService.class, "deactivateForLogout"),
-                ref(DeviceService.class, "deactivateInvalidPushTokens"),
+                ref(DeviceService.class, "deactivateInvalidFids"),
                 ref(NotificationService.class, "create"),
                 ref(NotificationService.class, "read"),
                 ref(NotificationService.class, "readAll"),

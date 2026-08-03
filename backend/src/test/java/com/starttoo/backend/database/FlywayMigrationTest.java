@@ -29,7 +29,7 @@ class FlywayMigrationTest {
                 .load()
                 .migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(7);
+        assertThat(result.migrationsExecuted).isEqualTo(8);
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(),
                 POSTGRES.getUsername(),
@@ -67,6 +67,24 @@ class FlywayMigrationTest {
                         .contains("WITHDRAWN");
             }
             assertThat(indexCount).isEqualTo(2);
+        }
+        try (var connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(),
+                POSTGRES.getUsername(),
+                POSTGRES.getPassword()
+        ); var statement = connection.prepareStatement("""
+                SELECT column_name, character_maximum_length
+                  FROM information_schema.columns
+                 WHERE table_schema = 'public'
+                   AND table_name = 'user_devices'
+                   AND column_name IN ('firebase_installation_id', 'push_token')
+                """);
+             var rows = statement.executeQuery()) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getString("column_name"))
+                    .isEqualTo("firebase_installation_id");
+            assertThat(rows.getInt("character_maximum_length")).isEqualTo(128);
+            assertThat(rows.next()).isFalse();
         }
     }
 }
