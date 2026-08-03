@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
 import topnavGrain from "../../assets/images/topnav-grain.png";
 import ArtistSearchBar from "../artist/ArtistSearchBar";
+import LoginModal from "../auth/LoginModal";
+import WithdrawAccountModal from "../auth/WithdrawAccountModal";
 import CommunitySearchBar from "../community/CommunitySearchBar";
 import NotificationListItem from "../notifications/NotificationListItem";
 import SystemNotificationModal from "../notifications/SystemNotificationModal";
@@ -16,6 +18,7 @@ import useUserStore from "../../store/useUserStore";
 import useAuthStore from "../../store/useAuthStore";
 import useNotificationStore from "../../store/useNotificationStore";
 import useDmStore from "../../store/useDmStore";
+import useToastStore from "../../store/useToastStore";
 import type { NotificationItem } from "../../types/notification";
 import { resolveAvatar } from "../../utils/profile";
 
@@ -221,13 +224,15 @@ function NotificationBell() {
 	);
 }
 
-/** 설정(톱니) 버튼 — 누르면 로그아웃 등 메뉴가 토글로 열린다 */
-function SettingMenu() {
+/** 설정(톱니) 버튼 — 누르면 로그인·로그아웃·회원탈퇴 메뉴가 토글로 열린다 */
+function SettingMenu({ onRequestLogin }: { onRequestLogin: () => void }) {
 	const navigate = useNavigate();
 	const [open, setOpen] = useState(false);
+	const [withdrawOpen, setWithdrawOpen] = useState(false);
 	const wrapRef = useRef<HTMLDivElement>(null);
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 	const logout = useAuthStore((s) => s.logout);
+	const showToast = useToastStore((s) => s.showToast);
 
 	useEffect(() => {
 		if (!open) return undefined;
@@ -250,6 +255,7 @@ function SettingMenu() {
 		await logout();
 		// 로그인 필요 페이지에 있었다면 가드가 /login으로 보내므로 홈으로 명시 이동
 		navigate("/", { replace: true });
+		showToast("로그아웃되었습니다.");
 	};
 
 	return (
@@ -266,22 +272,49 @@ function SettingMenu() {
 			{open && (
 				<div className="absolute right-0 top-[calc(100%+14px)] z-50 w-[160px] overflow-hidden rounded-[14px] bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
 					{isLoggedIn ? (
+						<>
+							<button
+								type="button"
+								onClick={() => void handleLogout()}
+								className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-black transition hover:bg-black/[0.04]">
+								로그아웃
+							</button>
+							{/* 되돌릴 수 없는 동작이라 색으로 구분하고, 실제 실행은 확인 모달에서 받는다 */}
+							<button
+								type="button"
+								onClick={() => {
+									setOpen(false);
+									setWithdrawOpen(true);
+								}}
+								className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-brand transition hover:bg-black/[0.04]">
+								회원탈퇴
+							</button>
+						</>
+					) : (
 						<button
 							type="button"
-							onClick={() => void handleLogout()}
-							className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-black transition hover:bg-black/[0.04]">
-							로그아웃
-						</button>
-					) : (
-						<Link
-							to="/login"
-							onClick={() => setOpen(false)}
+							onClick={() => {
+								setOpen(false);
+								onRequestLogin();
+							}}
 							className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-black transition hover:bg-black/[0.04]">
 							로그인
-						</Link>
+						</button>
 					)}
 				</div>
 			)}
+
+			<WithdrawAccountModal
+				isOpen={withdrawOpen}
+				onClose={() => setWithdrawOpen(false)}
+				onWithdrawn={() => {
+					setWithdrawOpen(false);
+					// 로그인 필요 페이지에 있었다면 가드가 /login으로 보내므로 홈으로 명시 이동
+					navigate("/", { replace: true });
+					// 탈퇴도 세션이 끊기는 동작이라 로그아웃과 같은 방식으로 알린다.
+					showToast("회원탈퇴가 완료되었습니다.");
+				}}
+			/>
 		</div>
 	);
 }
@@ -292,6 +325,8 @@ export default function TopNav() {
 	const showArtistSearch = pathname.startsWith("/artists");
 	const avatarUrl = useUserStore((s) => s.avatarUrl);
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
+	// 설정 메뉴와 아바타가 같은 모달을 열기 때문에 상태를 여기서 들고 있는다.
+	const [loginOpen, setLoginOpen] = useState(false);
 
 	return (
 		<header
@@ -319,20 +354,36 @@ export default function TopNav() {
 
 				<div className="flex items-center gap-5">
 					<NotificationBell />
-					<SettingMenu />
-					{/* 미로그인 상태에서는 로그인 화면으로 안내한다 */}
-					<Link
-						to={isLoggedIn ? "/mypage" : "/login"}
-						aria-label={isLoggedIn ? "마이페이지" : "로그인"}
-						className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
-						<img
-							src={resolveAvatar(avatarUrl)}
-							alt=""
-							className="size-full object-cover"
-						/>
-					</Link>
+					<SettingMenu onRequestLogin={() => setLoginOpen(true)} />
+					{/* 미로그인 상태에서는 화면을 떠나지 않고 로그인 모달을 띄운다 */}
+					{isLoggedIn ? (
+						<Link
+							to="/mypage"
+							aria-label="마이페이지"
+							className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
+							<img
+								src={resolveAvatar(avatarUrl)}
+								alt=""
+								className="size-full object-cover"
+							/>
+						</Link>
+					) : (
+						<button
+							type="button"
+							onClick={() => setLoginOpen(true)}
+							aria-label="로그인"
+							className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
+							<img
+								src={resolveAvatar(avatarUrl)}
+								alt=""
+								className="size-full object-cover"
+							/>
+						</button>
+					)}
 				</div>
 			</div>
+
+			<LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 		</header>
 	);
 }

@@ -10,6 +10,29 @@ const PROVIDER_LABEL: Record<SocialProvider, string> = {
 	KAKAO: "카카오",
 };
 
+/** 백엔드가 받는 형식(PhoneNumberNormalizer) — 010 + 8자리뿐이다 */
+const KOREAN_MOBILE = /^010\d{8}$/;
+
+/**
+ * 형식이 어긋난 이유를 사람이 읽을 문장으로 돌려준다. 맞으면 null.
+ *
+ * 서버도 같은 검사를 하지만 실패 문구가 "한국 모바일 E.164 형식이어야 합니다"라서
+ * 그대로 노출할 수 없다. 요청을 보내기 전에 여기서 먼저 걸러 안내한다.
+ */
+function phoneFormatError(digits: string): string | null {
+	if (digits.length === 0) return "휴대폰 번호를 입력해주세요.";
+	if (!digits.startsWith("010")) {
+		return "010으로 시작하는 휴대폰 번호를 입력해주세요.";
+	}
+	if (digits.length < 11) {
+		return `휴대폰 번호 11자리를 모두 입력해주세요. (${digits.length}/11)`;
+	}
+	if (!KOREAN_MOBILE.test(digits)) {
+		return "휴대폰 번호를 다시 확인해주세요. 예) 01012345678";
+	}
+	return null;
+}
+
 type SignupPhoneStepProps = {
 	/** 상위에서 진행하는 가입 요청 중인지 */
 	submitting: boolean;
@@ -35,10 +58,16 @@ export default function SignupPhoneStep({
 	const [available, setAvailable] = useState<string | null>(null);
 	const [code, setCode] = useState("");
 
-	const digits = phone.replace(/\D/g, "");
-	const canCheck = digits.length >= 10 && !checking;
+	// phone은 입력 단계에서 숫자만 남기므로 하이픈·공백이 섞여 있지 않다.
+	const canCheck = phone.length > 0 && !checking;
 
 	const handleCheck = async () => {
+		// 자리수·시작번호가 어긋나면 요청 전에 안내한다 (서버 문구는 기술 용어라 쓸 수 없다).
+		const formatError = phoneFormatError(phone);
+		if (formatError) {
+			setError(formatError);
+			return;
+		}
 		setError(null);
 		setChecking(true);
 		try {
@@ -61,6 +90,12 @@ export default function SignupPhoneStep({
 			}
 			setAvailable(result.normalizedPhoneNumber);
 		} catch (cause) {
+			// 서버의 형식 오류 문구("한국 모바일 E.164 형식…")는 사용자에게 의미가 없어
+			// 위 검사를 빠져나온 경우에도 같은 안내로 바꿔서 보여준다.
+			if (cause instanceof ApiError && cause.code === "INVALID_REQUEST") {
+				setError("휴대폰 번호를 다시 확인해주세요. 예) 01012345678");
+				return;
+			}
 			setError(
 				cause instanceof ApiError
 					? cause.message
@@ -94,11 +129,13 @@ export default function SignupPhoneStep({
 				<input
 					value={phone}
 					onChange={(event) => {
-						setPhone(event.target.value);
+						// 하이픈·공백을 눌러도 무시하고 숫자 11자리까지만 받는다.
+						setPhone(event.target.value.replace(/\D/g, "").slice(0, 11));
 						handleReset();
 					}}
 					inputMode="numeric"
-					placeholder="010-1234-5678"
+					maxLength={11}
+					placeholder="01012345678"
 					disabled={available !== null}
 					className="h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#D9D9D9] px-4 text-[15px] outline-none transition placeholder:text-[#999] focus:border-brand disabled:bg-black/[0.03]"
 				/>
