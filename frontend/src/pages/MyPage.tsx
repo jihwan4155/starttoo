@@ -226,9 +226,7 @@ export default function MyPage() {
 						(!isLoggedIn ? (
 							<MyPageEmptyState message="로그인 후 내 컬렉션을 확인할 수 있습니다" />
 						) : !authUserId ? (
-							<p className="py-16 text-center text-[14px] text-black/40">
-								불러오는 중…
-							</p>
+							<StarttooLoader variant="block" />
 						) : (
 							<CollectionEditor
 								userId={authUserId}
