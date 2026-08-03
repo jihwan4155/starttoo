@@ -68,11 +68,16 @@ export default function OnboardingPage() {
 				...(values.gender ? { gender: values.gender } : {}),
 			});
 			if (role === "ARTIST") {
-				// 빈 본문으로 호출해도 아티스트 프로필이 UNVERIFIED("신청")로 생성된다.
-				await upsertArtistProfile({
-					...(values.shopName ? { shopName: values.shopName } : {}),
-					...(values.shopAddress ? { shopAddress: values.shopAddress } : {}),
-				});
+				// 서버가 역할 승격을 해 주지 않아 role=USER인 계정에서는 403이 온다.
+				// 숍 정보를 못 담아도 계정은 살아 있으니 온보딩을 막지는 않는다.
+				try {
+					await upsertArtistProfile({
+						...(values.shopName ? { shopName: values.shopName } : {}),
+						...(values.shopAddress ? { shopAddress: values.shopAddress } : {}),
+					});
+				} catch {
+					// 타투이스트 전환은 별도 신청 절차가 생긴 뒤에 붙인다.
+				}
 			}
 			setStep("taste");
 		} catch (cause) {

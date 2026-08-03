@@ -30,6 +30,7 @@ export class ApiError extends Error {
 
 type AuthRetryConfig = InternalAxiosRequestConfig & {
 	_retryWithoutAuth?: boolean;
+	_retriedWithRefresh?: boolean;
 };
 
 function unwrapResponseData<T>(response: AxiosResponse<T | ApiResponseBody<T>>): T {
@@ -63,6 +64,29 @@ export function setUnauthorizedHandler(handler: () => void): void {
 	onUnauthorized = handler;
 }
 
+/**
+ * 401 시 refreshToken으로 새 accessToken을 받아오는 핸들러 — useAuthStore에서 등록.
+ * 재발급 성공 시 새 accessToken, 실패(리프레시 만료 등) 시 null을 돌려준다.
+ */
+let onRefresh: (() => Promise<string | null>) | null = null;
+export function setRefreshHandler(
+	handler: (() => Promise<string | null>) | null,
+): void {
+	onRefresh = handler;
+}
+
+// 동시에 여러 요청이 401을 받아도 재발급은 한 번만 수행 (single-flight)
+let refreshPromise: Promise<string | null> | null = null;
+async function refreshAccessToken(): Promise<string | null> {
+	if (!onRefresh) return null;
+	if (!refreshPromise) {
+		refreshPromise = onRefresh().finally(() => {
+			refreshPromise = null;
+		});
+	}
+	return refreshPromise;
+}
+
 // 로그인·회원가입 요청에는 기존 토큰을 붙이지 않는다.
 const AUTH_SKIP_PATHS = [
 	"/auth/social/login",
@@ -90,21 +114,46 @@ api.interceptors.response.use(
 	// unknown으로 받고 아래에서 형태를 확인한다. (좁게 선언하면 문자열 분기가 never가 된다)
 	async (error: AxiosError<unknown>) => {
 		const config = error.config as AuthRetryConfig | undefined;
+		const isAuthPath = AUTH_SKIP_PATHS.some((segment) =>
+			(config?.url ?? "").includes(segment),
+		);
 
-		// 공개 GET만 토큰 없이 재시도 (POST/PUT/PATCH/DELETE는 재시도해도 401)
+		// 1) 액세스 토큰 만료로 보이는 401 → refreshToken으로 재발급 후 원 요청 재시도.
+		//    로그인·재발급 경로 자체의 401은 자격 증명 문제이므로 제외한다.
 		if (
 			error.response?.status === 401 &&
 			accessToken &&
 			config &&
-			!config._retryWithoutAuth &&
-			(config.method?.toLowerCase() === "get" ||
-				config.method?.toLowerCase() === "head")
+			!isAuthPath &&
+			!config._retriedWithRefresh
+		) {
+			config._retriedWithRefresh = true;
+			const newToken = await refreshAccessToken();
+			if (newToken) {
+				config.headers.Authorization = `Bearer ${newToken}`;
+				return api.request(config);
+			}
+		}
+
+		// 2) 재발급 불가(리프레시 만료 등) — 세션을 정리하고 공개 GET만 토큰 없이 재시도
+		//    (POST/PUT/PATCH/DELETE는 재시도해도 401)
+		if (
+			error.response?.status === 401 &&
+			accessToken &&
+			config &&
+			!isAuthPath &&
+			!config._retryWithoutAuth
 		) {
 			setAccessToken(null);
 			onUnauthorized?.();
-			config._retryWithoutAuth = true;
-			delete config.headers.Authorization;
-			return api.request(config);
+			if (
+				config.method?.toLowerCase() === "get" ||
+				config.method?.toLowerCase() === "head"
+			) {
+				config._retryWithoutAuth = true;
+				delete config.headers.Authorization;
+				return api.request(config);
+			}
 		}
 
 		if (error.response) {

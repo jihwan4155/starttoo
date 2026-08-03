@@ -19,13 +19,18 @@ function KakaoIcon() {
 	);
 }
 
+/** 인가 화면으로 이동 중인 제공자 — 버튼별 라벨을 구분하기 위해 boolean이 아니다 */
+type PendingProvider = "kakao" | "google" | null;
+
 export default function LoginPage() {
 	const [error, setError] = useState<string | null>(null);
-	const [loading, setLoading] = useState(false);
+	const [pending, setPending] = useState<PendingProvider>(null);
+	// 리다이렉트 중 다른 제공자로 중복 요청하는 것을 막는다.
+	const disabled = pending !== null;
 
 	const handleKakaoLogin = async () => {
 		setError(null);
-		setLoading(true);
+		setPending("kakao");
 		try {
 			const kakao = await loadKakaoSdk();
 			// 콜백에서 대조할 임의 state — 인가 요청과 응답이 같은 세션인지 확인한다.
@@ -40,13 +45,13 @@ export default function LoginPage() {
 					? cause.message
 					: "카카오 로그인을 시작하지 못했습니다.",
 			);
-			setLoading(false);
+			setPending(null);
 		}
 	};
 
 	const handleGoogleLogin = () => {
 		setError(null);
-		setLoading(true);
+		setPending("google");
 		try {
 			// 콜백에서 대조할 임의 state — 인가 요청과 응답이 같은 세션인지 확인한다.
 			const state = crypto.randomUUID();
@@ -59,7 +64,7 @@ export default function LoginPage() {
 					? cause.message
 					: "구글 로그인을 시작하지 못했습니다.",
 			);
-			setLoading(false);
+			setPending(null);
 		}
 	};
 
@@ -77,18 +82,18 @@ export default function LoginPage() {
 				<button
 					type="button"
 					onClick={handleKakaoLogin}
-					disabled={loading}
+					disabled={disabled}
 					className="relative flex aspect-[720/160] w-full items-center justify-center rounded-[12px] bg-[#FEE500] px-14 text-[17px] font-semibold text-black/85 transition hover:brightness-95 disabled:opacity-60">
 					<span className="absolute left-6 flex items-center text-black">
 						<KakaoIcon />
 					</span>
-					{loading ? "카카오로 이동 중…" : "카카오 로그인"}
+					{pending === "kakao" ? "카카오로 이동 중…" : "카카오 로그인"}
 				</button>
 				{/* 구글 버튼 — 브랜드 가이드가 엄격해 공식 이미지(720×152 원본)를 그대로 쓴다 */}
 				<button
 					type="button"
 					onClick={handleGoogleLogin}
-					disabled={loading}
+					disabled={disabled}
 					className="w-full transition hover:brightness-95 disabled:opacity-60">
 					<img
 						src={googleLoginBtn}

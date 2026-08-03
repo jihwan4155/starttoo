@@ -6,13 +6,15 @@ import useUpdateArtist from "../hooks/mutations/useUpdateArtist";
 import useUpdateProfileImage from "../hooks/mutations/useUpdateProfileImage";
 import useMe from "../hooks/queries/useMe";
 import useRequireAuth from "../hooks/useRequireAuth";
-import ArtistShopProfileSection, {
+import ArtistShopProfileSection from "../components/mypage/ArtistShopProfileSection";
+import {
 	buildArtistShopPatch,
 	type ArtistShopFormValues,
-} from "../components/mypage/ArtistShopProfileSection";
+} from "../components/mypage/artistShopPatch";
 import { checkNicknameAvailability } from "../services/authApi";
 import { ApiError } from "../services/api";
 import { type Gender } from "../store/useUserStore";
+import type { UpdateMeRequest } from "../types/user";
 import { dataUrlToFile } from "../utils/dataUrlToFile";
 import { cropImageToDataUrl, DEFAULT_CROP } from "../utils/image";
 import { resolveAvatar } from "../utils/profile";
@@ -35,11 +37,19 @@ function CameraIcon() {
 	);
 }
 
-/** 프로필 수정 — PATCH /users/me, PUT profile-image, PATCH /artists/me (타투이스트) */
+/**
+ * 프로필 수정 — PATCH /users/me, PATCH /users/me/profile-image,
+ * PATCH /artists/me/profile (타투이스트)
+ */
 export default function MyPageEditPage() {
 	const navigate = useNavigate();
-	const { requireAuth } = useRequireAuth();
-	const { data: me, isPending: isMePending, isError: isMeError } = useMe();
+	const { requireAuth, isAuthenticated } = useRequireAuth();
+	const {
+		data: me,
+		isPending: isMePending,
+		isError: isMeError,
+		error: meError,
+	} = useMe();
 	const { mutateAsync: saveProfile, isPending: isSavingProfile } = useUpdateMe();
 	const { mutateAsync: saveArtist, isPending: isSavingArtist } = useUpdateArtist();
 	const { mutateAsync: saveProfileImage, isPending: isSavingImage } =
@@ -50,7 +60,6 @@ export default function MyPageEditPage() {
 	const [birthDateInput, setBirthDateInput] = useState("");
 	const [genderInput, setGenderInput] = useState<Gender>(null);
 	const [avatarInput, setAvatarInput] = useState<string | null>(null);
-	const [serverAvatarUrl, setServerAvatarUrl] = useState<string | null>(null);
 	const [nicknameCheckMessage, setNicknameCheckMessage] = useState<
 		string | null
 	>(null);
@@ -60,10 +69,10 @@ export default function MyPageEditPage() {
 		shopCity: "",
 		shopAddress: "",
 		shopPhone: "",
-		businessHours: "",
+		shopDetails: "",
 	});
 
-	const isArtist = me?.role === "ARTIST";
+	// artistProfile은 role=ARTIST이고 artists 확장 행이 있을 때만 내려온다.
 	const artist = me?.artist;
 
 	useEffect(() => {
@@ -72,17 +81,14 @@ export default function MyPageEditPage() {
 		setBirthDateInput(me.birthDate ?? "");
 		setGenderInput(apiGenderToUi(me.gender));
 		setAvatarInput(me.profileImageUrl);
-		setServerAvatarUrl(me.profileImageUrl);
 		setNicknameCheckMessage(null);
 		setFormError(null);
 		if (me.artist) {
-			setShopForm({
-				shopName: me.artist.shopName ?? "",
-				shopCity: me.artist.shopCity ?? "",
-				shopAddress: me.artist.shopAddress ?? "",
-				shopPhone: me.artist.shopPhone ?? "",
-				businessHours: me.artist.businessHours ?? "",
-			});
+			// 프로필 조회로 알 수 있는 숍 필드는 이름뿐이다.
+			setShopForm((prev) => ({
+				...prev,
+				shopName: me.artist?.shopName ?? "",
+			}));
 		}
 	}, [me]);
 
@@ -132,50 +138,42 @@ export default function MyPageEditPage() {
 		}
 
 		try {
-			const avatarChanged =
-				avatarInput?.startsWith("data:") ||
-				avatarInput !== serverAvatarUrl;
+			const avatarChanged = Boolean(avatarInput?.startsWith("data:"));
 
-			const patchBody: Parameters<typeof saveProfile>[0] = {};
-			if (trimmedNickname !== me.nickname) {
-				patchBody.nickname = trimmedNickname;
+			// nickname은 서버 필수라 바뀌지 않아도 항상 실어 보낸다.
+			const patchBody: UpdateMeRequest = { nickname: trimmedNickname };
+			let hasProfileChanges = trimmedNickname !== me.nickname;
+
+			const nextBirthDate = birthDateInput || null;
+			if (nextBirthDate !== (me.birthDate ?? null)) {
+				patchBody.birthDate = nextBirthDate;
+				hasProfileChanges = true;
 			}
-			if (birthDateInput !== (me.birthDate ?? "")) {
-				if (birthDateInput) {
-					patchBody.birthDate = birthDateInput;
-				} else {
-					patchBody.removeBirthDate = true;
-				}
-			}
-			const nextGender = uiGenderToApi(genderInput);
-			const currentGender = me.gender ?? undefined;
+
+			// 서버 값(M·F 또는 과거 MALE·FEMALE)을 같은 코드 공간으로 맞춰 비교한다.
+			const nextGender = uiGenderToApi(genderInput) ?? null;
+			const currentGender = uiGenderToApi(apiGenderToUi(me.gender)) ?? null;
 			if (nextGender !== currentGender) {
-				if (nextGender) {
-					patchBody.gender = nextGender;
-				} else if (me.gender) {
-					patchBody.removeGender = true;
-				}
+				patchBody.gender = nextGender;
+				hasProfileChanges = true;
 			}
 
-			const artistPatch =
-				isArtist && artist
-					? buildArtistShopPatch(shopForm, artist)
-					: {};
-			const hasUserChanges =
-				Object.keys(patchBody).length > 0 || avatarChanged;
+			const artistPatch = artist
+				? buildArtistShopPatch(shopForm, artist)
+				: {};
 			const hasArtistChanges = Object.keys(artistPatch).length > 0;
 
-			if (!hasUserChanges && !hasArtistChanges) {
+			if (!hasProfileChanges && !avatarChanged && !hasArtistChanges) {
 				setFormError("변경된 내용이 없습니다.");
 				return;
 			}
 
-			if (avatarInput?.startsWith("data:")) {
-				const file = dataUrlToFile(avatarInput, "profile.webp");
+			if (avatarChanged && avatarInput) {
+				const file = dataUrlToFile(avatarInput, "profile");
 				await saveProfileImage(file);
 			}
 
-			if (Object.keys(patchBody).length > 0) {
+			if (hasProfileChanges) {
 				await saveProfile(patchBody);
 			}
 
@@ -198,6 +196,17 @@ export default function MyPageEditPage() {
 	const isSaving = isSavingProfile || isSavingImage || isSavingArtist;
 	const displayAvatar = resolveAvatar(avatarInput, nicknameInput);
 
+	// 비로그인이면 useMe가 꺼져 있어 isPending이 계속 true다 — 로그인 여부를 먼저 본다.
+	if (!isAuthenticated) {
+		return (
+			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
+				<p className="py-20 text-center text-[14px] text-black/60">
+					로그인 후 프로필을 수정할 수 있습니다.
+				</p>
+			</div>
+		);
+	}
+
 	if (isMePending) {
 		return (
 			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
@@ -212,9 +221,9 @@ export default function MyPageEditPage() {
 		return (
 			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
 				<p className="py-20 text-center text-[14px] text-black/60">
-					{requireAuth()
-						? "프로필을 불러오지 못했습니다."
-						: "로그인 후 프로필을 수정할 수 있습니다."}
+					{meError instanceof ApiError
+						? meError.message
+						: "프로필을 불러오지 못했습니다."}
 				</p>
 			</div>
 		);
@@ -310,18 +319,17 @@ export default function MyPageEditPage() {
 					</div>
 				</div>
 
-				{isArtist && artist && (
+				{artist && (
 					<ArtistShopProfileSection
 						values={shopForm}
 						onChange={(patch) =>
 							setShopForm((prev) => ({ ...prev, ...patch }))
 						}
-						approvalStatus={artist.approvalStatus}
-						rejectionReason={artist.rejectionReason}
+						verificationStatus={artist.verificationStatus}
 					/>
 				)}
 
-				{isArtist && !artist && (
+				{me.role === "ARTIST" && !artist && (
 					<p className="mt-10 border-t border-black/10 pt-10 text-[13px] text-black/50">
 						타투이스트 숍 프로필이 등록되어 있지 않아 숍 정보를 수정할 수
 						없습니다.

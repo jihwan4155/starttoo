@@ -5,6 +5,22 @@ export type BeArtistProfileSummary = {
 	verificationStatus: string | null;
 };
 
+/** PATCH /artists/me/profile 응답 (Swagger ArtistProfile) */
+export type BeArtistProfile = {
+	userSeq: number;
+	nickname: string;
+	profileImageSeq: number | null;
+	profileImageUrl: string | null;
+	shopName: string | null;
+	shopCity: string | null;
+	shopAddress: string | null;
+	shopPhone: string | null;
+	shopDetails: string | null;
+	verificationStatus: string | null;
+	followerCount: number;
+	regDttm: string | null;
+};
+
 export type BeMyProfile = {
 	userSeq: number;
 	nickname: string;
@@ -32,8 +48,9 @@ export type BePublicProfile = {
 	artistProfile: BeArtistProfileSummary | null;
 };
 
+/** nickname은 서버 required, birthDate·gender는 null로 해제 */
 export type BeUpdateProfileRequest = {
-	nickname?: string;
+	nickname: string;
 	birthDate?: string | null;
 	gender?: string | null;
 };
