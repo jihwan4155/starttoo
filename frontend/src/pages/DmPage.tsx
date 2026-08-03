@@ -416,9 +416,6 @@ export default function DmPage() {
 						<p className="text-[16px] font-semibold text-black">
 							대화를 선택해주세요
 						</p>
-						<p className="mt-1 text-[13px] font-light text-black/45">
-							아티스트에게 도안·시술 문의를 남겨보세요.
-						</p>
 					</div>
 				</section>
 			)}
