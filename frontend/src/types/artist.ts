@@ -19,36 +19,47 @@ export type Artist = {
 
 /* ─── Backend DTO (Swagger GET /artists) ─── */
 
-export type ArtistShopDto = {
-	shopName: string | null;
-	shopCity: string | null;
-	shopAddress: string | null;
-	shopPhone: string | null;
-	businessHours: string | null;
-};
-
-export type ArtistFeedPreviewDto = {
-	postId: number;
+/** Swagger ArtistDtos.ArtistPostSummary — 목록 카드의 작업물 미리보기 */
+export type ArtistPostSummaryDto = {
+	postSeq: number;
+	/** 첫 번째 게시물 이미지의 단기 Presigned GET URL */
 	imageUrl: string;
 	likeCount: number;
 };
 
+/**
+ * Swagger ArtistDtos.ArtistListItem
+ *
+ * 숍 필드는 중첩 객체가 아니라 평평하게 내려온다. 목록은 VERIFIED만 담기므로
+ * verificationStatus는 항상 VERIFIED다.
+ */
 export type ArtistItem = {
-	userId: number;
+	userSeq: number;
 	nickname: string;
+	profileImageSeq: number | null;
 	profileImageUrl: string | null;
-	shop: ArtistShopDto | null;
-	approvalStatus: string;
-	popularity: number;
+	shopName: string | null;
+	shopCity: string | null;
+	shopAddress: string | null;
+	shopPhone: string | null;
+	/** 영업시간·휴무일·예약 방식 자유 안내 */
+	shopDetails: string | null;
+	verificationStatus: string;
 	followerCount: number;
-	isFollowing: boolean;
-	isMe: boolean;
-	feedPreviews: ArtistFeedPreviewDto[];
+	/** 최신 공개 게시물 최대 6개 */
+	posts: ArtistPostSummaryDto[];
+	regDttm: string | null;
 };
 
+/**
+ * GET /artists 쿼리 파라미터
+ *
+ * 서버가 받는 것은 city·cursor·size뿐이다. 닉네임 검색은 이 API가 지원하지 않고
+ * GET /search/artists(인증 아티스트 닉네임 검색)를 써야 한다.
+ */
 export type FetchArtistsParams = {
-	shopCity?: string;
-	nickname?: string;
+	/** 저장된 shopCity와 정확히 일치하는 항목만 반환한다 */
+	city?: string;
 	cursor?: string;
 	size?: number;
 };
