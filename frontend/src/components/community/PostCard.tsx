@@ -42,9 +42,9 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 
 	const isHidden = usePostHiddenOverlay(post.id);
 
-	const { mutate: toggleLike, isPending: isLikePending } = useTogglePostLike();
-	const { mutate: toggleBookmark, isPending: isBookmarkPending } =
-		useTogglePostBookmark();
+	// 좋아요·북마크는 요청 중에도 계속 누를 수 있다 (화면은 즉시, 요청은 디바운스)
+	const { toggle: toggleLike } = useTogglePostLike();
+	const { toggle: toggleBookmark } = useTogglePostBookmark();
 	const { mutate: deletePostMutate, isPending: isDeletePending } =
 		useDeletePost();
 	const { mutate: hidePostMutate, isPending: isHidePending } = useHidePost();
@@ -203,9 +203,9 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 												onClick={handleBlock}
 												disabled={isHidePending}
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5 disabled:opacity-50">
-												차단
+												숨기기
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 사용자 게시글 숨기기
+													이 게시글을 숨깁니다
 												</span>
 											</button>
 										</>
@@ -235,10 +235,10 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 								<img
 									src={currentImageUrl}
 									alt={`${post.author.nickname}의 게시글 ${safeIndex + 1}`}
-									className="aspect-square h-auto w-full object-cover transition hover:scale-[1.01] lg:h-[clamp(320px,52vh,460px)] lg:aspect-auto"
+									className="aspect-[3/4] h-auto w-full object-cover transition hover:scale-[1.01]"
 								/>
 							) : (
-								<div className="aspect-square w-full bg-[#D9D9D9] lg:h-[clamp(320px,52vh,460px)] lg:aspect-auto" />
+								<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
 							)}
 						</button>
 
@@ -296,23 +296,8 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						<button
 							type="button"
 							aria-label="좋아요"
-							disabled={isLikePending || isHidden}
-							onClick={() =>
-								requireAuth(() =>
-									toggleLike(
-										{ postId: post.id, liked: isLiked },
-										{
-											onError: (err) => {
-												window.alert(
-													err instanceof ApiError
-														? err.message
-														: "좋아요 처리에 실패했습니다.",
-												);
-											},
-										},
-									),
-								)
-							}
+							disabled={isHidden}
+							onClick={() => requireAuth(() => toggleLike(post.id, isLiked))}
 							className={`flex items-center gap-1.5 transition disabled:opacity-50 ${
 								isLiked ? "text-brand" : "hover:text-black/60"
 							}`}>
@@ -338,22 +323,9 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						<button
 							type="button"
 							aria-label="북마크"
-							disabled={isBookmarkPending || isHidden}
+							disabled={isHidden}
 							onClick={() =>
-								requireAuth(() =>
-									toggleBookmark(
-										{ postId: post.id, bookmarked: isBookmarked },
-										{
-											onError: (err) => {
-												window.alert(
-													err instanceof ApiError
-														? err.message
-														: "북마크 처리에 실패했습니다.",
-												);
-											},
-										},
-									),
-								)
+								requireAuth(() => toggleBookmark(post.id, isBookmarked))
 							}
 							className={`ml-auto transition disabled:opacity-50 ${
 								isBookmarked ? "text-brand" : "hover:text-black/60"

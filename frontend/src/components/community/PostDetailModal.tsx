@@ -76,8 +76,7 @@ function CommentRow({
 	const [isDeleteCommentOpen, setDeleteCommentOpen] = useState(false);
 	const commentMenuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
-	const { mutate: toggleCommentLike, isPending: isCommentLikePending } =
-		useToggleCommentLike();
+	const { toggle: toggleCommentLike } = useToggleCommentLike();
 	const { mutate: createReply, isPending: isReplyPending } = useCreateComment();
 	const { mutate: deleteCommentMutate, isPending: isDeleteCommentPending } =
 		useDeleteComment();
@@ -257,25 +256,15 @@ function CommentRow({
 					<button
 						type="button"
 						aria-label="댓글 좋아요"
-						disabled={isCommentLikePending}
 						onClick={() =>
 							requireAuth(() =>
 								toggleCommentLike(
 									{
 										postId,
 										commentId: comment.id,
-										liked: isLiked,
 										rootCommentId: isReply ? rootCommentId : undefined,
 									},
-									{
-										onError: (err) => {
-											window.alert(
-												err instanceof ApiError
-													? err.message
-													: "댓글 좋아요 처리에 실패했습니다.",
-											);
-										},
-									},
+									isLiked,
 								),
 							)
 						}
@@ -355,6 +344,7 @@ export default function PostDetailModal({
 
 	const { data: detailPost } = usePost(seedPost?.id);
 	const post = detailPost ?? seedPost;
+	const isOpen = !!post;
 
 	const emptyPost: Post = {
 		id: 0,
@@ -375,9 +365,9 @@ export default function PostDetailModal({
 		isMine,
 	} = useAuthorDisplay(post?.author ?? { nickname: "", isArtist: false });
 
-	const { mutate: toggleLike, isPending: isLikePending } = useTogglePostLike();
-	const { mutate: toggleBookmark, isPending: isBookmarkPending } =
-		useTogglePostBookmark();
+	// 좋아요·북마크는 요청 중에도 계속 누를 수 있다 (화면은 즉시, 요청은 디바운스)
+	const { toggle: toggleLike } = useTogglePostLike();
+	const { toggle: toggleBookmark } = useTogglePostBookmark();
 	const { mutate: createCommentMutate, isPending: isCommentPending } =
 		useCreateComment();
 	const { mutate: deletePostMutate, isPending: isDeletePending } = useDeletePost();
@@ -467,7 +457,7 @@ export default function PostDetailModal({
 	} = useComments(post?.id, { size: 50 });
 
 	// 모달이 열려 있는 동안 배경 스크롤 잠금
-	useBodyScrollLock(!!post);
+	useBodyScrollLock(isOpen);
 
 	if (!post) return null;
 
@@ -490,14 +480,19 @@ export default function PostDetailModal({
 			className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 lg:p-6"
 			onClick={onClose}
 			role="presentation">
+			{/*
+			  sm 이상에서는 높이를 먼저 정하고 이미지 칸이 그 높이에서 3:4 너비를 잡는다.
+			  좁은 화면에서 이미지 칸이 눌리지 않도록, 남는 가로폭(댓글 패널 380px +
+			  배경 여백 32px 제외)으로 만들 수 있는 높이도 함께 상한으로 둔다.
+			*/}
 			<div
-				className="flex max-h-[80dvh] w-full max-w-[960px] overflow-hidden rounded-[12px] bg-white lg:max-h-[85vh] lg:rounded-2xl"
+				className="flex max-h-[80dvh] w-full max-w-[960px] overflow-hidden rounded-[12px] bg-white sm:h-[min(80dvh,760px,calc((100vw-412px)*4/3))] sm:w-auto sm:max-w-full lg:rounded-2xl"
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
 				aria-label="게시글 상세">
-				{/* 좌: 이미지 캐러셀 */}
-				<div className="group relative hidden min-h-[540px] flex-1 bg-black/90 sm:block">
+				{/* 좌: 이미지 캐러셀 — 게시물 비율(세로:가로 4:3)에 맞춘 칸 */}
+				<div className="group relative hidden aspect-[3/4] h-full min-w-0 shrink bg-black/90 sm:block">
 					{postImageUrl ? (
 						<img
 							src={postImageUrl}
@@ -573,7 +568,7 @@ export default function PostDetailModal({
 				</div>
 
 				{/* 우: 댓글 패널 */}
-				<div className="flex w-full flex-col sm:w-[380px]">
+				<div className="flex w-full shrink-0 flex-col sm:w-[380px]">
 					<div className="flex items-center gap-3 border-b border-black/10 px-5 py-4">
 						<Link
 							to={authorProfileTo}
@@ -646,9 +641,9 @@ export default function PostDetailModal({
 												type="button"
 												onClick={handleBlock}
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
-												차단
+												숨기기
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 사용자 게시글 숨기기
+													이 게시글을 숨깁니다
 												</span>
 											</button>
 										</>
@@ -721,23 +716,7 @@ export default function PostDetailModal({
 							<button
 								type="button"
 								aria-label="좋아요"
-								disabled={isLikePending}
-								onClick={() =>
-									requireAuth(() =>
-										toggleLike(
-											{ postId: post.id, liked: isLiked },
-											{
-												onError: (err) => {
-													window.alert(
-														err instanceof ApiError
-															? err.message
-															: "좋아요 처리에 실패했습니다.",
-													);
-												},
-											},
-										),
-									)
-								}
+								onClick={() => requireAuth(() => toggleLike(post.id, isLiked))}
 								className={`flex items-center gap-1.5 disabled:opacity-50 ${
 									isLiked ? "text-brand" : ""
 								}`}>
@@ -749,22 +728,8 @@ export default function PostDetailModal({
 							<button
 								type="button"
 								aria-label="북마크"
-								disabled={isBookmarkPending}
 								onClick={() =>
-									requireAuth(() =>
-										toggleBookmark(
-											{ postId: post.id, bookmarked: isBookmarked },
-											{
-												onError: (err) => {
-													window.alert(
-														err instanceof ApiError
-															? err.message
-															: "북마크 처리에 실패했습니다.",
-													);
-												},
-											},
-										),
-									)
+									requireAuth(() => toggleBookmark(post.id, isBookmarked))
 								}
 								className={`ml-auto disabled:opacity-50 ${isBookmarked ? "text-brand" : ""}`}>
 								<BookmarkIcon filled={isBookmarked} />

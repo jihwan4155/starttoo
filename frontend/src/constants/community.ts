@@ -19,5 +19,3 @@ export const SEARCH_CATEGORIES = [
 	"수채화",
 	"라인아트",
 ] as const;
-
-export type CommunityFeedTab = "all" | "following";

@@ -11,7 +11,11 @@ import useRequireAuth from "../../hooks/useRequireAuth";
 import useAuthStore from "../../store/useAuthStore";
 import { ApiError } from "../../services/api";
 import { dataUrlToFile } from "../../utils/dataUrlToFile";
-import { cropImageToDataUrl, DEFAULT_CROP } from "../../utils/image";
+import {
+	cropImageToDataUrl,
+	DEFAULT_CROP,
+	POST_IMAGE_ASPECT,
+} from "../../utils/image";
 import { resolveAvatar } from "../../utils/profile";
 import { urlToFile } from "../../utils/urlToFile";
 import type { ArchiveItem } from "../../types/archive";
@@ -62,7 +66,7 @@ function ImageCarousel({
 }) {
 	return (
 		<div className="relative flex items-center justify-center">
-			<div className="aspect-square w-full overflow-hidden rounded-[10px] bg-[#D9D9D9]">
+			<div className="aspect-[3/4] w-full overflow-hidden rounded-[10px] bg-[#D9D9D9]">
 				<img
 					src={images[index]}
 					alt={`선택한 사진 ${index + 1}`}
@@ -206,7 +210,9 @@ export default function CreatePostModal({
 		try {
 			const urls = await Promise.all(
 				images.map((image) =>
-					cropImageToDataUrl(image.file, crops[image.url] ?? DEFAULT_CROP),
+					cropImageToDataUrl(image.file, crops[image.url] ?? DEFAULT_CROP, {
+						aspect: POST_IMAGE_ASPECT,
+					}),
 				),
 			);
 			setCroppedUrls(urls);
@@ -370,6 +376,7 @@ export default function CreatePostModal({
 								// 사진을 넘기면 해당 사진의 크롭 상태로 리마운트
 								key={images[imageIndex].url}
 								src={images[imageIndex].url}
+								aspect={POST_IMAGE_ASPECT}
 								crop={crops[images[imageIndex].url] ?? DEFAULT_CROP}
 								onChange={(next) =>
 									setCrops((prev) => ({
