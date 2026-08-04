@@ -70,10 +70,11 @@ export default function OnboardingPage() {
 		setSubmitting(true);
 		try {
 			// nickname은 서버에서 필수라 바꾸지 않았어도 현재 값을 그대로 다시 보낸다.
+			// 생년월일·성별은 폼이 채워질 때까지 [다음]을 막으므로 항상 값이 있다.
 			await updateMe({
 				nickname: values.nickname,
-				...(values.birthDate ? { birthDate: values.birthDate } : {}),
-				...(values.gender ? { gender: values.gender } : {}),
+				birthDate: values.birthDate,
+				gender: values.gender,
 			});
 			if (role === "ARTIST") {
 				// 서버가 역할 승격을 해 주지 않아 role=USER인 계정에서는 403이 온다.
