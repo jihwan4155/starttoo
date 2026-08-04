@@ -147,12 +147,12 @@ export default function ProfilePage() {
 	}
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-6">
+		<div className="min-h-[calc(100vh-60px)] bg-surface px-0 pb-28 pt-5 lg:px-6 lg:pb-16 lg:pt-6">
 			<div className="mx-auto w-full max-w-[900px]">
 				<button
 					type="button"
 					onClick={() => navigate(-1)}
-					className="mb-6 flex items-center gap-1 text-[14px] font-light text-black/50 transition hover:text-black">
+					className="mb-5 ml-4 flex items-center gap-1 text-[14px] font-light text-black/50 transition hover:text-black lg:mb-6 lg:ml-0">
 					<span aria-hidden>←</span> 뒤로
 				</button>
 
@@ -166,19 +166,19 @@ export default function ProfilePage() {
 
 				{profile && !isProfileError && (
 					<>
-						<div className="flex items-end justify-between">
-							<div className="flex items-center gap-6">
+						<div className="mx-4 flex flex-col gap-4 rounded-[12px] bg-white p-4 lg:mx-0 lg:flex-row lg:items-end lg:justify-between lg:rounded-none lg:bg-transparent lg:p-0">
+							<div className="flex items-center gap-4 lg:gap-6">
 								<img
 									src={avatarUrl}
 									alt={`${profile.nickname}의 프로필 이미지`}
-									className="size-[100px] shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+									className="size-[58px] shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-[100px]"
 								/>
 								<div className="min-w-0">
-									<p className="flex items-center gap-2 text-[22px] font-bold text-black">
+									<p className="flex items-center gap-2 text-[18px] font-bold text-black lg:text-[22px]">
 										<span className="truncate">{profile.nickname}</span>
 										{isArtist && <ArtistBadge size={18} />}
 									</p>
-									<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px] font-light text-black/60">
+									<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px] lg:text-black/60">
 										<span>게시물 {posts.length}</span>
 										<button
 											type="button"
@@ -197,12 +197,12 @@ export default function ProfilePage() {
 							</div>
 
 							{!profile.isMe && (
-								<div className="flex shrink-0 items-center gap-2">
+								<div className="grid w-full shrink-0 grid-cols-2 gap-2 lg:flex lg:w-auto lg:items-center">
 									<button
 										type="button"
 										onClick={handleFollow}
 										disabled={isFollowPending}
-										className={`h-[42px] rounded-full px-7 text-[14px] font-semibold transition disabled:opacity-50 ${
+										className={`h-10 rounded-full px-4 text-[13px] font-semibold transition disabled:opacity-50 lg:h-[42px] lg:px-7 lg:text-[14px] ${
 											profile.isFollowing
 												? "border border-black/15 bg-white text-black/60 hover:bg-black/5"
 												: "bg-brand text-white hover:brightness-95"
@@ -213,7 +213,7 @@ export default function ProfilePage() {
 										type="button"
 										onClick={handleSendMessage}
 										disabled={isCreatingDmRoom}
-										className="h-[42px] whitespace-nowrap rounded-full bg-brand px-6 text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50">
+										className="h-10 whitespace-nowrap rounded-full bg-brand px-4 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50 lg:h-[42px] lg:px-6 lg:text-[14px]">
 										{isCreatingDmRoom ? "이동 중…" : "메시지 보내기"}
 									</button>
 								</div>
@@ -228,7 +228,7 @@ export default function ProfilePage() {
 							<ProfileTabs active={tab} onChange={setTab} />
 						</div>
 
-						<div className="mt-8">
+						<div className="mt-4 lg:mt-8">
 							{tab === "feed" ? (
 								<>
 									{isPostsPending && (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import CreatePostModal from "../components/community/CreatePostModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import PostCard from "../components/community/PostCard";
@@ -14,9 +15,12 @@ import { ApiError } from "../services/api";
 import type { CommunityFeedTab } from "../constants/community";
 import type { Post } from "../types/community";
 import { filterFeedPosts } from "../utils/filterPosts";
+import { mockPosts } from "../mocks/community";
+import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
 /** 커뮤니티 피드 — 전체(GET /posts) · 팔로잉(GET /posts/following) */
 export default function CommunityPage() {
+	const [searchParams, setSearchParams] = useSearchParams();
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	const [isWriteOpen, setWriteOpen] = useState(false);
 	const [feedTab, setFeedTab] = useState<CommunityFeedTab>("all");
@@ -45,12 +49,19 @@ export default function CommunityPage() {
 
 	const feedPosts = useMemo(() => {
 		const items = data?.pages.flatMap((page) => page.items) ?? [];
-		return filterFeedPosts(items, hiddenIds, overlayHiddenIds);
+		const source = QA_MOCK_DATA_ENABLED && items.length === 0 ? mockPosts : items;
+		return filterFeedPosts(source, hiddenIds, overlayHiddenIds);
 	}, [data?.pages, hiddenIds, overlayHiddenIds]);
 
 	useEffect(() => {
 		clearAllOverlays();
 	}, [clearAllOverlays]);
+
+	useEffect(() => {
+		if (searchParams.get("compose") !== "1") return;
+		requireAuth(() => setWriteOpen(true));
+		setSearchParams({}, { replace: true });
+	}, [requireAuth, searchParams, setSearchParams]);
 
 	useEffect(() => {
 		const node = loadMoreRef.current;
@@ -88,8 +99,8 @@ export default function CommunityPage() {
 	};
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
-			<div className="mx-auto flex w-full max-w-[440px] -translate-x-10 flex-col gap-10 px-4">
+		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
+			<div className="mx-auto flex w-full max-w-[440px] flex-col gap-6 px-4 lg:-translate-x-10 lg:gap-10">
 				<div className="flex justify-center gap-2">
 					{(["all", "following"] as const).map((tab) => (
 						<button
@@ -133,8 +144,7 @@ export default function CommunityPage() {
 					</p>
 				)}
 
-				{!isPending &&
-					feedPosts.map((post) => (
+				{feedPosts.map((post) => (
 						<PostCard key={post.id} post={post} onOpen={setActivePost} />
 					))}
 
@@ -156,7 +166,7 @@ export default function CommunityPage() {
 				type="button"
 				aria-label="게시물 작성"
 				onClick={() => requireAuth(() => setWriteOpen(true))}
-				className="fixed bottom-8 right-8 z-40 flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_6px_20px_rgba(255,70,70,0.4)] transition hover:brightness-95 active:scale-95">
+				className="fixed bottom-8 right-8 z-40 flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_6px_20px_rgba(255,70,70,0.4)] transition hover:brightness-95 active:scale-95 max-lg:hidden">
 				<PlusIcon />
 			</button>
 

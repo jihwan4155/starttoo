@@ -96,7 +96,7 @@ export default function NotificationsPage() {
 				onClose={() => setSystemModalItem(null)}
 			/>
 
-			<div className="mx-auto w-full max-w-[440px] -translate-x-10 px-4">
+			<div className="mx-auto w-full max-w-[440px] px-4">
 				<div className="flex items-center justify-between">
 					<h1 className="text-[22px] font-bold text-black">알림</h1>
 					{items.length > 0 && (

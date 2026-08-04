@@ -18,7 +18,7 @@ type CollectionEditorProps = {
 };
 
 const collectionCtaClassName =
-	"!h-auto !w-auto min-w-[132px] px-5 py-2.5 !text-[14px] !font-medium !leading-normal";
+	"!h-12 !w-[76%] max-w-[290px] px-5 py-2.5 !text-[16px] !font-semibold !leading-normal lg:!h-auto lg:!w-auto lg:min-w-[132px] lg:!text-[14px] lg:!font-medium";
 
 /** 내 컬렉션 — 미리보기 / 편집 모드 (GET·POST·DELETE /collections) */
 export default function CollectionEditor({
@@ -80,14 +80,14 @@ export default function CollectionEditor({
 		<div>
 			{isEditMode ? (
 				<>
-					<div className="mx-auto max-w-[420px]">
+					<div className="mx-auto max-w-[420px] px-4 lg:px-0">
 						<MannequinCanvas userId={userId} />
 						{saveError && (
 							<p className="mt-4 text-center text-[13px] text-red-600">
 								{saveError}
 							</p>
 						)}
-						<div className="mt-6 flex justify-center">
+						<div className="mt-6 hidden justify-center lg:flex">
 							<CtaButton
 								onClick={() => void handleSave()}
 								disabled={isSaving}
@@ -101,7 +101,16 @@ export default function CollectionEditor({
 						designs={designs}
 						isLoading={isArchiveLoading}
 						variant="floating"
+						userId={userId}
 					/>
+					<div className="mt-5 flex justify-center lg:hidden">
+						<CtaButton
+							onClick={() => void handleSave()}
+							disabled={isSaving}
+							className={collectionCtaClassName}>
+							{isSaving ? "저장 중…" : "저장하기"}
+						</CtaButton>
+					</div>
 				</>
 			) : (
 				<>

@@ -19,7 +19,7 @@ import {
 import { loadImage, type BodyScanResult } from "./useBodyScan";
 import StarttooLoader from "../loader/StarttooLoader";
 
-type InteractionMode = "idle" | "drag" | "scale" | "rotate";
+type InteractionMode = "idle" | "drag" | "gesture";
 
 type PointerSession = {
 	mode: InteractionMode;
@@ -33,6 +33,7 @@ type PointerSession = {
 type Simulation3DStepProps = {
 	designUrl: string | null;
 	scan: BodyScanResult;
+	onSaved?: () => void;
 };
 
 // 고정값: 굴곡 반영 1.1, 잉크 농도 70% (사용자 조절 UI 제거)
@@ -92,9 +93,11 @@ function findInitialAnchor(mask: PersonMask) {
 export default function Simulation3DStep({
 	designUrl,
 	scan,
+	onSaved,
 }: Simulation3DStepProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const pointerRef = useRef<PointerSession>(EMPTY_POINTER_SESSION);
+	const activePointersRef = useRef(new Map<number, { x: number; y: number }>());
 	const anchorInitializedRef = useRef(false);
 
 	const { bodyImage, personMask, depth } = scan;
@@ -258,12 +261,36 @@ export default function Simulation3DStep({
 		if (!canvas || !tattooImage || !personMask || !depth) return;
 
 		const point = pointFromEvent(event);
+		activePointersRef.current.set(event.pointerId, point);
+		event.currentTarget.setPointerCapture(event.pointerId);
+		if (activePointersRef.current.size > 2) return;
+
+		if (activePointersRef.current.size === 2) {
+			const [first, second] = Array.from(activePointersRef.current.values());
+			const midpoint = {
+				x: (first.x + second.x) / 2,
+				y: (first.y + second.y) / 2,
+			};
+			pointerRef.current = {
+				mode: "gesture",
+				startPoint: midpoint,
+				startTransform: transform,
+				lastTransform: transform,
+				startDistance: Math.max(1, distance(first, second)),
+				startAngle: Math.atan2(second.y - first.y, second.x - first.x),
+			};
+			return;
+		}
 		const normalizedPoint = {
 			x: point.x / canvas.width,
 			y: point.y / canvas.height,
 		};
 		// 배경 클릭은 무시하고 신체 클릭만 도안 이동을 시작한다.
 		if (!isPointInsidePerson(personMask, normalizedPoint.x, normalizedPoint.y)) {
+			activePointersRef.current.delete(event.pointerId);
+			if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+				event.currentTarget.releasePointerCapture(event.pointerId);
+			}
 			return;
 		}
 
@@ -279,7 +306,6 @@ export default function Simulation3DStep({
 		setTransform(sessionTransform);
 
 		event.currentTarget.focus();
-		event.currentTarget.setPointerCapture(event.pointerId);
 		const center = {
 			x: sessionTransform.x * canvas.width,
 			y: sessionTransform.y * canvas.height,
@@ -302,7 +328,43 @@ export default function Simulation3DStep({
 		}
 
 		const point = pointFromEvent(event);
+		if (activePointersRef.current.has(event.pointerId)) {
+			activePointersRef.current.set(event.pointerId, point);
+		}
 		const start = session.startTransform;
+
+		if (session.mode === "gesture" && activePointersRef.current.size >= 2) {
+			const [first, second] = Array.from(activePointersRef.current.values());
+			const midpoint = {
+				x: (first.x + second.x) / 2,
+				y: (first.y + second.y) / 2,
+			};
+			const nextDistance = Math.max(1, distance(first, second));
+			const nextAngle = Math.atan2(second.y - first.y, second.x - first.x);
+			const angleDelta = Math.atan2(
+				Math.sin(nextAngle - session.startAngle),
+				Math.cos(nextAngle - session.startAngle),
+			);
+			const nextTransform = {
+				...start,
+				x: Math.min(1, Math.max(0, start.x + (midpoint.x - session.startPoint.x) / canvas.width)),
+				y: Math.min(1, Math.max(0, start.y + (midpoint.y - session.startPoint.y) / canvas.height)),
+				width: Math.min(1.2, Math.max(0.045, start.width * (nextDistance / session.startDistance))),
+				rotation: start.rotation + angleDelta,
+			};
+			if (
+				!isPointInsidePerson(personMask, nextTransform.x, nextTransform.y) ||
+				!isPersonPathContinuous(
+					personMask,
+					{ x: session.lastTransform.x, y: session.lastTransform.y },
+					{ x: nextTransform.x, y: nextTransform.y },
+				)
+			) return;
+			session.lastTransform = nextTransform;
+			setClipAnchor({ x: nextTransform.x, y: nextTransform.y });
+			setTransform(nextTransform);
+			return;
+		}
 
 		if (session.mode === "drag") {
 			const nextTransform = {
@@ -341,7 +403,11 @@ export default function Simulation3DStep({
 		}
 	};
 
-	const endPointerSession = () => {
+	const endPointerSession = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+		activePointersRef.current.delete(event.pointerId);
+		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		}
 		pointerRef.current = EMPTY_POINTER_SESSION;
 	};
 
@@ -410,6 +476,7 @@ export default function Simulation3DStep({
 			link.click();
 			link.remove();
 			window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+			onSaved?.();
 		}, "image/png");
 	};
 
@@ -462,17 +529,18 @@ export default function Simulation3DStep({
 
 				{ready && (
 					<span className="pointer-events-none absolute bottom-2 right-2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-light text-white/90">
-						신체 클릭·드래그 이동 · 휠 확대·축소 · Shift+휠 회전
+						<span className="lg:hidden">한 손가락 이동 · 두 손가락 크기/회전</span>
+						<span className="hidden lg:inline">드래그 이동 · 휠 크기 · Shift+휠 회전</span>
 					</span>
 				)}
 			</div>
 
 			{ready && (
-				<div className="flex w-full max-w-[620px] shrink-0 justify-center">
+				<div className="flex w-full max-w-[620px] shrink-0 justify-center max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-w-none">
 					<button
 						type="button"
 						onClick={downloadResult}
-						className="inline-flex h-[36px] min-w-[150px] items-center justify-center rounded-[50px] bg-brand text-[12px] font-semibold text-white transition hover:brightness-95">
+						className="inline-flex h-[36px] min-w-[150px] items-center justify-center rounded-[50px] bg-brand text-[12px] font-semibold text-white transition hover:brightness-95 max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold">
 						결과 이미지 저장
 					</button>
 				</div>

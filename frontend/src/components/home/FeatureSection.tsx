@@ -20,21 +20,21 @@ function FeatureCopy({
 	buttonTo,
 }: Omit<FeatureBlockProps, "id" | "reversed" | "image" | "imageAlt">) {
 	return (
-		<div className="flex w-fit max-w-[650px] flex-col">
-			<p className="whitespace-nowrap text-[24px] font-normal leading-7 text-black">
+		<div className="flex w-full max-w-[650px] flex-col items-start lg:w-fit">
+			<p className="text-[16px] font-normal leading-6 text-black lg:whitespace-nowrap lg:text-[24px] lg:leading-7">
 				{eyebrow}
 			</p>
-			<h2 className="mt-5 whitespace-nowrap text-[48px] font-extrabold leading-[57px] text-black">
+			<h2 className="mt-2.5 text-[27px] font-extrabold leading-[34px] tracking-[-0.04em] text-black lg:mt-5 lg:whitespace-nowrap lg:text-[48px] lg:leading-[57px]">
 				{heading[0]}
 				<br />
 				{heading[1]}
 			</h2>
-			<p className="mt-5 text-[18px] font-light leading-[21px] text-black">
+			<p className="mt-4 text-[15px] font-light leading-6 text-black/70 lg:mt-5 lg:text-[18px] lg:leading-[21px] lg:text-black">
 				{description}
 			</p>
-			<CtaButton to={buttonTo} className="mt-8">
-				{buttonLabel}
-			</CtaButton>
+			<div className="mt-8 hidden lg:block">
+				<CtaButton to={buttonTo}>{buttonLabel}</CtaButton>
+			</div>
 		</div>
 	);
 }
@@ -44,7 +44,7 @@ function FeatureImage({ image, imageAlt }: { image: string; imageAlt: string }) 
 		<img
 			src={image}
 			alt={imageAlt}
-			className="h-[284px] w-[420px] shrink-0 rounded-[10px] object-cover"
+			className="aspect-[1.48/1] h-auto w-full shrink-0 rounded-[10px] object-cover lg:h-[284px] lg:w-[420px]"
 		/>
 	);
 }
@@ -63,10 +63,10 @@ export default function FeatureSection({
 	return (
 		<section
 			id={id}
-			className="mx-auto flex w-full max-w-[1199px] items-center justify-center py-[138px]">
+			className="mx-auto flex w-full max-w-[1199px] items-center justify-center px-5 py-13 lg:px-0 lg:py-[138px]">
 			<div
-				className={`flex items-center gap-10 ${
-					reversed ? "flex-row-reverse" : "flex-row"
+				className={`flex w-full flex-col items-center gap-8 lg:w-auto lg:gap-10 ${
+					reversed ? "lg:flex-row-reverse" : "lg:flex-row"
 				}`}>
 				<FeatureCopy
 					eyebrow={eyebrow}
@@ -76,6 +76,9 @@ export default function FeatureSection({
 					buttonTo={buttonTo}
 				/>
 				<FeatureImage image={image} imageAlt={imageAlt} />
+				<div className="flex w-full justify-center lg:hidden">
+					<CtaButton to={buttonTo}>{buttonLabel}</CtaButton>
+				</div>
 			</div>
 		</section>
 	);

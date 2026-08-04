@@ -19,7 +19,7 @@ export default function CollectionPreview({
 	const safeSkin = isMannequinSkin(resolved) ? resolved : "white";
 
 	return (
-		<div className="flex flex-col items-stretch gap-8 sm:flex-row sm:justify-center sm:gap-6">
+		<div className="mx-4 flex flex-row items-stretch justify-center gap-2 rounded-[10px] bg-white p-4 lg:mx-0 lg:gap-6 lg:bg-transparent lg:p-0">
 			<MannequinPreviewPane
 				placements={placements}
 				view="front"

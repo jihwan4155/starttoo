@@ -100,7 +100,7 @@ function ToolbarButton({
 			aria-pressed={active}
 			disabled={disabled}
 			onClick={onClick}
-			className={`flex h-9 w-9 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-30 ${
+			className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-30 lg:h-9 lg:w-9 ${
 				active
 					? "bg-brand text-white"
 					: "text-black/70 hover:bg-black/5 hover:text-black"
@@ -111,7 +111,7 @@ function ToolbarButton({
 }
 
 function Divider() {
-	return <span className="h-6 w-px bg-black/10" />;
+	return <span className="h-5 w-px bg-black/10 lg:h-6" />;
 }
 
 type DoodleToolbarProps = {
@@ -138,7 +138,7 @@ export default function DoodleToolbar({
 	onClear,
 }: DoodleToolbarProps) {
 	return (
-		<div className="flex items-center gap-1 rounded-full border border-black/10 bg-white/90 px-3 py-2 shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur">
+		<div className="flex max-w-[calc(100vw-24px)] items-center gap-1 overflow-x-auto rounded-full border border-black/10 bg-white/90 px-2 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:max-w-none lg:overflow-visible lg:px-3 lg:py-2">
 			<ToolbarButton
 				label="펜"
 				active={tool === "pen"}
@@ -186,7 +186,7 @@ export default function DoodleToolbar({
 				type="button"
 				disabled={!canUndo}
 				onClick={onClear}
-				className="rounded-full px-3 text-[13px] font-normal text-black/60 transition hover:text-brand disabled:cursor-not-allowed disabled:opacity-30">
+				className="rounded-full px-2 text-[12px] font-normal text-black/60 transition hover:text-brand disabled:cursor-not-allowed disabled:opacity-30 lg:px-3 lg:text-[13px]">
 				전체 지우기
 			</button>
 		</div>

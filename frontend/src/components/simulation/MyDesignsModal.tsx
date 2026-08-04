@@ -29,7 +29,7 @@ export default function MyDesignsModal({
 					</p>
 				</div>
 			) : (
-				<div className="grid max-h-[360px] grid-cols-4 gap-4 overflow-y-auto pr-1">
+				<div className="grid max-h-[min(360px,60vh)] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 sm:gap-4">
 					{savedDesigns.map((design) => (
 						<button
 							key={design.id}

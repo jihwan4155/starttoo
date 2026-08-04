@@ -63,11 +63,11 @@ export default function EditPostModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-6"
+			className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-6 max-lg:bg-surface max-lg:p-0"
 			onClick={handleClose}
 			role="presentation">
 			<div
-				className="w-full max-w-[640px] overflow-hidden rounded-2xl bg-white"
+				className="w-full max-w-[640px] overflow-hidden rounded-2xl bg-white max-lg:min-h-dvh max-lg:max-w-none max-lg:rounded-none max-lg:bg-surface"
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
@@ -84,8 +84,8 @@ export default function EditPostModal({
 					</button>
 				</div>
 
-				<div className="flex gap-5 p-6">
-					<div className="w-[240px] shrink-0">
+				<div className="flex gap-5 p-6 max-lg:flex-col max-lg:px-5 max-lg:pt-20">
+					<div className="w-[240px] shrink-0 max-lg:hidden">
 						<div className="aspect-square overflow-hidden rounded-[10px] bg-[#D9D9D9]">
 							{imageUrls[0] ? (
 								<img
@@ -128,7 +128,7 @@ export default function EditPostModal({
 							type="button"
 							onClick={() => void handleSubmit()}
 							disabled={isPending}
-							className="mt-4 h-[44px] rounded-full bg-brand text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50">
+							className="mt-4 h-[44px] rounded-full bg-brand text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-20 max-lg:h-[60px] max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px]">
 							{isPending ? "저장 중…" : "저장"}
 						</button>
 					</div>

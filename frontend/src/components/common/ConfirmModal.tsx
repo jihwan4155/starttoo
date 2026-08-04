@@ -25,11 +25,11 @@ export default function ConfirmModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-6 sm:items-center"
+			className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center sm:p-6"
 			onClick={onClose}
 			role="presentation">
 			<div
-				className="relative w-full max-w-[560px] rounded-2xl bg-white px-8 pb-8 pt-14 shadow-xl"
+				className="relative w-full max-w-[560px] rounded-2xl bg-white px-4 pb-5 pt-12 shadow-xl sm:px-8 sm:pb-8 sm:pt-14"
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
@@ -38,7 +38,7 @@ export default function ConfirmModal({
 					type="button"
 					aria-label="닫기"
 					onClick={onClose}
-					className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-black transition hover:bg-black/5">
+					className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-black transition hover:bg-black/5 sm:right-5 sm:top-5">
 					<svg
 						width="20"
 						height="20"
@@ -51,21 +51,21 @@ export default function ConfirmModal({
 					</svg>
 				</button>
 
-				<p className="text-center text-[26px] font-semibold text-black">
+				<p className="text-center text-[20px] font-semibold text-black sm:text-[26px]">
 					{title}
 				</p>
 
-				<div className="mt-10 flex gap-4">
+				<div className="mt-7 grid grid-cols-2 gap-2 sm:mt-10 sm:gap-4">
 					<button
 						type="button"
 						onClick={onCancel ?? onClose}
-						className="h-[56px] flex-1 rounded-full border border-black/20 bg-white text-[18px] font-semibold text-black transition hover:bg-black/5 active:scale-[0.99]">
+						className="h-12 min-w-0 rounded-full border border-black/20 bg-white px-2 text-[14px] font-semibold text-black transition hover:bg-black/5 active:scale-[0.99] sm:h-[56px] sm:text-[18px]">
 						{cancelText}
 					</button>
 					<button
 						type="button"
 						onClick={onConfirm}
-						className="h-[56px] flex-1 rounded-full bg-brand text-[18px] font-semibold text-white transition hover:brightness-95 active:scale-[0.99]">
+						className="h-12 min-w-0 rounded-full bg-brand px-2 text-[14px] font-semibold text-white transition hover:brightness-95 active:scale-[0.99] sm:h-[56px] sm:text-[18px]">
 						{confirmText}
 					</button>
 				</div>

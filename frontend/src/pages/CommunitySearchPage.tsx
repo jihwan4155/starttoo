@@ -9,6 +9,9 @@ import { ApiError } from "../services/api";
 import useAuthStore from "../store/useAuthStore";
 import type { Post } from "../types/community";
 import { filterPostsByKeyword, filterVisiblePosts } from "../utils/filterPosts";
+import CommunitySearchBar from "../components/community/CommunitySearchBar";
+import { mockPosts } from "../mocks/community";
+import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
 /** 커뮤니티 탐색·검색 — GET /posts + 클라이언트 필터 (POST /posts/search 501 대체) */
 export default function CommunitySearchPage() {
@@ -38,7 +41,8 @@ export default function CommunitySearchPage() {
 
 	const allPosts = useMemo(() => {
 		const items = data?.pages.flatMap((page) => page.items) ?? [];
-		return filterVisiblePosts(items, hiddenIds);
+		const source = QA_MOCK_DATA_ENABLED && items.length === 0 ? mockPosts : items;
+		return filterVisiblePosts(source, hiddenIds);
 	}, [data?.pages, hiddenIds]);
 	const results = useMemo(
 		() => filterPostsByKeyword(allPosts, keyword),
@@ -51,8 +55,9 @@ export default function CommunitySearchPage() {
 			: "게시글을 불러오지 못했습니다.";
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-6">
-			<div className="mx-auto w-full max-w-[1000px] px-6">
+		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-6">
+			<div className="mx-auto w-full max-w-[1000px] px-4 lg:px-6">
+				<div className="mb-5 hidden max-lg:block [&_form]:h-12 [&_form]:shadow-none"><CommunitySearchBar /></div>
 				{keyword && (
 					<p className="mb-4 text-[14px] font-light text-black/60">
 						<span className="font-semibold text-black">
@@ -64,7 +69,7 @@ export default function CommunitySearchPage() {
 
 				{isPending && <StarttooLoader variant="block" />}
 
-				{isError && (
+				{isError && results.length === 0 && (
 					<p className="py-20 text-center text-[14px] text-black/60">
 						{errorMessage}
 					</p>
@@ -78,14 +83,14 @@ export default function CommunitySearchPage() {
 					</p>
 				)}
 
-				<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+				<div className="grid grid-cols-3 gap-0.5 lg:grid-cols-4 lg:gap-3">
 					{results.map((post) => (
 						<button
 							key={post.id}
 							type="button"
 							aria-label={`${post.author.nickname}의 게시글 보기`}
 							onClick={() => handleOpenPost(post)}
-							className="aspect-square overflow-hidden rounded-[6px] bg-[#D9D9D9]">
+							className="aspect-square overflow-hidden bg-[#D9D9D9] lg:rounded-[6px]">
 							{post.imageUrl && (
 								<img
 									src={post.imageUrl}

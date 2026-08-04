@@ -17,16 +17,16 @@ const GUIDE_ITEMS = [
 
 export default function MarkerGuideStep() {
 	return (
-		<div className="mx-auto flex h-full max-h-[400px] w-full max-w-[700px] flex-col items-center gap-3 overflow-y-auto rounded-[16px] bg-white px-5 py-5 sm:flex-row sm:gap-8 sm:px-8">
+		<div className="mx-auto flex h-full max-h-[520px] w-full max-w-[700px] flex-col items-center gap-4 overflow-y-auto rounded-[16px] bg-white px-5 py-6 sm:max-h-[400px] sm:flex-row sm:gap-8 sm:px-8">
 			{/* 원본이 세로로 매우 길어(1140x3608) 높이에 맞추면 사진이 사라진다.
 			    폭을 고정하고 마커 주변(손목~팔뚝)을 잘라 어떤 화면 높이에서도 크게 보이게 한다. */}
 			<img
 				src={markerGuide}
 				alt="팔 안쪽에 세로선 두 개와 그 아래 가로선 하나를 그린 마커 예시"
-				className="h-[150px] w-full shrink-0 rounded-[12px] bg-black/[0.03] object-cover object-[50%_68%] sm:h-full sm:min-h-0 sm:w-[190px]"
+				className="h-[210px] w-full shrink-0 rounded-[12px] bg-black/[0.03] object-contain sm:h-full sm:min-h-0 sm:w-[190px] sm:object-cover sm:object-[50%_68%]"
 			/>
 
-			<ol className="flex w-full min-w-0 flex-col gap-3.5 sm:w-auto sm:flex-1 sm:gap-4">
+			<ol className="flex w-full min-w-0 flex-col gap-4 sm:w-auto sm:flex-1">
 				{GUIDE_ITEMS.map((item, index) => (
 					<li key={item.title} className="flex gap-3">
 						<span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[13px] font-bold text-brand">
@@ -36,8 +36,7 @@ export default function MarkerGuideStep() {
 							<p className="text-[14px] font-bold text-black sm:text-[15px]">
 								{item.title}
 							</p>
-							{/* 모바일은 폭이 좁아 제목만 — 설명은 데스크톱에서 */}
-							<p className="mt-0.5 hidden text-[13px] font-light leading-5 text-black/55 sm:block">
+							<p className="mt-1 text-[12px] font-light leading-[17px] text-black/55 sm:text-[13px] sm:leading-5">
 								{item.body}
 							</p>
 						</div>

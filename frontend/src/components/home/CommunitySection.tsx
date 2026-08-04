@@ -16,21 +16,21 @@ export default function CommunitySection() {
 	return (
 		<section
 			id="community"
-			className="mx-auto flex w-full max-w-[1199px] flex-col items-center px-0 pb-24 pt-20">
-			<p className="text-[24px] font-normal leading-7 text-brand">COMMUNITY</p>
-			<h2 className="mt-3 text-center text-[48px] font-extrabold leading-[57px] text-black">
+			className="mx-auto flex w-full max-w-[1199px] flex-col items-center px-5 pb-13 pt-12 lg:px-0 lg:pb-24 lg:pt-20">
+			<p className="text-[16px] font-normal leading-6 text-brand lg:text-[24px] lg:leading-7">COMMUNITY</p>
+			<h2 className="mt-2.5 text-center text-[27px] font-extrabold leading-[34px] tracking-[-0.04em] text-black lg:mt-3 lg:text-[48px] lg:leading-[57px]">
 				다른 사람들은 어떻게 그렸을까요?
 			</h2>
-			<p className="mt-4 text-center text-[18px] font-light leading-[21px] text-black">
+			<p className="mt-3 text-center text-[15px] font-light leading-6 text-black/70 lg:mt-4 lg:text-[18px] lg:leading-[21px] lg:text-black">
 				커뮤니티에서 도안과 후기를 나눠보세요
 			</p>
 
-			<div className="mt-10 flex gap-[34px]">
+			<div className="mt-8 grid w-full grid-cols-2 gap-3 lg:mt-10 lg:flex lg:w-auto lg:gap-[34px]">
 				{previewPosts.length === 0
 					? Array.from({ length: 4 }).map((_, index) => (
 							<div
 								key={index}
-								className="h-[200px] w-[200px] shrink-0 rounded-[10px] bg-[#D9D9D9]"
+								className="aspect-square h-auto w-full shrink-0 rounded-[10px] bg-[#D9D9D9] lg:h-[200px] lg:w-[200px]"
 							/>
 						))
 					: previewPosts.map((post) => (
@@ -41,7 +41,7 @@ export default function CommunitySection() {
 								<img
 									src={post.imageUrl ?? undefined}
 									alt={`${post.author.nickname}의 게시글`}
-									className="h-[200px] w-[200px] rounded-[10px] bg-[#D9D9D9] object-cover"
+									className="aspect-square h-auto w-full rounded-[10px] bg-[#D9D9D9] object-cover lg:h-[200px] lg:w-[200px]"
 								/>
 							</Link>
 						))}

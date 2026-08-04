@@ -1,5 +1,5 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLayoutEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import SimulationTabs, {
 	type SimulationTab,
 } from "../components/simulation/SimulationTabs";
@@ -16,6 +16,7 @@ import MyDesignsModal from "../components/simulation/MyDesignsModal";
 import { useBodyScan, type BodyScanResult } from "../components/simulation/useBodyScan";
 import { useIsMobile } from "../hooks/useIsMobile";
 import useSimulationHandoff from "../store/useSimulationHandoff";
+import MobileSimulationFlow from "../components/simulation/MobileSimulationFlow";
 
 function ChevronLeftIcon() {
 	return (
@@ -62,6 +63,7 @@ const MAX_STEP: Record<SimulationTab, number> = { ar: 3, image: 3 };
 
 export default function SimulationsPage() {
 	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
 	// QR/링크로 ?mode=ar 진입 시 실시간(AR) 탭을 바로 선택
 	const [tab, setTab] = useState<SimulationTab>(
 		searchParams.get("mode") === "ar" ? "ar" : "image"
@@ -71,6 +73,12 @@ export default function SimulationsPage() {
 	const [myDesignsOpen, setMyDesignsOpen] = useState(false);
 	const [captureUrl, setCaptureUrl] = useState<string | null>(null);
 	const isMobile = useIsMobile();
+	const [mobileMode, setMobileMode] = useState<SimulationTab>(
+		searchParams.get("mode") === "ar" ? "ar" : "image",
+	);
+	const [mobileModeConfirmed, setMobileModeConfirmed] = useState(
+		searchParams.get("mode") === "ar",
+	);
 
 	const designUpload = useImageUpload();
 	const bodyPhotoUpload = useImageUpload();
@@ -83,7 +91,9 @@ export default function SimulationsPage() {
 		scan: BodyScanResult;
 	} | null>(null);
 
-	useEffect(() => {
+	// 인계 데이터는 첫 화면이 그려지기 전에 적용해 모바일 분기 화면이 잠깐
+	// 노출되는 것을 막는다.
+	useLayoutEffect(() => {
 		const handoff = consumeHandoff();
 		if (!handoff) return;
 		const bodyPreview = URL.createObjectURL(handoff.bodyPhoto);
@@ -92,6 +102,8 @@ export default function SimulationsPage() {
 		if (handoff.scan) setHandedScan({ preview: bodyPreview, scan: handoff.scan });
 		setTab("image");
 		setImageStep(3);
+		setMobileMode("image");
+		setMobileModeConfirmed(true);
 		// 마운트 시 한 번만 소비한다 (consume이 스토어를 비우므로 재실행돼도 무해하다)
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -141,6 +153,60 @@ export default function SimulationsPage() {
 
 	// 이미지(3D) 마지막 단계·모바일 AR 라이브에서는 상단을 숨겨 화면에 집중
 	const hideHeader = (tab === "image" && step === maxStep) || mobileArLive;
+
+	const handleMobileBack = () => {
+		if (!mobileModeConfirmed) {
+			navigate(-1);
+			return;
+		}
+		if (tab === "image" && imageStep > 1) {
+			setImageStep((current) => current - 1);
+			return;
+		}
+		if (tab === "ar" && arStep > 1) {
+			setArStep(1);
+			return;
+		}
+		setMobileModeConfirmed(false);
+	};
+
+	if (isMobile) {
+		return (
+			<>
+				<MobileSimulationFlow
+					mode={mobileMode}
+					confirmed={mobileModeConfirmed}
+					imageStep={imageStep}
+					arStep={arStep}
+					bodyPhotoUpload={bodyPhotoUpload}
+					designUpload={designUpload}
+					bodyScan={bodyScan}
+					onSelectMode={setMobileMode}
+					onConfirmMode={() => {
+						setTab(mobileMode);
+						if (mobileMode === "ar") setArStep(1);
+						setMobileModeConfirmed(true);
+					}}
+					onBack={handleMobileBack}
+					onNext={() => setImageStep((current) => Math.min(3, current + 1))}
+					onArNext={() => setArStep(2)}
+					onOpenDesigns={() => setMyDesignsOpen(true)}
+					captureUrl={captureUrl}
+					onCapture={setCaptureUrl}
+					onClearCapture={() => setCaptureUrl(null)}
+				/>
+				{myDesignsOpen && (
+					<MyDesignsModal
+						onClose={() => setMyDesignsOpen(false)}
+						onSelect={(design) => {
+							designUpload.setFromUrl(design.previewUrl);
+							setMyDesignsOpen(false);
+						}}
+					/>
+				)}
+			</>
+		);
+	}
 
 	return (
 		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">

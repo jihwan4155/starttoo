@@ -72,7 +72,7 @@ export default function MyPageShopInfo({
 	isLoading = false,
 }: MyPageShopInfoProps) {
 	return (
-		<div className="mt-6 rounded-[12px] border border-dashed border-black/15 px-7 py-5">
+		<div className="mx-4 mt-3 overflow-hidden rounded-[12px] border border-black/[0.06] bg-white py-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:mx-0 lg:mt-8 lg:rounded-[16px] lg:py-4">
 			{isLoading ? (
 				<div className="flex flex-col">
 					{Array.from({ length: 4 }, (_, i) => (

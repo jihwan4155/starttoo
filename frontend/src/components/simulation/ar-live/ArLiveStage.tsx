@@ -480,7 +480,7 @@ export default function ArLiveStage({
 
 	return (
 		<div
-			className="relative mx-auto w-full max-w-[320px] overflow-hidden rounded-[16px] bg-black"
+			className="relative mx-auto w-full overflow-hidden rounded-[16px] bg-black lg:max-w-[320px]"
 			style={{ aspectRatio }}>
 			<video
 				ref={videoRef}
@@ -524,11 +524,11 @@ export default function ArLiveStage({
 				onClick={handleCapture}
 				disabled={cameraStatus !== "active"}
 				aria-label="사진 촬영"
-				className="absolute bottom-4 left-1/2 z-10 flex size-14 -translate-x-1/2 items-center justify-center rounded-full bg-white shadow-lg ring-4 ring-white/40 transition active:scale-95 disabled:opacity-40">
+				className="absolute bottom-4 left-1/2 z-10 flex size-14 -translate-x-1/2 items-center justify-center rounded-full bg-black text-white shadow-lg ring-4 ring-white/40 transition active:scale-95 disabled:opacity-40 lg:bg-white lg:text-black">
 				<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
 					<path
 						d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"
-						stroke="#111111"
+						stroke="currentColor"
 						strokeWidth="1.6"
 						strokeLinejoin="round"
 					/>
@@ -536,7 +536,7 @@ export default function ArLiveStage({
 						cx="12"
 						cy="13.5"
 						r="3.2"
-						stroke="#111111"
+						stroke="currentColor"
 						strokeWidth="1.6"
 					/>
 				</svg>
