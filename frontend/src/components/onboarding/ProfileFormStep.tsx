@@ -2,11 +2,7 @@ import { useState } from "react";
 import { ApiError } from "../../services/api";
 import { checkNicknameAvailability } from "../../services/authApi";
 import type { RequestedRole, SignupGender } from "../../types/auth";
-import {
-	MIN_AGE,
-	birthDateMessage,
-	formatBirthDigits,
-} from "../../utils/birthDate";
+import { birthDateMessage, formatBirthDigits } from "../../utils/birthDate";
 
 /** 백엔드 UpdateProfileRequest.nickname 과 같은 제약 */
 const NICKNAME_PATTERN = /^[가-힣A-Za-z0-9]{2,20}$/;
@@ -18,7 +14,7 @@ const GENDERS: { value: SignupGender; label: string }[] = [
 
 export type ProfileFormValues = {
 	nickname: string;
-	/** YYYY-MM-DD — 만 MIN_AGE세 이상만 통과하므로 항상 채워져 있다 */
+	/** YYYY-MM-DD — 8자리를 다 채워야 다음으로 넘어가므로 항상 값이 있다 */
 	birthDate: string;
 	gender: SignupGender;
 	/** 타투이스트일 때만 채운다 */
@@ -188,7 +184,7 @@ export default function ProfileFormStep({
 				<p
 					id="onboarding-birthdate-help"
 					className="mt-2 text-[13px] text-black/50">
-					숫자 8자리로 입력해주세요. 만 {MIN_AGE}세 이상만 가입할 수 있어요.
+					숫자 8자리로 입력해주세요.
 				</p>
 			)}
 
