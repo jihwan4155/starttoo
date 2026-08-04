@@ -42,8 +42,10 @@ export default function SignupPage() {
 
 	// 세션이 있으면 가입은 이미 끝났다. 가입 성공 직후의 리렌더도 여기로 걸리므로
 	// 라우터 이동이 늦게 반영돼도 /login으로 튕기지 않고 온보딩으로 간다.
+	// 다만 가입 토큰이 없다면 방금 가입한 것이 아니라 기존 회원이 로그인한 채로
+	// 이 경로에 닿은 것이다 — 온보딩으로 보내면 회원가입을 다시 시키는 꼴이 된다.
 	if (accessToken) {
-		return <Navigate to="/onboarding" replace />;
+		return <Navigate to={signupToken ? "/onboarding" : "/"} replace />;
 	}
 	// 가입 토큰 없이 직접 들어온 경우 — 소셜 로그인부터 다시.
 	if (!signupToken) {

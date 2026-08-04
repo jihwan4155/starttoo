@@ -46,6 +46,39 @@ export const REAUTH_REQUIRED_STORAGE_KEY = "starttoo-reauth-required";
  */
 export const PHONE_CONFIRM_CODE = "1111";
 
+/**
+ * 인증 플로우 자체의 화면인지 — 로그인 뒤 돌아갈 곳으로 삼으면 안 되는 경로들이다.
+ *
+ * 소셜 가입을 중간에 그만두면 /signup에 남게 되는데, 거기서 상단바 로그인 모달로
+ * 다른 제공자에 로그인하면 목적지가 /signup으로 잡힌다. 로그인은 성공했는데 가입
+ * 화면으로 돌아가고, 세션이 생겼으니 /signup 가드가 다시 온보딩으로 밀어 버린다.
+ * 기존 회원에게 회원가입을 다시 시키는 것처럼 보이는 원인이라, 이런 경로에서
+ * 시작한 로그인은 목적지를 버리고 홈으로 보낸다.
+ */
+export function isAuthFlowPath(pathname: string): boolean {
+	return [
+		"/login",
+		"/signup",
+		"/onboarding",
+		KAKAO_CALLBACK_PATH,
+		GOOGLE_CALLBACK_PATH,
+	].some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+/**
+ * 보관해 둔 로그인 후 목적지를 쓸 수 있는 값으로 걸러 낸다. 쓸 수 없으면 null.
+ *
+ * 우리가 저장한 값이지만, 다른 오리진으로 튕겨 보내는 값이 섞이지 않도록
+ * 같은 오리진의 절대 경로만 통과시킨다(`//host` 형태는 프로토콜 상대 URL이다).
+ */
+export function safePostLoginRedirect(stored: string | null): string | null {
+	if (!stored || !stored.startsWith("/") || stored.startsWith("//")) {
+		return null;
+	}
+	const { pathname } = new URL(stored, window.location.origin);
+	return isAuthFlowPath(pathname) ? null : stored;
+}
+
 /** 현재 오리진 기준 절대 redirect URI — 인가와 토큰 교환에서 동일한 값이어야 한다 */
 export function kakaoRedirectUri(): string {
 	return `${window.location.origin}${KAKAO_CALLBACK_PATH}`;
