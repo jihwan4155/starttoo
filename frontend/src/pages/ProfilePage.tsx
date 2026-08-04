@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import CollectionPreview from "../components/collections/CollectionPreview";
 import ArtistBadge from "../components/common/ArtistBadge";
+import { isVerifiedArtist } from "../utils/artistStatus";
 import UnfollowConfirmModal from "../components/common/UnfollowConfirmModal";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
@@ -70,6 +71,11 @@ export default function ProfilePage() {
 		useCreateDmRoom();
 
 	const isArtist = profile?.role === "ARTIST";
+	/** 뱃지는 인증(VERIFIED)까지 끝난 타투이스트에게만 붙는다 */
+	const showArtistBadge = isVerifiedArtist(
+		profile?.role,
+		profile?.artist?.verificationStatus,
+	);
 	const avatarUrl = resolveAvatar(profile?.profileImageUrl, profile?.nickname);
 	const profileErrorMessage =
 		profileError instanceof ApiError
@@ -176,7 +182,7 @@ export default function ProfilePage() {
 								<div className="min-w-0">
 									<p className="flex items-center gap-2 text-[18px] font-bold text-black lg:text-[22px]">
 										<span className="truncate">{profile.nickname}</span>
-										{isArtist && <ArtistBadge size={18} />}
+										{showArtistBadge && <ArtistBadge size={18} />}
 									</p>
 									<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px] lg:text-black/60">
 										<span>게시물 {posts.length}</span>

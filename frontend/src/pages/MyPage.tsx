@@ -27,6 +27,7 @@ import useUserStore from "../store/useUserStore";
 import type { Post } from "../types/community";
 import type { SavedDesign } from "../types/designExtract";
 import { ApiError } from "../services/api";
+import { isVerifiedArtist } from "../utils/artistStatus";
 import { isDemoArchiveDesign } from "../constants/demoArchiveDesigns";
 import { mapArchiveItemToSavedDesign } from "../utils/mapArchive";
 import mergeWithDemoArchiveDesigns from "../utils/mergeArchiveDesigns";
@@ -166,6 +167,18 @@ export default function MyPage() {
 	// 인증(VERIFIED) 전이면 목록에 없어 null이고, 매장명·인증 상태만 보여준다.
 	const { data: artistDetail, isPending: isArtistDetailPending } =
 		useMyArtistProfile(me?.userId ?? 0, isArtist);
+	/** 뱃지는 인증(VERIFIED)까지 끝난 타투이스트에게만 붙는다 */
+	const showArtistBadge = isVerifiedArtist(
+		me?.role ?? authUser?.role,
+		artist?.verificationStatus,
+	);
+	/**
+	 * 인증 뱃지 신청 버튼을 보여줄지.
+	 *
+	 * 타투이스트 계정만 신청 대상이다 (일반 사용자는 애초에 신청할 것이 없다).
+	 * 이미 VERIFIED면 뱃지가 붙어 있어 신청할 이유가 없으므로 감춘다.
+	 */
+	const canRequestArtistBadge = isArtist && !showArtistBadge;
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface px-0 pb-28 pt-5 lg:px-6 lg:pb-16 lg:pt-10">
@@ -175,14 +188,6 @@ export default function MyPage() {
 						{meErrorMessage}
 					</p>
 				)}
-				{!isArtist && (
-					<button
-						type="button"
-						onClick={() => setBadgeRequestOpen(true)}
-						className="mb-2 ml-auto block px-4 text-right text-[13px] text-black/70">
-						타투이스트 인증 뱃지 신청
-					</button>
-				)}
 				<div className="px-4 lg:px-0"><MyPageHeader
 					nickname={me?.nickname ?? nickname}
 					avatarUrl={me?.profileImageUrl ?? avatarUrl}
@@ -190,8 +195,13 @@ export default function MyPage() {
 					followerCount={publicMe?.followerCount}
 					followingCount={publicMe?.followingCount}
 					isLoading={isLoggedIn && isMePending}
-					isArtist={isArtist}
+					isVerifiedArtist={showArtistBadge}
 					onOpenFollowList={setFollowListKind}
+					onRequestArtistBadge={
+						canRequestArtistBadge
+							? () => setBadgeRequestOpen(true)
+							: undefined
+					}
 				/></div>
 
 				{isArtist && (
