@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CloseIcon, SearchIcon } from "../community/icons";
 
-/** 타투이스트 상단 검색 바 — URL ?q=와 동기화되어 목록이 입력 즉시 필터링된다 */
+/**
+ * 타투이스트 검색 바 — 검색어 한 칸으로 도시와 닉네임을 함께 찾는다.
+ *
+ * 서버에 둘을 한 번에 받는 엔드포인트가 없어 화면에서 두 API를 동시에 부른다
+ * (GET /artists?city= · GET /search/artists?q=). 도시는 정확 일치라 닉네임을
+ * 넣어도 빈 결과가 와서 오탐이 없다 — 그래서 사용자가 기준을 고르지 않아도 된다.
+ */
 export default function ArtistSearchBar() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	// input 값은 로컬 state가 소스 — setSearchParams는 transition이라 값이 늦게
@@ -11,7 +17,8 @@ export default function ArtistSearchBar() {
 
 	const update = (next: string) => {
 		setValue(next);
-		setSearchParams(next ? { q: next } : {}, { replace: true });
+		const trimmed = next.trim();
+		setSearchParams(trimmed ? { q: trimmed } : {}, { replace: true });
 	};
 
 	return (
@@ -21,7 +28,9 @@ export default function ArtistSearchBar() {
 				<input
 					value={value}
 					onChange={(e) => update(e.target.value)}
-					placeholder="타투이스트 이름, 장르로 검색"
+					placeholder="닉네임 또는 도시로 검색 → 예: 모노라인, 서울"
+					maxLength={100}
+					aria-label="타투이스트 검색"
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 				/>
 				{value && (
