@@ -19,7 +19,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 withCredentials([file(credentialsId: 'starttoo-env-file', variable: 'ENV_FILE')]) {
-                    sh 'docker compose --env-file "$ENV_FILE" up -d'
+                    sh '''
+                        docker compose --env-file "$ENV_FILE" down --remove-orphans
+                        COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file "$ENV_FILE" up -d --remove-orphans
+                    '''
                 }
             }
         }
