@@ -29,7 +29,7 @@ class FlywayMigrationTest {
                 .load()
                 .migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(10);
+        assertThat(result.migrationsExecuted).isEqualTo(11);
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(),
                 POSTGRES.getUsername(),

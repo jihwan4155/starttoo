@@ -3,6 +3,7 @@ package com.starttoo.backend.post.application;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.post.api.PostDtos;
+import com.starttoo.backend.post.domain.ClassificationStatus;
 import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostImage;
 import com.starttoo.backend.post.domain.PostImageRepository;
@@ -49,6 +50,10 @@ public class PostWriteService {
                         .postSeq(post.getPostSeq())
                         .imageSeq(preparedImages.get(index).imageSeq())
                         .displayOrder((short) (index + 1))
+                        // 게시물과 같은 트랜잭션에서 분류 대기 상태를 남긴다. 이 시점부터
+                        // 작업이 DB 에 존재하므로 비동기 워커가 실패해도 백필이 처리한다.
+                        .classificationStatus(ClassificationStatus.PENDING)
+                        .classificationAttemptCount((short) 0)
                         .regDttm(now)
                         .modDttm(now)
                         .build());

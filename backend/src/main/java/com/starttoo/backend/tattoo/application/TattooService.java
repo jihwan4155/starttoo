@@ -60,33 +60,30 @@ public class TattooService {
                 .filter(value -> value.getRegUsrSeq().equals(userSeq))
                 .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
         mediaService.verifyStoredObject(image.getObjectKey());
-        return new PreparedPostImage(image.getImageSeq(), image.getObjectKey(), null);
+        return new PreparedPostImage(image.getImageSeq(), image.getObjectKey());
     }
 
+    /**
+     * 게시물 이미지 한 장의 분석 결과를 저장한다. 재시도로 다시 들어올 수 있으므로
+     * 이미 tattoos 행이 있으면 조용히 넘어간다(멱등).
+     *
+     * <p>호출자는 이미지 한 장씩 호출해야 한다. 여러 장을 한 트랜잭션으로 묶으면
+     * 한 장의 실패가 이미 성공한 다른 장까지 롤백시킨다.
+     */
     @Transactional
-    public void persistPostImageAnalyses(
+    public void persistPostImageAnalysis(
             Integer userSeq,
-            List<PreparedPostImage> preparedImages,
-            List<TattooModelClient.AnalysisResult> results
+            PreparedPostImage image,
+            TattooModelClient.Analysis analysis
     ) {
-        if (preparedImages.size() != results.size()) {
-            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+        if (tattooRepository.findByImageSeqAndDeletedFalse(image.imageSeq()).isPresent()) {
+            return;
         }
-        for (int index = 0; index < preparedImages.size(); index++) {
-            TattooModelClient.AnalysisResult result = results.get(index);
-            if (!result.isTattoo() || result.analysis() == null) {
-                continue;
-            }
-            PreparedPostImage image = preparedImages.get(index);
-            if (tattooRepository.findByImageSeqAndDeletedFalse(image.imageSeq()).isPresent()) {
-                continue;
-            }
-            persistPrepared(
-                    userSeq,
-                    new PreparedTattoo(image.imageSeq(), image.objectKey(), result.analysis()),
-                    TattooSourceType.USER_POST
-            );
-        }
+        persistPrepared(
+                userSeq,
+                new PreparedTattoo(image.imageSeq(), image.objectKey(), analysis),
+                TattooSourceType.USER_POST
+        );
     }
 
     @Transactional
@@ -179,21 +176,14 @@ public class TattooService {
     ) {
     }
 
+    /**
+     * 게시물 저장 시점에 확보하는 정보. 분석 결과는 게시 응답 이후 비동기로 채우므로
+     * 여기에 담지 않는다.
+     */
     public record PreparedPostImage(
             Long imageSeq,
-            String objectKey,
-            TattooModelClient.Analysis analysis
+            String objectKey
     ) {
-        public boolean tattoo() {
-            return analysis != null;
-        }
-
-        public PreparedTattoo asTattoo() {
-            if (!tattoo()) {
-                throw new IllegalStateException("비타투 이미지는 PreparedTattoo로 변환할 수 없습니다.");
-            }
-            return new PreparedTattoo(imageSeq, objectKey, analysis);
-        }
     }
 
     @Transactional(readOnly = true)

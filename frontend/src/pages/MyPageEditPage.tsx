@@ -20,11 +20,7 @@ import { checkNicknameAvailability } from "../services/authApi";
 import { ApiError } from "../services/api";
 import { type Gender } from "../store/useUserStore";
 import type { UpdateMeRequest } from "../types/user";
-import {
-	MIN_AGE,
-	birthDateMessage,
-	formatBirthDigits,
-} from "../utils/birthDate";
+import { birthDateMessage, formatBirthDigits } from "../utils/birthDate";
 import { dataUrlToFile } from "../utils/dataUrlToFile";
 import { cropImageToDataUrl, DEFAULT_CROP } from "../utils/image";
 import { resolveAvatar } from "../utils/profile";
@@ -152,7 +148,7 @@ export default function MyPageEditPage() {
 	 *
 	 * 비워 두는 것은 허용한다 — 온보딩 전에 만들어진 계정은 생년월일이 없을 수 있어,
 	 * 필수로 만들면 닉네임만 바꾸려는 사람까지 막힌다. 대신 값을 넣었다면 가입과 같은
-	 * 기준(달력에 있는 날짜 · 만 MIN_AGE세 이상)을 지켜야 한다.
+	 * 기준(달력에 있는 날짜 · 미래가 아닌 날짜)을 지켜야 한다.
 	 */
 	const birthReady =
 		birthDigits.length === 0 || (!birthIncomplete && birthError === null);
@@ -348,8 +344,7 @@ export default function MyPageEditPage() {
 							<p
 								id="mypage-birthdate-help"
 								className="mt-2 text-[13px] text-black/55">
-								숫자 8자리로 입력해주세요. 만 {MIN_AGE}세 이상만 등록할 수
-								있어요.
+								숫자 8자리로 입력해주세요.
 							</p>
 						)}
 					</div>

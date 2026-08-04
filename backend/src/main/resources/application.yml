@@ -97,6 +97,14 @@ app:
     generation-timeout: ${AI_GENERATION_TIMEOUT:10m}
     coverup-path: /v1/coverups
     simulation-path: /v1/simulations
+    # 배치 분석 타임아웃 = per-image × 이미지 수 + overhead. 최대 10장이면 310초다.
+    # 비동기 워커 스레드에서 호출하므로 길어도 HTTP 응답 시간에는 영향이 없다.
+    batch-timeout-per-image: ${AI_BATCH_TIMEOUT_PER_IMAGE:30s}
+    batch-timeout-overhead: ${AI_BATCH_TIMEOUT_OVERHEAD:10s}
+    classification-backfill-cron: ${AI_CLASSIFICATION_BACKFILL_CRON:0 */5 * * * *}
+    classification-max-attempts: ${AI_CLASSIFICATION_MAX_ATTEMPTS:5}
+    classification-backfill-batch-size: ${AI_CLASSIFICATION_BACKFILL_BATCH_SIZE:20}
+    classification-retry-delay: ${AI_CLASSIFICATION_RETRY_DELAY:5m}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   coverup:

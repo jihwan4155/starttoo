@@ -11,10 +11,18 @@ type MyPageHeaderProps = {
 	followerCount?: number;
 	followingCount?: number;
 	isLoading?: boolean;
-	/** GET /users/me — role === "ARTIST" */
-	isArtist?: boolean;
+	/**
+	 * 닉네임 옆 인증 뱃지를 붙일지 — role=ARTIST이고 VERIFIED일 때만 true.
+	 * 판정은 isVerifiedArtist()로 호출하는 쪽에서 한다.
+	 */
+	isVerifiedArtist?: boolean;
 	/** 팔로워·팔로우 숫자 클릭 — 목록 모달을 연다 */
 	onOpenFollowList?: (kind: FollowListKind) => void;
+	/**
+	 * 타투이스트 인증 뱃지 신청 — 넘기지 않으면 버튼을 렌더하지 않는다.
+	 * 이미 인증된 타투이스트에게는 넘기지 않아 버튼이 나오지 않는다.
+	 */
+	onRequestArtistBadge?: () => void;
 };
 
 export default function MyPageHeader({
@@ -24,8 +32,9 @@ export default function MyPageHeader({
 	followerCount,
 	followingCount,
 	isLoading = false,
-	isArtist = false,
+	isVerifiedArtist = false,
 	onOpenFollowList,
+	onRequestArtistBadge,
 }: MyPageHeaderProps) {
 	const displayAvatar = resolveAvatar(avatarUrl, nickname);
 
@@ -45,7 +54,7 @@ export default function MyPageHeader({
 						<span className="truncate">
 							{isLoading && !nickname ? "불러오는 중…" : nickname || "—"}
 						</span>
-						{isArtist && <ArtistBadge size={18} />}
+						{isVerifiedArtist && <ArtistBadge size={18} />}
 					</p>
 					<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px]">
 						{/* 게시물은 목록이 따로 없어 상대 프로필과 마찬가지로 클릭 대상이 아니다 */}
@@ -68,13 +77,21 @@ export default function MyPageHeader({
 				</div>
 			</div>
 
-			<div className="flex flex-col items-end gap-4">
+			<div className="flex flex-col items-end gap-3">
 				<Link
 					to="/mypage/edit"
 					aria-label="프로필 수정"
 					className="absolute right-3 top-3 flex size-8 items-center justify-center text-brand transition hover:brightness-95 lg:static lg:size-auto lg:rounded-full lg:bg-brand lg:px-6 lg:py-1.5 lg:text-[14px] lg:font-semibold lg:text-white">
 					<svg className="lg:hidden" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M4 17.5V20h2.5L18.8 7.7l-2.5-2.5L4 17.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="m14.8 6.7 2.5 2.5" stroke="currentColor" strokeWidth="2"/></svg><span className="hidden lg:inline">프로필 수정</span>
 				</Link>
+				{onRequestArtistBadge && (
+					<button
+						type="button"
+						onClick={onRequestArtistBadge}
+						className="whitespace-nowrap rounded-full border border-black/20 bg-white px-4 py-1.5 text-[13px] font-semibold text-black/70 transition hover:border-black/35 hover:bg-black/5 hover:text-black">
+						타투이스트 인증 뱃지 신청
+					</button>
+				)}
 			</div>
 		</div>
 	);

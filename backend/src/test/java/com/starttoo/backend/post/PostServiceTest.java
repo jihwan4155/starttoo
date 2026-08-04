@@ -169,7 +169,7 @@ class PostServiceTest {
     void createDoesNotSavePostWhenAnyImageProcessingFails() {
         when(userService.find(7)).thenReturn(activeUser(7));
         when(tattooService.preparePostImage(7, 61L))
-                .thenReturn(new TattooService.PreparedPostImage(61L, "object-61", null));
+                .thenReturn(new TattooService.PreparedPostImage(61L, "object-61"));
         when(tattooService.preparePostImage(7, 62L))
                 .thenThrow(BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
 
