@@ -450,13 +450,13 @@ public class TattooService {
                   JOIN primary_styles primary_style
                     ON primary_style.primary_style_seq = tattoo.primary_style_seq
                   LEFT JOIN secondary_styles secondary1
-                    ON secondary1.secondary_style_seq = tattoo.secondary_style1_seq
+                    ON secondary1.secondary_style_seq = tattoo.secondary_style_1_seq
                   LEFT JOIN secondary_styles secondary2
-                    ON secondary2.secondary_style_seq = tattoo.secondary_style2_seq
+                    ON secondary2.secondary_style_seq = tattoo.secondary_style_2_seq
                   LEFT JOIN rendering_styles rendering1
-                    ON rendering1.rendering_style_seq = tattoo.rendering_style1_seq
+                    ON rendering1.rendering_style_seq = tattoo.rendering_style_1_seq
                   LEFT JOIN rendering_styles rendering2
-                    ON rendering2.rendering_style_seq = tattoo.rendering_style2_seq
+                    ON rendering2.rendering_style_seq = tattoo.rendering_style_2_seq
                   LEFT JOIN colors color
                     ON color.color_seq = tattoo.color_seq
                  WHERE tattoo.tattoo_seq = ?

@@ -73,77 +73,81 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
-        load_tasks: list[asyncio.Task[None]] = []
-        if settings.model_load_on_startup:
-            async def load_model() -> None:
-                event_log.add(
-                    "info",
-                    "model.loading",
-                    "V11.7 모델 로딩 시작",
-                )
-                await extractor_service.load()
-                event_log.add(
-                    "info" if extractor_service.status == "ready" else "error",
-                    (
-                        "model.ready"
-                        if extractor_service.status == "ready"
-                        else "model.error"
-                    ),
-                    extractor_service.message,
-                    device=extractor_service.device,
-                )
+        async def load_model() -> None:
+            event_log.add(
+                "info",
+                "model.loading",
+                "V11.7 모델 로딩 시작",
+            )
+            await extractor_service.load()
+            event_log.add(
+                "info" if extractor_service.status == "ready" else "error",
+                (
+                    "model.ready"
+                    if extractor_service.status == "ready"
+                    else "model.error"
+                ),
+                extractor_service.message,
+                device=extractor_service.device,
+            )
 
-            extractor_load_task = asyncio.create_task(load_model())
-            load_tasks.append(extractor_load_task)
-            application.state.model_load_task = extractor_load_task
-        if settings.generator_load_on_startup:
-            async def load_generator() -> None:
-                event_log.add(
-                    "info",
-                    "generator.loading",
-                    "Stable Diffusion 1.5 타투 생성 모델 로딩 시작",
-                )
-                await generator_service.load()
-                event_log.add(
-                    "info" if generator_service.status == "ready" else "error",
-                    (
-                        "generator.ready"
-                        if generator_service.status == "ready"
-                        else "generator.error"
-                    ),
-                    generator_service.message,
-                    device=generator_service.device,
-                )
+        async def load_generator() -> None:
+            event_log.add(
+                "info",
+                "generator.loading",
+                "Stable Diffusion 1.5 타투 생성 모델 로딩 시작",
+            )
+            await generator_service.load()
+            event_log.add(
+                "info" if generator_service.status == "ready" else "error",
+                (
+                    "generator.ready"
+                    if generator_service.status == "ready"
+                    else "generator.error"
+                ),
+                generator_service.message,
+                device=generator_service.device,
+            )
 
-            generator_load_task = asyncio.create_task(load_generator())
-            load_tasks.append(generator_load_task)
-            application.state.generator_load_task = generator_load_task
-        if settings.classifier_load_on_startup:
-            async def load_classifier() -> None:
-                event_log.add(
-                    "info",
-                    "classifier.loading",
-                    "ConvNeXtV2와 SigLIP2 분류 모델 로딩 시작",
-                )
-                await classifier_service.load()
-                event_log.add(
-                    "info" if classifier_service.status == "ready" else "error",
-                    (
-                        "classifier.ready"
-                        if classifier_service.status == "ready"
-                        else "classifier.error"
-                    ),
-                    classifier_service.message,
-                    device=classifier_service.device,
-                )
+        async def load_classifier() -> None:
+            event_log.add(
+                "info",
+                "classifier.loading",
+                "ConvNeXtV2와 SigLIP2 분류 모델 로딩 시작",
+            )
+            await classifier_service.load()
+            event_log.add(
+                "info" if classifier_service.status == "ready" else "error",
+                (
+                    "classifier.ready"
+                    if classifier_service.status == "ready"
+                    else "classifier.error"
+                ),
+                classifier_service.message,
+                device=classifier_service.device,
+            )
 
-            classifier_load_task = asyncio.create_task(load_classifier())
-            load_tasks.append(classifier_load_task)
-            application.state.classifier_load_task = classifier_load_task
+        # 반드시 순차로 로드한다. 동시에 로드하면 서로 다른 스레드에서 transformers 를
+        # 같이 import 하다가 부분 초기화된 모듈을 보고 죽는다. 실제로 추출기가
+        # "cannot import name 'SegformerForSemanticSegmentation' from 'transformers'" 로
+        # 실패했고, 추출기가 죽으면 타투 유무 판별이 불가능해 분류가 전량 실패한다.
+        # 추출기를 먼저 올려서 판별 기능이 가장 빨리 살아나게 한다.
+        async def load_models() -> None:
+            if settings.model_load_on_startup:
+                await load_model()
+            if settings.generator_load_on_startup:
+                await load_generator()
+            if settings.classifier_load_on_startup:
+                await load_classifier()
+
+        # 기동을 막지 않도록 전체를 하나의 백그라운드 태스크로 띄운다.
+        load_task = asyncio.create_task(load_models())
+        application.state.model_load_task = load_task
+        application.state.generator_load_task = load_task
+        application.state.classifier_load_task = load_task
         yield
-        for load_task in load_tasks:
-            if not load_task.done():
-                await load_task
+        if not load_task.done():
+            await load_task
 
     application = FastAPI(
         title=settings.app_name,
