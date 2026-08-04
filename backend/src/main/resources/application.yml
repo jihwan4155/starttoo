@@ -93,7 +93,8 @@ app:
     tattoo-detection-path: /v1/tattoos/detect
     tattoo-analysis-path: /v1/tattoos/analyze
     tattoo-batch-analysis-path: /v1/tattoos/analyze-batch
-    generation-path: /v1/generations
+    generation-path: /api/v1/generate
+    generation-timeout: ${AI_GENERATION_TIMEOUT:10m}
     coverup-path: /v1/coverups
     simulation-path: /v1/simulations
   cors:

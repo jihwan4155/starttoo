@@ -11,6 +11,8 @@ type StyleInputFormProps = {
 	referenceImages: string[];
 	showHero?: boolean;
 	canGenerate: boolean;
+	generating?: boolean;
+	generationError?: string | null;
 	onToggleGenre: (id: string) => void;
 	onPromptChange: (value: string) => void;
 	onAddReferenceImages: (files: FileList) => void;
@@ -24,6 +26,8 @@ export default function StyleInputForm({
 	referenceImages,
 	showHero = true,
 	canGenerate,
+	generating = false,
+	generationError = null,
 	onToggleGenre,
 	onPromptChange,
 	onAddReferenceImages,
@@ -61,15 +65,16 @@ export default function StyleInputForm({
 								<button
 									key={tag.id}
 									type="button"
+									aria-pressed={isSelected}
 									disabled={isDisabled}
 									onClick={() => onToggleGenre(tag.id)}
-									className={`relative size-[140px] shrink-0 snap-start overflow-hidden rounded-[10px] border-[3px] transition max-lg:size-[100px] max-lg:rounded-lg max-lg:border-2 ${isSelected ? "border-brand" : "border-[#D7D7D7] lg:border-transparent"} ${isDisabled ? "opacity-40" : "hover:opacity-90"}`}>
+									className={`group relative size-[140px] shrink-0 snap-start overflow-hidden rounded-[10px] border-[3px] transition max-lg:size-[100px] max-lg:rounded-lg max-lg:border-2 ${isSelected ? "border-brand" : "border-[#D7D7D7] lg:border-transparent"} ${isDisabled ? "opacity-40" : "hover:opacity-90"}`}>
 									<img src={tag.image} alt={tag.label} className="size-full object-cover" />
-									{isSelected && (
-										<div className="absolute inset-0 flex items-end justify-center bg-black/50 pb-4">
-											<span className="text-[18px] font-bold text-white max-lg:text-[14px]">{tag.label}</span>
-										</div>
-									)}
+									<div
+										aria-hidden="true"
+										className={`pointer-events-none absolute inset-0 flex items-end justify-center bg-black/50 pb-4 transition-opacity duration-200 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`}>
+										<span className="text-[18px] font-bold text-white max-lg:text-[14px]">{tag.label}</span>
+									</div>
 								</button>
 							);
 						})}
@@ -116,9 +121,11 @@ export default function StyleInputForm({
 				</div>
 			</section>
 
+			{generationError && <p className="mb-4 text-center text-[14px] text-red-500">{generationError}</p>}
+
 			<div className="flex justify-center max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40">
-				<button type="button" disabled={!canGenerate} onClick={onGenerate} className={`inline-flex h-[52px] min-w-[220px] items-center justify-center rounded-[50px] px-6 text-[20px] font-semibold text-white transition max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold ${canGenerate ? "bg-brand hover:brightness-95 active:scale-[0.99]" : "cursor-not-allowed bg-[#FFB4B4]"}`}>
-					도안 생성하기
+				<button type="button" disabled={!canGenerate || generating} onClick={onGenerate} className={`inline-flex h-[52px] min-w-[220px] items-center justify-center rounded-[50px] px-6 text-[20px] font-semibold text-white transition max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold ${canGenerate && !generating ? "bg-brand hover:brightness-95 active:scale-[0.99]" : "cursor-not-allowed bg-[#FFB4B4]"}`}>
+					{generating ? "도안 생성 중..." : "도안 생성하기"}
 				</button>
 			</div>
 		</div>
