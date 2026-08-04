@@ -87,14 +87,20 @@ async def _load_valid_image(
     return raw
 
 
-# 서버 전체가 처리 불가능한 상태다. 이 배치의 남은 이미지도 어차피 모두 실패하므로
-# 항목별 FAILED로 흡수하지 않고 요청 전체를 503으로 올려 백엔드가 전량 재시도하게 한다.
+# 아무것도 판별할 수 없는 상태다. 추출기가 죽으면 타투 유무조차 알 수 없고, 추론 슬롯을
+# 못 잡으면 남은 이미지도 마찬가지다. 항목별 FAILED로 흡수하지 않고 요청 전체를 503으로
+# 올려 백엔드가 전량 재시도하게 한다.
 BATCH_FATAL_ERRORS = (
     InferenceBusyError,
-    ClassifierNotConfiguredError,
-    ClassifierNotReadyError,
     PipelineNotConfiguredError,
     PipelineNotReadyError,
+)
+
+# 분류기만 죽은 상태. 추출기는 살아 있으므로 비타투 판정은 여전히 유효하다. 전체를 503으로
+# 올리면 이미 확정된 NOT_TATTOO까지 버려지므로, 분류가 필요한 이미지만 FAILED로 남긴다.
+CLASSIFIER_UNAVAILABLE_ERRORS = (
+    ClassifierNotConfiguredError,
+    ClassifierNotReadyError,
 )
 
 
@@ -180,9 +186,14 @@ async def analyze_tattoos_batch(
     event_log: EventLog = Depends(get_event_log),
 ) -> TattooBatchAnalysisResponse:
     request_id = request.state.request_id
+    # 추출기는 여기서 막는다. 추출기가 없으면 타투 유무조차 판별할 수 없다.
+    # 분류기는 미리 막지 않는다. 분류기만 없어도 비타투 판정은 유효하므로, 분류가 필요한
+    # 이미지에서 개별 FAILED로 처리해 이미 확정된 NOT_TATTOO를 살린다.
     extractor.ensure_ready()
-    classifier.ensure_configured()
     results: list[TattooBatchAnalysisResult] = []
+    # 분류기 로딩은 실패하면 이 요청 안에서 다시 성공할 수 없다. 이미지마다 재시도하면
+    # 매번 모델 로딩(가중치 다운로드 포함)을 헛되게 반복하므로 한 번 실패하면 건너뛴다.
+    classifier_unavailable = False
     for index, image_url in enumerate(payload.image_urls):
         try:
             raw = await _download_image(str(image_url), extractor.max_upload_bytes)
@@ -191,7 +202,13 @@ async def analyze_tattoos_batch(
             if extracted.predicted_ratio < MIN_TATTOO_RATIO:
                 results.append(TattooBatchAnalysisResult(status="NOT_TATTOO"))
                 continue
-            classification = await classifier.classify(raw, extracted.content)
+            if classifier_unavailable:
+                raise ClassifierNotReadyError("분류 모델을 사용할 수 없습니다.")
+            try:
+                classification = await classifier.classify(raw, extracted.content)
+            except CLASSIFIER_UNAVAILABLE_ERRORS:
+                classifier_unavailable = True
+                raise
             secondary = (
                 []
                 if classification.secondary.label == "none"

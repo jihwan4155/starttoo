@@ -90,8 +90,9 @@ class FakeClassifier:
     message = "fake"
     device = "cpu"
 
-    def __init__(self) -> None:
+    def __init__(self, broken: bool = False) -> None:
         self.calls = 0
+        self.broken = broken
 
     def ensure_configured(self) -> None:
         return None
@@ -101,6 +102,10 @@ class FakeClassifier:
 
     async def classify(self, raw: bytes, segmented: bytes):
         self.calls += 1
+        if self.broken:
+            from api_server.core.exceptions import ClassifierNotReadyError
+
+            raise ClassifierNotReadyError("분류 모델 로딩 실패")
         return type(
             "Result",
             (),
@@ -116,7 +121,7 @@ class FakeClassifier:
         )()
 
 
-def _build(busy: bool = False):
+def _build(busy: bool = False, classifier_broken: bool = False):
     from api_server.api.routes import tattoos
     from api_server.core.config import Settings, get_settings
     from api_server.main import create_app
@@ -149,7 +154,7 @@ def _build(busy: bool = False):
     original_download = tattoos._download_image
     tattoos._download_image = fake_download
 
-    classifier = FakeClassifier()
+    classifier = FakeClassifier(broken=classifier_broken)
     app = create_app(
         settings=settings,
         extractor_service=extractor,
@@ -220,7 +225,7 @@ def main() -> int:
     finally:
         module._download_image = original_download
 
-    print("서버 차원 오류는 항목별 실패로 감추지 않는다")
+    print("추출기 단계 오류는 배치 전체를 503으로 올린다")
     app_busy, _, (module_busy, original_busy) = _build(busy=True)
     try:
         with TestClient(app_busy, raise_server_exceptions=False) as client:
@@ -234,6 +239,33 @@ def main() -> int:
             )
     finally:
         module_busy._download_image = original_busy
+
+    print("분류기만 죽은 경우 비타투 판정은 살린다")
+    app_broken, broken_classifier, (module_broken, original_broken) = _build(
+        classifier_broken=True
+    )
+    try:
+        with TestClient(app_broken, raise_server_exceptions=False) as client:
+            response = client.post(
+                "/v1/tattoos/analyze-batch",
+                json={"imageUrls": [TATTOO_URL, PLAIN_URL, TATTOO_URL]},
+            )
+            check(
+                response.status_code == 200,
+                f"배치 전체를 실패시키지 않는다 (실제 {response.status_code})",
+            )
+            statuses = [i.get("status") for i in response.json().get("results", [])]
+            check(
+                statuses == ["FAILED", "NOT_TATTOO", "FAILED"],
+                f"분류 필요한 것만 FAILED, 비타투는 유지 (실제 {statuses})",
+            )
+            # 두 번째 타투 이미지는 이미 분류기가 죽은 걸 알고 있으니 다시 호출하지 않는다.
+            check(
+                broken_classifier.calls == 1,
+                f"분류기 재시도를 반복하지 않는다 (실제 {broken_classifier.calls}회)",
+            )
+    finally:
+        module_broken._download_image = original_broken
 
     print()
     if _fails:
