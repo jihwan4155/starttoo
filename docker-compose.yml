@@ -132,10 +132,17 @@ services:
       # 추론 슬롯은 전역 1개다. 짧게 잡으면 동시 요청이 대기 없이 곧바로 503 이 되고,
       # 게시물 배치 분류가 항목별 실패로 흡수된다. 대기는 정상 상태로 본다.
       INFERENCE_WAIT_TIMEOUT_SECONDS: ${INFERENCE_WAIT_TIMEOUT_SECONDS:-120}
+    volumes:
+      # SigLIP2(model.safetensors 약 1.7GB)는 최초 기동 때 HuggingFace 에서 받아온다.
+      # 볼륨 없이 두면 컨테이너 쓰기 레이어에 들어가서 배포마다(down/up) 다시 받아야 한다.
+      - ai-siglip:/app/api_server/vendor/tattoo_classifier_v3/siglip2-so400m-patch16-384
     networks:
       - starttoo-net
     healthcheck:
-      test: ["CMD", "python", "-c", "import json,sys,urllib.request; sys.exit(0 if json.load(urllib.request.urlopen('http://localhost:8000/health'))['status'] == 'ok' else 1)"]
+      # 서버가 응답하는지만 본다. 모델 로딩 실패(status=degraded)로 컨테이너를 unhealthy 로
+      # 떨어뜨리면 nginx 가 ai-api 의 healthy 를 기다리다 사이트 전체가 안 뜬다.
+      # 모델 상태는 /health 의 status·classifier_status 로 확인한다.
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request; json.load(urllib.request.urlopen('http://localhost:8000/health'))"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -236,3 +243,5 @@ volumes:
   postgres-data:
   # 커버업 검색 엔진의 특징 파일. 운영 서버에서는 노드 로컬 SSD 바인드 마운트를 권한다.
   ai-store:
+  # 분류기의 subject 판별용 SigLIP2 가중치. 재빌드·재배포에도 남아야 한다.
+  ai-siglip:

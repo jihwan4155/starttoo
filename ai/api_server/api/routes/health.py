@@ -26,8 +26,16 @@ async def health(
     generator: TattooGeneratorService = Depends(get_generator_service),
     classifier: TattooClassifierService = Depends(get_classifier_service),
 ) -> HealthResponse:
+    # 로딩 중이거나 아직 로드하지 않은 상태는 정상으로 본다(지연 로딩이 정상 운영 방식이다).
+    # 실제로 로딩에 실패한 error 만 degraded 로 드러낸다. 이게 없으면 status 가 항상 "ok" 라
+    # 분류 모델이 죽어 있어도 겉으로는 멀쩡해 보인다.
+    degraded = "error" in {
+        service.status,
+        generator.status,
+        classifier.status,
+    }
     return HealthResponse(
-        status="ok",
+        status="degraded" if degraded else "ok",
         version=__version__,
         pipeline_configured=service.configured,
         pipeline_status=service.status,
