@@ -10,7 +10,7 @@ export default function PostThumbnailGrid({
 	onOpen,
 }: PostThumbnailGridProps) {
 	return (
-		<div className="grid grid-cols-3 gap-0.5 px-4 lg:grid-cols-4 lg:gap-4 lg:px-0">
+		<div className="grid grid-cols-3 gap-0.5 px-4 lg:grid-cols-4 lg:gap-1 lg:px-0">
 			{posts.map((post) => (
 				<button
 					key={post.id}
