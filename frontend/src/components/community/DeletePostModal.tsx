@@ -1,5 +1,4 @@
 import { createPortal } from "react-dom";
-import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 
 type DeletePostModalProps = {
 	isOpen: boolean;
@@ -40,8 +39,6 @@ export default function DeletePostModal({
 	onConfirm,
 	isPending = false,
 }: DeletePostModalProps) {
-	useBodyScrollLock(isOpen);
-
 	if (!isOpen) return null;
 
 	const preview =

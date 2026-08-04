@@ -6,7 +6,6 @@ import ArchivePickerModal from "./ArchivePickerModal";
 import ImageCropper from "./ImageCropper";
 import { CloseIcon } from "./icons";
 import useCreatePost from "../../hooks/mutations/useCreatePost";
-import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useAuthStore from "../../store/useAuthStore";
 import { ApiError } from "../../services/api";
@@ -130,8 +129,6 @@ export default function CreatePostModal({
 			: null,
 		nickname,
 	);
-
-	useBodyScrollLock(isOpen);
 
 	if (!isOpen) return null;
 

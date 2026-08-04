@@ -21,7 +21,6 @@ import useCommentReplies from "../../hooks/queries/useCommentReplies";
 import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
-import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
@@ -380,6 +379,16 @@ export default function PostDetailModal({
 		setBookmarked(detailPost.id, !!detailPost.bookmarked);
 	}, [detailPost, setLiked, setBookmarked]);
 
+	// 모달이 열려 있는 동안 뒤 화면이 스크롤되지 않게 막는다.
+	useEffect(() => {
+		if (!isOpen) return;
+		const previousOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = previousOverflow;
+		};
+	}, [isOpen]);
+
 	// 메뉴 바깥을 클릭하면 닫기 (PostCard와 동일 패턴)
 	useEffect(() => {
 		if (!isMenuOpen) return;
@@ -455,9 +464,6 @@ export default function PostDetailModal({
 		error: commentsError,
 		refetch: refetchComments,
 	} = useComments(post?.id, { size: 50 });
-
-	// 모달이 열려 있는 동안 배경 스크롤 잠금
-	useBodyScrollLock(isOpen);
 
 	if (!post) return null;
 
