@@ -74,6 +74,7 @@ services:
   # 커버업 도안 검색 엔진. 내부 전용이라 ports 를 열지 않는다 —
   # backend 가 starttoo-net 안에서 http://ai:8000 으로 호출한다.
   ai:
+    image: ${COMPOSE_PROJECT_NAME:-s15p11d201}-ai:latest
     build: ./ai
     container_name: starttoo-ai
     restart: unless-stopped
@@ -108,7 +109,7 @@ services:
       start_period: 60s
 
   ai-api:
-    build: ./ai
+    image: ${COMPOSE_PROJECT_NAME:-s15p11d201}-ai:latest
     container_name: starttoo-ai-api
     restart: unless-stopped
     command: ["python", "-m", "api_server"]
