@@ -74,7 +74,7 @@ public class TattooService {
         }
         for (int index = 0; index < preparedImages.size(); index++) {
             TattooModelClient.AnalysisResult result = results.get(index);
-            if (!result.isTattoo()) {
+            if (!result.isTattoo() || result.analysis() == null) {
                 continue;
             }
             PreparedPostImage image = preparedImages.get(index);

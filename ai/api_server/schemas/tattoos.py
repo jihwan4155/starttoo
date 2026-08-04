@@ -32,6 +32,8 @@ class TattooBatchAnalysisResult(BaseModel):
 
     is_tattoo: bool = Field(serialization_alias="isTattoo")
     analysis: TattooAnalysisResponse | None = None
+    error_code: str | None = Field(default=None, serialization_alias="errorCode")
+    error_message: str | None = Field(default=None, serialization_alias="errorMessage")
 
 
 class TattooBatchAnalysisResponse(BaseModel):

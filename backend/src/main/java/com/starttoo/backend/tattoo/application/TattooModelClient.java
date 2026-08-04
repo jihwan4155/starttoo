@@ -117,8 +117,13 @@ public class TattooModelClient {
 
     public record AnalysisResult(
             boolean isTattoo,
-            Analysis analysis
+            Analysis analysis,
+            String errorCode,
+            String errorMessage
     ) {
+        public AnalysisResult(boolean isTattoo, Analysis analysis) {
+            this(isTattoo, analysis, null, null);
+        }
     }
 
     public record Analysis(

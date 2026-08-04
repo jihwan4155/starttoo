@@ -30,4 +30,17 @@ public class RealtimeAsyncConfig {
         executor.setAwaitTerminationSeconds(10);
         return executor;
     }
+
+    @Bean(name = "postAiTaskExecutor")
+    Executor postAiTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("post-ai-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        return executor;
+    }
 }

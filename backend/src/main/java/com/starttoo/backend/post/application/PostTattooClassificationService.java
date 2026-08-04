@@ -19,7 +19,7 @@ public class PostTattooClassificationService {
     private final TattooModelClient tattooModelClient;
     private final TattooService tattooService;
 
-    @Async("realtimeTaskExecutor")
+    @Async("postAiTaskExecutor")
     public void classifyAndPersist(
             Integer userSeq,
             List<TattooService.PreparedPostImage> preparedImages
