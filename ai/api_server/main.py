@@ -52,18 +52,22 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     inference_gate = asyncio.Semaphore(1)
+    inference_wait_timeout = settings.inference_wait_timeout_seconds
     extractor_service = extractor_service or TattooExtractorService(
         settings.extractor_root,
         max_upload_bytes=settings.max_upload_mb * 1024 * 1024,
         inference_gate=inference_gate,
+        inference_wait_timeout=inference_wait_timeout,
     )
     generator_service = generator_service or TattooGeneratorService(
         settings.generator_root,
         inference_gate=inference_gate,
+        inference_wait_timeout=inference_wait_timeout,
     )
     classifier_service = classifier_service or TattooClassifierService(
         settings.classifier_root,
         inference_gate=inference_gate,
+        inference_wait_timeout=inference_wait_timeout,
     )
     event_log = event_log or EventLog(RUNTIME_ROOT / "api_server.log")
 

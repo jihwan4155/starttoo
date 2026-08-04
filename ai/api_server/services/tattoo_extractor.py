@@ -21,7 +21,7 @@ from api_server.core.exceptions import (
 )
 
 OutputVariant = Literal["transparent", "white", "mask", "alpha"]
-INFERENCE_WAIT_TIMEOUT_SECONDS = 1.0
+DEFAULT_INFERENCE_WAIT_TIMEOUT_SECONDS = 120.0
 logger = logging.getLogger(__name__)
 
 
@@ -43,9 +43,11 @@ class TattooExtractorService:
         extractor_root: Path,
         max_upload_bytes: int = 20 * 1024 * 1024,
         inference_gate: asyncio.Semaphore | None = None,
+        inference_wait_timeout: float = DEFAULT_INFERENCE_WAIT_TIMEOUT_SECONDS,
     ) -> None:
         self.extractor_root = extractor_root.resolve()
         self.max_upload_bytes = max_upload_bytes
+        self.inference_wait_timeout = inference_wait_timeout
         self.backend_path = (
             self.extractor_root / "web" / "backend" / "server.py"
         )
@@ -152,7 +154,7 @@ class TattooExtractorService:
         try:
             await asyncio.wait_for(
                 self._inference_gate.acquire(),
-                timeout=INFERENCE_WAIT_TIMEOUT_SECONDS,
+                timeout=self.inference_wait_timeout,
             )
         except TimeoutError as exc:
             raise InferenceBusyError(

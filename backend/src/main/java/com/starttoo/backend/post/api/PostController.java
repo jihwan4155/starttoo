@@ -39,14 +39,16 @@ public class PostController {
     @Operation(
             summary = "게시물과 이미지 연결 등록",
             description = """
-                    중복되지 않은 1~10개의 imageSeq가 현재 회원 소유인지 확인하고 각 이미지의
-                    타투 판별·분석이 동기로 모두 끝날 때까지 기다린다. 이 외부 모델 호출 동안에는
-                    DB 쓰기 트랜잭션을 열지 않는다. 비타투 이미지도 게시물에는 사용할 수 있으며,
-                    타투로 판별된 이미지에 대해서만 tattoos와 subjects 연결을 만든다. 판별 완료 후
-                    PUBLISHED 게시물과 모든 postImages를 하나의 짧은 DB 트랜잭션으로 저장한다.
-                    모델 장애·시간 초과 또는 저장 실패 시 게시물은 생성되지 않는다. 응답은 DB 커밋 후
-                    반환하며 이미지 URL은 저장된 MinIO
-                    object key로 생성한 단기 Presigned GET URL이다.
+                    중복되지 않은 1~10개의 imageSeq가 현재 회원 소유인지 확인하고 MinIO에 실제로
+                    저장돼 있는지 검증한다. 그 뒤 PUBLISHED 게시물과 모든 postImages를 하나의 짧은
+                    DB 트랜잭션으로 저장하고 곧바로 응답한다. 응답은 DB 커밋 후 반환하며 이미지
+                    URL은 저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
+
+                    타투 판별·분석은 응답 이후 비동기로 진행하므로 이 응답의 tattooSeq는 항상
+                    null이다. 분류가 끝난 뒤의 조회 API에서 값이 채워진다. 비타투 이미지도 게시물에는
+                    정상 사용되며 tattooSeq만 계속 null로 남는다. 모델 장애·시간 초과는 게시 성공에
+                    영향을 주지 않고 게시물과 이미지는 어떤 경우에도 삭제되지 않으며, 분류에 실패한
+                    이미지는 백필 스케줄러가 재시도한다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )

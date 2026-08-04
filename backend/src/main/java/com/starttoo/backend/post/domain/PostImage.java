@@ -2,6 +2,8 @@ package com.starttoo.backend.post.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,6 +37,16 @@ public class PostImage {
 
     @Column(name = "display_order", nullable = false)
     private short displayOrder;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "classification_status", nullable = false, length = 20)
+    private ClassificationStatus classificationStatus;
+
+    @Column(name = "classification_attempt_count", nullable = false)
+    private short classificationAttemptCount;
+
+    @Column(name = "classification_mod_dttm")
+    private OffsetDateTime classificationModDttm;
 
     @Column(name = "reg_dttm", nullable = false)
     private OffsetDateTime regDttm;

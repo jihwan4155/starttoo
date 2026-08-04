@@ -2,12 +2,12 @@ package com.starttoo.backend.post;
 
 import com.starttoo.backend.post.api.PostDtos;
 import com.starttoo.backend.post.application.PostWriteService;
+import com.starttoo.backend.post.domain.ClassificationStatus;
 import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostImage;
 import com.starttoo.backend.post.domain.PostImageRepository;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
-import com.starttoo.backend.tattoo.application.TattooModelClient;
 import com.starttoo.backend.tattoo.application.TattooService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,11 +37,8 @@ class PostWriteServiceTest {
 
     @Test
     void persistsPostImagesInRequestOrderWithoutTattooRows() {
-        var analysis = new TattooModelClient.Analysis(
-                "OTHER", List.of(), List.of("LINE"), "BLACK", List.of("SAMPLE")
-        );
-        var first = new TattooService.PreparedPostImage(61L, "object-61", analysis);
-        var second = new TattooService.PreparedPostImage(62L, "object-62", null);
+        var first = new TattooService.PreparedPostImage(61L, "object-61");
+        var second = new TattooService.PreparedPostImage(62L, "object-62");
         when(postRepository.save(any(Post.class))).thenReturn(post(31L));
 
         Post created = postWriteService.create(
@@ -59,6 +56,30 @@ class PostWriteServiceTest {
                         org.assertj.core.groups.Tuple.tuple(61L, (short) 1),
                         org.assertj.core.groups.Tuple.tuple(62L, (short) 2)
                 );
+    }
+
+    @Test
+    void marksEveryPostImagePendingSoBackfillCanRecoverIt() {
+        when(postRepository.save(any(Post.class))).thenReturn(post(31L));
+
+        postWriteService.create(
+                7,
+                new PostDtos.CreatePostRequest("content", List.of(61L, 62L)),
+                List.of(
+                        new TattooService.PreparedPostImage(61L, "object-61"),
+                        new TattooService.PreparedPostImage(62L, "object-62")
+                )
+        );
+
+        ArgumentCaptor<PostImage> images = ArgumentCaptor.forClass(PostImage.class);
+        verify(postImageRepository, org.mockito.Mockito.times(2)).save(images.capture());
+        // 게시물과 같은 트랜잭션에서 PENDING 이 커밋되어야 비동기 워커가 유실돼도 복구된다.
+        assertThat(images.getAllValues())
+                .extracting(PostImage::getClassificationStatus)
+                .containsOnly(ClassificationStatus.PENDING);
+        assertThat(images.getAllValues())
+                .extracting(PostImage::getClassificationAttemptCount)
+                .containsOnly((short) 0);
     }
 
     private Post post(Long postSeq) {
