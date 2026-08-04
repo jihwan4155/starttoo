@@ -80,6 +80,22 @@ async def _load_valid_image(
     return raw
 
 
+def _batch_error_result(exc: Exception) -> TattooBatchAnalysisResult:
+    if isinstance(exc, HTTPException):
+        return TattooBatchAnalysisResult(
+            is_tattoo=False,
+            analysis=None,
+            error_code=f"HTTP_{exc.status_code}",
+            error_message=str(exc.detail),
+        )
+    return TattooBatchAnalysisResult(
+        is_tattoo=False,
+        analysis=None,
+        error_code=exc.__class__.__name__,
+        error_message=str(exc),
+    )
+
+
 @router.post(
     "/detect",
     response_model=TattooDetectionResponse,
@@ -166,44 +182,57 @@ async def analyze_tattoos_batch(
     classifier.ensure_configured()
     results: list[TattooBatchAnalysisResult] = []
     for index, image_url in enumerate(payload.image_urls):
-        raw = await _download_image(str(image_url), extractor.max_upload_bytes)
-        _validate_image(raw)
-        extracted = await extractor.extract(raw, "transparent")
-        if extracted.predicted_ratio < MIN_TATTOO_RATIO:
-            results.append(TattooBatchAnalysisResult(is_tattoo=False, analysis=None))
-            continue
-        classification = await classifier.classify(raw, extracted.content)
-        secondary = (
-            []
-            if classification.secondary.label == "none"
-            else [classification.secondary.label]
-        )
-        renderings = [
-            rendering.label
-            for rendering in classification.renderings[:2]
-        ]
-        results.append(TattooBatchAnalysisResult(
-            is_tattoo=True,
-            analysis=TattooAnalysisResponse(
-                primary_style_code=classification.primary.label,
-                secondary_style_codes=secondary,
-                rendering_style_codes=renderings,
-                color_code=classification.color.label,
-                subjects=[classification.subject.label],
-            ),
-        ))
-        event_log.add(
-            "info",
-            "tattoo.batch.item.completed",
-            "Tattoo batch analysis item completed",
-            request_id=request_id,
-            index=index,
-            primary=classification.primary.label,
-            secondary=secondary,
-            color=classification.color.label,
-            rendering=renderings,
-            subject=classification.subject.label,
-        )
+        try:
+            raw = await _download_image(str(image_url), extractor.max_upload_bytes)
+            _validate_image(raw)
+            extracted = await extractor.extract(raw, "transparent")
+            if extracted.predicted_ratio < MIN_TATTOO_RATIO:
+                results.append(TattooBatchAnalysisResult(is_tattoo=False, analysis=None))
+                continue
+            classification = await classifier.classify(raw, extracted.content)
+            secondary = (
+                []
+                if classification.secondary.label == "none"
+                else [classification.secondary.label]
+            )
+            renderings = [
+                rendering.label
+                for rendering in classification.renderings[:2]
+            ]
+            results.append(TattooBatchAnalysisResult(
+                is_tattoo=True,
+                analysis=TattooAnalysisResponse(
+                    primary_style_code=classification.primary.label,
+                    secondary_style_codes=secondary,
+                    rendering_style_codes=renderings,
+                    color_code=classification.color.label,
+                    subjects=[classification.subject.label],
+                ),
+            ))
+            event_log.add(
+                "info",
+                "tattoo.batch.item.completed",
+                "Tattoo batch analysis item completed",
+                request_id=request_id,
+                index=index,
+                primary=classification.primary.label,
+                secondary=secondary,
+                color=classification.color.label,
+                rendering=renderings,
+                subject=classification.subject.label,
+            )
+        except Exception as exc:
+            error_result = _batch_error_result(exc)
+            results.append(error_result)
+            event_log.add(
+                "warning",
+                "tattoo.batch.item.failed",
+                "Tattoo batch analysis item failed",
+                request_id=request_id,
+                index=index,
+                error_code=error_result.error_code,
+                error_message=error_result.error_message,
+            )
     event_log.add(
         "info",
         "tattoo.batch.completed",
@@ -211,5 +240,6 @@ async def analyze_tattoos_batch(
         request_id=request_id,
         total=len(results),
         tattoo_count=sum(1 for result in results if result.is_tattoo),
+        error_count=sum(1 for result in results if result.error_code is not None),
     )
     return TattooBatchAnalysisResponse(results=results)
