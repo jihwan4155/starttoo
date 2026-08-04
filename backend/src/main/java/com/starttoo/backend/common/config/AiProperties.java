@@ -8,6 +8,7 @@ public record AiProperties(
         String baseUrl,
         String tattooDetectionPath,
         String tattooAnalysisPath,
+        String tattooBatchAnalysisPath,
         String generationPath,
         String coverupPath,
         String simulationPath

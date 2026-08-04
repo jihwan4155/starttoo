@@ -137,6 +137,31 @@ public class MediaService {
         return presignedDownload(objectKey).url();
     }
 
+    public void verifyStoredObject(String objectKey) {
+        ensureBucketOrThrow();
+        try {
+            StatObjectResponse stat = minioClient.statObject(StatObjectArgs.builder()
+                    .bucket(properties.bucket())
+                    .object(objectKey)
+                    .build());
+            if (stat.size() <= 0) {
+                throw BusinessException.of(ErrorCode.INVALID_FILE);
+            }
+            if (stat.size() > properties.maxImageBytes()) {
+                throw BusinessException.of(ErrorCode.FILE_TOO_LARGE);
+            }
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (ErrorResponseException exception) {
+            if (isMissingObject(exception)) {
+                throw BusinessException.of(ErrorCode.UPLOAD_OBJECT_NOT_FOUND);
+            }
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
+        } catch (Exception exception) {
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
     public PresignedDownload presignedDownload(String objectKey) {
         return presignedDownload(objectKey, properties.downloadExpiry());
     }

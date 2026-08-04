@@ -2660,6 +2660,11 @@ Subject 자동완성:
 {"data":{"nickname":"검은장미7"}}
 ```
 
+**실패 예시**
+```json
+{"error":{"code":"SERVICE_UNAVAILABLE","message":"닉네임 추천을 생성할 수 없습니다."}}
+```
+
 ### GET `/v1/auth/nicknames/availability`
 
 **API 개요:** 닉네임 형식과 활성 회원 중복 여부를 확인한다. 인증은 필요 없다.

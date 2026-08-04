@@ -9,7 +9,6 @@ import com.starttoo.backend.post.domain.PostImageRepository;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
 import com.starttoo.backend.tattoo.application.TattooService;
-import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -24,7 +23,6 @@ public class PostWriteService {
 
     private final PostRepository postRepository;
     private final PostImageRepository postImageRepository;
-    private final TattooService tattooService;
 
     @Transactional
     public Post create(
@@ -33,13 +31,6 @@ public class PostWriteService {
             List<TattooService.PreparedPostImage> preparedImages
     ) {
         try {
-            preparedImages.stream()
-                    .filter(TattooService.PreparedPostImage::tattoo)
-                    .forEach(prepared -> tattooService.persistPrepared(
-                            userSeq,
-                            prepared.asTattoo(),
-                            TattooSourceType.USER_POST
-                    ));
             OffsetDateTime now = OffsetDateTime.now();
             Post post = postRepository.save(Post.builder()
                     .authorSeq(userSeq)
