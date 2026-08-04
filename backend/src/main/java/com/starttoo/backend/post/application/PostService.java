@@ -55,7 +55,9 @@ public class PostService {
                 .map(imageSeq -> tattooService.preparePostImage(userSeq, imageSeq))
                 .toList();
         Post post = postWriteService.create(userSeq, request, preparedImages);
-        postTattooClassificationService.classifyAndPersist(userSeq, preparedImages);
+        // 커밋 이후 비동기로 분류한다. 응답의 tattooSeq 는 항상 null 이며, 모델 장애로
+        // 분류가 실패해도 게시물과 이미지는 그대로 유지된다.
+        postTattooClassificationService.classifyAsync(userSeq, preparedImages);
         return response(post, userSeq, true);
     }
 

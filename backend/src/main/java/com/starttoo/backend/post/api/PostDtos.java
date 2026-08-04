@@ -1,5 +1,6 @@
 package com.starttoo.backend.post.api;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.starttoo.backend.user.domain.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
@@ -36,6 +37,11 @@ public final class PostDtos {
             Long postImageSeq,
             Long imageSeq,
             String imageUrl,
+            // 전역 non_null 직렬화 설정 때문에 그냥 두면 키 자체가 응답에서 사라진다.
+            // 게시 직후에는 항상 null 이고 분류가 끝나면 채워지므로, 프론트엔드가 키 존재를
+            // 검사하지 않고 값만 보면 되도록 null 이라도 항상 내려준다.
+            @Schema(description = "타투로 판별된 경우의 tattooSeq. 분류 완료 전에는 null", nullable = true)
+            @JsonInclude(JsonInclude.Include.ALWAYS)
             Long tattooSeq,
             short displayOrder
     ) {

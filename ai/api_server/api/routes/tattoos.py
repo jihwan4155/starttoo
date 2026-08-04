@@ -14,6 +14,13 @@ from api_server.api.dependencies import (
 )
 from api_server.api.routes.extraction import READ_CHUNK_BYTES, _validate_image
 from api_server.core.event_log import EventLog
+from api_server.core.exceptions import (
+    ClassifierNotConfiguredError,
+    ClassifierNotReadyError,
+    InferenceBusyError,
+    PipelineNotConfiguredError,
+    PipelineNotReadyError,
+)
 from api_server.schemas.tattoos import (
     TattooAnalysisResponse,
     TattooBatchAnalysisResponse,
@@ -80,20 +87,15 @@ async def _load_valid_image(
     return raw
 
 
-def _batch_error_result(exc: Exception) -> TattooBatchAnalysisResult:
-    if isinstance(exc, HTTPException):
-        return TattooBatchAnalysisResult(
-            is_tattoo=False,
-            analysis=None,
-            error_code=f"HTTP_{exc.status_code}",
-            error_message=str(exc.detail),
-        )
-    return TattooBatchAnalysisResult(
-        is_tattoo=False,
-        analysis=None,
-        error_code=exc.__class__.__name__,
-        error_message=str(exc),
-    )
+# 서버 전체가 처리 불가능한 상태다. 이 배치의 남은 이미지도 어차피 모두 실패하므로
+# 항목별 FAILED로 흡수하지 않고 요청 전체를 503으로 올려 백엔드가 전량 재시도하게 한다.
+BATCH_FATAL_ERRORS = (
+    InferenceBusyError,
+    ClassifierNotConfiguredError,
+    ClassifierNotReadyError,
+    PipelineNotConfiguredError,
+    PipelineNotReadyError,
+)
 
 
 @router.post(
@@ -187,7 +189,7 @@ async def analyze_tattoos_batch(
             _validate_image(raw)
             extracted = await extractor.extract(raw, "transparent")
             if extracted.predicted_ratio < MIN_TATTOO_RATIO:
-                results.append(TattooBatchAnalysisResult(is_tattoo=False, analysis=None))
+                results.append(TattooBatchAnalysisResult(status="NOT_TATTOO"))
                 continue
             classification = await classifier.classify(raw, extracted.content)
             secondary = (
@@ -200,7 +202,7 @@ async def analyze_tattoos_batch(
                 for rendering in classification.renderings[:2]
             ]
             results.append(TattooBatchAnalysisResult(
-                is_tattoo=True,
+                status="TATTOO",
                 analysis=TattooAnalysisResponse(
                     primary_style_code=classification.primary.label,
                     secondary_style_codes=secondary,
@@ -221,17 +223,27 @@ async def analyze_tattoos_batch(
                 rendering=renderings,
                 subject=classification.subject.label,
             )
+        except BATCH_FATAL_ERRORS:
+            # 항목별 FAILED로 감추지 않는다. 전역 예외 핸들러가 503으로 변환한다.
+            raise
         except Exception as exc:
-            error_result = _batch_error_result(exc)
-            results.append(error_result)
+            # 이 이미지 하나만의 문제(다운로드 실패, 손상된 파일, 분류 오류)다.
+            # 슬롯을 FAILED로 채워 배열 길이를 유지하고 나머지 이미지를 계속 처리한다.
+            results.append(TattooBatchAnalysisResult(status="FAILED"))
             event_log.add(
                 "warning",
                 "tattoo.batch.item.failed",
                 "Tattoo batch analysis item failed",
                 request_id=request_id,
                 index=index,
-                error_code=error_result.error_code,
-                error_message=error_result.error_message,
+                error_code=(
+                    f"HTTP_{exc.status_code}"
+                    if isinstance(exc, HTTPException)
+                    else exc.__class__.__name__
+                ),
+                error_message=str(
+                    exc.detail if isinstance(exc, HTTPException) else exc
+                ),
             )
     event_log.add(
         "info",
@@ -239,7 +251,7 @@ async def analyze_tattoos_batch(
         "Tattoo batch analysis completed",
         request_id=request_id,
         total=len(results),
-        tattoo_count=sum(1 for result in results if result.is_tattoo),
-        error_count=sum(1 for result in results if result.error_code is not None),
+        tattoo_count=sum(1 for result in results if result.status == "TATTOO"),
+        error_count=sum(1 for result in results if result.status == "FAILED"),
     )
     return TattooBatchAnalysisResponse(results=results)

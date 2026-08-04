@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+
+# 배치 항목의 판별 결과. 백엔드가 재시도 여부를 판단하는 근거이므로
+# "타투 아님"(종료)과 "처리 실패"(재시도 대상)를 반드시 구분해서 내려준다.
+TattooBatchStatus = Literal["TATTOO", "NOT_TATTOO", "FAILED"]
 
 
 class TattooImageRequest(BaseModel):
@@ -30,10 +36,8 @@ class TattooAnalysisResponse(BaseModel):
 class TattooBatchAnalysisResult(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    is_tattoo: bool = Field(serialization_alias="isTattoo")
+    status: TattooBatchStatus
     analysis: TattooAnalysisResponse | None = None
-    error_code: str | None = Field(default=None, serialization_alias="errorCode")
-    error_message: str | None = Field(default=None, serialization_alias="errorMessage")
 
 
 class TattooBatchAnalysisResponse(BaseModel):
