@@ -31,7 +31,7 @@ export default function ArchivePickerModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 sm:p-6"
+			className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-3 sm:p-6"
 			onClick={onClose}
 			role="presentation">
 			<div

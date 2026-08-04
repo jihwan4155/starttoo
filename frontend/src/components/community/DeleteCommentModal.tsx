@@ -23,7 +23,7 @@ export default function DeleteCommentModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-6 backdrop-blur-[2px]"
+			className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-6 backdrop-blur-[2px]"
 			onClick={onClose}
 			role="presentation">
 			<div
