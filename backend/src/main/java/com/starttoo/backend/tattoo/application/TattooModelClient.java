@@ -32,39 +32,39 @@ public class TattooModelClient {
     }
 
     public Optional<Analysis> analyzeIfTattoo(String imageUrl) {
+        AnalysisResult result = analyzeBatch(List.of(imageUrl)).get(0);
+        return result.isTattoo() ? Optional.of(result.analysis()) : Optional.empty();
+    }
+
+    public List<AnalysisResult> analyzeBatch(List<String> imageUrls) {
         if (!properties.enabled()) {
-            return Optional.of(new Analysis(
+            Analysis analysis = new Analysis(
                     "OTHER",
                     List.of(),
                     List.of("LINE"),
                     "BLACK",
-                    List.of("타투")
-            ));
+                    List.of("SAMPLE")
+            );
+            return imageUrls.stream()
+                    .map(ignored -> new AnalysisResult(true, analysis))
+                    .toList();
         }
         try {
-            Detection detection = restClient.post()
-                    .uri(properties.tattooDetectionPath())
+            BatchAnalysisResponse response = restClient.post()
+                    .uri(properties.tattooBatchAnalysisPath())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(new ImageRequest(imageUrl))
+                    .body(new BatchImageRequest(imageUrls))
                     .retrieve()
-                    .body(Detection.class);
-            if (detection == null) {
+                    .body(BatchAnalysisResponse.class);
+            if (response == null || response.results() == null
+                    || response.results().size() != imageUrls.size()) {
                 throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
             }
-            if (!detection.isTattoo()) {
-                return Optional.empty();
-            }
-            Analysis result = restClient.post()
-                    .uri(properties.tattooAnalysisPath())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(new ImageRequest(imageUrl))
-                    .retrieve()
-                    .body(Analysis.class);
-            if (result == null || result.primaryStyleCode() == null) {
-                throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
-            }
-            validate(result);
-            return Optional.of(result);
+            response.results().stream()
+                    .filter(AnalysisResult::isTattoo)
+                    .map(AnalysisResult::analysis)
+                    .forEach(this::validate);
+            return response.results();
         } catch (BusinessException exception) {
             throw exception;
         } catch (ResourceAccessException exception) {
@@ -78,7 +78,8 @@ public class TattooModelClient {
     }
 
     private void validate(Analysis result) {
-        if (result.primaryStyleCode().isBlank()) {
+        if (result == null || result.primaryStyleCode() == null
+                || result.primaryStyleCode().isBlank()) {
             throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
         }
         if (result.secondaryStyleCodes() != null && result.secondaryStyleCodes().size() > 2) {
@@ -105,7 +106,19 @@ public class TattooModelClient {
     public record ImageRequest(String imageUrl) {
     }
 
+    public record BatchImageRequest(List<String> imageUrls) {
+    }
+
     public record Detection(boolean isTattoo) {
+    }
+
+    public record BatchAnalysisResponse(List<AnalysisResult> results) {
+    }
+
+    public record AnalysisResult(
+            boolean isTattoo,
+            Analysis analysis
+    ) {
     }
 
     public record Analysis(

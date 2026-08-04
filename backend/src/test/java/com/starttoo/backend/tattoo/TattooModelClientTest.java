@@ -10,6 +10,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.net.SocketTimeoutException;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,52 +37,55 @@ class TattooModelClientTest {
     }
 
     @Test
-    void sendsPresignedUrlToDetectionAndAnalysisEndpoints() {
+    void sendsPresignedUrlsToBatchAnalysisEndpoint() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(BASE_URL + "/v1/tattoos/detect"))
+        server.expect(requestTo(BASE_URL + "/v1/tattoos/analyze-batch"))
                 .andExpect(content().json("""
-                        {"imageUrl":"https://minio.test/presigned"}
-                        """))
-                .andRespond(withSuccess(
-                        """
-                        {"isTattoo":true}
-                        """,
-                        MediaType.APPLICATION_JSON
-                ));
-        server.expect(requestTo(BASE_URL + "/v1/tattoos/analyze"))
-                .andExpect(content().json("""
-                        {"imageUrl":"https://minio.test/presigned"}
+                        {"imageUrls":["https://minio.test/one","https://minio.test/two"]}
                         """))
                 .andRespond(withSuccess(
                         """
                         {
-                          "primaryStyleCode":"OTHER",
-                          "secondaryStyleCodes":[],
-                          "renderingStyleCodes":["LINE"],
-                          "colorCode":"BLACK",
-                          "subjects":["타투"]
+                          "results": [
+                            {
+                              "isTattoo": true,
+                              "analysis": {
+                                "primaryStyleCode": "OTHER",
+                                "secondaryStyleCodes": [],
+                                "renderingStyleCodes": ["LINE"],
+                                "colorCode": "BLACK",
+                                "subjects": ["SAMPLE"]
+                              }
+                            },
+                            {"isTattoo": false, "analysis": null}
+                          ]
                         }
                         """,
                         MediaType.APPLICATION_JSON
                 ));
         TattooModelClient client = new TattooModelClient(builder, properties(true));
 
-        TattooModelClient.Analysis analysis =
-                client.analyze("https://minio.test/presigned");
+        var results = client.analyzeBatch(List.of(
+                "https://minio.test/one",
+                "https://minio.test/two"
+        ));
 
-        assertThat(analysis.primaryStyleCode()).isEqualTo("OTHER");
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).isTattoo()).isTrue();
+        assertThat(results.get(0).analysis().primaryStyleCode()).isEqualTo("OTHER");
+        assertThat(results.get(1).isTattoo()).isFalse();
         server.verify();
     }
 
     @Test
-    void nonTattooResultMapsToUnprocessableEntity() {
+    void nonTattooResultMapsToUnprocessableEntityForSingleAnalyze() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(BASE_URL + "/v1/tattoos/detect"))
+        server.expect(requestTo(BASE_URL + "/v1/tattoos/analyze-batch"))
                 .andRespond(withSuccess(
                         """
-                        {"isTattoo":false}
+                        {"results":[{"isTattoo":false,"analysis":null}]}
                         """,
                         MediaType.APPLICATION_JSON
                 ));
@@ -114,6 +118,7 @@ class TattooModelClientTest {
                 BASE_URL,
                 "/v1/tattoos/detect",
                 "/v1/tattoos/analyze",
+                "/v1/tattoos/analyze-batch",
                 "/v1/generations",
                 "/v1/coverups",
                 "/v1/simulations"

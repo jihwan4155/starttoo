@@ -45,21 +45,48 @@ public class TattooService {
     private final SearchIndexEventPublisher searchIndexEventPublisher;
 
     public PreparedTattoo prepare(Integer userSeq, Long imageSeq) {
-        PreparedPostImage prepared = preparePostImage(userSeq, imageSeq);
-        if (prepared.analysis() == null) {
-            throw BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE);
-        }
-        return new PreparedTattoo(prepared.imageSeq(), prepared.objectKey(), prepared.analysis());
+        Image image = imageRepository.findByImageSeqAndDeletedFalse(imageSeq)
+                .filter(value -> value.getRegUsrSeq().equals(userSeq))
+                .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
+        mediaService.verifyStoredObject(image.getObjectKey());
+        String imageUrl = mediaService.downloadUrl(image.getObjectKey());
+        TattooModelClient.Analysis analysis = tattooModelClient.analyzeIfTattoo(imageUrl)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE));
+        return new PreparedTattoo(image.getImageSeq(), image.getObjectKey(), analysis);
     }
 
     public PreparedPostImage preparePostImage(Integer userSeq, Long imageSeq) {
         Image image = imageRepository.findByImageSeqAndDeletedFalse(imageSeq)
                 .filter(value -> value.getRegUsrSeq().equals(userSeq))
                 .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
-        String imageUrl = mediaService.downloadUrl(image.getObjectKey());
-        TattooModelClient.Analysis analysis = tattooModelClient.analyzeIfTattoo(imageUrl)
-                .orElse(null);
-        return new PreparedPostImage(image.getImageSeq(), image.getObjectKey(), analysis);
+        mediaService.verifyStoredObject(image.getObjectKey());
+        return new PreparedPostImage(image.getImageSeq(), image.getObjectKey(), null);
+    }
+
+    @Transactional
+    public void persistPostImageAnalyses(
+            Integer userSeq,
+            List<PreparedPostImage> preparedImages,
+            List<TattooModelClient.AnalysisResult> results
+    ) {
+        if (preparedImages.size() != results.size()) {
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+        }
+        for (int index = 0; index < preparedImages.size(); index++) {
+            TattooModelClient.AnalysisResult result = results.get(index);
+            if (!result.isTattoo()) {
+                continue;
+            }
+            PreparedPostImage image = preparedImages.get(index);
+            if (tattooRepository.findByImageSeqAndDeletedFalse(image.imageSeq()).isPresent()) {
+                continue;
+            }
+            persistPrepared(
+                    userSeq,
+                    new PreparedTattoo(image.imageSeq(), image.objectKey(), result.analysis()),
+                    TattooSourceType.USER_POST
+            );
+        }
     }
 
     @Transactional
