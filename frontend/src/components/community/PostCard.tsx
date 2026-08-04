@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
 	BookmarkIcon,
+	ChevronIcon,
 	CommentIcon,
 	HeartIcon,
 	MoreIcon,
@@ -21,6 +22,7 @@ import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import usePostHiddenOverlay from "../../hooks/usePostHidden";
 import { ApiError } from "../../services/api";
+import { getPostImageUrls } from "../../utils/mapPost";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post } from "../../types/community";
 
@@ -34,6 +36,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	const [isReportOpen, setReportOpen] = useState(false);
 	const [isEditOpen, setEditOpen] = useState(false);
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
+	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
 
@@ -122,6 +125,12 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 		if (!requireAuth()) return;
 		setReportOpen(true);
 	};
+
+	const imageUrls = getPostImageUrls(post);
+	const safeIndex =
+		imageUrls.length === 0 ? 0 : Math.min(imageIndex, imageUrls.length - 1);
+	const currentImageUrl = imageUrls[safeIndex] ?? null;
+	const hasMultipleImages = imageUrls.length > 1;
 
 	return (
 		<article className="w-full overflow-hidden rounded-[12px] bg-white pb-4 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:pb-0">
@@ -215,22 +224,73 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 							? "pointer-events-none select-none blur-[3px] opacity-40"
 							: undefined
 					}>
-					<button
-						type="button"
-						onClick={() => !isHidden && onOpen(post)}
-						disabled={isHidden}
-						className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
-						aria-label="게시글 상세 보기">
-						{post.imageUrl ? (
-							<img
-								src={post.imageUrl}
-								alt={`${post.author.nickname}의 게시글`}
-								className="aspect-[3/4] h-auto w-full object-cover transition hover:scale-[1.01]"
-							/>
-						) : (
-							<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
+					<div className="relative">
+						<button
+							type="button"
+							onClick={() => !isHidden && onOpen(post)}
+							disabled={isHidden}
+							className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
+							aria-label="게시글 상세 보기">
+							{currentImageUrl ? (
+								<img
+									src={currentImageUrl}
+									alt={`${post.author.nickname}의 게시글 ${safeIndex + 1}`}
+									className="aspect-[3/4] h-auto w-full object-cover transition hover:scale-[1.01]"
+								/>
+							) : (
+								<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
+							)}
+						</button>
+
+						{hasMultipleImages && !isHidden && (
+							<>
+								<button
+									type="button"
+									aria-label="이전 사진"
+									disabled={safeIndex === 0}
+									onClick={() => setImageIndex((i) => Math.max(0, i - 1))}
+									className="absolute left-2 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-black shadow-[0_2px_8px_rgba(0,0,0,0.15)] backdrop-blur-sm transition hover:bg-white disabled:pointer-events-none disabled:opacity-0">
+									<ChevronIcon direction="left" size={16} />
+								</button>
+								<button
+									type="button"
+									aria-label="다음 사진"
+									disabled={safeIndex === imageUrls.length - 1}
+									onClick={() =>
+										setImageIndex((i) => Math.min(imageUrls.length - 1, i + 1))
+									}
+									className="absolute right-2 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-black shadow-[0_2px_8px_rgba(0,0,0,0.15)] backdrop-blur-sm transition hover:bg-white disabled:pointer-events-none disabled:opacity-0">
+									<ChevronIcon direction="right" size={16} />
+								</button>
+								<span className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
+									{safeIndex + 1} / {imageUrls.length}
+								</span>
+							</>
 						)}
-					</button>
+					</div>
+
+					{hasMultipleImages && (
+						<div className="mt-2 flex items-center justify-center">
+							{imageUrls.map((_, index) => (
+								<button
+									key={index}
+									type="button"
+									aria-label={`${index + 1}번째 사진 보기`}
+									aria-current={index === safeIndex}
+									disabled={isHidden}
+									onClick={() => setImageIndex(index)}
+									className="flex size-4 items-center justify-center">
+									<span
+										className={`size-1.5 rounded-full transition ${
+											index === safeIndex
+												? "bg-brand"
+												: "bg-black/20 hover:bg-black/40"
+										}`}
+									/>
+								</button>
+							))}
+						</div>
+					)}
 
 					<div className="mt-3 flex items-center gap-4 px-3 text-black lg:px-0">
 						<button
