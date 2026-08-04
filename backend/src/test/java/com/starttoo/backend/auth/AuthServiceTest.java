@@ -38,7 +38,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -269,18 +268,15 @@ class AuthServiceTest {
     }
 
     @Test
-    void nicknameSuggestionsAreFiniteUniqueAndValid() {
+    void nicknameSuggestionIsValidAndAvailable() {
         when(userRepository.existsByNicknameAndAccountStatusNotAndDeletedFalse(
                 anyString(),
                 eq(AccountStatus.WITHDRAWN)
         )).thenReturn(false);
 
-        List<String> suggestions = authService.nicknameSuggestions(10);
+        String suggestion = authService.nicknameSuggestion();
 
-        assertThat(suggestions)
-                .hasSize(10)
-                .doesNotHaveDuplicates()
-                .allMatch(value -> value.matches("^[가-힣A-Za-z0-9]{2,20}$"));
+        assertThat(suggestion).matches("^[가-힣A-Za-z0-9]{2,20}$");
     }
 
     private void stubNewSignup() {

@@ -30,12 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -45,11 +42,35 @@ public class AuthService {
             "검은장미",
             "푸른나비",
             "별빛라인",
+            "달빛잉크",
+            "새벽도안",
+            "잉크구름",
+            "작은파도",
+            "하얀고래",
+            "붉은노을",
+            "초록바늘",
+            "은빛달",
+            "먹빛꽃",
+            "고요한점",
+            "선명한결",
+            "여름선",
+            "겨울잉크",
+            "봄날스케치",
+            "가을타투",
+            "미니라인",
+            "도트무드",
             "BlackRose",
             "LineArt",
-            "InkMood"
+            "InkMood",
+            "TinyInk",
+            "BlueNeedle",
+            "MoonLine",
+            "DotCanvas",
+            "FineShade",
+            "WaveTattoo",
+            "SoftStencil"
     );
-    private static final int NICKNAME_ATTEMPTS_PER_ITEM = 50;
+    private static final int NICKNAME_MAX_ATTEMPTS = 100;
 
     private final OAuthProviderRepository providerRepository;
     private final UserOAuthAccountRepository oauthAccountRepository;
@@ -217,15 +238,9 @@ public class AuthService {
         );
     }
 
-    public List<String> nicknameSuggestions(int count) {
-        if (count < 1 || count > 10) {
-            throw BusinessException.of(ErrorCode.INVALID_REQUEST);
-        }
-
-        Set<String> suggestions = new LinkedHashSet<>();
+    public String nicknameSuggestion() {
         int seed = secureRandom.nextInt(10_000);
-        int maxAttempts = count * NICKNAME_ATTEMPTS_PER_ITEM;
-        for (int attempt = 0; attempt < maxAttempts && suggestions.size() < count; attempt++) {
+        for (int attempt = 0; attempt < NICKNAME_MAX_ATTEMPTS; attempt++) {
             String base = NICKNAME_BASES.get(attempt % NICKNAME_BASES.size());
             int suffix = Math.floorMod(seed + attempt * 37, 10_000);
             String candidate = base + suffix;
@@ -233,10 +248,10 @@ public class AuthService {
                     candidate,
                     AccountStatus.WITHDRAWN
             )) {
-                suggestions.add(candidate);
+                return candidate;
             }
         }
-        return new ArrayList<>(suggestions);
+        throw BusinessException.of(ErrorCode.STATE_CONFLICT);
     }
 
     public AuthDtos.PhoneAvailabilityResponse phoneAvailability(String phoneNumber) {

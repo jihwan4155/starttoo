@@ -624,7 +624,7 @@ GET /v1/auth/phones/availability?phoneNumber=010-1234-5678
 ## 5.7 닉네임 추천·중복 확인
 
 ```http
-GET /v1/auth/nicknames/suggestions?count=5
+GET /v1/auth/nicknames/suggestions
 GET /v1/auth/nicknames/availability?nickname=검은장미1
 ```
 
@@ -633,7 +633,7 @@ GET /v1/auth/nicknames/availability?nickname=검은장미1
 ```json
 {
   "data": {
-    "items": ["검은장미17", "푸른나비24", "BlackRose31"]
+    "nickname": "검은장미17"
   }
 }
 ```
@@ -2649,20 +2649,15 @@ Subject 자동완성:
 
 **API 개요:** 요청 시점에 활성 회원과 겹치지 않는 닉네임 후보를 추천한다. 인증은 필요 없다.
 
-**Request:** Query `count`는 선택값이며 기본 5, 범위 1~10이다. Body는 없다.
+**Request:** Query는 없다. Body는 없다.
 
-**Response:** `items: String[]`를 반환하며 결과가 없으면 빈 배열이다.
+**Response:** `nickname: String`을 반환한다.
 
 **설명:** 추천값은 즉시 사용을 보장하는 예약값이 아니다. 최종 중복은 가입 시 DB UNIQUE로 다시 확인한다.
 
 **성공 예시**
 ```json
-{"data":{"items":["검은장미7","BlueLine21"]}}
-```
-
-**실패 예시**
-```json
-{"status":400,"code":"VALIDATION_ERROR","message":"count는 10 이하여야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+{"data":{"nickname":"검은장미7"}}
 ```
 
 ### GET `/v1/auth/nicknames/availability`
