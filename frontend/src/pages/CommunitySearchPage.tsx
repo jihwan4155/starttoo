@@ -90,7 +90,7 @@ export default function CommunitySearchPage() {
 							type="button"
 							aria-label={`${post.author.nickname}의 게시글 보기`}
 							onClick={() => handleOpenPost(post)}
-							className="aspect-square overflow-hidden bg-[#D9D9D9] lg:rounded-[6px]">
+							className="aspect-[3/4] overflow-hidden bg-[#D9D9D9] lg:rounded-[6px]">
 							{post.imageUrl && (
 								<img
 									src={post.imageUrl}

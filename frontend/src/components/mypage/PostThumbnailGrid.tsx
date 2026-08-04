@@ -17,7 +17,7 @@ export default function PostThumbnailGrid({
 					type="button"
 					onClick={() => onOpen(post)}
 					aria-label={`${post.author.nickname}의 게시글`}
-					className="aspect-square overflow-hidden bg-[#D9D9D9] transition hover:opacity-90 lg:rounded-[6px]">
+					className="aspect-[3/4] overflow-hidden bg-[#D9D9D9] transition hover:opacity-90 lg:rounded-[6px]">
 					{post.imageUrl && (
 						<img
 							src={post.imageUrl}

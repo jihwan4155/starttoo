@@ -102,7 +102,9 @@ export default function MyPageEditPage() {
 		const file = e.target.files?.[0];
 		e.target.value = "";
 		if (!file || !file.type.startsWith("image/")) return;
-		setAvatarInput(await cropImageToDataUrl(file, DEFAULT_CROP, 300));
+		setAvatarInput(
+			await cropImageToDataUrl(file, DEFAULT_CROP, { outputSize: 300 }),
+		);
 		setNicknameCheckMessage(null);
 	};
 

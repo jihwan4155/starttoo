@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import CreatePostModal from "../components/community/CreatePostModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
@@ -6,52 +6,69 @@ import PostCard from "../components/community/PostCard";
 import PostDetailModal from "../components/community/PostDetailModal";
 import { PlusIcon } from "../components/community/icons";
 import useFollowingPosts from "../hooks/queries/useFollowingPosts";
-import usePosts from "../hooks/queries/usePosts";
+import useMyPosts from "../hooks/queries/useMyPosts";
 import useRequireAuth from "../hooks/useRequireAuth";
-import useAuthStore from "../store/useAuthStore";
 import useCommunityStore from "../store/useCommunityStore";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
 import { ApiError } from "../services/api";
-import type { CommunityFeedTab } from "../constants/community";
 import type { Post } from "../types/community";
 import { filterFeedPosts } from "../utils/filterPosts";
 import { mockPosts } from "../mocks/community";
 import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
-/** 커뮤니티 피드 — 전체(GET /posts) · 팔로잉(GET /posts/following) */
+/**
+ * 커뮤니티 — 팔로우한 사용자의 게시물 + 내 게시물
+ * (GET /posts/following + GET /posts/me). 팔로잉 피드에는 내 글이 들어오지 않아
+ * 두 목록을 합쳐 최신순으로 보여준다.
+ */
 export default function CommunityPage() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	const [isWriteOpen, setWriteOpen] = useState(false);
-	const [feedTab, setFeedTab] = useState<CommunityFeedTab>("all");
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
-	const accessToken = useAuthStore((s) => s.accessToken);
 	const hiddenIds = useHiddenIdsForUser();
 	const overlayHiddenIds = useCommunityStore((s) => s.overlayHiddenIds);
 	const clearAllOverlays = useCommunityStore((s) => s.clearAllOverlays);
 
-	const allQuery = usePosts({ size: 20 });
 	const followingQuery = useFollowingPosts({ size: 20 });
+	const myQuery = useMyPosts({ size: 20 });
 
-	const activeQuery = feedTab === "following" ? followingQuery : allQuery;
-	const {
-		data,
-		isPending,
-		isError,
-		error,
-		refetch,
-		isFetching,
-		fetchNextPage,
-		hasNextPage,
-		isFetchingNextPage,
-	} = activeQuery;
+	// enabled가 false인 쿼리는 isPending이 계속 true라 isLoading(실제 로딩)으로 판단한다
+	const isPending = followingQuery.isLoading || myQuery.isLoading;
+	const isFetching = followingQuery.isFetching || myQuery.isFetching;
+	const isError = followingQuery.isError || myQuery.isError;
+	const error = followingQuery.error ?? myQuery.error;
+	const hasNextPage = followingQuery.hasNextPage || myQuery.hasNextPage;
+	const isFetchingNextPage =
+		followingQuery.isFetchingNextPage || myQuery.isFetchingNextPage;
+
+	const refetch = useCallback(() => {
+		void followingQuery.refetch();
+		void myQuery.refetch();
+	}, [followingQuery, myQuery]);
+
+	const fetchNextPage = useCallback(() => {
+		if (followingQuery.hasNextPage && !followingQuery.isFetchingNextPage) {
+			void followingQuery.fetchNextPage();
+		}
+		if (myQuery.hasNextPage && !myQuery.isFetchingNextPage) {
+			void myQuery.fetchNextPage();
+		}
+	}, [followingQuery, myQuery]);
 
 	const feedPosts = useMemo(() => {
-		const items = data?.pages.flatMap((page) => page.items) ?? [];
-		const source = QA_MOCK_DATA_ENABLED && items.length === 0 ? mockPosts : items;
+		const items = [
+			...(followingQuery.data?.pages.flatMap((page) => page.items) ?? []),
+			...(myQuery.data?.pages.flatMap((page) => page.items) ?? []),
+		];
+		// 두 목록이 겹칠 수 있어 id로 중복을 걸러내고, 백엔드와 같은 최신순으로 정렬한다
+		const unique = [...new Map(items.map((post) => [post.id, post])).values()];
+		unique.sort((a, b) => b.id - a.id);
+		const source =
+			QA_MOCK_DATA_ENABLED && unique.length === 0 ? mockPosts : unique;
 		return filterFeedPosts(source, hiddenIds, overlayHiddenIds);
-	}, [data?.pages, hiddenIds, overlayHiddenIds]);
+	}, [followingQuery.data?.pages, myQuery.data?.pages, hiddenIds, overlayHiddenIds]);
 
 	useEffect(() => {
 		clearAllOverlays();
@@ -90,33 +107,9 @@ export default function CommunityPage() {
 			? error.message
 			: "피드를 불러오지 못했습니다.";
 
-	const handleTabChange = (tab: CommunityFeedTab) => {
-		if (tab === "following" && !accessToken) {
-			requireAuth();
-			return;
-		}
-		setFeedTab(tab);
-	};
-
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
 			<div className="mx-auto flex w-full max-w-[440px] flex-col gap-6 px-4 lg:-translate-x-10 lg:gap-10">
-				<div className="flex justify-center gap-2">
-					{(["all", "following"] as const).map((tab) => (
-						<button
-							key={tab}
-							type="button"
-							onClick={() => handleTabChange(tab)}
-							className={`rounded-full px-5 py-2 text-[13px] font-semibold transition ${
-								feedTab === tab
-									? "bg-black text-white"
-									: "bg-white text-black/60 hover:bg-black/5"
-							}`}>
-							{tab === "all" ? "전체" : "팔로잉"}
-						</button>
-					))}
-				</div>
-
 				{isPending && (
 					<StarttooLoader variant="block" label="피드를 불러오는 중…" />
 				)}
@@ -137,10 +130,10 @@ export default function CommunityPage() {
 				)}
 
 				{!isPending && !isError && feedPosts.length === 0 && (
-					<p className="py-20 text-center text-[14px] text-black/40">
-						{feedTab === "following"
-							? "팔로우한 사용자의 게시물이 없습니다."
-							: "아직 게시물이 없습니다."}
+					<p className="py-20 text-center text-[14px] leading-6 text-black/40">
+						보여줄 게시물이 없습니다.
+						<br />
+						관심 있는 작가를 팔로우하거나 첫 게시물을 올려보세요.
 					</p>
 				)}
 
