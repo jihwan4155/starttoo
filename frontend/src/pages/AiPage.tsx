@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import demoTattoo from "../assets/images/demo-tattoo.png";
 import AccordionSection from "../components/ai/AccordionSection";
 import ImageDetailModal from "../components/ai/ImageDetailModal";
 import ResultSection from "../components/ai/ResultSection";
-import SaveConfirmModal from "../components/ai/SaveConfirmModal";
 import StyleInputForm from "../components/ai/StyleInputForm";
-import { MAX_REFERENCE_IMAGES } from "../components/ai/constants";
-import { saveToArchive } from "../services/archiveApi";
+import { GENRE_TAGS, MAX_REFERENCE_IMAGES } from "../components/ai/constants";
+import { generateTattoo } from "../services/tattooGenerationApi";
 
-const DEMO_TATTOO_IDS = [6, 9, 12];
 const MAX_RESULT_SELECTION = 20;
+
+type GeneratedResult = {
+	imageUrl: string;
+};
 
 function HomeIcon() {
 	return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M3 10.8 12 3l9 7.8V21h-6v-6H9v6H3V10.8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
@@ -28,23 +29,29 @@ export default function AiPage() {
 	const [hasGenerated, setHasGenerated] = useState(false);
 	const [inputOpen, setInputOpen] = useState(true);
 	const [resultOpen, setResultOpen] = useState(false);
-	const [generatedResults, setGeneratedResults] = useState<{ imageUrl: string; tattooId: number }[]>([]);
+	const [generatedResults, setGeneratedResults] = useState<GeneratedResult[]>([]);
+	const [generating, setGenerating] = useState(false);
+	const [generationError, setGenerationError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [selectedResultIndices, setSelectedResultIndices] = useState<number[]>([]);
 	const [detailImage, setDetailImage] = useState<string | null>(null);
-	const [showSaveModal, setShowSaveModal] = useState(false);
 	const [showLeaveModal, setShowLeaveModal] = useState(false);
 	const [leaveTarget, setLeaveTarget] = useState<"home" | "input">("home");
 	const [showLimitToast, setShowLimitToast] = useState(false);
+	const generatedObjectUrls = useRef<string[]>([]);
 
-	const canGenerate = prompt.trim().length > 0 || referenceImages.length > 0 || selectedGenres.length > 0;
+	const canGenerate = prompt.trim().length > 0;
 
 	useEffect(() => {
 		if (!showLimitToast) return;
 		const timer = window.setTimeout(() => setShowLimitToast(false), 2200);
 		return () => window.clearTimeout(timer);
 	}, [showLimitToast]);
+
+	useEffect(() => () => {
+		generatedObjectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+	}, []);
 
 	const handleToggleGenre = useCallback((id: string) => {
 		setSelectedGenres((prev) => prev.includes(id) ? prev.filter((genreId) => genreId !== id) : prev.length >= 2 ? prev : [...prev, id]);
@@ -75,31 +82,76 @@ export default function AiPage() {
 		});
 	}, []);
 
-	const handleGenerate = useCallback(() => {
-		if (!canGenerate) return;
-		setHasGenerated(true);
-		setInputOpen(false);
-		setResultOpen(true);
-		setGeneratedResults(DEMO_TATTOO_IDS.map((tattooId) => ({ imageUrl: demoTattoo, tattooId })));
-		setSelectedResultIndices([]);
-		setSaveError(null);
-		window.scrollTo({ top: 0, behavior: "smooth" });
-	}, [canGenerate]);
+	const requestGeneratedTattoo = useCallback(async (): Promise<GeneratedResult> => {
+		const styles = selectedGenres.flatMap((id) => {
+			const tag = GENRE_TAGS.find((item) => item.id === id);
+			return tag ? [tag.apiStyle] : [];
+		});
+		// 참고 이미지는 UI에만 유지하며 현재 생성 API 요청에는 포함하지 않는다.
+		const blob = await generateTattoo({
+			prompt: prompt.trim(),
+			style: styles,
+			steps: 25,
+			guidance: 7.5,
+			size: 512,
+		});
+		const imageUrl = URL.createObjectURL(blob);
+		generatedObjectUrls.current.push(imageUrl);
+		return { imageUrl };
+	}, [prompt, selectedGenres]);
 
-	const handleGenerateMore = useCallback(() => {
-		setGeneratedResults((prev) => [...prev, { imageUrl: demoTattoo, tattooId: DEMO_TATTOO_IDS[prev.length % DEMO_TATTOO_IDS.length] }]);
-	}, []);
+	const handleGenerate = useCallback(async () => {
+		if (!canGenerate || generating) return;
+		setGenerating(true);
+		setGenerationError(null);
+		setSaveError(null);
+		try {
+			const result = await requestGeneratedTattoo();
+			setGeneratedResults([result]);
+			setSelectedResultIndices([]);
+			setHasGenerated(true);
+			setInputOpen(false);
+			setResultOpen(true);
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		} catch (error) {
+			setGenerationError(error instanceof Error ? error.message : "도안 생성에 실패했습니다.");
+		} finally {
+			setGenerating(false);
+		}
+	}, [canGenerate, generating, requestGeneratedTattoo]);
+
+	const handleGenerateMore = useCallback(async () => {
+		if (!canGenerate || generating || generatedResults.length >= MAX_RESULT_SELECTION) return;
+		setGenerating(true);
+		setGenerationError(null);
+		try {
+			const result = await requestGeneratedTattoo();
+			setGeneratedResults((prev) => [...prev, result]);
+		} catch (error) {
+			setGenerationError(error instanceof Error ? error.message : "도안 생성에 실패했습니다.");
+		} finally {
+			setGenerating(false);
+		}
+	}, [canGenerate, generatedResults.length, generating, requestGeneratedTattoo]);
 
 	const handleSave = useCallback(async () => {
-		const tattooIds = selectedResultIndices.map((index) => generatedResults[index]?.tattooId).filter((id): id is number => typeof id === "number");
-		if (tattooIds.length === 0) return;
+		const selectedResults = selectedResultIndices
+			.map((index) => generatedResults[index])
+			.filter((result): result is GeneratedResult => result != null);
+		if (selectedResults.length === 0) return;
 		setSaving(true);
 		setSaveError(null);
 		try {
-			await Promise.all(tattooIds.map((id) => saveToArchive(id)));
-			setShowSaveModal(true);
+			selectedResults.forEach((result, index) => {
+				const link = document.createElement("a");
+				link.href = result.imageUrl;
+				link.download = `starttoo-generated-tattoo-${Date.now()}-${index + 1}.png`;
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+			});
 		} catch (err) {
-			setSaveError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+			setSaveError(err instanceof Error ? err.message : "다운로드에 실패했습니다.");
 		} finally {
 			setSaving(false);
 		}
@@ -127,13 +179,16 @@ export default function AiPage() {
 		setHasGenerated(false);
 		setInputOpen(true);
 		setResultOpen(false);
+		generatedObjectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+		generatedObjectUrls.current = [];
 		setGeneratedResults([]);
 		setSelectedResultIndices([]);
+		setGenerationError(null);
 		setShowLeaveModal(false);
 		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 
-	const inputForm = <StyleInputForm selectedGenres={selectedGenres} prompt={prompt} referenceImages={referenceImages} showHero={!hasGenerated} canGenerate={canGenerate} onToggleGenre={handleToggleGenre} onPromptChange={setPrompt} onAddReferenceImages={handleAddReferenceImages} onRemoveReferenceImage={handleRemoveReferenceImage} onGenerate={handleGenerate} />;
+	const inputForm = <StyleInputForm selectedGenres={selectedGenres} prompt={prompt} referenceImages={referenceImages} showHero={!hasGenerated} canGenerate={canGenerate} generating={generating} generationError={generationError} onToggleGenre={handleToggleGenre} onPromptChange={setPrompt} onAddReferenceImages={handleAddReferenceImages} onRemoveReferenceImage={handleRemoveReferenceImage} onGenerate={handleGenerate} />;
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 py-10 max-lg:min-h-[calc(100vh-50px)] max-lg:px-0 max-lg:py-0">
@@ -147,11 +202,11 @@ export default function AiPage() {
 					{hasGenerated ? (
 						<AccordionSection title="스타일 태그 / 프롬프트 / 이미지" isOpen={inputOpen} onToggle={() => setInputOpen((prev) => !prev)}>{inputForm}</AccordionSection>
 					) : <div className="rounded-[10px] border border-[#E8E8E8] bg-white">{inputForm}</div>}
-					{hasGenerated && <div className="mt-6"><AccordionSection title="생성 결과 도안" isOpen={resultOpen} onToggle={() => setResultOpen((prev) => !prev)}><ResultSection generatedImages={generatedResults.map((r) => r.imageUrl)} selectedIndices={selectedResultIndices} onToggleSelect={handleToggleResultSelect} onZoom={setDetailImage} onGenerateMore={handleGenerateMore} onSave={handleSave} saving={saving} saveError={saveError} /></AccordionSection></div>}
+					{hasGenerated && <div className="mt-6"><AccordionSection title="생성 결과 도안" isOpen={resultOpen} onToggle={() => setResultOpen((prev) => !prev)}><ResultSection generatedImages={generatedResults.map((r) => r.imageUrl)} selectedIndices={selectedResultIndices} onToggleSelect={handleToggleResultSelect} onZoom={setDetailImage} onGenerateMore={handleGenerateMore} onSave={handleSave} generating={generating} canGenerateMore={canGenerate} generationError={generationError} saving={saving} saveError={saveError} /></AccordionSection></div>}
 				</div>
 
 				<div className="hidden max-lg:block">
-					{hasGenerated ? <ResultSection generatedImages={generatedResults.map((r) => r.imageUrl)} selectedIndices={selectedResultIndices} onToggleSelect={handleToggleResultSelect} onZoom={setDetailImage} onGenerateMore={handleGenerateMore} onSave={handleSave} saving={saving} saveError={saveError} onMobileBack={requestInput} /> : inputForm}
+					{hasGenerated ? <ResultSection generatedImages={generatedResults.map((r) => r.imageUrl)} selectedIndices={selectedResultIndices} onToggleSelect={handleToggleResultSelect} onZoom={setDetailImage} onGenerateMore={handleGenerateMore} onSave={handleSave} generating={generating} canGenerateMore={canGenerate} generationError={generationError} saving={saving} saveError={saveError} onMobileBack={requestInput} /> : inputForm}
 				</div>
 			</div>
 
@@ -172,7 +227,6 @@ export default function AiPage() {
 			)}
 
 			{detailImage && <ImageDetailModal imageUrl={detailImage} onClose={() => setDetailImage(null)} />}
-			{showSaveModal && <SaveConfirmModal onClose={() => setShowSaveModal(false)} />}
 		</div>
 	);
 }

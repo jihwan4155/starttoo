@@ -1,10 +1,20 @@
 package com.starttoo.backend.tattoo.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
 
 public final class TattooDtos {
 
@@ -69,6 +79,48 @@ public final class TattooDtos {
             @Schema(description = "다운로드 URL 만료 시각")
             OffsetDateTime expiresAt
     ) {
+    }
+
+    public record GenerateTattooRequest(
+            @NotBlank @Size(max = 500) String prompt,
+            @Size(max = 2) List<String> style,
+            @PositiveOrZero @Max(4_294_967_295L) Long seed,
+            @Min(1) @Max(100) Integer steps,
+            @DecimalMin("0.0") @DecimalMax("30.0") Double guidance,
+            Integer size
+    ) {
+        private static final Set<String> SUPPORTED_STYLES = Set.of(
+                "realism",
+                "minimal",
+                "geometric_ornamental",
+                "lettering",
+                "graphic_illustrative",
+                "new_school",
+                "tribal_indigenous",
+                "western_traditional",
+                "japanese",
+                "abstract_experimental"
+        );
+
+        public GenerateTattooRequest {
+            prompt = prompt == null ? null : prompt.trim();
+            style = style == null ? List.of() : List.copyOf(style);
+            steps = steps == null ? 30 : steps;
+            guidance = guidance == null ? 7.5 : guidance;
+            size = size == null ? 1024 : size;
+        }
+
+        @AssertTrue(message = "지원하지 않는 타투 스타일입니다.")
+        @JsonIgnore
+        public boolean isSupportedStyle() {
+            return style.stream().allMatch(SUPPORTED_STYLES::contains);
+        }
+
+        @AssertTrue(message = "size는 512, 768, 1024 중 하나여야 합니다.")
+        @JsonIgnore
+        public boolean isSupportedSize() {
+            return size == 512 || size == 768 || size == 1024;
+        }
     }
 
     public enum TattooImageVariant {

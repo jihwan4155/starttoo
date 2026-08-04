@@ -2,16 +2,25 @@ package com.starttoo.backend.tattoo.api;
 
 import com.starttoo.backend.common.api.ApiResponse;
 import com.starttoo.backend.common.config.OptionalAuth;
+import com.starttoo.backend.tattoo.application.TattooGenerationClient;
 import com.starttoo.backend.tattoo.application.TattooService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/v1/tattoos")
@@ -20,6 +29,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class TattooController {
 
     private final TattooService tattooService;
+    private final TattooGenerationClient tattooGenerationClient;
+
+    @PostMapping(value = "/generate", produces = MediaType.IMAGE_PNG_VALUE)
+    @Operation(
+            summary = "AI 타투 도안 생성",
+            description = "프롬프트와 최대 2개의 스타일로 PNG 타투 도안 한 장을 생성한다."
+    )
+    public ResponseEntity<byte[]> generate(
+            @Valid @RequestBody TattooDtos.GenerateTattooRequest request
+    ) {
+        TattooGenerationClient.GeneratedImage result = tattooGenerationClient.generate(request);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.IMAGE_PNG);
+        headers.setCacheControl("no-store");
+        copyHeader(result.headers(), headers, HttpHeaders.CONTENT_DISPOSITION);
+        copyHeader(result.headers(), headers, "X-Request-ID");
+        copyHeader(result.headers(), headers, "X-Processing-Seconds");
+        copyHeader(result.headers(), headers, "X-Image-Width");
+        copyHeader(result.headers(), headers, "X-Image-Height");
+        copyHeader(result.headers(), headers, "X-Generation-Seed");
+        copyHeader(result.headers(), headers, "X-Generation-Styles");
+        return new ResponseEntity<>(result.content(), headers, HttpStatus.OK);
+    }
 
     @GetMapping("/{tattooSeq}")
     @OptionalAuth
@@ -52,5 +84,12 @@ public class TattooController {
             @RequestParam TattooDtos.TattooImageVariant variant
     ) {
         return ApiResponse.of(tattooService.image(tattooSeq, variant));
+    }
+
+    private void copyHeader(HttpHeaders source, HttpHeaders target, String name) {
+        String value = source.getFirst(name);
+        if (value != null && !value.isBlank()) {
+            target.set(name, value);
+        }
     }
 }
