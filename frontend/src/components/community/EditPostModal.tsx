@@ -86,7 +86,7 @@ export default function EditPostModal({
 
 				<div className="flex gap-5 p-6 max-lg:flex-col max-lg:px-5 max-lg:pt-20">
 					<div className="w-[240px] shrink-0 max-lg:hidden">
-						<div className="aspect-square overflow-hidden rounded-[10px] bg-[#D9D9D9]">
+						<div className="aspect-[3/4] overflow-hidden rounded-[10px] bg-[#D9D9D9]">
 							{imageUrls[0] ? (
 								<img
 									src={imageUrls[0]}

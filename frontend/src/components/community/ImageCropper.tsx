@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { clampCrop, DEFAULT_CROP } from "../../utils/image";
+import { clampCrop, DEFAULT_CROP, previewScale } from "../../utils/image";
 import type { CropState } from "../../utils/image";
 
 const MAX_ZOOM = 3;
@@ -9,16 +9,19 @@ type ImageCropperProps = {
 	src: string;
 	crop: CropState;
 	onChange: (next: CropState) => void;
+	/** 크롭 뷰포트 비율 (가로/세로) — 기본 정사각형 */
+	aspect?: number;
 };
 
 /**
- * 정사각형 이미지 크롭 — 드래그로 영역 이동, 슬라이더로 확대/축소
+ * 이미지 크롭 — 드래그로 영역 이동, 슬라이더로 확대/축소
  * 크롭 결과는 cropImageToDataUrl로 원본 파일에 적용된다.
  */
 export default function ImageCropper({
 	src,
 	crop,
 	onChange,
+	aspect = 1,
 }: ImageCropperProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const dragRef = useRef<{
@@ -33,7 +36,7 @@ export default function ImageCropper({
 	const [viewport, setViewport] = useState(0);
 	const [isDragging, setDragging] = useState(false);
 
-	// 뷰포트(정사각형 컨테이너) 실제 픽셀 크기 추적
+	// 뷰포트 컨테이너의 실제 가로 픽셀 크기 추적
 	useEffect(() => {
 		const el = containerRef.current;
 		if (!el) return;
@@ -71,6 +74,7 @@ export default function ImageCropper({
 				},
 				natural.w,
 				natural.h,
+				aspect,
 			),
 		);
 	};
@@ -82,12 +86,12 @@ export default function ImageCropper({
 
 	const handleZoom = (zoom: number) => {
 		if (!natural) return;
-		onChange(clampCrop({ ...crop, zoom }, natural.w, natural.h));
+		onChange(clampCrop({ ...crop, zoom }, natural.w, natural.h, aspect));
 	};
 
-	// 짧은 변이 뷰포트에 꽉 차는 cover 배율 × zoom
+	// 뷰포트를 꽉 채우는 cover 배율 × zoom
 	const scale = natural
-		? (viewport / Math.min(natural.w, natural.h)) * crop.zoom
+		? viewport * previewScale(natural.w, natural.h, crop.zoom, aspect)
 		: 0;
 
 	return (
@@ -99,7 +103,8 @@ export default function ImageCropper({
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
 				onPointerCancel={handlePointerUp}
-				className={`relative aspect-square w-full touch-none select-none overflow-hidden rounded-[10px] bg-[#D9D9D9] ${
+				style={{ aspectRatio: aspect }}
+				className={`relative w-full touch-none select-none overflow-hidden rounded-[10px] bg-[#D9D9D9] ${
 					isDragging ? "cursor-grabbing" : "cursor-grab"
 				}`}>
 				<img
