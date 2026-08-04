@@ -34,6 +34,7 @@ export default function OnboardingPage() {
 	const accessToken = useAuthStore((s) => s.accessToken);
 	// 가입 때 서버 추천으로 배정한 닉네임 — 프로필 입력의 초기값이 된다.
 	const assignedNickname = useSignupStore((s) => s.nickname);
+	const signupToken = useSignupStore((s) => s.signupToken);
 	const clearSignup = useSignupStore((s) => s.clearSignup);
 
 	const [step, setStep] = useState<Step>("role");
@@ -44,6 +45,13 @@ export default function OnboardingPage() {
 	// 세션 없이 들어오면 온보딩할 대상이 없다.
 	if (!accessToken) {
 		return <Navigate to="/login" replace />;
+	}
+	// 온보딩은 가입 직후 한 번뿐이다. 가입 토큰은 온보딩을 마칠 때 clearSignup()으로
+	// 지우므로, 세션이 있는데 토큰이 없다는 것은 기존 회원이 로그인한 상태라는 뜻이다.
+	// 여기서 막지 않으면 기존 회원이 닉네임·생년월일·성별을 온보딩 값으로 덮어쓰고,
+	// 타투이스트라면 전체 덮어쓰기인 숍 정보까지 비워 버린다.
+	if (!signupToken) {
+		return <Navigate to="/" replace />;
 	}
 
 	const finish = () => {
@@ -62,10 +70,11 @@ export default function OnboardingPage() {
 		setSubmitting(true);
 		try {
 			// nickname은 서버에서 필수라 바꾸지 않았어도 현재 값을 그대로 다시 보낸다.
+			// 생년월일·성별은 폼이 채워질 때까지 [다음]을 막으므로 항상 값이 있다.
 			await updateMe({
 				nickname: values.nickname,
-				...(values.birthDate ? { birthDate: values.birthDate } : {}),
-				...(values.gender ? { gender: values.gender } : {}),
+				birthDate: values.birthDate,
+				gender: values.gender,
 			});
 			if (role === "ARTIST") {
 				// 서버가 역할 승격을 해 주지 않아 role=USER인 계정에서는 403이 온다.

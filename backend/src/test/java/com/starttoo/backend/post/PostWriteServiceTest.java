@@ -7,9 +7,8 @@ import com.starttoo.backend.post.domain.PostImage;
 import com.starttoo.backend.post.domain.PostImageRepository;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
+import com.starttoo.backend.tattoo.application.TattooModelClient;
 import com.starttoo.backend.tattoo.application.TattooService;
-import com.starttoo.backend.tattoo.domain.Tattoo;
-import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -22,7 +21,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,16 +31,14 @@ class PostWriteServiceTest {
     private PostRepository postRepository;
     @Mock
     private PostImageRepository postImageRepository;
-    @Mock
-    private TattooService tattooService;
 
     @InjectMocks
     private PostWriteService postWriteService;
 
     @Test
-    void persistsOnlyTattooRowsButKeepsAllPostImagesInRequestOrder() {
-        var analysis = new com.starttoo.backend.tattoo.application.TattooModelClient.Analysis(
-                "OTHER", List.of(), List.of("LINE"), "BLACK", List.of("타투")
+    void persistsPostImagesInRequestOrderWithoutTattooRows() {
+        var analysis = new TattooModelClient.Analysis(
+                "OTHER", List.of(), List.of("LINE"), "BLACK", List.of("SAMPLE")
         );
         var first = new TattooService.PreparedPostImage(61L, "object-61", analysis);
         var second = new TattooService.PreparedPostImage(62L, "object-62", null);
@@ -63,16 +59,6 @@ class PostWriteServiceTest {
                         org.assertj.core.groups.Tuple.tuple(61L, (short) 1),
                         org.assertj.core.groups.Tuple.tuple(62L, (short) 2)
                 );
-        verify(tattooService).persistPrepared(
-                eq(7),
-                eq(first.asTattoo()),
-                eq(TattooSourceType.USER_POST)
-        );
-        verify(tattooService, org.mockito.Mockito.never()).persistPrepared(
-                eq(7),
-                eq(new TattooService.PreparedTattoo(62L, "object-62", null)),
-                eq(TattooSourceType.USER_POST)
-        );
     }
 
     private Post post(Long postSeq) {
@@ -84,21 +70,6 @@ class PostWriteServiceTest {
                 .regDttm(now)
                 .modDttm(now)
                 .modUsrSeq(7)
-                .build();
-    }
-
-    private Tattoo tattoo(Long tattooSeq, Long imageSeq) {
-        OffsetDateTime now = OffsetDateTime.now();
-        return Tattoo.builder()
-                .tattooSeq(tattooSeq)
-                .registrantSeq(7)
-                .imageSeq(imageSeq)
-                .sourceType(TattooSourceType.USER_POST)
-                .primaryStyleSeq(1)
-                .usedForTraining(false)
-                .regDttm(now)
-                .modDttm(now)
-                .deleted(false)
                 .build();
     }
 }

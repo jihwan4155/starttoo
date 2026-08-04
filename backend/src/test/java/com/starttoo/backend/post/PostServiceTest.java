@@ -6,6 +6,7 @@ import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.post.api.PostDtos;
+import com.starttoo.backend.post.application.PostTattooClassificationService;
 import com.starttoo.backend.post.application.PostService;
 import com.starttoo.backend.post.application.PostWriteService;
 import com.starttoo.backend.post.domain.Post;
@@ -58,6 +59,9 @@ class PostServiceTest {
 
     @Mock
     private TattooService tattooService;
+
+    @Mock
+    private PostTattooClassificationService postTattooClassificationService;
 
     @Mock
     private PostWriteService postWriteService;
@@ -299,7 +303,7 @@ class PostServiceTest {
                 when(resultSet.getLong("image_seq")).thenReturn(61L);
                 when(resultSet.getString("image_object_key"))
                         .thenReturn("users/8/post.webp");
-                when(resultSet.getLong("tattoo_seq")).thenReturn(71L);
+                when(resultSet.getObject("tattoo_seq", Long.class)).thenReturn(71L);
                 when(resultSet.getShort("display_order")).thenReturn((short) 1);
             }
             handler.processRow(resultSet);

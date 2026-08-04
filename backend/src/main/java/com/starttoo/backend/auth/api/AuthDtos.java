@@ -9,7 +9,6 @@ import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 
 public final class AuthDtos {
 
@@ -125,7 +124,7 @@ public final class AuthDtos {
 
     public record NicknameSuggestionsResponse(
             @Schema(description = "추천 시점에 활성 회원과 중복되지 않은 닉네임")
-            List<String> items
+            String nickname
     ) {
     }
 

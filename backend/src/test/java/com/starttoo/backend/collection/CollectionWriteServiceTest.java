@@ -54,7 +54,7 @@ class CollectionWriteServiceTest {
                         List.of(),
                         List.of("LINE"),
                         "BLACK",
-                        List.of("타투")
+                        List.of("SAMPLE")
                 )
         );
         when(tattooService.persistPrepared(

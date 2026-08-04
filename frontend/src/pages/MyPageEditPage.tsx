@@ -20,6 +20,11 @@ import { checkNicknameAvailability } from "../services/authApi";
 import { ApiError } from "../services/api";
 import { type Gender } from "../store/useUserStore";
 import type { UpdateMeRequest } from "../types/user";
+import {
+	MIN_AGE,
+	birthDateMessage,
+	formatBirthDigits,
+} from "../utils/birthDate";
 import { dataUrlToFile } from "../utils/dataUrlToFile";
 import { cropImageToDataUrl, DEFAULT_CROP } from "../utils/image";
 import { resolveAvatar } from "../utils/profile";
@@ -62,12 +67,15 @@ export default function MyPageEditPage() {
 
 	const avatarInputRef = useRef<HTMLInputElement>(null);
 	const [nicknameInput, setNicknameInput] = useState("");
-	const [birthDateInput, setBirthDateInput] = useState("");
+	// 온보딩과 같은 방식 — 화면의 하이픈은 표시용이고 상태에는 숫자만 담는다.
+	const [birthDigits, setBirthDigits] = useState("");
 	const [genderInput, setGenderInput] = useState<Gender>(null);
 	const [avatarInput, setAvatarInput] = useState<string | null>(null);
-	const [nicknameCheckMessage, setNicknameCheckMessage] = useState<
-		string | null
-	>(null);
+	/** 중복 확인 결과 — ok면 회색, 아니면 빨강으로 보여준다 */
+	const [nicknameCheck, setNicknameCheck] = useState<{
+		ok: boolean;
+		message: string;
+	} | null>(null);
 	const [formError, setFormError] = useState<string | null>(null);
 	const [shopForm, setShopForm] = useState<ArtistShopFormValues>(
 		EMPTY_ARTIST_SHOP_FORM,
@@ -85,10 +93,11 @@ export default function MyPageEditPage() {
 	useEffect(() => {
 		if (!me) return;
 		setNicknameInput(me.nickname);
-		setBirthDateInput(me.birthDate ?? "");
+		// 서버는 YYYY-MM-DD로 주므로 하이픈을 떼어 숫자만 남긴다.
+		setBirthDigits((me.birthDate ?? "").replace(/\D/g, "").slice(0, 8));
 		setGenderInput(apiGenderToUi(me.gender));
 		setAvatarInput(me.profileImageUrl);
-		setNicknameCheckMessage(null);
+		setNicknameCheck(null);
 		setFormError(null);
 	}, [me]);
 
@@ -105,34 +114,48 @@ export default function MyPageEditPage() {
 		setAvatarInput(
 			await cropImageToDataUrl(file, DEFAULT_CROP, { outputSize: 300 }),
 		);
-		setNicknameCheckMessage(null);
+		setNicknameCheck(null);
 	};
 
 	const handleCheckNickname = async () => {
 		const trimmed = nicknameInput.trim();
 		if (!trimmed) {
-			setNicknameCheckMessage("닉네임을 입력해 주세요.");
+			setNicknameCheck({ ok: false, message: "닉네임을 입력해 주세요." });
 			return;
 		}
 		if (me && trimmed === me.nickname) {
-			setNicknameCheckMessage("현재 사용 중인 닉네임입니다.");
+			// 고칠 것이 없는 안내라 빨강으로 띄우지 않는다.
+			setNicknameCheck({ ok: true, message: "현재 사용 중인 닉네임입니다." });
 			return;
 		}
 		try {
 			const result = await checkNicknameAvailability(trimmed);
-			setNicknameCheckMessage(
+			setNicknameCheck(
 				result.available
-					? "사용 가능한 닉네임입니다."
-					: "이미 사용 중인 닉네임입니다.",
+					? { ok: true, message: "사용 가능한 닉네임입니다." }
+					: { ok: false, message: "이미 사용 중인 닉네임입니다." },
 			);
 		} catch (err) {
-			setNicknameCheckMessage(
-				err instanceof ApiError
-					? err.message
-					: "중복 확인에 실패했습니다.",
-			);
+			setNicknameCheck({
+				ok: false,
+				message:
+					err instanceof ApiError ? err.message : "중복 확인에 실패했습니다.",
+			});
 		}
 	};
+
+	const birthError = birthDateMessage(birthDigits);
+	/** 8자리를 채우는 중 — 아직 저장할 수 없다 */
+	const birthIncomplete = birthDigits.length > 0 && birthDigits.length < 8;
+	/**
+	 * 저장해도 되는 생년월일인지.
+	 *
+	 * 비워 두는 것은 허용한다 — 온보딩 전에 만들어진 계정은 생년월일이 없을 수 있어,
+	 * 필수로 만들면 닉네임만 바꾸려는 사람까지 막힌다. 대신 값을 넣었다면 가입과 같은
+	 * 기준(달력에 있는 날짜 · 만 MIN_AGE세 이상)을 지켜야 한다.
+	 */
+	const birthReady =
+		birthDigits.length === 0 || (!birthIncomplete && birthError === null);
 
 	const handleSave = async () => {
 		if (!requireAuth()) return;
@@ -144,6 +167,10 @@ export default function MyPageEditPage() {
 			setFormError("닉네임을 입력해 주세요.");
 			return;
 		}
+		if (!birthReady) {
+			setFormError(birthError ?? "생년월일을 숫자 8자리로 입력해 주세요.");
+			return;
+		}
 
 		try {
 			const avatarChanged = Boolean(avatarInput?.startsWith("data:"));
@@ -152,7 +179,9 @@ export default function MyPageEditPage() {
 			const patchBody: UpdateMeRequest = { nickname: trimmedNickname };
 			let hasProfileChanges = trimmedNickname !== me.nickname;
 
-			const nextBirthDate = birthDateInput || null;
+			// 8자리를 통과했으면 그 결과가 곧 서버가 받는 YYYY-MM-DD다.
+			const nextBirthDate =
+				birthDigits.length === 8 ? formatBirthDigits(birthDigits) : null;
 			if (nextBirthDate !== (me.birthDate ?? null)) {
 				patchBody.birthDate = nextBirthDate;
 				hasProfileChanges = true;
@@ -266,7 +295,7 @@ export default function MyPageEditPage() {
 							value={nicknameInput}
 							onChange={(e) => {
 								setNicknameInput(e.target.value);
-								setNicknameCheckMessage(null);
+								setNicknameCheck(null);
 							}}
 							placeholder="닉네임"
 							className="h-[52px] min-w-0 flex-1 rounded-[10px] border border-black/10 bg-white px-4 text-[14px] text-black outline-none placeholder:text-black/35 focus:border-brand/50"
@@ -278,9 +307,14 @@ export default function MyPageEditPage() {
 							중복확인
 						</button>
 					</div>
-					{nicknameCheckMessage && (
-						<p className="mt-2 text-[13px] text-black/55">
-							{nicknameCheckMessage}
+					{/* 통과 안내는 회색 — 빨강은 고쳐야 할 것에만 쓴다 */}
+					{nicknameCheck && (
+						<p
+							{...(nicknameCheck.ok ? {} : { role: "alert" as const })}
+							className={`mt-2 text-[13px] ${
+								nicknameCheck.ok ? "text-black/55" : "text-brand"
+							}`}>
+							{nicknameCheck.message}
 						</p>
 					)}
 				</div>
@@ -288,12 +322,36 @@ export default function MyPageEditPage() {
 				<div className="mt-6 flex gap-6">
 					<div className="flex-1">
 						<p className="text-[16px] font-bold text-black">생년월일</p>
+						{/* 온보딩과 같은 숫자 8자리 입력 — 달력으로 몇십 년을 거스르는 것보다 빠르다 */}
 						<input
-							type="date"
-							value={birthDateInput}
-							onChange={(e) => setBirthDateInput(e.target.value)}
-							className="mt-2 h-[52px] w-full rounded-[10px] border border-black/10 bg-white px-4 text-[14px] text-black outline-none focus:border-brand/50"
+							value={formatBirthDigits(birthDigits)}
+							onChange={(e) =>
+								setBirthDigits(e.target.value.replace(/\D/g, "").slice(0, 8))
+							}
+							inputMode="numeric"
+							autoComplete="bday"
+							placeholder="YYYYMMDD"
+							// 하이픈 2개까지 포함한 길이 — 하이픈은 우리가 끼운다
+							maxLength={10}
+							aria-invalid={birthError !== null}
+							aria-describedby="mypage-birthdate-help"
+							className="mt-2 h-[52px] w-full rounded-[10px] border border-black/10 bg-white px-4 text-[14px] text-black outline-none placeholder:text-black/35 focus:border-brand/50"
 						/>
+						{birthError ? (
+							<p
+								id="mypage-birthdate-help"
+								role="alert"
+								className="mt-2 text-[13px] text-brand">
+								{birthError}
+							</p>
+						) : (
+							<p
+								id="mypage-birthdate-help"
+								className="mt-2 text-[13px] text-black/55">
+								숫자 8자리로 입력해주세요. 만 {MIN_AGE}세 이상만 등록할 수
+								있어요.
+							</p>
+						)}
 					</div>
 					<div className="flex-1">
 						<p className="text-[16px] font-bold text-black">성별</p>
@@ -357,7 +415,7 @@ export default function MyPageEditPage() {
 					<button
 						type="button"
 						onClick={() => void handleSave()}
-						disabled={isSaving}
+						disabled={isSaving || !birthReady}
 						className="h-[46px] min-w-[110px] rounded-full bg-brand text-[15px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50">
 						{isSaving ? "저장 중…" : "저장"}
 					</button>

@@ -5,6 +5,7 @@ import {
 	POST_LOGIN_REDIRECT_STORAGE_KEY,
 	googleRedirectUri,
 	kakaoRedirectUri,
+	safePostLoginRedirect,
 } from "../constants/auth";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import { socialLogin } from "../services/authApi";
@@ -37,6 +38,7 @@ export default function OAuthCallbackPage({
 	const navigate = useNavigate();
 	const setSession = useAuthStore((s) => s.setSession);
 	const setSignupToken = useSignupStore((s) => s.setSignupToken);
+	const clearSignup = useSignupStore((s) => s.clearSignup);
 	const [error, setError] = useState<string | null>(null);
 	// 인가 코드는 1회용이라 재실행되면 두 번째 교환이 반드시 실패한다.
 	const exchanged = useRef(false);
@@ -91,6 +93,8 @@ export default function OAuthCallbackPage({
 						setError("가입 토큰이 전달되지 않았습니다.");
 						return;
 					}
+					// 중단한 가입이 남긴 번호·닉네임이 새 가입에 섞이지 않게 먼저 비운다.
+					clearSignup();
 					setSignupToken(result.signupToken);
 					navigate("/signup", { replace: true });
 					return;
@@ -103,9 +107,13 @@ export default function OAuthCallbackPage({
 					accessToken: result.tokens.accessToken,
 					refreshToken: result.tokens.refreshToken,
 				});
+				// 기존 회원으로 들어왔으니 중단된 가입 재료는 쓸 데가 없다. 남겨 두면
+				// 이 탭에서 /signup에 닿았을 때 그 가입이 조용히 이어진다.
+				clearSignup();
 				// 로그인 필요 페이지에서 튕겨져 왔다면 원래 가려던 곳으로 돌려보낸다.
-				const redirect = sessionStorage.getItem(
-					POST_LOGIN_REDIRECT_STORAGE_KEY,
+				// 가입·온보딩 화면이 목적지로 남아 있으면 버리고 홈으로 간다.
+				const redirect = safePostLoginRedirect(
+					sessionStorage.getItem(POST_LOGIN_REDIRECT_STORAGE_KEY),
 				);
 				sessionStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
 				navigate(redirect ?? "/", { replace: true });
@@ -117,7 +125,14 @@ export default function OAuthCallbackPage({
 						: "로그인 처리 중 문제가 발생했습니다.",
 				);
 			});
-	}, [provider, searchParams, navigate, setSession, setSignupToken]);
+	}, [
+		provider,
+		searchParams,
+		navigate,
+		setSession,
+		setSignupToken,
+		clearSignup,
+	]);
 
 	return (
 		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center gap-4 px-6 text-center">

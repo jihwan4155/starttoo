@@ -6,8 +6,6 @@ import com.starttoo.backend.common.api.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -115,13 +113,9 @@ public class AuthController {
                     데이터베이스 UNIQUE 제약으로 보장한다.
                     """
     )
-    public ApiResponse<NicknameSuggestionsResponse> nicknameSuggestions(
-            @RequestParam(defaultValue = "5")
-            @Min(1) @Max(10)
-            int count
-    ) {
+    public ApiResponse<NicknameSuggestionsResponse> nicknameSuggestions() {
         return ApiResponse.of(new NicknameSuggestionsResponse(
-                authService.nicknameSuggestions(count)
+                authService.nicknameSuggestion()
         ));
     }
 

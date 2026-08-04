@@ -38,6 +38,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final TattooService tattooService;
+    private final PostTattooClassificationService postTattooClassificationService;
     private final PostWriteService postWriteService;
     private final PreferenceScoreService preferenceScoreService;
     private final UserService userService;
@@ -54,7 +55,8 @@ public class PostService {
                 .map(imageSeq -> tattooService.preparePostImage(userSeq, imageSeq))
                 .toList();
         Post post = postWriteService.create(userSeq, request, preparedImages);
-        return response(post, userSeq);
+        postTattooClassificationService.classifyAndPersist(userSeq, preparedImages);
+        return response(post, userSeq, true);
     }
 
     @Transactional(readOnly = true)
@@ -385,10 +387,26 @@ public class PostService {
     }
 
     private PostDtos.PostResponse response(Post post, Integer viewerSeq) {
-        return responses(List.of(post), viewerSeq).get(0);
+        return response(post, viewerSeq, false);
+    }
+
+    private PostDtos.PostResponse response(
+            Post post,
+            Integer viewerSeq,
+            boolean hideTattooSeq
+    ) {
+        return responses(List.of(post), viewerSeq, hideTattooSeq).get(0);
     }
 
     private List<PostDtos.PostResponse> responses(List<Post> posts, Integer viewerSeq) {
+        return responses(posts, viewerSeq, false);
+    }
+
+    private List<PostDtos.PostResponse> responses(
+            List<Post> posts,
+            Integer viewerSeq,
+            boolean hideTattooSeq
+    ) {
         if (posts.isEmpty()) {
             return List.of();
         }
@@ -431,7 +449,7 @@ public class PostService {
                   JOIN images image
                     ON image.image_seq = pi.image_seq
                    AND image.is_deleted = FALSE
-                  JOIN tattoos t ON t.image_seq = pi.image_seq AND t.is_deleted = FALSE
+                  LEFT JOIN tattoos t ON t.image_seq = pi.image_seq AND t.is_deleted = FALSE
                  WHERE pi.post_seq IN (:postSeqs)
                  ORDER BY pi.post_seq, pi.display_order
                 """, new MapSqlParameterSource("postSeqs", postSeqs), rs -> {
@@ -442,7 +460,7 @@ public class PostService {
                     rs.getLong("post_image_seq"),
                     rs.getLong("image_seq"),
                     downloadUrl(rs.getString("image_object_key")),
-                    rs.getLong("tattoo_seq"),
+                    hideTattooSeq ? null : rs.getObject("tattoo_seq", Long.class),
                     rs.getShort("display_order")
             ));
         });

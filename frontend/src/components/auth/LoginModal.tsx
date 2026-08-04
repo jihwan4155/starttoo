@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../../constants/auth";
+import {
+	POST_LOGIN_REDIRECT_STORAGE_KEY,
+	isAuthFlowPath,
+} from "../../constants/auth";
 import LoginPanel from "./LoginPanel";
 
 type LoginModalProps = {
@@ -18,10 +21,16 @@ type LoginModalProps = {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 	useEffect(() => {
 		if (!isOpen) return undefined;
-		sessionStorage.setItem(
-			POST_LOGIN_REDIRECT_STORAGE_KEY,
-			window.location.pathname + window.location.search,
-		);
+		// 가입·온보딩·콜백 화면에서 연 로그인은 그 화면으로 돌아가면 안 된다. 앞선
+		// 시도가 남긴 목적지를 그대로 쓰지 않도록, 저장하는 대신 지워서 홈으로 보낸다.
+		if (isAuthFlowPath(window.location.pathname)) {
+			sessionStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
+		} else {
+			sessionStorage.setItem(
+				POST_LOGIN_REDIRECT_STORAGE_KEY,
+				window.location.pathname + window.location.search,
+			);
+		}
 		const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
