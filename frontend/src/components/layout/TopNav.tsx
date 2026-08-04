@@ -346,8 +346,10 @@ function MobileTopNav() {
 	const { pathname } = useLocation();
 	const navigate = useNavigate();
 	const [open, setOpen] = useState(false);
+	const [withdrawOpen, setWithdrawOpen] = useState(false);
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 	const logout = useAuthStore((s) => s.logout);
+	const showToast = useToastStore((s) => s.showToast);
 
 	useEffect(() => setOpen(false), [pathname]);
 
@@ -369,6 +371,7 @@ function MobileTopNav() {
 		setOpen(false);
 		await logout();
 		navigate("/", { replace: true });
+		showToast("로그아웃되었습니다.");
 	};
 
 	return (
@@ -435,15 +438,27 @@ function MobileTopNav() {
 							<Link
 								to="/notifications"
 								className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-black/90">
-								설정
+								알림
 							</Link>
 							{isLoggedIn ? (
-								<button
-									type="button"
-									onClick={() => void handleLogout()}
-									className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-black/90">
-									로그아웃
-								</button>
+								<>
+									<button
+										type="button"
+										onClick={() => void handleLogout()}
+										className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-black/90">
+										로그아웃
+									</button>
+									{/* 되돌릴 수 없는 동작이라 색으로 구분하고, 실제 실행은 확인 모달에서 받는다 */}
+									<button
+										type="button"
+										onClick={() => {
+											setOpen(false);
+											setWithdrawOpen(true);
+										}}
+										className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-brand">
+										회원탈퇴
+									</button>
+								</>
 							) : (
 								<Link to="/login" className="text-[17px] font-normal leading-6 tracking-[-0.03em] text-black/90">
 									로그인
@@ -453,6 +468,17 @@ function MobileTopNav() {
 					</div>
 				</div>
 			)}
+
+			<WithdrawAccountModal
+				isOpen={withdrawOpen}
+				onClose={() => setWithdrawOpen(false)}
+				onWithdrawn={() => {
+					setWithdrawOpen(false);
+					// 로그인 필요 페이지에 있었다면 가드가 /login으로 보내므로 홈으로 명시 이동
+					navigate("/", { replace: true });
+					showToast("회원탈퇴가 완료되었습니다.");
+				}}
+			/>
 		</>
 	);
 }
