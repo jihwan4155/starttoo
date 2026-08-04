@@ -55,8 +55,9 @@ export default function StyleInputForm({
 					</p>
 				</div>
 
-				<div className="relative -mx-2 px-2 max-lg:-mx-4 max-lg:px-0">
-					<div className="genre-tag-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 py-2 pb-3 max-lg:gap-2 max-lg:px-4">
+				{/* 모바일은 부모(px-0)에 흡수될 패딩이 없어 음수 마진을 쓰면 뷰포트를 넘친다 */}
+				<div className="relative -mx-2 px-2 max-lg:mx-0 max-lg:px-0">
+					<div className="genre-tag-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 py-2 pb-3 max-lg:gap-2 max-lg:scroll-pl-4 max-lg:px-4">
 						{GENRE_TAGS.map((tag) => {
 							const isSelected = selectedGenres.includes(tag.id);
 							const isDisabled = !isSelected && selectedGenres.length >= MAX_GENRE_SELECTION;
@@ -72,7 +73,7 @@ export default function StyleInputForm({
 									<img src={tag.image} alt={tag.label} className="size-full object-cover" />
 									<div
 										aria-hidden="true"
-										className={`pointer-events-none absolute inset-0 flex items-end justify-center bg-black/50 pb-4 transition-opacity duration-200 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`}>
+										className={`pointer-events-none absolute inset-0 flex items-end justify-center bg-black/50 pb-4 transition-opacity duration-200 max-lg:bg-transparent max-lg:bg-gradient-to-t max-lg:from-black/65 max-lg:to-transparent max-lg:pb-2 max-lg:opacity-100 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`}>
 										<span className="text-[18px] font-bold text-white max-lg:text-[14px]">{tag.label}</span>
 									</div>
 								</button>
