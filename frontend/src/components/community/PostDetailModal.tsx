@@ -21,6 +21,7 @@ import useCommentReplies from "../../hooks/queries/useCommentReplies";
 import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
@@ -464,6 +465,9 @@ export default function PostDetailModal({
 		error: commentsError,
 		refetch: refetchComments,
 	} = useComments(post?.id, { size: 50 });
+
+	// 모달이 열려 있는 동안 배경 스크롤 잠금
+	useBodyScrollLock(!!post);
 
 	if (!post) return null;
 

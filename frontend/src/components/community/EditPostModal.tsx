@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
 import useUpdatePost from "../../hooks/mutations/useUpdatePost";
 import usePost from "../../hooks/queries/usePost";
+import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 import { ApiError } from "../../services/api";
 import { getPostImageUrls } from "../../utils/mapPost";
 import type { Post } from "../../types/community";
@@ -34,6 +35,8 @@ export default function EditPostModal({
 		setCaption(source.caption);
 		setError(null);
 	}, [isOpen, source.caption]);
+
+	useBodyScrollLock(isOpen);
 
 	if (!isOpen) return null;
 

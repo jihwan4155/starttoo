@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
 import useReportPost from "../../hooks/mutations/useReportPost";
+import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 import { ApiError } from "../../services/api";
 import { REPORT_REASONS } from "../../constants/community";
 import type { ReportReasonCode } from "../../types/community";
@@ -23,6 +24,8 @@ export default function ReportPostModal({
 	const [reasonCode, setReasonCode] = useState<ReportReasonCode>("SPAM");
 	const [reasonDetail, setReasonDetail] = useState("");
 	const { mutate, isPending } = useReportPost();
+
+	useBodyScrollLock(isOpen);
 
 	if (!isOpen) return null;
 
