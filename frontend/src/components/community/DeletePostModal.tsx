@@ -46,9 +46,10 @@ export default function DeletePostModal({
 			? `${caption.trim().slice(0, 80)}…`
 			: caption.trim();
 
+	// z-[120]: 게시글 상세(80)·작성(90) 위에서 열리는 확인 계층
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-6 backdrop-blur-[2px]"
+			className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-6 backdrop-blur-[2px]"
 			onClick={onClose}
 			role="presentation">
 			<div

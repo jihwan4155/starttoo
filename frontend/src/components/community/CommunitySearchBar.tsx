@@ -8,6 +8,7 @@ import ArchivePickerModal from "./ArchivePickerModal";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useRecentSearches from "../../hooks/queries/useRecentSearches";
 import { recentSearchesQueryKey } from "../../hooks/queries/useRecentSearches";
+import useSubjectAutocomplete from "../../hooks/queries/useSubjectAutocomplete";
 import {
 	deleteRecentSearch,
 	saveRecentSearch,
@@ -59,10 +60,11 @@ export default function CommunitySearchBar() {
 		if (file) handleImageSelected(file);
 	};
 
+	// 입력 중에는 서버 subject 사전에서 추천어를 받는다 (GET /search/subjects/autocomplete).
+	// 게시물 검색이 subject 기반이라, 사전에 있는 말로 검색해야 결과가 나온다.
+	const { data: subjectSuggestions = [] } = useSubjectAutocomplete(value);
 	const suggestions = value.trim()
-		? SEARCH_CATEGORIES.filter((s) =>
-				s.toLowerCase().includes(value.trim().toLowerCase()),
-			)
+		? subjectSuggestions.map((subject) => subject.subjectName)
 		: [];
 
 	const persistSearch = async (keyword: string) => {
@@ -114,7 +116,8 @@ export default function CommunitySearchBar() {
 						setCameraOpen(false);
 					}}
 					onBlur={() => setFocused(false)}
-					placeholder="도안, 스타일로 검색 → 예: 미니멀 라인 나비"
+					placeholder="게시물 검색 → 예: 나비, 장미"
+					maxLength={50}
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 				/>
 				{value && (

@@ -4,6 +4,7 @@ import CreatePostModal from "../components/community/CreatePostModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import PostCard from "../components/community/PostCard";
 import PostDetailModal from "../components/community/PostDetailModal";
+import UserSearchPanel from "../components/community/UserSearchPanel";
 import { PlusIcon } from "../components/community/icons";
 import useFollowingPosts from "../hooks/queries/useFollowingPosts";
 import useMyPosts from "../hooks/queries/useMyPosts";
@@ -109,7 +110,16 @@ export default function CommunityPage() {
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
-			<div className="mx-auto flex w-full max-w-[440px] flex-col gap-6 px-4 lg:-translate-x-10 lg:gap-10">
+			{/*
+			 * lg 이상에서 피드(왼쪽) + 회원 검색(오른쪽) 2열. 모바일은 피드만.
+			 * justify-between으로 검색을 오른쪽 끝에 붙인다. 카드 폭을 380으로 줄여
+			 * 한 화면에 게시물 하나와 다음 게시물의 작성자 줄까지 들어오게 한다.
+			 *
+			 * 레이아웃이 이미 사이드 내비 폭만큼 패딩을 주므로 mx-auto만으로 내비를
+			 * 제외한 영역 가운데에 놓인다. translate로 따로 밀지 않는다.
+			 */}
+			<div className="mx-auto flex w-full max-w-[440px] justify-center gap-10 px-4 lg:max-w-[900px] lg:justify-between lg:px-6">
+				<div className="flex w-full min-w-0 flex-col gap-6 lg:max-w-[380px] lg:gap-6">
 				{isPending && (
 					<StarttooLoader variant="block" label="피드를 불러오는 중…" />
 				)}
@@ -153,6 +163,15 @@ export default function CommunityPage() {
 						)}
 					</div>
 				)}
+				</div>
+
+				{/*
+				 * 모든 회원 검색 — 좁은 화면에서는 상단 검색 바가 대신한다.
+				 * 스크롤을 따라오지 않고 페이지 맨 위에 그대로 둔다 (sticky 없음).
+				 */}
+				<div className="hidden w-[300px] shrink-0 self-start lg:block">
+					<UserSearchPanel />
+				</div>
 			</div>
 
 			<button
