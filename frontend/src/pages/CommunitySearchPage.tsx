@@ -1,29 +1,32 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../constants/auth";
-import usePosts from "../hooks/queries/usePosts";
+import usePostSearch from "../hooks/queries/usePostSearch";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
 import { ApiError } from "../services/api";
 import useAuthStore from "../store/useAuthStore";
 import type { Post } from "../types/community";
-import { filterPostsByKeyword, filterVisiblePosts } from "../utils/filterPosts";
+import { isSearchableQuery } from "../types/search";
+import { filterVisiblePosts } from "../utils/filterPosts";
 import CommunitySearchBar from "../components/community/CommunitySearchBar";
-import { mockPosts } from "../mocks/community";
-import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
-/** 커뮤니티 탐색·검색 — GET /posts + 클라이언트 필터 (POST /posts/search 501 대체) */
+/** 서버 본 검색의 최소 길이 (@Pattern {2,50}) */
+const MIN_QUERY_LENGTH = 2;
+
+/** 게시물 검색 — GET /search/posts (subject 기반) */
 export default function CommunitySearchPage() {
 	const [searchParams] = useSearchParams();
 	const keyword = searchParams.get("q") ?? "";
 	const [activePost, setActivePost] = useState<Post | null>(null);
+	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const navigate = useNavigate();
 	const location = useLocation();
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 
 	// 피드 목록은 공개지만 게시글 상세는 로그인이 필요하다.
-	// 로그인 후 이 피드(검색어 포함)로 돌아오도록 목적지를 남긴다.
+	// 로그인 후 이 검색 결과(검색어 포함)로 돌아오도록 목적지를 남긴다.
 	const handleOpenPost = (post: Post) => {
 		if (!isLoggedIn) {
 			sessionStorage.setItem(
@@ -36,52 +39,134 @@ export default function CommunitySearchPage() {
 		setActivePost(post);
 	};
 
-	const { data, isPending, isError, error } = usePosts({ size: 50 });
+	const {
+		data,
+		isPending,
+		isFetching,
+		isError,
+		error,
+		refetch,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+	} = usePostSearch(keyword);
 	const hiddenIds = useHiddenIdsForUser();
 
-	const allPosts = useMemo(() => {
+	const trimmed = keyword.trim();
+	const isTooShort = trimmed.length > 0 && trimmed.length < MIN_QUERY_LENGTH;
+	const hasInvalidChars = trimmed.length > 0 && !isSearchableQuery(trimmed);
+	/** 서버에 보낼 수 없는 검색어 — 쿼리가 꺼져 있어 로딩·결과 상태를 믿을 수 없다 */
+	const isUnsearchable = isTooShort || hasInvalidChars;
+
+	const results = useMemo(() => {
 		const items = data?.pages.flatMap((page) => page.items) ?? [];
-		const source = QA_MOCK_DATA_ENABLED && items.length === 0 ? mockPosts : items;
-		return filterVisiblePosts(source, hiddenIds);
+		return filterVisiblePosts(items, hiddenIds);
 	}, [data?.pages, hiddenIds]);
-	const results = useMemo(
-		() => filterPostsByKeyword(allPosts, keyword),
-		[allPosts, keyword],
-	);
+
+	/**
+	 * 오타가 보정된 실제 subject — 페이지마다 같아 첫 페이지 것을 쓴다.
+	 * 입력과 다르면 "OO(으)로 찾았어요"를 보여줘 결과가 왜 이건지 알려 준다.
+	 */
+	const matchedSubject = data?.pages[0]?.matchedSubject ?? null;
+	const isCorrected =
+		matchedSubject != null &&
+		matchedSubject.subjectName.toLowerCase() !== trimmed.toLowerCase();
+
+	useEffect(() => {
+		const node = loadMoreRef.current;
+		if (!node) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const [entry] = entries;
+				if (
+					entry?.isIntersecting &&
+					hasNextPage &&
+					!isFetchingNextPage &&
+					!isError
+				) {
+					void fetchNextPage();
+				}
+			},
+			{ root: null, rootMargin: "240px", threshold: 0 },
+		);
+		observer.observe(node);
+		return () => observer.disconnect();
+	}, [fetchNextPage, hasNextPage, isFetchingNextPage, isError]);
 
 	const errorMessage =
 		error instanceof ApiError
 			? error.message
-			: "게시글을 불러오지 못했습니다.";
+			: "검색 결과를 불러오지 못했습니다.";
 
 	return (
 		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-6">
 			<div className="mx-auto w-full max-w-[1000px] px-4 lg:px-6">
 				<div className="mb-5 hidden max-lg:block [&_form]:h-12 [&_form]:shadow-none"><CommunitySearchBar /></div>
-				{keyword && (
+
+				{trimmed && !isUnsearchable && !isPending && (
 					<p className="mb-4 text-[14px] font-light text-black/60">
 						<span className="font-semibold text-black">
-							&ldquo;{keyword}&rdquo;
+							&ldquo;{trimmed}&rdquo;
 						</span>{" "}
 						검색 결과 {results.length}건
+						{hasNextPage && "+"}
+						{isCorrected && (
+							<span className="ml-1 text-black/45">
+								· &lsquo;{matchedSubject?.subjectName}&rsquo;(으)로 찾았어요
+							</span>
+						)}
 					</p>
 				)}
 
-				{isPending && <StarttooLoader variant="block" />}
-
-				{isError && results.length === 0 && (
-					<p className="py-20 text-center text-[14px] text-black/60">
-						{errorMessage}
+				{hasInvalidChars && (
+					<p className="py-20 text-center text-[14px] font-light leading-6 text-black/50">
+						검색어에는 한글·영문·숫자만 쓸 수 있어요.
+						<br />
+						공백이나 특수문자를 빼고 다시 검색해 주세요.
 					</p>
 				)}
 
-				{!isPending && !isError && results.length === 0 && (
+				{isTooShort && !hasInvalidChars && (
+					<p className="py-20 text-center text-[14px] font-light text-black/50">
+						두 글자 이상 입력해 주세요.
+					</p>
+				)}
+
+				{!trimmed && (
 					<p className="py-20 text-center text-[14px] text-black/40">
-						{keyword
-							? "검색 결과가 없습니다."
-							: "키워드를 입력해 검색해 보세요."}
+						키워드를 입력해 검색해 보세요.
 					</p>
 				)}
+
+				{trimmed && !isUnsearchable && isPending && (
+					<StarttooLoader variant="block" label="검색 중…" />
+				)}
+
+				{trimmed && !isUnsearchable && isError && (
+					<div className="flex flex-col items-center gap-4 py-20">
+						<p className="text-center text-[14px] text-black/60">
+							{errorMessage}
+						</p>
+						<button
+							type="button"
+							onClick={() => void refetch()}
+							disabled={isFetching}
+							className="rounded-full border border-black/20 px-5 py-2 text-[13px] font-semibold transition hover:bg-black/5 disabled:opacity-50">
+							다시 시도
+						</button>
+					</div>
+				)}
+
+				{trimmed &&
+					!isUnsearchable &&
+					!isPending &&
+					!isError &&
+					results.length === 0 && (
+						<p className="py-20 text-center text-[14px] text-black/40">
+							검색 결과가 없습니다.
+						</p>
+					)}
 
 				<div className="grid grid-cols-3 gap-0.5 lg:grid-cols-4 lg:gap-3">
 					{results.map((post) => (
@@ -101,6 +186,19 @@ export default function CommunitySearchPage() {
 						</button>
 					))}
 				</div>
+
+				{results.length > 0 && (
+					<div ref={loadMoreRef} className="py-6 text-center">
+						{isFetchingNextPage && (
+							<div className="flex items-center justify-center gap-2 text-[13px] text-black/40">
+								<StarttooLoader variant="mark" label={null} /> 더 불러오는 중…
+							</div>
+						)}
+						{!hasNextPage && !isFetchingNextPage && (
+							<p className="text-[13px] text-black/30">마지막 결과입니다</p>
+						)}
+					</div>
+				)}
 			</div>
 
 			<PostDetailModal
