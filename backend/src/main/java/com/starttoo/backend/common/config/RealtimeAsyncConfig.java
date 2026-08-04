@@ -31,11 +31,16 @@ public class RealtimeAsyncConfig {
         return executor;
     }
 
+    /**
+     * AI 서버는 추론 슬롯이 전역 1개다. 워커를 늘리면 서로 슬롯을 다투다 실패하므로
+     * 스레드 1개로 직렬화한다. 큐에 밀린 게시물은 순서대로 처리되고, 유실되더라도
+     * post_images.classification_status 를 보는 백필 스케줄러가 최종적으로 처리한다.
+     */
     @Bean(name = "postAiTaskExecutor")
     Executor postAiTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(1);
-        executor.setMaxPoolSize(4);
+        executor.setMaxPoolSize(1);
         executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("post-ai-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());

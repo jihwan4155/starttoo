@@ -30,7 +30,7 @@ from api_server.core.exceptions import (
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
-INFERENCE_WAIT_TIMEOUT_SECONDS = 1.0
+DEFAULT_INFERENCE_WAIT_TIMEOUT_SECONDS = 120.0
 RENDERING_MULTI_LABEL_THRESHOLD = 0.7
 MAX_RENDERING_LABELS = 2
 
@@ -510,8 +510,10 @@ class TattooClassifierService:
         self,
         classifier_root: Path,
         inference_gate: asyncio.Semaphore | None = None,
+        inference_wait_timeout: float = DEFAULT_INFERENCE_WAIT_TIMEOUT_SECONDS,
     ) -> None:
         self.classifier_root = classifier_root.resolve()
+        self.inference_wait_timeout = inference_wait_timeout
         self.checkpoint_root = self.classifier_root / "checkpoints"
         self.siglip_root = (
             self.classifier_root / "siglip2-so400m-patch16-384"
@@ -639,7 +641,7 @@ class TattooClassifierService:
         try:
             await asyncio.wait_for(
                 self._inference_gate.acquire(),
-                timeout=INFERENCE_WAIT_TIMEOUT_SECONDS,
+                timeout=self.inference_wait_timeout,
             )
         except TimeoutError as exc:
             raise InferenceBusyError(

@@ -129,6 +129,9 @@ services:
       GENERATOR_LOAD_ON_STARTUP: ${GENERATOR_LOAD_ON_STARTUP:-false}
       CLASSIFIER_LOAD_ON_STARTUP: ${CLASSIFIER_LOAD_ON_STARTUP:-false}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+      # 추론 슬롯은 전역 1개다. 짧게 잡으면 동시 요청이 대기 없이 곧바로 503 이 되고,
+      # 게시물 배치 분류가 항목별 실패로 흡수된다. 대기는 정상 상태로 본다.
+      INFERENCE_WAIT_TIMEOUT_SECONDS: ${INFERENCE_WAIT_TIMEOUT_SECONDS:-120}
     networks:
       - starttoo-net
     healthcheck:

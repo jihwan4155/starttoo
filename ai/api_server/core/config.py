@@ -45,6 +45,9 @@ class Settings:
     generator_load_on_startup: bool = False
     classifier_root: Path = DEFAULT_CLASSIFIER_ROOT
     classifier_load_on_startup: bool = False
+    # 추론 슬롯은 전역 1개다. 대기는 단일 GPU 환경의 정상 상태이지 오류가 아니므로
+    # 넉넉히 기다린다. 짧게 잡으면 동시 요청이 곧바로 503으로 떨어진다.
+    inference_wait_timeout_seconds: float = 120.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -91,6 +94,10 @@ class Settings:
             classifier_load_on_startup=_as_bool(
                 os.getenv("CLASSIFIER_LOAD_ON_STARTUP"),
                 default=False,
+            ),
+            inference_wait_timeout_seconds=max(
+                1.0,
+                float(os.getenv("INFERENCE_WAIT_TIMEOUT_SECONDS", "120")),
             ),
         )
 

@@ -69,7 +69,7 @@ STYLE_NEGATIVE_EXTRAS = {
     ),
 }
 MAX_STYLES = 2
-INFERENCE_WAIT_TIMEOUT_SECONDS = 1.0
+DEFAULT_INFERENCE_WAIT_TIMEOUT_SECONDS = 120.0
 SUPPORTED_STYLES = tuple(STYLE_PHRASES)
 BASE_MODEL_REPO = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 logger = logging.getLogger(__name__)
@@ -193,8 +193,10 @@ class TattooGeneratorService:
         self,
         generator_root: Path,
         inference_gate: asyncio.Semaphore | None = None,
+        inference_wait_timeout: float = DEFAULT_INFERENCE_WAIT_TIMEOUT_SECONDS,
     ) -> None:
         self.generator_root = generator_root.resolve()
+        self.inference_wait_timeout = inference_wait_timeout
         self.base_model_root = (
             self.generator_root / "models" / "stable-diffusion-v1-5"
         )
@@ -319,7 +321,7 @@ class TattooGeneratorService:
         try:
             await asyncio.wait_for(
                 self._inference_gate.acquire(),
-                timeout=INFERENCE_WAIT_TIMEOUT_SECONDS,
+                timeout=self.inference_wait_timeout,
             )
         except TimeoutError as exc:
             raise InferenceBusyError(
