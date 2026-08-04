@@ -2,22 +2,25 @@ import { useState } from "react";
 import { ApiError } from "../../services/api";
 import { checkNicknameAvailability } from "../../services/authApi";
 import type { RequestedRole, SignupGender } from "../../types/auth";
+import {
+	MIN_AGE,
+	birthDateMessage,
+	formatBirthDigits,
+} from "../../utils/birthDate";
 
 /** 백엔드 UpdateProfileRequest.nickname 과 같은 제약 */
 const NICKNAME_PATTERN = /^[가-힣A-Za-z0-9]{2,20}$/;
 
-const GENDERS: { value: SignupGender | null; label: string }[] = [
+const GENDERS: { value: SignupGender; label: string }[] = [
 	{ value: "M", label: "남자" },
 	{ value: "F", label: "여자" },
-	{ value: null, label: "선택안함" },
 ];
 
 export type ProfileFormValues = {
 	nickname: string;
-	/** YYYY-MM-DD, 비우면 null */
-	birthDate: string | null;
-	/** "선택안함"이면 null — 서버로 보내지 않는다 */
-	gender: SignupGender | null;
+	/** YYYY-MM-DD — 만 MIN_AGE세 이상만 통과하므로 항상 채워져 있다 */
+	birthDate: string;
+	gender: SignupGender;
 	/** 타투이스트일 때만 채운다 */
 	shopName: string | null;
 	shopAddress: string | null;
@@ -35,8 +38,6 @@ type ProfileFormStepProps = {
 	onSubmit: (values: ProfileFormValues) => void;
 };
 
-const TODAY = new Date().toISOString().slice(0, 10);
-
 /**
  * 온보딩 2단계 — 프로필 입력.
  *
@@ -50,7 +51,8 @@ export default function ProfileFormStep({
 	onSubmit,
 }: ProfileFormStepProps) {
 	const [nickname, setNickname] = useState(assignedNickname);
-	const [birthDate, setBirthDate] = useState("");
+	// 화면에 보이는 하이픈은 표시용이라, 상태에는 숫자만 담는다.
+	const [birthDigits, setBirthDigits] = useState("");
 	const [gender, setGender] = useState<SignupGender | null>(null);
 	const [shopName, setShopName] = useState("");
 	const [shopAddress, setShopAddress] = useState("");
@@ -64,6 +66,9 @@ export default function ProfileFormStep({
 	// 배정받은 닉네임을 그대로 쓰면 이미 내 것이므로 확인이 필요 없다.
 	const needsCheck = nickname !== assignedNickname;
 	const nicknameReady = formatValid && (!needsCheck || confirmed === nickname);
+
+	const birthError = birthDateMessage(birthDigits);
+	const birthReady = birthDigits.length === 8 && birthError === null;
 
 	const handleCheck = async () => {
 		setNicknameError(null);
@@ -93,9 +98,12 @@ export default function ProfileFormStep({
 	};
 
 	const handleSubmit = () => {
+		// 버튼이 이미 막혀 있지만, 타입을 좁히려면 여기서도 확인해야 한다.
+		if (!birthReady || gender === null) return;
 		onSubmit({
 			nickname,
-			birthDate: birthDate || null,
+			// 8자리를 통과했으므로 이 결과가 곧 YYYY-MM-DD다.
+			birthDate: formatBirthDigits(birthDigits),
 			gender,
 			shopName: shopName.trim() || null,
 			shopAddress: shopAddress.trim() || null,
@@ -131,8 +139,9 @@ export default function ProfileFormStep({
 					2~20자의 한글·영문·숫자만 사용할 수 있어요.
 				</p>
 			)}
+			{/* 통과 안내는 회색 — 빨강은 고쳐야 할 것에만 쓴다 */}
 			{confirmed === nickname && needsCheck && (
-				<p className="mt-2 text-[13px] font-semibold text-brand">
+				<p className="mt-2 text-[13px] text-black/50">
 					사용할 수 있는 닉네임이에요.
 				</p>
 			)}
@@ -147,14 +156,41 @@ export default function ProfileFormStep({
 				className="mt-6 block text-[13px] font-semibold text-black/60">
 				생년월일
 			</label>
+			{/*
+			  날짜 선택기(type="date")가 아니라 숫자 입력이다. 생년월일은 몇십 년을
+			  거슬러야 해서 달력으로 고르면 클릭이 수십 번 필요하고, 연/월/일 드롭다운도
+			  연도 목록이 100개가 넘는다. 8자리를 그냥 치는 게 가장 빠르다.
+			  inputMode="numeric"으로 모바일에서는 숫자 키패드가 바로 뜬다.
+			*/}
 			<input
 				id="onboarding-birthdate"
-				type="date"
-				value={birthDate}
-				max={TODAY}
-				onChange={(event) => setBirthDate(event.target.value)}
-				className="mt-2 h-[48px] w-full rounded-[10px] border border-[#D9D9D9] px-4 text-[15px] outline-none transition focus:border-brand"
+				value={formatBirthDigits(birthDigits)}
+				onChange={(event) =>
+					setBirthDigits(event.target.value.replace(/\D/g, "").slice(0, 8))
+				}
+				inputMode="numeric"
+				autoComplete="bday"
+				placeholder="YYYYMMDD"
+				// 하이픈 2개까지 포함한 길이 — 하이픈은 우리가 끼운다
+				maxLength={10}
+				aria-invalid={birthError !== null}
+				aria-describedby="onboarding-birthdate-help"
+				className="mt-2 h-[48px] w-full rounded-[10px] border border-[#D9D9D9] px-4 text-[15px] outline-none transition placeholder:text-[#999] focus:border-brand"
 			/>
+			{birthError ? (
+				<p
+					id="onboarding-birthdate-help"
+					role="alert"
+					className="mt-2 text-[13px] text-brand">
+					{birthError}
+				</p>
+			) : (
+				<p
+					id="onboarding-birthdate-help"
+					className="mt-2 text-[13px] text-black/50">
+					숫자 8자리로 입력해주세요. 만 {MIN_AGE}세 이상만 가입할 수 있어요.
+				</p>
+			)}
 
 			<p className="mt-6 text-[13px] font-semibold text-black/60">성별</p>
 			<div
@@ -165,7 +201,7 @@ export default function ProfileFormStep({
 					const active = gender === option.value;
 					return (
 						<button
-							key={option.label}
+							key={option.value}
 							type="button"
 							onClick={() => setGender(option.value)}
 							aria-pressed={active}
@@ -227,7 +263,7 @@ export default function ProfileFormStep({
 			<button
 				type="button"
 				onClick={handleSubmit}
-				disabled={!nicknameReady || submitting}
+				disabled={!nicknameReady || !birthReady || gender === null || submitting}
 				className="mx-auto mt-7 block h-[48px] w-[160px] rounded-full bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#FFB4B4]">
 				{submitting ? "저장하는 중…" : "다음"}
 			</button>
