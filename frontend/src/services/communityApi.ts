@@ -6,6 +6,7 @@ import type {
 	CreateCommentRequest,
 	CreatePostRequest,
 	CursorPage,
+	DwellRequest,
 	FetchCommentsParams,
 	FetchPostsParams,
 	HiddenResponse,
@@ -109,6 +110,20 @@ export async function unhidePost(postId: number): Promise<HiddenResponse> {
 		`/posts/${postId}/not-interested`,
 	);
 	return { postId, hidden: data.enabled };
+}
+
+/**
+ * POST /posts/{postSeq}/dwell — 게시물 체류시간 점수 반영
+ *
+ * 초만 보내면 서버가 구간별 취향 점수로 환산한다. 원본 체류시간이나 사용자×게시물
+ * 통계 행은 서버에 남지 않고 주 스타일·색상 누적 점수만 즉시 갱신된다.
+ */
+export async function recordPostDwell(
+	postId: number,
+	seconds: number,
+): Promise<void> {
+	const body: DwellRequest = { seconds };
+	await api.post(`/posts/${postId}/dwell`, body);
 }
 
 /** POST /posts/{postSeq}/reports */

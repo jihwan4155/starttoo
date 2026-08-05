@@ -24,6 +24,7 @@ import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import useImageSwipe from "../../hooks/useImageSwipe";
+import usePostDwell from "../../hooks/usePostDwell";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
@@ -314,6 +315,9 @@ export default function PostDetailModal({
 	const { data: detailPost } = usePost(seedPost?.id);
 	const post = detailPost ?? seedPost;
 	const isOpen = !!post;
+
+	// 상세를 열어 둔 시간을 취향 점수에 반영 (닫히면 post가 없어져 그때 전송된다)
+	usePostDwell(post?.id);
 
 	const emptyPost: Post = {
 		id: 0,
