@@ -10,8 +10,10 @@ import type { CursorPage } from "../types/community";
 import { api } from "./api";
 
 function mapTattooDesignItem(dto: TattooDesignItemDto): ArchiveItem {
+	// subjects가 없는 도안(주제 미태깅)도 응답에 올 수 있다 — 접근 시 TypeError로
+	// 보관함 전체가 "불러오지 못했습니다"로 죽지 않게 옵셔널로 읽는다.
 	const primaryStyle =
-		dto.subjects[0]?.subjectName ??
+		dto.subjects?.[0]?.subjectName ??
 		(dto.primaryStyleSeq != null ? String(dto.primaryStyleSeq) : "");
 
 	return {
