@@ -94,7 +94,7 @@ app:
     tattoo-analysis-path: /v1/tattoos/analyze
     tattoo-batch-analysis-path: /v1/tattoos/analyze-batch
     generation-path: /api/v1/generate
-    generation-timeout: ${AI_GENERATION_TIMEOUT:10m}
+    generation-timeout: ${AI_GENERATION_TIMEOUT:60m}
     coverup-path: /v1/coverups
     simulation-path: /v1/simulations
     # 배치 분석 타임아웃 = per-image × 이미지 수 + overhead. 최대 10장이면 460초다.

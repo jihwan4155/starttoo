@@ -15,7 +15,7 @@ export async function generateTattoo(
 	try {
 		const response = await api.post<Blob>("/tattoos/generate", request, {
 			responseType: "blob",
-			timeout: 10 * 60 * 1000,
+			timeout: 60 * 60 * 1000,
 		});
 		if (!(response.data instanceof Blob) || response.data.size === 0) {
 			throw new ApiError(502, "EMPTY_GENERATION", "생성된 이미지가 없습니다.");
