@@ -3408,11 +3408,11 @@ Subject 자동완성:
 
 **API 개요:** 공개 게시글 피드를 조회한다. 인증은 선택이다.
 
-**Request:** Query `cursor`는 마지막 postSeq, `size` 기본 20·범위 1~50이다.
+**Request:** Query `cursor`는 응답의 `nextCursor`를 그대로 되돌려주는 불투명 문자열, `size` 기본 20·범위 1~50이다.
 
 **Response:** `PostResponse` 커서 페이지를 반환한다.
 
-**설명:** PUBLISHED 활성 게시글을 postSeq 내림차순으로 반환한다. 로그인 시 차단·관심 없음 항목을 제외한다.
+**설명:** PUBLISHED 활성 게시글을 반환한다. 로그인 상태이면서 `authorSeq`가 없는 전체 피드는 조회자의 스타일·색상 취향 점수와 최신성을 가중 합산한 블렌드 점수 내림차순으로 정렬하며, 비로그인 조회와 `authorSeq` 필터 목록은 postSeq 내림차순이다. 로그인 시 차단·관심 없음 항목을 제외한다.
 
 **성공 예시**
 ```json
