@@ -21,6 +21,7 @@ import useCommentReplies from "../../hooks/queries/useCommentReplies";
 import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import useImageSwipe from "../../hooks/useImageSwipe";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
@@ -465,6 +466,20 @@ export default function PostDetailModal({
 		refetch: refetchComments,
 	} = useComments(post?.id, { size: 50 });
 
+	const imageUrls = post ? getPostImageUrls(post) : [];
+	const safeIndex =
+		imageUrls.length === 0
+			? 0
+			: Math.min(imageIndex, imageUrls.length - 1);
+	const postImageUrl = imageUrls[safeIndex] ?? null;
+	const hasMultipleImages = imageUrls.length > 1;
+
+	const { handlers: swipeHandlers, trackStyle } = useImageSwipe({
+		count: imageUrls.length,
+		index: safeIndex,
+		onIndexChange: setImageIndex,
+	});
+
 	if (!post) return null;
 
 	const apiComments = commentsPage?.items ?? [];
@@ -472,14 +487,6 @@ export default function PostDetailModal({
 		commentsError instanceof ApiError
 			? commentsError.message
 			: "댓글을 불러오지 못했습니다.";
-
-	const imageUrls = getPostImageUrls(post);
-	const safeIndex =
-		imageUrls.length === 0
-			? 0
-			: Math.min(imageIndex, imageUrls.length - 1);
-	const postImageUrl = imageUrls[safeIndex] ?? null;
-	const hasMultipleImages = imageUrls.length > 1;
 
 	return createPortal(
 		<div
@@ -499,12 +506,20 @@ export default function PostDetailModal({
 				aria-label="게시글 상세">
 				{/* 좌: 이미지 캐러셀 — 게시물 비율(세로:가로 4:3)에 맞춘 칸 */}
 				<div className="group relative hidden aspect-[3/4] h-full min-w-0 shrink bg-black/90 sm:block">
-					{postImageUrl ? (
-						<img
-							src={postImageUrl}
-							alt={`${post.author.nickname}의 게시글 ${safeIndex + 1}`}
-							className="h-full w-full object-contain"
-						/>
+					{imageUrls.length > 0 ? (
+						<div className="absolute inset-0 overflow-hidden" {...swipeHandlers}>
+							<div className="flex h-full" style={trackStyle}>
+								{imageUrls.map((url, index) => (
+									<img
+										key={`${url}-${index}`}
+										src={url}
+										alt={`${post.author.nickname}의 게시글 ${index + 1}`}
+										draggable={false}
+										className="h-full w-full shrink-0 object-contain"
+									/>
+								))}
+							</div>
+						</div>
 					) : (
 						<div className="h-full w-full bg-[#D9D9D9]" />
 					)}
