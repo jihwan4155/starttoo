@@ -6,6 +6,7 @@ import ArchivePickerModal from "./ArchivePickerModal";
 import ImageCropper from "./ImageCropper";
 import { CloseIcon } from "./icons";
 import useCreatePost from "../../hooks/mutations/useCreatePost";
+import useDragSort from "../../hooks/useDragSort";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useAuthStore from "../../store/useAuthStore";
 import { ApiError } from "../../services/api";
@@ -129,6 +130,19 @@ export default function CreatePostModal({
 			: null,
 		nickname,
 	);
+
+	// 선택한 사진 순서 바꾸기 (드래그 · 방향키 공용)
+	const moveImage = (from: number, to: number) => {
+		setImages((prev) => {
+			if (to < 0 || to >= prev.length || from === to) return prev;
+			const next = [...prev];
+			const [moved] = next.splice(from, 1);
+			next.splice(to, 0, moved);
+			return next;
+		});
+	};
+
+	const { getItemProps, dragIndex } = useDragSort({ onReorder: moveImage });
 
 	if (!isOpen) return null;
 
@@ -290,17 +304,38 @@ export default function CreatePostModal({
 							</div>
 						) : (
 							<>
-								<div className="grid grid-cols-3 gap-3">
+								<div className="grid grid-cols-3 gap-3" data-sort-container>
 									{images.map((image, index) => (
 										<div
 											// 미리보기 URL이 고유값
 											key={image.url}
-											className="relative aspect-square overflow-hidden rounded-[10px] bg-[#D9D9D9]">
+											{...getItemProps(index)}
+											tabIndex={0}
+											role="button"
+											aria-label={`선택한 사진 ${index + 1} — 끌어서 옮기거나 방향키로 순서를 바꿉니다`}
+											onKeyDown={(e) => {
+												if (e.key === "ArrowLeft") {
+													e.preventDefault();
+													moveImage(index, index - 1);
+												} else if (e.key === "ArrowRight") {
+													e.preventDefault();
+													moveImage(index, index + 1);
+												}
+											}}
+											className={`relative aspect-square overflow-hidden rounded-[10px] bg-[#D9D9D9] outline-none ring-brand focus-visible:ring-2 ${
+												dragIndex === index
+													? "shadow-[0_8px_24px_rgba(0,0,0,0.25)]"
+													: "cursor-grab transition-shadow"
+											}`}>
 											<img
 												src={image.url}
 												alt={`선택한 사진 ${index + 1}`}
+												draggable={false}
 												className="h-full w-full object-cover"
 											/>
+											<span className="pointer-events-none absolute bottom-1.5 left-1.5 flex size-5 items-center justify-center rounded-full bg-black/55 text-[11px] font-medium text-white">
+												{index + 1}
+											</span>
 											<button
 												type="button"
 												aria-label={`사진 ${index + 1} 삭제`}
@@ -321,9 +356,17 @@ export default function CreatePostModal({
 										</div>
 									)}
 								</div>
-								<p className="mt-3 text-right text-[12px] font-light text-black/40">
-									사진을 한 번에 최대 {MAX_IMAGES}장까지 업로드할 수 있어요.
-								</p>
+								{/* 조작법이 달라 데스크톱·모바일 문구를 나눈다 */}
+								{images.length > 1 && (
+									<p className="mt-3 text-right text-[12px] font-light text-black/40">
+										<span className="max-lg:hidden">
+											사진을 끌어서 순서를 바꿀 수 있어요
+										</span>
+										<span className="lg:hidden">
+											사진을 꾹 누른 후 끌어서 순서를 바꿀 수 있어요
+										</span>
+									</p>
+								)}
 							</>
 						)}
 
@@ -339,6 +382,9 @@ export default function CreatePostModal({
 								보관함에서 선택
 							</ActionButton>
 						</div>
+						<p className="mt-3 text-center text-[12px] font-light text-black/40">
+							사진을 한 번에 최대 {MAX_IMAGES}장까지 업로드할 수 있어요.
+						</p>
 					</div>
 				)}
 
