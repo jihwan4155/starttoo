@@ -108,6 +108,7 @@ class OpenApiDocumentationTest {
             "POST /v1/posts/{postSeq}/dwell",
             "POST /v1/posts/{postSeq}/reports",
             "POST /v1/preferences/survey",
+            "POST /v1/tattoos/generate",
             "PUT /v1/archive/{tattooSeq}",
             "PUT /v1/comments/{commentSeq}/like",
             "PUT /v1/posts/{postSeq}/bookmark",

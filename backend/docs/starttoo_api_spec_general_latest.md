@@ -1228,6 +1228,7 @@ DM 이벤트:
 | 타투 도안 목록 조회 | GET | `/v1/tattoo-designs` | Optional |
 | 타투 상세 조회 | GET | `/v1/tattoos/{tattooSeq}` | Optional |
 | 타투 이미지 조회 | GET | `/v1/tattoos/{tattooSeq}/image` | Optional |
+| AI 타투 도안 생성 | POST | `/v1/tattoos/generate` | Bearer |
 | 형태 기반 도안 검색 | POST | `/v1/designs/search-by-shape` | Public |
 
 ## 10.2 타투 도안 목록
@@ -2542,6 +2543,7 @@ Subject 자동완성:
 | 타투 | GET | `/v1/tattoo-designs` |
 | 타투 | GET | `/v1/tattoos/{tattooSeq}` |
 | 타투 | GET | `/v1/tattoos/{tattooSeq}/image` |
+| 타투 | POST | `/v1/tattoos/generate` |
 | 사용자 | GET | `/v1/users/me` |
 | 사용자 | PATCH | `/v1/users/me` |
 | 사용자 | PATCH | `/v1/users/me/profile-image` |
@@ -3846,6 +3848,40 @@ Subject 자동완성:
 **실패 예시**
 ```json
 {"status":404,"code":"IMAGE_NOT_FOUND","message":"요청한 디자인 이미지를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/tattoos/generate`
+
+**API 개요:** 프롬프트와 최대 2개의 스타일로 PNG 타투 도안 한 장을 생성한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body의 `prompt` 필수·최대 500자, `style` 최대 2개(지원 스타일 코드만 허용),
+`seed` 선택(0~4294967295), `steps` 기본 30(1~100), `guidance` 기본 7.5(0.0~30.0),
+`size` 기본 1024(512·768·1024만 허용).
+```json
+{"prompt":"장미와 뱀이 감긴 블랙워크 도안","style":["minimal","geometric_ornamental"],"seed":42,"steps":30,"guidance":7.5,"size":1024}
+```
+
+**Response:** `image/png` 바이너리 본문. `Content-Disposition`, `X-Request-ID`,
+`X-Processing-Seconds`, `X-Image-Width`, `X-Image-Height`, `X-Generation-Seed`,
+`X-Generation-Styles` 헤더를 전달하고 `Cache-Control: no-store`로 응답한다.
+
+**설명:** AI 생성 서버에 요청을 프록시해 생성된 PNG를 그대로 반환한다. 지원 스타일은
+realism, minimal, geometric_ornamental, lettering, graphic_illustrative, new_school,
+tribal_indigenous, western_traditional, japanese, abstract_experimental 10종이다.
+
+**성공 예시**
+```http
+HTTP/1.1 200 OK
+Content-Type: image/png
+Cache-Control: no-store
+X-Generation-Seed: 42
+
+<PNG 바이너리>
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"지원하지 않는 타투 스타일입니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
 ### GET `/v1/classifications/primary-styles`
