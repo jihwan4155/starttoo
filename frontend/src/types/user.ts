@@ -56,6 +56,17 @@ export type FollowResponse = {
 	following: boolean;
 };
 
+/**
+ * PUT·DELETE /users/{userSeq}/block
+ *
+ * 차단하면 서버가 같은 트랜잭션에서 양방향 팔로우까지 지운다. 해제는 팔로우를
+ * 복구하지 않는다. 둘 다 멱등이라 이미 그 상태여도 성공한다.
+ */
+export type BlockResponse = {
+	userId: number;
+	blocked: boolean;
+};
+
 /** GET /users/{userSeq}/followers · /following 의 항목 (Swagger RelationUser) */
 export type RelationUser = {
 	userId: number;
