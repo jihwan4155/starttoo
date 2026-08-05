@@ -1758,7 +1758,10 @@ GET /v1/search/artists/autocomplete?q=검ㅇ&size=10
     {
       "userSeq": 101,
       "nickname": "검은장미",
-      "role": "ARTIST"
+      "role": "ARTIST",
+      "profileImageSeq": 301,
+      "profileImageUrl": "https://minio.example/profile?X-Amz-Signature=...",
+      "verified": true
     }
   ]
 }
@@ -1766,8 +1769,8 @@ GET /v1/search/artists/autocomplete?q=검ㅇ&size=10
 
 - prefix 전용
 - 한글 완성형을 호환 자모로 분해
-- 숫자·영문은 그대로 보존
-- 영문 대소문자 구분
+- 숫자는 그대로 보존
+- 영문은 소문자로 정규화하여 대소문자 구분 없이 매칭
 - Redis에는 정규화 검색키와 `userSeq`만 저장
 - 응답 직전 PostgreSQL에서 현재 계정 상태 재검증
 - 사용자 자동완성은 ADMIN 제외
@@ -1791,6 +1794,7 @@ Redis Search 단계:
 - 단계가 높은 후보를 먼저 반환한다.
 - 같은 단계 안에서 Redis relevance score를 사용한다.
 - Spring에서 편집거리나 취향으로 다시 정렬하지 않는다.
+- 영문은 소문자로 정규화하여 대소문자 구분 없이 매칭한다.
 - PostgreSQL에서 삭제·탈퇴·차단·인증 상태를 다시 확인한다.
 
 ## 14.4 Subject 자동완성
@@ -2346,7 +2350,10 @@ Presigned URL 문자열은 설명을 위한 예시이며 호출할 때마다 달
     {
       "userSeq": 101,
       "nickname": "검은장미",
-      "role": "ARTIST"
+      "role": "ARTIST",
+      "profileImageSeq": 301,
+      "profileImageUrl": "https://minio.example/profile?X-Amz-Signature=...",
+      "verified": true
     }
   ]
 }
@@ -4233,13 +4240,14 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·한글/자모/영문/숫자 1~20자, `size` 기본 10·범위 1~20이다.
 
-**Response:** `{userSeq,nickname,role}[]`를 반환하며 결과가 없으면 `[]`다.
+**Response:** `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환하며 결과가 없으면 `[]`다.
+프로필 이미지가 없으면 전역 non_null 직렬화로 인해 이미지 키가 생략된다.
 
 **설명:** Redis ZSET 접두어 후보를 얻은 뒤 DB에서 ACTIVE·비삭제·ADMIN 제외 조건을 재검증한다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER"}]}
+{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER","verified":false}]}
 ```
 
 **실패 예시**
@@ -4253,14 +4261,14 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·한글/자모/영문/숫자 1~20자, `size` 기본 20·범위 1~50이다.
 
-**Response:** Redis가 결정한 순서의 `{userSeq,nickname,role}[]`를 반환한다.
+**Response:** Redis가 결정한 순서의 `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환한다.
 
 **설명:** exact → prefix → fuzzy 거리 1 → fuzzy 거리 2 → contains 단계로 검색하고 DB 상태를 재검증한다.
 정규화 검색어가 두 글자 미만이면 fuzzy 단계는 건너뛴다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER"}]}
+{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER","verified":false}]}
 ```
 
 **실패 예시**
@@ -4274,13 +4282,13 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·1~20자, `size` 기본 10·범위 1~20이다.
 
-**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role}[]`를 반환한다.
+**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환한다.
 
 **설명:** 아티스트 전용 Redis 접두어 사전을 사용하고 DB에서 ARTIST·VERIFIED·ACTIVE를 재검증한다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST"}]}
+{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","verified":true}]}
 ```
 
 **실패 예시**
@@ -4294,14 +4302,14 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·1~20자, `size` 기본 20·범위 1~50이다.
 
-**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role}[]`를 반환한다.
+**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환한다.
 
 **설명:** Redis fuzzy 단계 순서를 보존하고 DB 상태를 재검증한다. 팔로워 수·취향 점수는 정렬에 사용하지 않는다.
 정규화 검색어가 두 글자 미만이면 fuzzy 단계는 건너뛴다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST"}]}
+{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","verified":true}]}
 ```
 
 **실패 예시**

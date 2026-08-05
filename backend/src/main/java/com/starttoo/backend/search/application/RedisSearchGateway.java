@@ -29,7 +29,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RedisSearchGateway {
 
-    private static final String INDEX_VERSION = "2";
+    // 정규화 규칙이 바뀌면 버전을 올려 배포 시 전체 재색인을 강제한다.
+    private static final String INDEX_VERSION = "3";
     private static final String INDEX_VERSION_KEY = "search:index:version";
 
     private static final String ACCOUNT_INDEX = "idx:search:accounts";

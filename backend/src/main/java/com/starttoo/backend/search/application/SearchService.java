@@ -2,6 +2,7 @@ package com.starttoo.backend.search.application;
 
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
+import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.post.api.PostDtos;
 import com.starttoo.backend.post.application.PostService;
 import com.starttoo.backend.search.api.SearchDtos;
@@ -59,6 +60,7 @@ public class SearchService {
     private final SearchLogService searchLogService;
     private final RedisSearchGateway redisSearchGateway;
     private final PostService postService;
+    private final MediaService mediaService;
 
     @EventListener(ApplicationReadyEvent.class)
     public void initialize() {
@@ -298,7 +300,7 @@ public class SearchService {
                 .filter(Objects::nonNull)
                 .sorted(Comparator
                         .comparingInt((SearchDtos.AccountResult value) ->
-                                value.nickname().equals(query) ? 0 : 1)
+                                value.nickname().equalsIgnoreCase(query) ? 0 : 1)
                         .thenComparingInt(value -> value.nickname().length())
                         .thenComparing(SearchDtos.AccountResult::nickname))
                 .limit(safeSize)
@@ -331,6 +333,8 @@ public class SearchService {
         Map<Integer, SearchDtos.AccountResult> byId = new LinkedHashMap<>();
         namedParameterJdbcTemplate.query("""
                 SELECT u.user_seq, u.nickname, u.role,
+                       u.profile_image_seq,
+                       profile_image.object_key AS profile_object_key,
                        COALESCE(
                            u.role = 'ARTIST'
                            AND a.verification_status = 'VERIFIED',
@@ -340,6 +344,9 @@ public class SearchService {
                   LEFT JOIN artists a
                     ON a.user_seq = u.user_seq
                    AND a.is_deleted = FALSE
+                  LEFT JOIN images profile_image
+                    ON profile_image.image_seq = u.profile_image_seq
+                   AND profile_image.is_deleted = FALSE
                  WHERE u.user_seq IN (:ids)
                    AND u.role <> 'ADMIN'
                    AND u.account_status = 'ACTIVE'
@@ -354,10 +361,15 @@ public class SearchService {
                 """, new MapSqlParameterSource()
                 .addValue("ids", ids)
                 .addValue("artistsOnly", artistsOnly), rs -> {
+            String profileObjectKey = rs.getString("profile_object_key");
             SearchDtos.AccountResult value = new SearchDtos.AccountResult(
                     rs.getInt("user_seq"),
                     rs.getString("nickname"),
                     UserRole.valueOf(rs.getString("role")),
+                    rs.getObject("profile_image_seq", Long.class),
+                    profileObjectKey == null
+                            ? null
+                            : mediaService.downloadUrl(profileObjectKey),
                     rs.getBoolean("verified")
             );
             byId.put(value.userSeq(), value);

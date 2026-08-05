@@ -10,9 +10,9 @@ class KoreanJamoNormalizerTest {
     private final KoreanJamoNormalizer normalizer = new KoreanJamoNormalizer();
 
     @Test
-    void decomposesHangulAndPreservesLatinAndNumbers() {
+    void decomposesHangulAndLowercasesLatin() {
         assertThat(normalizer.normalize("검은Rose21"))
-                .isEqualTo("ㄱㅓㅁㅇㅡㄴRose21");
+                .isEqualTo("ㄱㅓㅁㅇㅡㄴrose21");
     }
 
     @Test
@@ -22,9 +22,9 @@ class KoreanJamoNormalizerTest {
     }
 
     @Test
-    void preservesLatinCaseDistinction() {
-        assertThat(normalizer.normalize("Rose21"))
-                .isEqualTo("Rose21")
-                .isNotEqualTo(normalizer.normalize("rose21"));
+    void foldsLatinCaseSoQueriesMatchRegardlessOfCase() {
+        assertThat(normalizer.normalize("TattooFan01"))
+                .isEqualTo("tattoofan01")
+                .isEqualTo(normalizer.normalize("tattoofan01"));
     }
 }

@@ -66,6 +66,9 @@ class SearchServiceTest {
     @Mock
     private PostService postService;
 
+    @Mock
+    private com.starttoo.backend.media.application.MediaService mediaService;
+
     @InjectMocks
     private SearchService searchService;
 
@@ -144,12 +147,16 @@ class SearchServiceTest {
                                 1
                         )
                 ));
+        when(mediaService.downloadUrl("users/8/profile.webp"))
+                .thenReturn("https://minio.example/profile-presigned");
         doAnswer(invocation -> {
             RowCallbackHandler handler = invocation.getArgument(2);
             ResultSet resultSet = mock(ResultSet.class);
             when(resultSet.getInt("user_seq")).thenReturn(8);
             when(resultSet.getString("nickname")).thenReturn("Artist");
             when(resultSet.getString("role")).thenReturn("ARTIST");
+            when(resultSet.getObject("profile_image_seq", Long.class)).thenReturn(301L);
+            when(resultSet.getString("profile_object_key")).thenReturn("users/8/profile.webp");
             when(resultSet.getBoolean("verified")).thenReturn(true);
             handler.processRow(resultSet);
             return null;
@@ -167,6 +174,8 @@ class SearchServiceTest {
                         8,
                         "Artist",
                         com.starttoo.backend.user.domain.UserRole.ARTIST,
+                        301L,
+                        "https://minio.example/profile-presigned",
                         true
                 )
         );
