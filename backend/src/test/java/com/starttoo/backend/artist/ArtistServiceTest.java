@@ -112,6 +112,60 @@ class ArtistServiceTest {
     }
 
     @Test
+    void verifyChangesUnverifiedArtistToVerified() {
+        Artist artist = artist(VerificationStatus.UNVERIFIED);
+        when(userService.find(7)).thenReturn(user(7, null));
+        when(artistRepository.findActiveForUpdate(7)).thenReturn(Optional.of(artist));
+        when(artistRepository.findByUserSeqAndDeletedFalse(7)).thenReturn(Optional.of(artist));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7))).thenReturn(0L);
+
+        ArtistDtos.ArtistProfile profile = artistService.verify(7);
+
+        assertThat(profile.verificationStatus()).isEqualTo(VerificationStatus.VERIFIED);
+        assertThat(artist.getVerificationStatus()).isEqualTo(VerificationStatus.VERIFIED);
+        assertThat(artist.getVerificationProcessedUsrSeq()).isEqualTo(7);
+        assertThat(artist.getVerificationProcessedDttm()).isNotNull();
+    }
+
+    @Test
+    void verifyRejectsAlreadyVerifiedArtist() {
+        Artist artist = artist(VerificationStatus.VERIFIED);
+        when(userService.find(7)).thenReturn(user(7, null));
+        when(artistRepository.findActiveForUpdate(7)).thenReturn(Optional.of(artist));
+
+        assertThatThrownBy(() -> artistService.verify(7))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.STATE_CONFLICT));
+        assertThat(artist.getVerificationProcessedUsrSeq()).isNull();
+    }
+
+    @Test
+    void verifyRejectsNonArtistRole() {
+        OffsetDateTime now = OffsetDateTime.now();
+        User user = User.builder()
+                .userSeq(7)
+                .nickname("일반회원")
+                .phoneNumber("+821012345678")
+                .phoneVerifiedDttm(now)
+                .role(UserRole.USER)
+                .recentSearchTerms(new String[0])
+                .accountStatus(AccountStatus.ACTIVE)
+                .statusChangedDttm(now)
+                .regDttm(now)
+                .modDttm(now)
+                .deleted(false)
+                .build();
+        when(userService.find(7)).thenReturn(user);
+
+        assertThatThrownBy(() -> artistService.verify(7))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.FORBIDDEN));
+        verify(artistRepository, org.mockito.Mockito.never()).findActiveForUpdate(any());
+    }
+
+    @Test
     void profileImageUrlIsPresignedFromObjectKey() {
         Artist artist = artist(VerificationStatus.VERIFIED);
         when(artistRepository.findActiveForUpdate(7)).thenReturn(Optional.of(artist));

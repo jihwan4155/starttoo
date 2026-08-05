@@ -355,6 +355,7 @@ PUT /v1/archive/501
 |---|---|---|---|
 | 인증 타투이스트 목록 | GET | `/v1/artists` | Public |
 | 내 타투이스트 프로필 작성·수정 | PATCH | `/v1/artists/me/profile` | User |
+| 타투이스트 인증 처리 | POST | `/v1/artists/me/verification` | User |
 
 ## 4.2 타투이스트 목록
 
@@ -424,6 +425,24 @@ PATCH /v1/artists/me/profile
 - 독립적인 `shops` 엔티티는 만들지 않는다.
 - `modDttm`, `modUsrSeq`를 프로필 변경과 함께 저장한다.
 - 이 API만으로 `users.role`이나 인증 상태를 변경하지 않는다.
+
+## 4.4 타투이스트 인증 처리
+
+```http
+POST /v1/artists/me/verification
+```
+
+Body 없음. 갱신된 `ArtistProfile`을 반환한다.
+
+### 트랜잭션
+
+- `users.role=ARTIST`인 회원만 사용할 수 있다. USER면 403 `FORBIDDEN`.
+- `artists` 행이 없으면 404 `ARTIST_NOT_FOUND`.
+- 이미 `VERIFIED`면 409 `STATE_CONFLICT`.
+- 원래는 관리자 승인 흐름이지만 현재는 승인 단계를 생략하고 호출 즉시
+  `verificationStatus=VERIFIED`로 변경한다.
+- `rejectionReason`은 비우고 `verificationProcessedDttm`과
+  `verificationProcessedUsrSeq`(본인 `userSeq`)를 기록한다.
 
 ---
 
@@ -2451,6 +2470,7 @@ Subject 자동완성:
 | 보관함 | DELETE | `/v1/archive/{tattooSeq}` |
 | 타투이스트 | GET | `/v1/artists` |
 | 타투이스트 | PATCH | `/v1/artists/me/profile` |
+| 타투이스트 | POST | `/v1/artists/me/verification` |
 | 인증 | POST | `/v1/auth/social/login` |
 | 인증 | POST | `/v1/auth/signup` |
 | 인증 | POST | `/v1/auth/token/refresh` |
@@ -2754,6 +2774,28 @@ Subject 자동완성:
 **실패 예시**
 ```json
 {"status":403,"code":"FORBIDDEN","message":"ARTIST 역할이 필요합니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/artists/me/verification`
+
+**API 개요:** ARTIST 회원이 자신의 인증 상태를 VERIFIED로 변경한다. Bearer 인증이 필요하다.
+
+**Request:** Body 없음.
+
+**Response:** 갱신된 `ArtistProfile`을 반환하며 `verificationStatus`는 `VERIFIED`다.
+
+**설명:** 원래는 관리자 승인 흐름이지만 현재는 승인 단계를 생략하고 호출 즉시 인증을
+완료한다. USER 역할이면 403, artists 행이 없으면 404, 이미 VERIFIED이면 409를 반환한다.
+`verificationProcessedUsrSeq`에는 본인 `userSeq`가 기록된다.
+
+**성공 예시**
+```json
+{"data":{"userSeq":102,"nickname":"InkKim","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","shopName":"스타투숍","shopCity":"서울","shopAddress":"서울 강남구","shopPhone":"02-1234-5678","shopDetails":"예약제","verificationStatus":"VERIFIED","followerCount":0,"regDttm":"2026-08-01T09:00:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"STATE_CONFLICT","message":"현재 상태에서는 요청을 처리할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
 ## 19.3 컬렉션과 보관함
