@@ -147,6 +147,10 @@ app:
     dwell-short: 0.1
     dwell-medium: 0.5
     dwell-long: 1.0
+    # 개인화 피드 블렌드: 취향점수*weight + 등록시각(시간단위)*per-hour.
+    # 기본값은 취향 5점이 최신성 약 하루(24h*0.2=4.8)와 등가가 되도록 설정.
+    feed-preference-weight: 1.0
+    feed-recency-per-hour: 0.2
 
 logging:
   level:
