@@ -1,6 +1,8 @@
 import { useState } from "react";
 import ImageViewerModal from "../common/ImageViewerModal";
+import SharedPostCard from "./SharedPostCard";
 import { formatDmTime } from "./dmTime";
+import { parseSharedPost } from "../../utils/sharePost";
 import type { DmMessageResponse } from "../../types/dm";
 
 type MessageBubbleProps = {
@@ -17,6 +19,8 @@ type MessageBubbleProps = {
 export default function MessageBubble({ message, mine }: MessageBubbleProps) {
 	const [isViewerOpen, setViewerOpen] = useState(false);
 	const time = formatDmTime(message.regDttm);
+	// 공유된 게시글이면 주소를 그대로 보여 주는 대신 카드로 그린다.
+	const shared = parseSharedPost(message.textContent);
 
 	if (message.deleted) {
 		return (
@@ -50,17 +54,38 @@ export default function MessageBubble({ message, mine }: MessageBubbleProps) {
 							/>
 						</button>
 					)}
-					{message.textContent && (
+					{shared ? (
 						<div
-							className={`rounded-[16px] px-4 py-2.5 text-[13px] font-light leading-5 ${
+							className={`overflow-hidden rounded-[16px] p-2 ${
 								message.imageUrl ? "mt-1" : ""
 							} ${
 								mine
-									? "rounded-br-[4px] bg-brand text-white"
-									: "rounded-bl-[4px] bg-black/5 text-black"
+									? "rounded-br-[4px] bg-brand"
+									: "rounded-bl-[4px] bg-black/5"
 							}`}>
-							{message.textContent}
+							{shared.text && (
+								<p
+									className={`px-2 pb-2 pt-1 text-[13px] font-light leading-5 ${
+										mine ? "text-white" : "text-black"
+									}`}>
+									{shared.text}
+								</p>
+							)}
+							<SharedPostCard postId={shared.postId} mine={mine} />
 						</div>
+					) : (
+						message.textContent && (
+							<div
+								className={`rounded-[16px] px-4 py-2.5 text-[13px] font-light leading-5 ${
+									message.imageUrl ? "mt-1" : ""
+								} ${
+									mine
+										? "rounded-br-[4px] bg-brand text-white"
+										: "rounded-bl-[4px] bg-black/5 text-black"
+								}`}>
+								{message.textContent}
+							</div>
+						)
 					)}
 				</div>
 			</div>
