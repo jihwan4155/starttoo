@@ -10,7 +10,7 @@ import { profilePath, resolveAvatar } from "../../utils/profile";
 /**
  * 커뮤니티 우측 유저 검색 패널 — 모든 회원을 닉네임으로 찾는다.
  *
- * GET /search/accounts (한 글자는 자동완성)를 쓴다. 응답 AccountResult에는
+ * GET /search/accounts (한 글자부터)를 쓴다. 응답 AccountResult에는
  * 프로필 이미지가 없어 닉네임 기반 기본 아바타를 띄운다.
  *
  * 인증 뱃지는 붙이지 않는다 — AccountResult에 verificationStatus가 없어서

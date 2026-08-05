@@ -39,6 +39,13 @@ export type StarttooLoaderProps = {
 	durationMs?: number;
 	/** 이 시간(ms)이 지나면 안심 문구를 띄웁니다 */
 	slowAfterMs?: number;
+	/**
+	 * 이 시간(ms) 안에 끝나면 로더를 아예 띄우지 않습니다.
+	 *
+	 * 캐시된 응답은 수십 ms 만에 오는데 그때마다 로더가 한 번 번쩍이면
+	 * 화면이 더 느려 보인다. 0을 주면 즉시 띄웁니다.
+	 */
+	delayMs?: number;
 	className?: string;
 	/** 페이드아웃이 끝난 뒤 호출 — 부모에서 언마운트할 때 씁니다 */
 	onExited?: () => void;
@@ -86,10 +93,25 @@ export default function StarttooLoader({
 	size,
 	durationMs,
 	slowAfterMs = 8000,
+	delayMs = 300,
 	className,
 	onExited,
 }: StarttooLoaderProps) {
 	const determinate = progress !== undefined;
+
+	// 짧게 끝나는 요청에서 로더가 번쩍이지 않게 잠깐 기다렸다 띄운다.
+	const [ready, setReady] = useState(delayMs === 0);
+	useEffect(() => {
+		if (delayMs === 0) {
+			setReady(true);
+			return undefined;
+		}
+		// 다시 로딩이 시작되면 지연도 처음부터 — 두 번째 로딩만 즉시 뜨면 어색하다.
+		setReady(false);
+		if (!visible) return undefined;
+		const timer = setTimeout(() => setReady(true), delayMs);
+		return () => clearTimeout(timer);
+	}, [delayMs, visible]);
 
 	// 오래 걸릴 때만 안심 문구를 띄운다 (진행률이 보이면 불필요)
 	const [slow, setSlow] = useState(false);
@@ -112,6 +134,10 @@ export default function StarttooLoader({
 		const timer = setTimeout(onExited, 240);
 		return () => clearTimeout(timer);
 	}, [visible, onExited]);
+
+	// 지연 구간에는 자리만 비워 둔다. 훅은 위에서 이미 다 돌았으므로
+	// 페이드아웃·onExited 처리에는 영향이 없다.
+	if (!ready) return null;
 
 	const p = determinate ? clamp01((progress as number) / 100) : 0;
 

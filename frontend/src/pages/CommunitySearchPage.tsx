@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
+import { PostGridSkeleton } from "../components/loader/Skeletons";
 import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../constants/auth";
 import usePostSearch from "../hooks/queries/usePostSearch";
 import usePosts from "../hooks/queries/usePosts";
@@ -12,9 +13,6 @@ import type { Post } from "../types/community";
 import { isSearchableQuery } from "../types/search";
 import { filterVisiblePosts } from "../utils/filterPosts";
 import CommunitySearchBar from "../components/community/CommunitySearchBar";
-
-/** 서버 본 검색의 최소 길이 (@Pattern {2,50}) */
-const MIN_QUERY_LENGTH = 2;
 
 /**
  * 게시물 검색 — GET /search/posts (subject 기반)
@@ -49,10 +47,8 @@ export default function CommunitySearchPage() {
 	const hiddenIds = useHiddenIdsForUser();
 
 	const trimmed = keyword.trim();
-	const isTooShort = trimmed.length > 0 && trimmed.length < MIN_QUERY_LENGTH;
-	const hasInvalidChars = trimmed.length > 0 && !isSearchableQuery(trimmed);
 	/** 서버에 보낼 수 없는 검색어 — 쿼리가 꺼져 있어 로딩·결과 상태를 믿을 수 없다 */
-	const isUnsearchable = isTooShort || hasInvalidChars;
+	const isUnsearchable = trimmed.length > 0 && !isSearchableQuery(trimmed);
 	/** 검색어가 없을 때만 탐색 그리드를 띄운다 */
 	const isExplore = trimmed.length === 0;
 
@@ -144,7 +140,7 @@ export default function CommunitySearchPage() {
 					</p>
 				)}
 
-				{hasInvalidChars && (
+				{isUnsearchable && (
 					<p className="py-20 text-center text-[14px] font-light leading-6 text-black/50">
 						검색어에는 한글·영문·숫자만 쓸 수 있어요.
 						<br />
@@ -152,15 +148,7 @@ export default function CommunitySearchPage() {
 					</p>
 				)}
 
-				{isTooShort && !hasInvalidChars && (
-					<p className="py-20 text-center text-[14px] font-light text-black/50">
-						두 글자 이상 입력해 주세요.
-					</p>
-				)}
-
-				{isExplore && isPending && (
-					<StarttooLoader variant="block" label="불러오는 중…" />
-				)}
+				{isExplore && isPending && <PostGridSkeleton />}
 
 				{isExplore && !isPending && !isError && results.length === 0 && (
 					<p className="py-20 text-center text-[14px] text-black/40">
@@ -169,7 +157,7 @@ export default function CommunitySearchPage() {
 				)}
 
 				{trimmed && !isUnsearchable && isPending && (
-					<StarttooLoader variant="block" label="검색 중…" />
+					<PostGridSkeleton count={6} />
 				)}
 
 				{(isExplore || (trimmed && !isUnsearchable)) && isError && (
