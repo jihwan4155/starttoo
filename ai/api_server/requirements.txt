@@ -2,8 +2,10 @@ fastapi>=0.116,<1
 uvicorn[standard]>=0.35,<1
 python-dotenv>=1.0,<2
 python-multipart>=0.0.20,<1
-torch
-torchvision
+# torch·torchvision 은 여기에 적지 않는다. 그냥 적으면 PyPI 기본값인 CUDA 빌드가 깔려서
+# GPU 없는 서버에서 2~3GB 를 낭비한다. Dockerfile 이 CPU 전용 인덱스로 따로 설치한다.
+# 로컬 개발 환경에서는 아래를 직접 실행한다(GPU 가 있으면 인덱스 지정 없이).
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
 timm==1.0.28
 transformers==5.13.1
 opencv-python-headless>=4.9,<5
