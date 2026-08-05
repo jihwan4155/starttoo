@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import ArtistShopStep from "../components/onboarding/ArtistShopStep";
+import type { ArtistShopValues } from "../components/onboarding/ArtistShopStep";
 import OnboardingDialog from "../components/onboarding/OnboardingDialog";
 import ProfileFormStep from "../components/onboarding/ProfileFormStep";
 import type { ProfileFormValues } from "../components/onboarding/ProfileFormStep";
@@ -14,11 +16,12 @@ import useSignupStore from "../store/useSignupStore";
 import type { RequestedRole } from "../types/auth";
 import type { TattooDesignItem } from "../types/tattoo";
 
-type Step = "role" | "profile" | "taste";
+type Step = "role" | "profile" | "shop" | "taste";
 
 const TITLES: Record<Step, string> = {
 	role: "타투이스트 이신가요?",
-	profile: "",
+	profile: "프로필 입력",
+	shop: "타투이스트 정보",
 	taste: "좋아하는 이미지 고르기",
 };
 
@@ -28,6 +31,9 @@ const TITLES: Record<Step, string> = {
  * 가입 자체는 전화번호 인증 시점에 이미 끝나 있다. 여기서 받는 값은 전부 보강이라
  * 어느 단계에서 X로 닫아도 계정은 살아 있고, 그 경우 일반 사용자 · 임시 닉네임 ·
  * 생년월일 없음 상태로 남는다.
+ *
+ * 프로필 입력까지는 역할과 무관하게 화면이 같고, 타투이스트를 고른 사람만 그
+ * 다음에 매장 정보 단계를 한 번 더 거친다.
  */
 export default function OnboardingPage() {
 	const navigate = useNavigate();
@@ -76,22 +82,8 @@ export default function OnboardingPage() {
 				birthDate: values.birthDate,
 				gender: values.gender,
 			});
-			if (role === "ARTIST") {
-				// 서버가 역할 승격을 해 주지 않아 role=USER인 계정에서는 403이 온다.
-				// 숍 정보를 못 담아도 계정은 살아 있으니 온보딩을 막지는 않는다.
-				//
-				// 이 PATCH는 전체 덮어쓰기라 본문에서 뺀 필드는 NULL이 된다. 가입
-				// 직후라 어차피 비어 있으므로 여기서는 아는 두 값만 실어도 안전하다.
-				try {
-					await upsertArtistProfile({
-						...(values.shopName ? { shopName: values.shopName } : {}),
-						...(values.shopAddress ? { shopAddress: values.shopAddress } : {}),
-					});
-				} catch {
-					// 타투이스트 전환은 별도 신청 절차가 생긴 뒤에 붙인다.
-				}
-			}
-			setStep("taste");
+			// 타투이스트만 매장 정보를 한 단계 더 받는다.
+			setStep(role === "ARTIST" ? "shop" : "taste");
 		} catch (cause) {
 			setError(
 				cause instanceof ApiError
@@ -101,6 +93,27 @@ export default function OnboardingPage() {
 		} finally {
 			setSubmitting(false);
 		}
+	};
+
+	const handleShopSubmit = async (values: ArtistShopValues) => {
+		setError(null);
+		setSubmitting(true);
+		// 서버가 역할 승격을 해 주지 않아 role=USER인 계정에서는 403이 온다.
+		// 숍 정보를 못 담아도 계정은 살아 있으니 온보딩을 막지는 않는다.
+		//
+		// 이 PATCH는 전체 덮어쓰기라 본문에서 뺀 필드는 NULL이 된다. 가입
+		// 직후라 어차피 비어 있으므로 여기서는 아는 두 값만 실어도 안전하다.
+		try {
+			await upsertArtistProfile({
+				...(values.shopName ? { shopName: values.shopName } : {}),
+				...(values.shopAddress ? { shopAddress: values.shopAddress } : {}),
+			});
+		} catch {
+			// 타투이스트 전환은 별도 신청 절차가 생긴 뒤에 붙인다.
+		} finally {
+			setSubmitting(false);
+		}
+		setStep("taste");
 	};
 
 	const handleTasteSubmit = async (picked: TattooDesignItem[]) => {
@@ -140,23 +153,22 @@ export default function OnboardingPage() {
 		}
 	};
 
-	const title =
-		step === "profile"
-			? role === "ARTIST"
-				? "타투이스트"
-				: "일반 사용자"
-			: TITLES[step];
-
 	return (
-		<OnboardingDialog title={title} onClose={finish}>
+		<OnboardingDialog title={TITLES[step]} onClose={finish}>
 			{step === "role" && <RoleAskStep onSelect={handleRoleSelect} />}
 			{step === "profile" && (
 				<ProfileFormStep
-					role={role}
 					assignedNickname={assignedNickname ?? ""}
 					submitting={submitting}
 					submitError={error}
 					onSubmit={handleProfileSubmit}
+				/>
+			)}
+			{step === "shop" && (
+				<ArtistShopStep
+					submitting={submitting}
+					submitError={error}
+					onSubmit={handleShopSubmit}
 				/>
 			)}
 			{step === "taste" && (
