@@ -4,3 +4,6 @@
 starttoo.env.txt
 **/__pycache__/
 *.pyc
+
+# Stable Diffusion weights are deployed separately and mounted into ai-api.
+ai/api_server/vendor/tattoo_generator_sd15/models/stable-diffusion-v1-5/
