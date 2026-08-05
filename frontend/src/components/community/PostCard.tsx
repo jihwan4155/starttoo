@@ -18,6 +18,7 @@ import useHidePost from "../../hooks/mutations/useHidePost";
 import useTogglePostBookmark from "../../hooks/mutations/useTogglePostBookmark";
 import useTogglePostLike from "../../hooks/mutations/useTogglePostLike";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import useImageSwipe from "../../hooks/useImageSwipe";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import usePostHiddenOverlay from "../../hooks/usePostHidden";
@@ -129,8 +130,13 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	const imageUrls = getPostImageUrls(post);
 	const safeIndex =
 		imageUrls.length === 0 ? 0 : Math.min(imageIndex, imageUrls.length - 1);
-	const currentImageUrl = imageUrls[safeIndex] ?? null;
 	const hasMultipleImages = imageUrls.length > 1;
+	const { handlers: swipeHandlers, trackStyle } = useImageSwipe({
+		count: imageUrls.length,
+		index: safeIndex,
+		onIndexChange: setImageIndex,
+		enabled: !isHidden,
+	});
 
 	return (
 		<article className="w-full overflow-hidden rounded-[12px] bg-white pb-4 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:pb-0">
@@ -229,14 +235,23 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 							type="button"
 							onClick={() => !isHidden && onOpen(post)}
 							disabled={isHidden}
+							{...swipeHandlers}
 							className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
 							aria-label="게시글 상세 보기">
-							{currentImageUrl ? (
-								<img
-									src={currentImageUrl}
-									alt={`${post.author.nickname}의 게시글 ${safeIndex + 1}`}
-									className="aspect-[3/4] h-auto w-full object-cover transition hover:scale-[1.01]"
-								/>
+							{imageUrls.length > 0 ? (
+								<div className="flex" style={trackStyle}>
+									{imageUrls.map((url, index) => (
+										<img
+											key={`${url}-${index}`}
+											src={url}
+											alt={`${post.author.nickname}의 게시글 ${index + 1}`}
+											draggable={false}
+											className={`aspect-[3/4] h-auto w-full shrink-0 object-cover ${
+												hasMultipleImages ? "" : "transition hover:scale-[1.01]"
+											}`}
+										/>
+									))}
+								</div>
 							) : (
 								<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
 							)}
