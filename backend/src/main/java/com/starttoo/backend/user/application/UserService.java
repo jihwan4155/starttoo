@@ -354,7 +354,12 @@ public class UserService {
                                 WHERE mine.follower_seq = :viewerSeq
                                   AND mine.following_seq = related.user_seq
                            )
-                       END AS followed_by_me
+                       END AS followed_by_me,
+                       COALESCE(
+                           related.role = 'ARTIST'
+                           AND artist.verification_status = 'VERIFIED',
+                           FALSE
+                       ) AS verified
                   FROM %s relation
                   JOIN users related
                     ON related.user_seq = relation.%s
@@ -364,6 +369,9 @@ public class UserService {
                   LEFT JOIN images profile_image
                     ON profile_image.image_seq = related.profile_image_seq
                    AND profile_image.is_deleted = FALSE
+                  LEFT JOIN artists artist
+                    ON artist.user_seq = related.user_seq
+                   AND artist.is_deleted = FALSE
                  WHERE relation.%s = :ownerSeq
                    AND (
                        :hideBlocked = FALSE
@@ -401,6 +409,7 @@ public class UserService {
                 rs.getObject("profile_image_seq", Long.class),
                 rs.getString("profile_object_key"),
                 rs.getBoolean("followed_by_me"),
+                rs.getBoolean("verified"),
                 rs.getObject("reg_dttm", OffsetDateTime.class)
         ));
         boolean hasNext = rows.size() > safeSize;
@@ -414,7 +423,8 @@ public class UserService {
                         row.profileObjectKey() == null
                                 ? null
                                 : mediaService.downloadUrl(row.profileObjectKey()),
-                        row.followedByMe()
+                        row.followedByMe(),
+                        row.verified()
                 ))
                 .toList();
         String nextCursor = hasNext ? encodeRelationCursor(page.get(page.size() - 1)) : null;
@@ -534,6 +544,7 @@ public class UserService {
             Long profileImageSeq,
             String profileObjectKey,
             boolean followedByMe,
+            boolean verified,
             OffsetDateTime regDttm
     ) {
     }

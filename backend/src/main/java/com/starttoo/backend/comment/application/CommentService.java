@@ -334,18 +334,27 @@ public class CommentService {
                 SELECT u.user_seq,
                        u.nickname,
                        u.profile_image_seq,
-                       i.object_key AS profile_object_key
+                       i.object_key AS profile_object_key,
+                       COALESCE(
+                           u.role = 'ARTIST'
+                           AND artist.verification_status = 'VERIFIED',
+                           FALSE
+                       ) AS verified
                   FROM users u
                   LEFT JOIN images i
                     ON i.image_seq = u.profile_image_seq
                    AND i.is_deleted = FALSE
+                  LEFT JOIN artists artist
+                    ON artist.user_seq = u.user_seq
+                   AND artist.is_deleted = FALSE
                  WHERE u.user_seq IN (:authorSeqs)
                 """, new MapSqlParameterSource("authorSeqs", authorSeqs), (rs, rowNum) ->
                 new AuthorRow(
                         rs.getInt("user_seq"),
                         rs.getString("nickname"),
                         rs.getObject("profile_image_seq", Long.class),
-                        rs.getString("profile_object_key")
+                        rs.getString("profile_object_key"),
+                        rs.getBoolean("verified")
                 ));
         Map<Integer, CommentDtos.CommentAuthor> authors = new HashMap<>();
         for (AuthorRow row : rows) {
@@ -355,7 +364,8 @@ public class CommentService {
                     row.profileImageSeq(),
                     row.profileObjectKey() == null
                             ? null
-                            : mediaService.downloadUrl(row.profileObjectKey())
+                            : mediaService.downloadUrl(row.profileObjectKey()),
+                    row.verified()
             ));
         }
         return authors;
@@ -421,7 +431,8 @@ public class CommentService {
             Integer userSeq,
             String nickname,
             Long profileImageSeq,
-            String profileObjectKey
+            String profileObjectKey,
+            boolean verified
     ) {
     }
 

@@ -157,7 +157,7 @@ class NotificationServiceTest {
                 org.mockito.ArgumentMatchers.<RowMapper<NotificationDtos.NotificationPartner>>any(),
                 eq(7), eq(701L), eq(7), eq(7)
         )).thenReturn(List.of(new NotificationDtos.NotificationPartner(
-                8, "상대방", null, null
+                8, "상대방", null, null, false
         )));
 
         NotificationDtos.NotificationResponse response = notificationService.read(7, 81L);

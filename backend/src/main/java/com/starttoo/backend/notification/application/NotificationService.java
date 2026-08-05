@@ -113,7 +113,12 @@ public class NotificationService {
                        partner.user_seq AS partner_seq,
                        partner.nickname AS partner_nickname,
                        partner.profile_image_seq AS partner_profile_image_seq,
-                       profile_image.object_key AS partner_profile_object_key
+                       profile_image.object_key AS partner_profile_object_key,
+                       COALESCE(
+                           partner.role = 'ARTIST'
+                           AND artist.verification_status = 'VERIFIED',
+                           FALSE
+                       ) AS partner_verified
                   FROM notification_items item
                   LEFT JOIN dm_rooms room
                     ON item.notification_type = 'NEW_DM'
@@ -126,6 +131,9 @@ public class NotificationService {
                   LEFT JOIN images profile_image
                     ON profile_image.image_seq = partner.profile_image_seq
                    AND profile_image.is_deleted = FALSE
+                  LEFT JOIN artists artist
+                    ON artist.user_seq = partner.user_seq
+                   AND artist.is_deleted = FALSE
                  WHERE (
                      CAST(:cursorDttm AS timestamptz) IS NULL
                      OR item.reg_dttm < :cursorDttm
@@ -148,7 +156,8 @@ public class NotificationService {
                 rs.getObject("partner_seq", Integer.class),
                 rs.getString("partner_nickname"),
                 rs.getObject("partner_profile_image_seq", Long.class),
-                rs.getString("partner_profile_object_key")
+                rs.getString("partner_profile_object_key"),
+                rs.getBoolean("partner_verified")
         ));
         boolean hasNext = rows.size() > safeSize;
         List<NotificationRow> page = hasNext ? rows.subList(0, safeSize) : rows;
@@ -245,7 +254,8 @@ public class NotificationService {
                 row.partnerProfileImageSeq(),
                 row.partnerProfileObjectKey() == null
                         ? null
-                        : mediaService.downloadUrl(row.partnerProfileObjectKey())
+                        : mediaService.downloadUrl(row.partnerProfileObjectKey()),
+                row.partnerVerified()
         );
         return new NotificationDtos.NotificationResponse(
                 row.notificationSeq(),
@@ -272,7 +282,12 @@ public class NotificationService {
                 SELECT partner.user_seq,
                        partner.nickname,
                        partner.profile_image_seq,
-                       image.object_key
+                       image.object_key,
+                       COALESCE(
+                           partner.role = 'ARTIST'
+                           AND artist.verification_status = 'VERIFIED',
+                           FALSE
+                       ) AS partner_verified
                   FROM dm_rooms room
                   JOIN users partner
                     ON partner.user_seq = CASE
@@ -282,6 +297,9 @@ public class NotificationService {
                   LEFT JOIN images image
                     ON image.image_seq = partner.profile_image_seq
                    AND image.is_deleted = FALSE
+                  LEFT JOIN artists artist
+                    ON artist.user_seq = partner.user_seq
+                   AND artist.is_deleted = FALSE
                  WHERE room.dm_room_seq = ?
                    AND (room.user1_seq = ? OR room.user2_seq = ?)
                 """, (rs, rowNum) -> new NotificationDtos.NotificationPartner(
@@ -290,7 +308,8 @@ public class NotificationService {
                 rs.getObject("profile_image_seq", Long.class),
                 rs.getString("object_key") == null
                         ? null
-                        : mediaService.downloadUrl(rs.getString("object_key"))
+                        : mediaService.downloadUrl(rs.getString("object_key")),
+                rs.getBoolean("partner_verified")
         ), receiverSeq, referenceSeq, receiverSeq, receiverSeq);
         return partners.isEmpty() ? null : partners.get(0);
     }
@@ -353,7 +372,8 @@ public class NotificationService {
             Integer partnerSeq,
             String partnerNickname,
             Long partnerProfileImageSeq,
-            String partnerProfileObjectKey
+            String partnerProfileObjectKey,
+            boolean partnerVerified
     ) {
     }
 }
