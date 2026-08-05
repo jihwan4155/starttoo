@@ -3,6 +3,7 @@ package com.starttoo.backend.tattoo.application;
 import com.starttoo.backend.common.config.AiProperties;
 import com.starttoo.backend.common.error.BusinessException;
 import com.starttoo.backend.common.error.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
+@Slf4j
 @Component
 public class TattooModelClient {
 
@@ -79,11 +81,18 @@ public class TattooModelClient {
         } catch (BusinessException exception) {
             throw exception;
         } catch (ResourceAccessException exception) {
+            // BusinessException 은 cause 를 연결하지 않으므로 여기서 남기지 않으면 원인이 사라진다.
+            log.warn("Tattoo model batch call could not reach {}{}: images={}",
+                    properties.baseUrl(), properties.tattooBatchAnalysisPath(),
+                    imageUrls.size(), exception);
             if (hasTimeoutCause(exception)) {
                 throw BusinessException.of(ErrorCode.PROCESSING_TIMEOUT);
             }
             throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
         } catch (RestClientException exception) {
+            log.warn("Tattoo model batch call failed at {}{}: images={}",
+                    properties.baseUrl(), properties.tattooBatchAnalysisPath(),
+                    imageUrls.size(), exception);
             throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
         }
     }
