@@ -72,37 +72,40 @@ export default function FruitMarqueeHero() {
 		const activeItems = new Set<HTMLLIElement>();
 		let frameId: number | null = null;
 		let lastUpdate = 0;
+		let lastFrame = 0;
 		let isInViewport = true;
+		let targetPlaybackRate = 1;
+		let currentPlaybackRate = 1;
+		const hoverPlaybackRate = 2.4;
 
 		const smoothStep = (value: number) => value * value * (3 - 2 * value);
-		const fade = (value: number, start: number, end: number) =>
-			smoothStep(Math.min(1, Math.max(0, (value - start) / (end - start))));
-
-		const slowStrengthAt = (phase: number) => {
-			if (phase < 0.18) return 1;
-			if (phase < 0.25) return 1 - fade(phase, 0.18, 0.25);
-			if (phase >= 0.38 && phase < 0.44) return fade(phase, 0.38, 0.44);
-			if (phase < 0.53 && phase >= 0.44) return 1;
-			if (phase < 0.6 && phase >= 0.53) return 1 - fade(phase, 0.53, 0.6);
-			if (phase >= 0.72 && phase < 0.78) return fade(phase, 0.72, 0.78);
-			if (phase < 0.84 && phase >= 0.78) return 1;
-			if (phase < 0.91 && phase >= 0.84) return 1 - fade(phase, 0.84, 0.91);
-			return 0;
-		};
-
 		const emphasizeCenteredFruit = (timestamp: number) => {
 			frameId = null;
 			if (!isInViewport || document.hidden) return;
+
+			const deltaSeconds = lastFrame
+				? Math.min((timestamp - lastFrame) / 1000, 0.1)
+				: 0;
+			lastFrame = timestamp;
+			const response = targetPlaybackRate > currentPlaybackRate ? 7 : 4;
+			currentPlaybackRate +=
+				(targetPlaybackRate - currentPlaybackRate) *
+				(1 - Math.exp(-response * deltaSeconds));
+			const trackAnimation = track.getAnimations()[0];
+			if (trackAnimation) trackAnimation.playbackRate = currentPlaybackRate;
 
 			if (timestamp - lastUpdate >= 1000 / 30) {
 				lastUpdate = timestamp;
 				const viewportBounds = viewport.getBoundingClientRect();
 				const viewportCenter = viewportBounds.left + viewportBounds.width / 2;
 				const influenceRadius = Math.max(viewportBounds.width * 0.3, 240);
-				const progress = track.getAnimations()[0]?.effect?.getComputedTiming()
-					.progress;
-				const phase = typeof progress === "number" ? progress : 0;
-				const slowSectionStrength = slowStrengthAt(phase);
+				const emphasisStrength = Math.min(
+					1,
+					Math.max(
+						0,
+						(currentPlaybackRate - 1) / (hoverPlaybackRate - 1),
+					),
+				);
 				const measurements = Array.from(activeItems, (item) => {
 					const bounds = item.getBoundingClientRect();
 					return { item, center: bounds.left + bounds.width / 2 };
@@ -115,7 +118,7 @@ export default function FruitMarqueeHero() {
 					);
 					item.style.setProperty(
 						"--center-emphasis",
-						(1 + smoothStep(proximity) * 0.24 * slowSectionStrength).toFixed(3),
+						(1 + smoothStep(proximity) * 0.24 * emphasisStrength).toFixed(3),
 					);
 				});
 			}
@@ -132,6 +135,13 @@ export default function FruitMarqueeHero() {
 				cancelAnimationFrame(frameId);
 				frameId = null;
 			}
+		};
+
+		const speedUp = () => {
+			targetPlaybackRate = hoverPlaybackRate;
+		};
+		const slowDown = () => {
+			targetPlaybackRate = 1;
 		};
 
 		const itemObserver = new IntersectionObserver(
@@ -155,6 +165,8 @@ export default function FruitMarqueeHero() {
 		});
 		sectionObserver.observe(section);
 		document.addEventListener("visibilitychange", syncRunningState);
+		section.addEventListener("pointerenter", speedUp);
+		section.addEventListener("pointerleave", slowDown);
 		syncRunningState();
 
 		return () => {
@@ -162,6 +174,8 @@ export default function FruitMarqueeHero() {
 			itemObserver.disconnect();
 			sectionObserver.disconnect();
 			document.removeEventListener("visibilitychange", syncRunningState);
+			section.removeEventListener("pointerenter", speedUp);
+			section.removeEventListener("pointerleave", slowDown);
 		};
 	}, []);
 

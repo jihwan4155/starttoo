@@ -22,6 +22,8 @@
 	align-items: center;
 	gap: 0;
 	padding-inline: 0;
+	will-change: transform;
+	animation: fruit-marquee-logo-drift 90s linear infinite;
 }
 
 .fruit-marquee__logo-row img {
@@ -31,7 +33,8 @@
 }
 
 .fruit-marquee > .fruit-marquee__logo-rail:last-child .fruit-marquee__logo-row {
-	transform: translateX(calc(var(--logo-width) / -2));
+	animation-delay: -45s;
+	animation-direction: reverse;
 }
 
 .fruit-marquee__viewport {
@@ -101,28 +104,18 @@
 		transform: translateX(0);
 	}
 
-	25% {
-		transform: translateX(-4%);
-	}
-
-	38% {
-		transform: translateX(-17%);
-	}
-
-	60% {
-		transform: translateX(-21%);
-	}
-
-	72% {
-		transform: translateX(-34%);
-	}
-
-	91% {
-		transform: translateX(-38%);
-	}
-
 	100% {
 		transform: translateX(-50%);
+	}
+}
+
+@keyframes fruit-marquee-logo-drift {
+	from {
+		transform: translateX(calc(var(--logo-width) * -1));
+	}
+
+	to {
+		transform: translateX(0);
 	}
 }
 
@@ -180,7 +173,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.fruit-marquee__track {
+	.fruit-marquee__track,
+	.fruit-marquee__logo-row {
 		animation-play-state: paused;
 	}
 

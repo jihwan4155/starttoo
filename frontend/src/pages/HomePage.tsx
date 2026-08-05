@@ -1,10 +1,11 @@
 import CommunitySection from "../components/home/CommunitySection";
+import DoodleFloatingLauncher from "../components/home/DoodleFloatingLauncher";
 import FruitMarqueeHero from "../components/home/FruitMarqueeHero";
 import DualImageFeatureSection from "../components/home/DualImageFeatureSection";
 import FeatureSection from "../components/home/FeatureSection";
 import Footer from "../components/home/Footer";
 import homeAiImage from "../assets/images/home/home-ai.png";
-import homeCoverUpImage from "../assets/images/home/home-coverup.png";
+import homeCoverUpImage from "../assets/images/home/home-coverup-feather.webp";
 import homeSimulAfterImage from "../assets/images/home/home-simul-after.png";
 import homeSimulBeforeImage from "../assets/images/home/home-simul-before.png";
 
@@ -44,11 +45,12 @@ export default function HomePage() {
 					buttonLabel="커버업 추천받기"
 					buttonTo="/coverups"
 					image={homeCoverUpImage}
-					imageAlt="커버업 타투 예시"
+					imageAlt="팔의 흉터와 깃털 커버업 타투를 반반으로 비교한 모습"
 				/>
 				<CommunitySection />
 			</div>
 			<Footer />
+			<DoodleFloatingLauncher />
 		</div>
 	);
 }
