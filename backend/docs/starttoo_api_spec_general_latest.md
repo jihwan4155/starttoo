@@ -4251,11 +4251,12 @@ Subject 자동완성:
 
 **API 개요:** 회원 닉네임 본 검색을 수행한다. 인증은 필요 없다.
 
-**Request:** Query `q` 필수·한글/자모/영문/숫자 2~20자, `size` 기본 20·범위 1~50이다.
+**Request:** Query `q` 필수·한글/자모/영문/숫자 1~20자, `size` 기본 20·범위 1~50이다.
 
 **Response:** Redis가 결정한 순서의 `{userSeq,nickname,role}[]`를 반환한다.
 
 **설명:** exact → prefix → fuzzy 거리 1 → fuzzy 거리 2 → contains 단계로 검색하고 DB 상태를 재검증한다.
+정규화 검색어가 두 글자 미만이면 fuzzy 단계는 건너뛴다.
 
 **성공 예시**
 ```json
@@ -4264,7 +4265,7 @@ Subject 자동완성:
 
 **실패 예시**
 ```json
-{"status":400,"code":"VALIDATION_ERROR","message":"검색어는 2자 이상이어야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+{"status":400,"code":"VALIDATION_ERROR","message":"검색어 형식이 올바르지 않습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
 ### GET `/v1/search/artists/autocomplete`
@@ -4291,11 +4292,12 @@ Subject 자동완성:
 
 **API 개요:** 인증 타투이스트 닉네임 본 검색을 수행한다. 인증은 필요 없다.
 
-**Request:** Query `q` 필수·2~20자, `size` 기본 20·범위 1~50이다.
+**Request:** Query `q` 필수·1~20자, `size` 기본 20·범위 1~50이다.
 
 **Response:** VERIFIED ARTIST의 `{userSeq,nickname,role}[]`를 반환한다.
 
 **설명:** Redis fuzzy 단계 순서를 보존하고 DB 상태를 재검증한다. 팔로워 수·취향 점수는 정렬에 사용하지 않는다.
+정규화 검색어가 두 글자 미만이면 fuzzy 단계는 건너뛴다.
 
 **성공 예시**
 ```json
@@ -4304,7 +4306,7 @@ Subject 자동완성:
 
 **실패 예시**
 ```json
-{"status":400,"code":"VALIDATION_ERROR","message":"검색어는 2자 이상이어야 합니다.","timestamp":"2026-08-01T10:00:00Z"}
+{"status":400,"code":"VALIDATION_ERROR","message":"검색어 형식이 올바르지 않습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
 ### GET `/v1/search/subjects/autocomplete`
@@ -4331,7 +4333,7 @@ Subject 자동완성:
 
 **API 개요:** 입력을 최상위 subject로 보정해 연결 게시글을 검색한다. 인증은 선택이다.
 
-**Request:** Query `q` 필수·2~50자, `cursor` 선택 postSeq, `size` 기본 20·범위 1~50이다.
+**Request:** Query `q` 필수·1~50자, `cursor` 선택 postSeq, `size` 기본 20·범위 1~50이다.
 
 **Response:** 원문 `query`, `matchedSubject{subjectSeq,subjectName}`, `matchType`,
 `PostResponse items`, `nextCursor`, `hasNext`, `size`를 반환한다.
