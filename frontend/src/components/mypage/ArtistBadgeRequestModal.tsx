@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
 import ArtistBadge from "../common/ArtistBadge";
 import useVerifyArtist from "../../hooks/mutations/useVerifyArtist";
 import { ApiError } from "../../services/api";
@@ -28,7 +27,6 @@ export default function ArtistBadgeRequestModal({
 	isOpen,
 	onClose,
 }: ArtistBadgeRequestModalProps) {
-	const navigate = useNavigate();
 	const showToast = useToastStore((s) => s.showToast);
 	const { mutate: verify, isPending } = useVerifyArtist();
 	const [error, setError] = useState<string | null>(null);
@@ -123,25 +121,15 @@ export default function ArtistBadgeRequestModal({
 						{isPending ? "인증하는 중…" : "인증하기"}
 					</button>
 
-					<div className="mt-3 flex w-full gap-3">
-						<button
-							type="button"
-							onClick={onClose}
-							disabled={isPending}
-							className="h-11 flex-1 rounded-full border border-black/15 bg-white text-[14px] font-semibold text-black transition hover:bg-black/5 disabled:opacity-50">
-							닫기
-						</button>
-						<button
-							type="button"
-							disabled={isPending}
-							onClick={() => {
-								onClose();
-								navigate("/mypage/edit");
-							}}
-							className="h-11 flex-1 rounded-full border border-black/15 bg-white text-[14px] font-semibold text-black transition hover:bg-black/5 disabled:opacity-50">
-							숍 정보 입력
-						</button>
-					</div>
+					{/* 숍 정보는 위 안내대로 마이페이지에서 채운다 — 여기서 바로 가는
+					    버튼을 두면 인증 창에서 매장 정보를 또 적는 흐름이 된다. */}
+					<button
+						type="button"
+						onClick={onClose}
+						disabled={isPending}
+						className="mt-3 h-11 w-full rounded-full border border-black/15 bg-white text-[14px] font-semibold text-black transition hover:bg-black/5 disabled:opacity-50">
+						닫기
+					</button>
 				</div>
 			</div>
 		</div>,
