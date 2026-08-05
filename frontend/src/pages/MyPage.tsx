@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import ImageViewerModal from "../components/common/ImageViewerModal";
 import CreatePostModal from "../components/community/CreatePostModal";
+import PostCardSheet from "../components/community/PostCardSheet";
 import PostDetailModal from "../components/community/PostDetailModal";
 import CollectionEditor from "../components/collections/CollectionEditor";
 import StarttooLoader from "../components/loader/StarttooLoader";
@@ -21,6 +22,7 @@ import useMyArtistProfile from "../hooks/queries/useMyArtistProfile";
 import useMyPosts from "../hooks/queries/useMyPosts";
 import useUserProfile from "../hooks/queries/useUserProfile";
 import useRemoveFromArchive from "../hooks/mutations/useRemoveFromArchive";
+import { useIsMobile } from "../hooks/useIsMobile";
 import useRequireAuth from "../hooks/useRequireAuth";
 import useAuthStore from "../store/useAuthStore";
 import useUserStore from "../store/useUserStore";
@@ -52,6 +54,9 @@ export default function MyPage() {
 	);
 	const [isWriteOpen, setWriteOpen] = useState(false);
 	const [activePost, setActivePost] = useState<Post | null>(null);
+	// 모바일에서 썸네일을 눌렀을 때 먼저 뜨는 카드 화면 (댓글은 그 다음 단계).
+	// 게시글 객체가 아니라 ID로 들고 있어서, 삭제되어 목록에서 빠지면 저절로 닫힌다.
+	const [cardPostId, setCardPostId] = useState<number | null>(null);
 	const [activeDesign, setActiveDesign] = useState<SavedDesign | null>(null);
 	// null이면 닫힘 — 어느 탭으로 열지까지 이 값이 들고 있다.
 	const [followListKind, setFollowListKind] = useState<FollowListKind | null>(
@@ -63,6 +68,7 @@ export default function MyPage() {
 		if (isMyPageTab(tabParam)) {
 			setTab(tabParam);
 			setActivePost(null);
+			setCardPostId(null);
 		}
 	}, [tabParam]);
 
@@ -75,6 +81,8 @@ export default function MyPage() {
 	// "내가 누군지"가 필요한 곳만 authUserId로 판단한다.
 	const isLoggedIn = Boolean(accessToken);
 	const { requireAuth } = useRequireAuth();
+	// sm(640px) 미만 — 상세 모달이 사진 칸을 접는 구간과 같은 경계
+	const isMobile = useIsMobile(639);
 
 	const {
 		data: me,
@@ -88,6 +96,7 @@ export default function MyPage() {
 
 	useEffect(() => {
 		setActivePost(null);
+		setCardPostId(null);
 		setActiveDesign(null);
 	}, [authUserId]);
 
@@ -123,6 +132,28 @@ export default function MyPage() {
 		},
 		[bookmarkData?.pages],
 	);
+	const cardPost = useMemo(() => {
+		if (cardPostId == null) return null;
+		return (
+			[...myPosts, ...bookmarkedPosts].find((post) => post.id === cardPostId) ??
+			null
+		);
+	}, [cardPostId, myPosts, bookmarkedPosts]);
+
+	/**
+	 * 썸네일을 눌렀을 때.
+	 *
+	 * 모바일은 곧바로 댓글이 뜨면 사진을 볼 수 없어서 커뮤니티 카드와 같은 화면을
+	 * 한 번 거친다. 넓은 화면은 상세 모달이 사진과 댓글을 나란히 보여주므로 그대로 연다.
+	 */
+	const handleOpenPost = (post: Post) => {
+		if (isMobile) {
+			setCardPostId(post.id);
+			return;
+		}
+		setActivePost(post);
+	};
+
 	const savedDesigns = useMemo(() => {
 		const fromApi =
 			archiveData?.pages.flatMap((page) =>
@@ -233,7 +264,7 @@ export default function MyPage() {
 								onAction={() => requireAuth(() => setWriteOpen(true))}
 							/>
 						) : (
-							<PostThumbnailGrid posts={myPosts} onOpen={setActivePost} />
+							<PostThumbnailGrid posts={myPosts} onOpen={handleOpenPost} />
 						))}
 
 					{tab === "designs" &&
@@ -264,7 +295,7 @@ export default function MyPage() {
 						) : (
 							<PostThumbnailGrid
 								posts={bookmarkedPosts}
-								onOpen={setActivePost}
+								onOpen={handleOpenPost}
 							/>
 						))}
 
@@ -283,6 +314,11 @@ export default function MyPage() {
 				</div>
 			</div>
 
+			<PostCardSheet
+				post={cardPost}
+				onOpenComments={setActivePost}
+				onClose={() => setCardPostId(null)}
+			/>
 			<PostDetailModal
 				key={activePost?.id}
 				post={activePost}

@@ -4,6 +4,7 @@ import CollectionPreview from "../components/collections/CollectionPreview";
 import ArtistBadge from "../components/common/ArtistBadge";
 import { isVerifiedArtist } from "../utils/artistStatus";
 import UnfollowConfirmModal from "../components/common/UnfollowConfirmModal";
+import PostCardSheet from "../components/community/PostCardSheet";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import FollowListModal from "../components/mypage/FollowListModal";
@@ -17,6 +18,7 @@ import useToggleFollow from "../hooks/mutations/useToggleFollow";
 import useUserCollections from "../hooks/queries/useUserCollections";
 import useUserPosts from "../hooks/queries/useUserPosts";
 import useUserProfile from "../hooks/queries/useUserProfile";
+import { useIsMobile } from "../hooks/useIsMobile";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { ApiError } from "../services/api";
 import useAuthStore from "../store/useAuthStore";
@@ -30,6 +32,9 @@ export default function ProfilePage() {
 	const { userId: rawUserId } = useParams();
 	const userId = Number(rawUserId);
 	const [activePost, setActivePost] = useState<Post | null>(null);
+	// 모바일에서 썸네일을 눌렀을 때 먼저 뜨는 카드 화면 (댓글은 그 다음 단계).
+	// ID로 들고 있어서 게시글이 삭제되어 목록에서 빠지면 저절로 닫힌다.
+	const [cardPostId, setCardPostId] = useState<number | null>(null);
 	const [isUnfollowOpen, setUnfollowOpen] = useState(false);
 	const [tab, setTab] = useState<ProfileTab>("feed");
 	// null이면 닫힘 — 어느 탭으로 열지까지 이 값이 들고 있다.
@@ -37,6 +42,8 @@ export default function ProfilePage() {
 		null,
 	);
 	const { requireAuth } = useRequireAuth();
+	// sm(640px) 미만 — 상세 모달이 사진 칸을 접는 구간과 같은 경계
+	const isMobile = useIsMobile(639);
 	const openDmRoom = useDmStore((s) => s.openRoom);
 	// isMe와 같은 출처 — 프로필 조회를 기다리지 않고 바로 판단할 수 있다.
 	const myUserId = useAuthStore((s) => s.user?.userId);
@@ -58,6 +65,26 @@ export default function ProfilePage() {
 		() => postsData?.pages.flatMap((page) => page.items) ?? [],
 		[postsData?.pages],
 	);
+
+	const cardPost = useMemo(
+		() =>
+			cardPostId == null
+				? null
+				: posts.find((post) => post.id === cardPostId) ?? null,
+		[cardPostId, posts],
+	);
+
+	/**
+	 * 썸네일을 눌렀을 때. 모바일은 커뮤니티 카드와 같은 화면을 한 번 거치고,
+	 * 넓은 화면은 사진·댓글을 나란히 보여주는 상세 모달을 바로 연다.
+	 */
+	const handleOpenPost = (post: Post) => {
+		if (isMobile) {
+			setCardPostId(post.id);
+			return;
+		}
+		setActivePost(post);
+	};
 
 	const {
 		data: placements,
@@ -251,7 +278,7 @@ export default function ProfilePage() {
 										<MyPageEmptyState message="게시글이 없습니다" />
 									)}
 									{!isPostsPending && posts.length > 0 && (
-										<PostThumbnailGrid posts={posts} onOpen={setActivePost} />
+										<PostThumbnailGrid posts={posts} onOpen={handleOpenPost} />
 									)}
 								</>
 							) : isCollectionPending ? (
@@ -270,6 +297,12 @@ export default function ProfilePage() {
 					</>
 				)}
 			</div>
+
+			<PostCardSheet
+				post={cardPost}
+				onOpenComments={setActivePost}
+				onClose={() => setCardPostId(null)}
+			/>
 
 			<PostDetailModal
 				key={activePost?.id}

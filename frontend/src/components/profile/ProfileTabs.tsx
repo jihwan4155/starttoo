@@ -13,7 +13,9 @@ const TABS: { id: ProfileTab; label: string }[] = [
 /** 상대 프로필 탭 — 피드 / 컬렉션 */
 export default function ProfileTabs({ active, onChange }: ProfileTabsProps) {
 	return (
-		<div className="flex gap-4 border-b border-black/10">
+		// 모바일은 탭을 화면 폭에 반씩 나눠 가운데 정렬한다. 좁은 화면에서 왼쪽에만
+		// 몰려 보이던 문제 때문 (마이페이지 탭과 같은 방식).
+		<div className="grid grid-cols-2 border-b border-black/10 lg:flex lg:gap-4">
 			{TABS.map((tab) => (
 				<button
 					key={tab.id}
