@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
@@ -59,6 +59,8 @@ function CommentRow({
 	isReply = false,
 	rootCommentId,
 	onNavigate,
+	onReply,
+	autoOpenReplies = false,
 }: {
 	postId: number;
 	comment: PostComment;
@@ -67,17 +69,17 @@ function CommentRow({
 	rootCommentId?: number;
 	/** 프로필로 이동하기 전 모달을 닫기 위한 콜백 */
 	onNavigate?: () => void;
+	/** 답글 작성은 맨 아래 입력창에서 한다 */
+	onReply?: (commentId: number, nickname: string) => void;
+	/** 이 댓글에 답글을 다는 중이면 답글 목록을 펼친다 */
+	autoOpenReplies?: boolean;
 }) {
 	const [repliesOpen, setRepliesOpen] = useState(false);
-	const [replyDraftOpen, setReplyDraftOpen] = useState(false);
-	const [replyInput, setReplyInput] = useState("");
-	const [replyError, setReplyError] = useState<string | null>(null);
 	const [isCommentMenuOpen, setCommentMenuOpen] = useState(false);
 	const [isDeleteCommentOpen, setDeleteCommentOpen] = useState(false);
 	const commentMenuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
 	const { toggle: toggleCommentLike } = useToggleCommentLike();
-	const { mutate: createReply, isPending: isReplyPending } = useCreateComment();
 	const { mutate: deleteCommentMutate, isPending: isDeleteCommentPending } =
 		useDeleteComment();
 	const isLiked = !!comment.liked;
@@ -96,6 +98,11 @@ function CommentRow({
 	});
 
 	const loadedReplies = repliesPage?.items ?? [];
+
+	// 아래 입력창에서 이 댓글에 답글을 다는 중이면 답글 목록을 펼쳐 둔다
+	useEffect(() => {
+		if (autoOpenReplies) setRepliesOpen(true);
+	}, [autoOpenReplies]);
 
 	useEffect(() => {
 		if (!isCommentMenuOpen) return;
@@ -137,35 +144,6 @@ function CommentRow({
 		);
 	};
 
-	const handleReplySubmit = (e: FormEvent) => {
-		e.preventDefault();
-		const content = replyInput.trim();
-		if (!content || isReplyPending) return;
-		if (!requireAuth()) return;
-		setReplyError(null);
-		createReply(
-			{
-				postId,
-				content,
-				parentCommentId: comment.id,
-			},
-			{
-				onSuccess: () => {
-					setReplyInput("");
-					setReplyDraftOpen(false);
-					setRepliesOpen(true);
-				},
-				onError: (err) => {
-					setReplyError(
-						err instanceof ApiError
-							? err.message
-							: "답글 작성에 실패했습니다.",
-					);
-				},
-			},
-		);
-	};
-
 	return (
 		<div className={`group/comment ${isReply ? "mt-3 pl-10" : "mt-4"}`}>
 			<div className="flex items-start gap-2.5">
@@ -197,36 +175,13 @@ function CommentRow({
 								type="button"
 								onClick={() => {
 									if (!requireAuth()) return;
-									setReplyDraftOpen((open) => !open);
-									setRepliesOpen(true);
+									onReply?.(comment.id, nickname);
 								}}
 								className="transition hover:text-black/60">
 								답글 달기
 							</button>
 						)}
 					</div>
-					{!isReply && replyDraftOpen && (
-						<form
-							onSubmit={handleReplySubmit}
-							className="mt-2 flex items-center gap-2">
-							<input
-								value={replyInput}
-								onChange={(e) => setReplyInput(e.target.value)}
-								placeholder="답글 달기..."
-								maxLength={1000}
-								className="min-w-0 flex-1 rounded-full border border-black/15 px-3 py-1.5 text-[12px] font-light outline-none placeholder:text-black/35 focus:border-brand/50"
-							/>
-							<button
-								type="submit"
-								disabled={!replyInput.trim() || isReplyPending}
-								className="shrink-0 rounded-full bg-brand px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40">
-								{isReplyPending ? "..." : "게시"}
-							</button>
-						</form>
-					)}
-					{replyError && (
-						<p className="mt-1 text-[11px] text-brand">{replyError}</p>
-					)}
 					{!isReply && replyCount > 0 && (
 						<button
 							type="button"
@@ -332,6 +287,12 @@ export default function PostDetailModal({
 }: PostDetailModalProps) {
 	const [commentInput, setCommentInput] = useState("");
 	const [commentError, setCommentError] = useState<string | null>(null);
+	// 답글 대상 — 정해져 있으면 맨 아래 입력창이 답글 입력창이 된다
+	const [replyTarget, setReplyTarget] = useState<{
+		commentId: number;
+		nickname: string;
+	} | null>(null);
+	const commentInputRef = useRef<HTMLInputElement>(null);
 	const [isMenuOpen, setMenuOpen] = useState(false);
 	const [isReportOpen, setReportOpen] = useState(false);
 	const [isEditOpen, setEditOpen] = useState(false);
@@ -481,6 +442,13 @@ export default function PostDetailModal({
 	});
 
 	if (!post) return null;
+
+	// "답글 달기" → 맨 아래 입력창을 답글 모드로 바꾸고 커서를 옮긴다
+	const handleReplyStart = (commentId: number, nickname: string) => {
+		setReplyTarget({ commentId, nickname });
+		setCommentError(null);
+		commentInputRef.current?.focus();
+	};
 
 	const apiComments = commentsPage?.items ?? [];
 	const commentsErrorMessage =
@@ -728,6 +696,8 @@ export default function PostDetailModal({
 									postId={post.id}
 									comment={comment}
 									onNavigate={onClose}
+									onReply={handleReplyStart}
+									autoOpenReplies={replyTarget?.commentId === comment.id}
 								/>
 							))}
 					</div>
@@ -756,6 +726,23 @@ export default function PostDetailModal({
 								<BookmarkIcon filled={isBookmarked} />
 							</button>
 						</div>
+						{replyTarget && (
+							<div className="mt-3 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-1.5 text-[12px] font-light text-black/60">
+								<span className="min-w-0 flex-1 truncate">
+									<span className="font-semibold text-black/70">
+										{replyTarget.nickname}
+									</span>
+									님에게 답글 남기는 중
+								</span>
+								<button
+									type="button"
+									aria-label="답글 취소"
+									onClick={() => setReplyTarget(null)}
+									className="shrink-0 text-black/40 transition hover:text-black/70">
+									<CloseIcon size={14} />
+								</button>
+							</div>
+						)}
 						<form
 							className="mt-3 flex items-center gap-2 rounded-full border border-black/15 py-1 pl-4 pr-1"
 							onSubmit={(e) => {
@@ -765,23 +752,38 @@ export default function PostDetailModal({
 								if (!requireAuth()) return;
 								setCommentError(null);
 								createCommentMutate(
-									{ postId: post.id, content },
 									{
-										onSuccess: () => setCommentInput(""),
+										postId: post.id,
+										content,
+										parentCommentId: replyTarget?.commentId,
+									},
+									{
+										onSuccess: () => {
+											setCommentInput("");
+											setReplyTarget(null);
+										},
 										onError: (err) => {
 											setCommentError(
 												err instanceof ApiError
 													? err.message
-													: "댓글 작성에 실패했습니다.",
+													: replyTarget
+														? "답글 작성에 실패했습니다."
+														: "댓글 작성에 실패했습니다.",
 											);
 										},
 									},
 								);
 							}}>
 							<input
+								ref={commentInputRef}
 								value={commentInput}
 								onChange={(e) => setCommentInput(e.target.value)}
-								placeholder="댓글 달기..."
+								placeholder={
+									replyTarget
+										? `${replyTarget.nickname}님에게 답글 달기...`
+										: "댓글 달기..."
+								}
+								maxLength={1000}
 								className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 							/>
 							<button
