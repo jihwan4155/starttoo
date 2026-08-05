@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link } from "react-router-dom";
+import ArtistBadge from "../components/common/ArtistBadge";
 import { MoreIcon, ShareIcon } from "../components/community/icons";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import DmRoomMenu from "../components/dm/DmRoomMenu";
@@ -246,8 +247,11 @@ export default function DmPage() {
 										className="size-12 shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-11"
 										/>
 										<span className="min-w-0 flex-1">
-											<span className="block truncate text-[15px] font-semibold text-black lg:text-[14px]">
-												{room.partner.nickname}
+											<span className="flex items-center gap-1.5">
+												<span className="min-w-0 truncate text-[15px] font-semibold text-black lg:text-[14px]">
+													{room.partner.nickname}
+												</span>
+												{room.partner.verified && <ArtistBadge size={15} />}
 											</span>
 											<span
 												className={`mt-0.5 block truncate text-[12px] ${
@@ -305,12 +309,13 @@ export default function DmPage() {
 							/>
 						</Link>
 						<div className="min-w-0 flex-1">
-							<p className="text-[14px] font-semibold text-black">
+							<p className="flex items-center gap-1.5 text-[14px] font-semibold text-black">
 								<Link
 									to={profilePath(selectedRoom.partner.userSeq)}
-									className="truncate hover:underline">
+									className="min-w-0 truncate hover:underline">
 									{selectedRoom.partner.nickname}
 								</Link>
+								{selectedRoom.partner.verified && <ArtistBadge size={15} />}
 							</p>
 						</div>
 						<DmRoomMenu room={selectedRoom} onLeft={leaveDm}>

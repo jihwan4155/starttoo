@@ -64,4 +64,6 @@ export type RelationUser = {
 	profileImageUrl: string | null;
 	/** 조회한 사람(나) 기준 팔로우 여부 */
 	isFollowing: boolean;
+	/** role=ARTIST이고 인증까지 끝난 계정인지 — 뱃지 판정은 이 값만 본다 */
+	isVerifiedArtist: boolean;
 };

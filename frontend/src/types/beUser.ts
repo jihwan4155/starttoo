@@ -71,6 +71,8 @@ export type BeRelationUser = {
 	profileImageSeq: number | null;
 	profileImageUrl: string | null;
 	followedByMe: boolean;
+	/** role=ARTIST이고 인증까지 끝난 계정인지 */
+	verified: boolean;
 };
 
 export type BeRecentSearchUpdateRequest = {

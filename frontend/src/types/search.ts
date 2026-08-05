@@ -10,6 +10,11 @@ export type AccountResult = {
 	userSeq: number;
 	nickname: string;
 	role: string;
+	profileImageSeq: number | null;
+	/** 단기 Presigned GET URL */
+	profileImageUrl: string | null;
+	/** role=ARTIST이고 인증까지 끝난 계정인지 — 뱃지 판정은 이 값만 본다 */
+	verified: boolean;
 };
 
 /** Swagger SearchDtos.SubjectResult */
