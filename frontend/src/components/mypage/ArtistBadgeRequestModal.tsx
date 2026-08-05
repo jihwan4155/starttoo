@@ -1,7 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import ArtistBadge from "../common/ArtistBadge";
+import useVerifyArtist from "../../hooks/mutations/useVerifyArtist";
+import { ApiError } from "../../services/api";
+import useToastStore from "../../store/useToastStore";
 
 type ArtistBadgeRequestModalProps = {
 	isOpen: boolean;
@@ -9,22 +12,26 @@ type ArtistBadgeRequestModalProps = {
 };
 
 const STEPS = [
-	"숍 이름·주소·전화번호·영업 안내를 프로필에 입력합니다.",
-	"제출한 정보로 운영팀이 실제 영업 여부를 확인합니다.",
-	"승인되면 닉네임 옆에 인증 뱃지가 표시됩니다.",
+	"인증하면 닉네임 옆에 인증 뱃지가 표시됩니다.",
+	"타투이스트 목록에 노출되어 손님이 찾을 수 있습니다.",
+	"숍 이름·주소·전화번호·영업 안내는 마이페이지에서 채웁니다.",
 ];
 
 /**
- * 타투이스트 인증 뱃지 신청 안내
+ * 타투이스트 인증 뱃지
  *
- * 신청 접수 API가 아직 없어 절차 안내와 숍 정보 입력 화면 연결까지만 한다.
- * 신청 엔드포인트가 생기면 아래 버튼에 붙이면 된다.
+ * POST /artists/me/verification을 호출한다. 서버가 운영팀 승인 단계를 생략하고
+ * 호출 즉시 인증을 끝내므로, 화면에서도 "신청"이 아니라 바로 인증되는 흐름으로
+ * 안내한다. 승인 절차가 생기면 문구와 성공 처리를 함께 바꿔야 한다.
  */
 export default function ArtistBadgeRequestModal({
 	isOpen,
 	onClose,
 }: ArtistBadgeRequestModalProps) {
 	const navigate = useNavigate();
+	const showToast = useToastStore((s) => s.showToast);
+	const { mutate: verify, isPending } = useVerifyArtist();
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -35,7 +42,35 @@ export default function ArtistBadgeRequestModal({
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [isOpen, onClose]);
 
+	// 닫았다 다시 열면 지난 오류는 남아 있을 이유가 없다.
+	useEffect(() => {
+		if (isOpen) setError(null);
+	}, [isOpen]);
+
 	if (!isOpen) return null;
+
+	const handleVerify = () => {
+		setError(null);
+		verify(undefined, {
+			onSuccess: () => {
+				showToast("타투이스트 인증이 완료되었습니다.");
+				onClose();
+			},
+			onError: (cause) => {
+				// 이미 인증된 계정(409)이면 실패라기보다 이미 끝난 상태다.
+				if (cause instanceof ApiError && cause.status === 409) {
+					showToast("이미 인증된 계정입니다.");
+					onClose();
+					return;
+				}
+				setError(
+					cause instanceof ApiError
+						? cause.message
+						: "인증에 실패했습니다. 잠시 후 다시 시도해주세요.",
+				);
+			},
+		});
+	};
 
 	return createPortal(
 		<div
@@ -51,10 +86,10 @@ export default function ArtistBadgeRequestModal({
 				<div className="flex flex-col items-center px-6 pb-6 pt-8">
 					<ArtistBadge size={44} />
 					<p className="mt-4 text-[18px] font-bold text-black">
-						타투이스트 인증 뱃지 신청
+						타투이스트 인증
 					</p>
 					<p className="mt-2 text-center text-[13px] font-light leading-5 text-black/50">
-						인증을 받으면 타투이스트 목록에 노출되고
+						인증하면 타투이스트 목록에 노출되고
 						<br />
 						프로필에 매장 정보를 보여줄 수 있습니다.
 					</p>
@@ -72,20 +107,38 @@ export default function ArtistBadgeRequestModal({
 						))}
 					</ol>
 
-					<div className="mt-8 flex w-full gap-3">
+					{error && (
+						<p
+							role="alert"
+							className="mt-6 w-full text-center text-[13px] leading-5 text-brand">
+							{error}
+						</p>
+					)}
+
+					<button
+						type="button"
+						onClick={handleVerify}
+						disabled={isPending}
+						className="mt-8 h-11 w-full rounded-full bg-brand text-[14px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#FFB4B4]">
+						{isPending ? "인증하는 중…" : "인증하기"}
+					</button>
+
+					<div className="mt-3 flex w-full gap-3">
 						<button
 							type="button"
 							onClick={onClose}
-							className="h-11 flex-1 rounded-full border border-black/15 bg-white text-[14px] font-semibold text-black transition hover:bg-black/5">
+							disabled={isPending}
+							className="h-11 flex-1 rounded-full border border-black/15 bg-white text-[14px] font-semibold text-black transition hover:bg-black/5 disabled:opacity-50">
 							닫기
 						</button>
 						<button
 							type="button"
+							disabled={isPending}
 							onClick={() => {
 								onClose();
 								navigate("/mypage/edit");
 							}}
-							className="h-11 flex-1 rounded-full bg-brand text-[14px] font-semibold text-white transition hover:brightness-95">
+							className="h-11 flex-1 rounded-full border border-black/15 bg-white text-[14px] font-semibold text-black transition hover:bg-black/5 disabled:opacity-50">
 							숍 정보 입력
 						</button>
 					</div>
