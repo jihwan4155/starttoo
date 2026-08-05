@@ -53,12 +53,13 @@ public class SearchController {
                     fuzzy 거리 2, contains 순서의 독립 단계로 검색한다. 단계 사이에는 점수를
                     비교하지 않고 같은 단계 안에서 Redis relevanceScore를 사용한다. Spring은
                     Redis가 반환한 순서를 다시 계산하지 않으며 PostgreSQL에서 ACTIVE·비삭제·
-                    ADMIN 제외 조건과 화면 표시용 nickname·role만 재조회한다. 본 검색은
-                    최소 두 글자이며 한 글자 입력은 자동완성 API를 사용한다.
+                    ADMIN 제외 조건과 화면 표시용 nickname·role만 재조회한다. 검색어는
+                    한 글자부터 허용하며, 정규화 검색어가 두 글자 미만이면 오타 보정(fuzzy)
+                    단계는 건너뛴다.
                     """
     )
     public ApiResponse<List<SearchDtos.AccountResult>> searchAccounts(
-            @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{2,20}$") String q,
+            @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,20}$") String q,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
     ) {
         return ApiResponse.of(searchService.searchAccounts(q, size, false));
@@ -91,7 +92,7 @@ public class SearchController {
                     """
     )
     public ApiResponse<List<SearchDtos.AccountResult>> searchArtists(
-            @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{2,20}$") String q,
+            @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,20}$") String q,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
     ) {
         return ApiResponse.of(searchService.searchAccounts(q, size, true));
@@ -129,7 +130,7 @@ public class SearchController {
                     """
     )
     public ApiResponse<SearchDtos.PostSearchResponse> posts(
-            @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{2,50}$") String q,
+            @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,50}$") String q,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
             Authentication authentication
