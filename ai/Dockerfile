@@ -6,6 +6,13 @@ RUN groupadd -r app && useradd -r -g app app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# torch 는 CPU 전용 휠로 따로 설치한다. PyPI 기본값은 CUDA 빌드라 CUDA 런타임 라이브러리를
+# 2~3GB 함께 받는데, 이 서버에는 GPU 가 없어(torch.cuda.is_available() == False) 한 줄도
+# 실행되지 않는다. 이 레이어를 따로 두면 다른 의존성이 바뀌어도 재설치되지 않는다.
+# GPU 서버로 옮긴다면 이 줄을 지우고 api_server/requirements.txt 에 torch 를 되돌린다.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+        torch torchvision
+
 COPY api_server/requirements.txt ./api_server-requirements.txt
 RUN pip install --no-cache-dir -r api_server-requirements.txt
 
