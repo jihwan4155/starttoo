@@ -66,6 +66,21 @@ public class ArtistService {
         return profile(userSeq);
     }
 
+    @Transactional
+    public ArtistDtos.ArtistProfile verify(Integer userSeq) {
+        User user = userService.find(userSeq);
+        if (user.getRole() != UserRole.ARTIST) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
+        Artist artist = artistRepository.findActiveForUpdate(userSeq)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.ARTIST_NOT_FOUND));
+        if (artist.getVerificationStatus() == VerificationStatus.VERIFIED) {
+            throw BusinessException.of(ErrorCode.STATE_CONFLICT);
+        }
+        artist.processVerification(VerificationStatus.VERIFIED, null, userSeq);
+        return profile(userSeq);
+    }
+
     @Transactional(readOnly = true)
     public CursorPageResponse<ArtistDtos.ArtistListItem> list(
             String cursor,

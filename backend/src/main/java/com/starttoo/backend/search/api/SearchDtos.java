@@ -11,7 +11,13 @@ public final class SearchDtos {
     private SearchDtos() {
     }
 
-    public record AccountResult(Integer userSeq, String nickname, UserRole role) {
+    public record AccountResult(
+            Integer userSeq,
+            String nickname,
+            UserRole role,
+            @Schema(description = "role이 ARTIST이고 아티스트 인증이 완료된 경우 true")
+            boolean verified
+    ) {
     }
 
     public record SubjectResult(

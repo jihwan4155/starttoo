@@ -73,7 +73,9 @@ public final class UserDtos {
             UserRole role,
             Long profileImageSeq,
             String profileImageUrl,
-            boolean followedByMe
+            boolean followedByMe,
+            @Schema(description = "role이 ARTIST이고 아티스트 인증이 완료된 경우 true")
+            boolean verified
     ) {
     }
 

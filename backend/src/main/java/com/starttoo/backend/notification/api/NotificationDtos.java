@@ -31,7 +31,9 @@ public final class NotificationDtos {
             String nickname,
             Long profileImageSeq,
             @Schema(description = "프로필 이미지의 단기 Presigned GET URL")
-            String profileImageUrl
+            String profileImageUrl,
+            @Schema(description = "role이 ARTIST이고 아티스트 인증이 완료된 경우 true")
+            boolean verified
     ) {
     }
 
