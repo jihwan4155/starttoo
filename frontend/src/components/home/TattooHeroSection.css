@@ -1,0 +1,62 @@
+.tattoo-lab { position: relative; min-height: calc(100svh - 60px); overflow: hidden; background: url("../../assets/images/home/banner-background.jpg") center/cover no-repeat; color: #161417; }
+.tattoo-lab::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(34,27,34,.1) .6px, transparent .6px); background-size: 5px 5px; opacity: .18; }
+.tattoo-lab__controls { position: absolute; z-index: 6; left: max(28px, calc((100vw - 1450px) / 2)); bottom: 28px; width: min(430px, 32vw); padding: 22px; border: 1px solid rgba(255,255,255,.78); border-radius: 4px; background: rgba(255,255,255,.82); box-shadow: 0 24px 70px rgba(66,54,70,.1); backdrop-filter: blur(18px); }
+.tattoo-lab__control-block + .tattoo-lab__control-block { margin-top: 22px; padding-top: 20px; border-top: 1px solid rgba(22,20,23,.08); }
+.tattoo-lab__control-block header { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+.tattoo-lab__control-block header span { color: #ef4352; font-size: 9px; font-weight: 700; }
+.tattoo-lab__control-block header strong { font-size: 12px; letter-spacing: .04em; }
+.tattoo-lab button { font: inherit; cursor: pointer; }
+.tattoo-lab__needle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tattoo-lab__needle-grid button { display: grid; min-height: 78px; place-items: center; align-content: center; gap: 2px; border: 1px solid transparent; border-radius: 12px; background: rgba(255,255,255,.48); color: #181518; transition: .2s ease; }
+.tattoo-lab__needle-grid button:hover, .tattoo-lab__needle-grid button.is-active { border-color: rgba(239,67,82,.45); background: #fff; box-shadow: 0 7px 20px rgba(72,39,49,.08); transform: translateY(-2px); }
+.tattoo-lab__needle-grid svg { width: 25px; height: 25px; fill: currentColor; }
+.tattoo-lab__needle-grid b { font-size: 11px; }
+.tattoo-lab__needle-grid small { color: rgba(22,20,23,.4); font-size: 9px; }
+.tattoo-lab__segments { display: flex; padding: 4px; border-radius: 999px; background: rgba(22,20,23,.06); }
+.tattoo-lab__segments button { flex: 1; border: 0; border-radius: 999px; padding: 9px 6px; background: transparent; color: rgba(22,20,23,.48); font-size: 10px; }
+.tattoo-lab__segments button.is-active { background: #191719; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.14); }
+.tattoo-lab__bottom-controls { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; }
+.tattoo-lab__colors { display: flex; gap: 9px; }
+.tattoo-lab__colors button { width: 17px; height: 17px; border: 2px solid transparent; border-radius: 50%; box-shadow: 0 0 0 1px rgba(22,20,23,.13); }
+.tattoo-lab__colors button.is-active { border-color: white; box-shadow: 0 0 0 2px #ef4352; }
+.tattoo-lab__designs { display: flex; gap: 8px; }
+.tattoo-lab__designs button { overflow: hidden; width: 48px; height: 48px; border: 1px solid transparent; border-radius: 12px; padding: 5px; background: #fff; }
+.tattoo-lab__designs button.is-active { border-color: #ef4352; box-shadow: 0 4px 14px rgba(239,67,82,.14); }
+.tattoo-lab__designs img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 0 #111); }
+.tattoo-lab__canvas { position: absolute; z-index: 2; inset: 0; overflow: hidden; }
+.tattoo-lab__arm { position: absolute; right: 7%; bottom: -12%; width: min(94%, 1370px); height: 112%; object-fit: contain; object-position: right bottom; pointer-events: none; }
+.tattoo-lab__machine-preview { position: absolute; z-index: 3; left: 25%; top: 19%; width: clamp(180px, 19vw, 310px); transform: rotate(-9deg); filter: drop-shadow(0 18px 18px rgba(30,17,27,.18)); }
+.tattoo-lab__canvas.is-engaged .tattoo-lab__machine-preview { opacity: 0; }
+.tattoo-lab__tattoo-zone { position: absolute; z-index: 4; right: 25%; top: 11%; width: clamp(300px, 31vw, 510px); height: 82%; transform: perspective(800px) rotateY(-14deg) rotateZ(7deg) skewY(-2deg); transform-origin: 65% 45%; }
+.tattoo-lab__tattoo-zone--tiger { right: 24%; top: 10%; width: clamp(320px, 33vw, 540px); }
+.tattoo-lab__tattoo-zone canvas { position: absolute; z-index: 2; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; cursor: none; clip-path: polygon(31% 0, 76% 0, 92% 100%, 4% 100%); border-radius: 42% 35% 30% 44%; }
+.tattoo-lab__stencil-image { position: absolute; z-index: 1; left: 22%; top: 24%; width: 62%; height: 52%; object-fit: contain; opacity: .25; filter: grayscale(1) contrast(1.3); pointer-events: none; transform: scaleX(.9); transform-origin: center; }
+.tattoo-lab__hint { position: absolute; z-index: 5; right: 33%; top: 17%; display: flex; align-items: center; gap: 8px; color: rgba(22,20,23,.48); font-size: 9px; font-weight: 700; letter-spacing: .15em; }
+.tattoo-lab__hint span { width: 6px; height: 6px; border-radius: 50%; background: #ef4352; box-shadow: 0 0 0 5px rgba(239,67,82,.12); }
+.tattoo-lab__machine { position: absolute; z-index: 8; width: clamp(140px, 17vw, 270px); pointer-events: none; opacity: 0; transform: translate(-13%, -95%) rotate(-2deg); transform-origin: 13% 95%; transition: opacity .18s; filter: drop-shadow(0 16px 14px rgba(30,17,27,.22)); }
+.tattoo-lab__machine.is-visible { opacity: 1; }
+.tattoo-lab__canvas.is-engaged .tattoo-lab__machine { animation: machine-buzz .09s linear infinite alternate; }
+.tattoo-lab__reset { position: absolute; z-index: 7; right: 28px; bottom: 28px; border: 0; border-bottom: 1px solid currentColor; padding: 5px 0; background: transparent; color: rgba(22,20,23,.55); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+.tattoo-lab__reset:disabled { opacity: .25; cursor: default; }
+@keyframes machine-buzz { to { translate: 1px -1px; } }
+
+@media (max-width: 900px) {
+	.tattoo-lab { min-height: 980px; }
+	.tattoo-lab__controls { top: 28px; bottom: auto; left: 20px; width: calc(100% - 40px); transform: none; }
+	.tattoo-lab__canvas { inset: 365px 0 0; }
+	.tattoo-lab__arm { right: -16%; width: 120%; height: 100%; }
+	.tattoo-lab__machine-preview { display: none; }
+	.tattoo-lab__tattoo-zone { right: 10%; top: 5%; width: min(58vw, 360px); height: 90%; }
+	.tattoo-lab__tattoo-zone--tiger { right: 8%; top: 4%; width: min(62vw, 380px); }
+	.tattoo-lab__hint { top: 9%; right: 23%; }
+}
+
+@media (max-width: 520px) {
+	.tattoo-lab { min-height: 1030px; }
+	.tattoo-lab__controls { top: 20px; padding: 18px; }
+	.tattoo-lab__bottom-controls { grid-template-columns: 1fr 1fr; }
+	.tattoo-lab__canvas { inset: 385px 0 0; }
+	.tattoo-lab__machine { width: 145px; }
+}
+
+@media (prefers-reduced-motion: reduce) { .tattoo-lab__canvas.is-engaged .tattoo-lab__machine { animation: none; } }

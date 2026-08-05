@@ -21,7 +21,7 @@ export default function MainLayout() {
 		<div className="min-h-screen bg-white">
 			<TopNav />
 			<SideNav />
-			<main className="pt-[50px] lg:ml-20 lg:pt-[60px]">
+			<main className="pt-[44px] lg:ml-16 lg:pt-[52px]">
 				<Outlet />
 			</main>
 			{/* 라우트가 바뀌어도 유지돼야 해서 페이지가 아니라 레이아웃에 둔다 */}

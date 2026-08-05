@@ -187,7 +187,7 @@ export default function SideNav() {
 			: pathname === item.to || pathname.startsWith(`${item.to}/`);
 		const showLabel = hoveredId === item.id;
 		// 전체 아이콘은 살짝 작게, 커뮤니티는 살짝 크게, 펼쳐지는 하위 아이콘은 더 작게
-		const boxSize = small ? "size-[42px]" : "size-[51px]";
+		const boxSize = small ? "size-[38px]" : "size-[46px]";
 		const iconScale =
 			item.id === "community"
 				? "scale-[1.05]"
@@ -250,7 +250,7 @@ export default function SideNav() {
 	const [communityItem, ...communitySubItems] = COMMUNITY_ITEMS;
 
 	return (
-		<aside className="fixed bottom-0 left-0 top-[60px] z-40 hidden w-20 flex-col items-center gap-3 bg-white pt-6 lg:flex">
+		<aside className="fixed bottom-0 left-0 top-[52px] z-40 hidden w-16 flex-col items-center gap-3 bg-white pt-6 lg:flex">
 			{MAIN_ITEMS.map((item) => renderItem(item))}
 
 			{/* 커버업 타투와 커뮤니티 사이 구분선 */}
