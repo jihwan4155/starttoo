@@ -32,7 +32,9 @@ public class KoreanJamoNormalizer {
                     result.append(finalJamo);
                 }
             } else {
-                result.append(current);
+                // 색인·질의 양쪽에서 같은 정규화를 쓰므로 영문 대소문자 차이로
+                // exact/prefix/contains 단계가 미스나지 않도록 소문자로 통일한다.
+                result.append(Character.toLowerCase(current));
             }
         }
         return result.toString();

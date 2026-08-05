@@ -32,7 +32,7 @@ public class SearchController {
     @Operation(
             summary = "회원 닉네임 자동완성",
             description = """
-                    한글 완성형을 호환 자모로 분해하고 영문 대소문자·숫자는 보존한 검색키로
+                    한글 완성형을 호환 자모로 분해하고 영문은 소문자로 정규화한 검색키로
                     Redis ZSET 사전을 사전식 범위 조회한다. 사전에는 정규화 닉네임과 userSeq만
                     유지하며, 결과 userSeq를 PostgreSQL에서 다시 조회해 ACTIVE·비삭제·ADMIN 제외
                     조건을 재검증한다. 정확 일치, 짧은 닉네임, 사전순으로 정렬한다.

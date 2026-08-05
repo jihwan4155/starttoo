@@ -142,14 +142,14 @@ URL이다. DB에는 URL을 저장하지 않는다.
 |---|---|---|
 | GET | `/search/accounts/autocomplete` | ADMIN 제외 계정 자모 접두어 |
 | GET | `/search/artists/autocomplete` | VERIFIED 아티스트 자모 접두어 |
-| GET | `/search/accounts` | Redis fuzzy 후보 기반 대소문자 구분 닉네임 검색 |
+| GET | `/search/accounts` | Redis fuzzy 후보 기반 닉네임 검색 (영문 대소문자 무시) |
 | GET | `/search/artists` | Redis fuzzy 후보 기반 인증 아티스트 닉네임 검색 |
 | GET | `/search/subjects/autocomplete` | 선별 subject 사전의 seq·이름 접두어 |
 | GET | `/search/posts` | 보정된 최상위 subject의 커서 기반 Post 검색 |
 
 계정 Redis 인덱스는 검색키와 `userSeq`만 유지한다. 화면 응답은 userSeq 목록으로
-PostgreSQL을 다시 조회한다. 한글 완성형은 호환 자모로 분해하며 영문 대소문자와
-숫자는 그대로 보존한다. 자동완성은 ZSET 접두어 사전을 사용하고 본 검색과
+PostgreSQL을 다시 조회한다. 한글 완성형은 호환 자모로 분해하고 영문은 소문자로
+정규화하며 숫자는 그대로 보존한다. 자동완성은 ZSET 접두어 사전을 사용하고 본 검색과
 Subject 게시글 검색 내부 오타 보정은 Redis Search가 exact·prefix·contains·
 Levenshtein 거리 1~2 후보를 생성한다.
 본 검색은 Redis Search가 `exact → prefix → fuzzy 거리 1 → fuzzy 거리 2 →
