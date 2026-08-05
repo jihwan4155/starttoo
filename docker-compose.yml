@@ -114,13 +114,13 @@ services:
     container_name: starttoo-ai-api
     restart: unless-stopped
     command: ["python", "-m", "api_server"]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
     environment:
       APP_NAME: ${AI_APP_NAME:-Tattoo AI API}
       APP_ENV: ${AI_APP_ENV:-local}
