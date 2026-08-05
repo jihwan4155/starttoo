@@ -352,6 +352,7 @@ class DmServiceContractTest {
         when(resultSet.getString("profile_object_key")).thenReturn("users/8/profile.webp");
         when(resultSet.getBoolean("is_active")).thenReturn(true);
         when(resultSet.getBoolean("is_notification_enabled")).thenReturn(true);
+        when(resultSet.getBoolean("partner_verified")).thenReturn(false);
         when(resultSet.getLong("unread_count")).thenReturn(1L);
         when(resultSet.getString("last_message_preview")).thenReturn("latest");
         when(resultSet.getObject("last_message_dttm", OffsetDateTime.class))

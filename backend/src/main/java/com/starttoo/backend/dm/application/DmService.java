@@ -108,6 +108,11 @@ public class DmService {
                            partner.nickname AS partner_nickname,
                            partner.profile_image_seq,
                            profile_image.object_key AS profile_object_key,
+                           COALESCE(
+                               partner.role = 'ARTIST'
+                               AND artist.verification_status = 'VERIFIED',
+                               FALSE
+                           ) AS partner_verified,
                            room.is_active,
                            room.is_notification_enabled,
                            latest.last_message_preview,
@@ -130,6 +135,9 @@ public class DmService {
                       LEFT JOIN images profile_image
                         ON profile_image.image_seq = partner.profile_image_seq
                        AND profile_image.is_deleted = FALSE
+                      LEFT JOIN artists artist
+                        ON artist.user_seq = partner.user_seq
+                       AND artist.is_deleted = FALSE
                       LEFT JOIN LATERAL (
                           SELECT CASE
                                      WHEN message.is_deleted THEN '삭제된 메시지'
@@ -167,7 +175,8 @@ public class DmService {
                             rs.getInt("partner_seq"),
                             rs.getString("partner_nickname"),
                             rs.getObject("profile_image_seq", Long.class),
-                            downloadUrl(rs.getString("profile_object_key"))
+                            downloadUrl(rs.getString("profile_object_key")),
+                            rs.getBoolean("partner_verified")
                     ),
                     rs.getBoolean("is_active"),
                     rs.getBoolean("is_notification_enabled"),
@@ -350,6 +359,11 @@ public class DmService {
                 SELECT partner.nickname,
                        partner.profile_image_seq,
                        profile_image.object_key AS profile_object_key,
+                       COALESCE(
+                           partner.role = 'ARTIST'
+                           AND artist.verification_status = 'VERIFIED',
+                           FALSE
+                       ) AS partner_verified,
                        (
                            SELECT COUNT(*)
                              FROM dm_messages message
@@ -365,6 +379,9 @@ public class DmService {
                   LEFT JOIN images profile_image
                     ON profile_image.image_seq = partner.profile_image_seq
                    AND profile_image.is_deleted = FALSE
+                  LEFT JOIN artists artist
+                    ON artist.user_seq = partner.user_seq
+                   AND artist.is_deleted = FALSE
                   LEFT JOIN LATERAL (
                       SELECT CASE
                                  WHEN message.is_deleted THEN '삭제된 메시지'
@@ -383,6 +400,7 @@ public class DmService {
                 rs.getString("nickname"),
                 rs.getObject("profile_image_seq", Long.class),
                 rs.getString("profile_object_key"),
+                rs.getBoolean("partner_verified"),
                 rs.getLong("unread_count"),
                 rs.getString("last_message_preview"),
                 rs.getObject("last_message_dttm", OffsetDateTime.class)
@@ -403,7 +421,8 @@ public class DmService {
                         partnerSeq,
                         details.nickname(),
                         details.profileImageSeq(),
-                        downloadUrl(details.profileObjectKey())
+                        downloadUrl(details.profileObjectKey()),
+                        details.partnerVerified()
                 ),
                 participant.isActive(),
                 participant.isNotificationEnabled(),
@@ -529,6 +548,7 @@ public class DmService {
             String nickname,
             Long profileImageSeq,
             String profileObjectKey,
+            boolean partnerVerified,
             long unreadCount,
             String lastMessagePreview,
             OffsetDateTime lastMessageDttm

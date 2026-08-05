@@ -325,7 +325,12 @@ public class SearchService {
     ) {
         Map<Integer, SearchDtos.AccountResult> byId = new LinkedHashMap<>();
         namedParameterJdbcTemplate.query("""
-                SELECT u.user_seq, u.nickname, u.role
+                SELECT u.user_seq, u.nickname, u.role,
+                       COALESCE(
+                           u.role = 'ARTIST'
+                           AND a.verification_status = 'VERIFIED',
+                           FALSE
+                       ) AS verified
                   FROM users u
                   LEFT JOIN artists a
                     ON a.user_seq = u.user_seq
@@ -347,7 +352,8 @@ public class SearchService {
             SearchDtos.AccountResult value = new SearchDtos.AccountResult(
                     rs.getInt("user_seq"),
                     rs.getString("nickname"),
-                    UserRole.valueOf(rs.getString("role"))
+                    UserRole.valueOf(rs.getString("role")),
+                    rs.getBoolean("verified")
             );
             byId.put(value.userSeq(), value);
         });

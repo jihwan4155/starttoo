@@ -38,7 +38,9 @@ public final class CommentDtos {
             Integer userSeq,
             String nickname,
             Long profileImageSeq,
-            String profileImageUrl
+            String profileImageUrl,
+            @Schema(description = "role이 ARTIST이고 아티스트 인증이 완료된 경우 true")
+            boolean verified
     ) {
     }
 
