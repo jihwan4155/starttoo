@@ -143,6 +143,7 @@ class PostServiceTest {
                 "user_primary_style_preferences",
                 "user_color_preferences",
                 "EXTRACT(EPOCH FROM p.reg_dttm)",
+                "p.author_seq <> ?",
                 "user_blocks",
                 "post_hidden_preferences",
                 "ORDER BY ranked.blend_score DESC, ranked.post_seq DESC"
