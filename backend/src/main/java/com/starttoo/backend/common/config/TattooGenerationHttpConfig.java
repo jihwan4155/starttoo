@@ -16,7 +16,7 @@ public class TattooGenerationHttpConfig {
     RestClient tattooGenerationRestClient(
             RestClient.Builder builder,
             AiProperties properties,
-            @Value("${app.ai.generation-timeout:10m}") Duration generationTimeout
+            @Value("${app.ai.generation-timeout:60m}") Duration generationTimeout
     ) {
         return builder.clone()
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect()
