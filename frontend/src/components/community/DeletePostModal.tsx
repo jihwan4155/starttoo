@@ -52,8 +52,9 @@ export default function DeletePostModal({
 			className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-6 backdrop-blur-[2px]"
 			onClick={onClose}
 			role="presentation">
+			{/* 낮은 화면(모바일 가로·작은 폰)에서 확인 버튼이 화면 밖으로 밀리지 않게 스크롤 */}
 			<div
-				className="relative w-full max-w-[360px] overflow-hidden rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
+				className="relative max-h-full w-full max-w-[360px] overflow-y-auto rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
