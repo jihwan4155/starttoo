@@ -187,6 +187,7 @@ public class PostService {
                          AND author.account_status = 'ACTIVE'
                          AND author.role <> 'ADMIN'
                          AND author.is_deleted = FALSE
+                         AND p.author_seq <> ?
                          AND NOT EXISTS (
                              SELECT 1 FROM user_blocks b
                               WHERE (b.blocker_seq = ? AND b.blocked_seq = p.author_seq)
@@ -213,6 +214,7 @@ public class PostService {
         ),
                 preferenceWeight,
                 recencyPerHour,
+                viewerSeq,
                 viewerSeq,
                 viewerSeq,
                 viewerSeq, viewerSeq,
