@@ -7,6 +7,7 @@ import {
 	CloseIcon,
 	HeartIcon,
 	MoreIcon,
+	ShareIcon,
 } from "./icons";
 import StarttooLoader from "../loader/StarttooLoader";
 import useCreateComment from "../../hooks/mutations/useCreateComment";
@@ -29,6 +30,7 @@ import ReportPostModal from "./ReportPostModal";
 import EditPostModal from "./EditPostModal";
 import DeletePostModal from "./DeletePostModal";
 import DeleteCommentModal from "./DeleteCommentModal";
+import SharePostModal from "./SharePostModal";
 import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import { getPostImageUrls } from "../../utils/mapPost";
@@ -335,6 +337,7 @@ export default function PostDetailModal({
 	const [isReportOpen, setReportOpen] = useState(false);
 	const [isEditOpen, setEditOpen] = useState(false);
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
+	const [isShareOpen, setShareOpen] = useState(false);
 	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
@@ -733,6 +736,13 @@ export default function PostDetailModal({
 							</button>
 							<button
 								type="button"
+								aria-label="공유"
+								onClick={() => requireAuth(() => setShareOpen(true))}
+								className="transition hover:text-black/60 disabled:opacity-50">
+								<ShareIcon />
+							</button>
+							<button
+								type="button"
 								aria-label="북마크"
 								onClick={() =>
 									requireAuth(() => toggleBookmark(post.id, isBookmarked))
@@ -804,6 +814,10 @@ export default function PostDetailModal({
 				onClose={() => setDeleteOpen(false)}
 				onConfirm={confirmDelete}
 				isPending={isDeletePending}
+			/>
+			<SharePostModal
+				post={isShareOpen ? post : null}
+				onClose={() => setShareOpen(false)}
 			/>
 		</div>,
 		document.body,
