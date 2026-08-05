@@ -106,6 +106,7 @@ class SearchServiceTest {
             when(resultSet.getInt("user_seq")).thenReturn(8);
             when(resultSet.getString("nickname")).thenReturn("Artist");
             when(resultSet.getString("role")).thenReturn("ARTIST");
+            when(resultSet.getBoolean("verified")).thenReturn(true);
             handler.processRow(resultSet);
             return null;
         }).when(namedParameterJdbcTemplate).query(
@@ -121,7 +122,8 @@ class SearchServiceTest {
                 new SearchDtos.AccountResult(
                         8,
                         "Artist",
-                        com.starttoo.backend.user.domain.UserRole.ARTIST
+                        com.starttoo.backend.user.domain.UserRole.ARTIST,
+                        true
                 )
         );
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);

@@ -256,6 +256,42 @@ class PostServiceTest {
     }
 
     @Test
+    void reportHidesPostAndAppliesNotInterestedScore() {
+        when(postRepository.findByPostSeqAndPostStatus(31L, PostStatus.PUBLISHED))
+                .thenReturn(Optional.of(post(31L, 8)));
+        when(jdbcTemplate.queryForObject(
+                contains("SELECT EXISTS"),
+                eq(Boolean.class),
+                eq(7), eq(8), eq(8), eq(7)
+        )).thenReturn(false);
+        when(jdbcTemplate.queryForObject(
+                contains("INSERT INTO post_reports"),
+                eq(Long.class),
+                eq(31L),
+                eq(7),
+                eq("INAPPROPRIATE"),
+                isNull(),
+                eq(7)
+        )).thenReturn(99L);
+        when(jdbcTemplate.update(
+                contains("INSERT INTO post_hidden_preferences"),
+                eq(31L),
+                eq(7)
+        )).thenReturn(1);
+
+        PostDtos.ReportResponse response = postService.report(
+                7,
+                31L,
+                new PostDtos.ReportRequest("INAPPROPRIATE", null)
+        );
+
+        assertThat(response.reportSeq()).isEqualTo(99L);
+        assertThat(response.reportStatus()).isEqualTo(PostDtos.ReportStatus.PENDING);
+        verify(postRepository).addReportCount(31L, 1);
+        verify(preferenceScoreService).applyNotInterested(7, 31L, true);
+    }
+
+    @Test
     void duplicateReportReturnsConflictWithoutIncreasingCount() {
         when(postRepository.findByPostSeqAndPostStatus(31L, PostStatus.PUBLISHED))
                 .thenReturn(Optional.of(post(31L, 8)));

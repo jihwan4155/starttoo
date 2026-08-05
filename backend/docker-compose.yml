@@ -20,13 +20,18 @@ services:
     image: redis/redis-stack-server:latest
     # protected-mode가 켜져있으면 비밀번호 없이는 컨테이너 밖(호스트에서 도는 bootRun 포함)에서
     # 오는 연결을 다 거부한다. 로컬 개발용으로만 노출하므로 운영 compose와 동일하게 비활성화한다.
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--protected-mode", "no"]
+    # command를 redis-server로 주면 이미지의 모듈 로딩 래퍼가 통째로 스킵돼 RediSearch가
+    # 안 올라온다(FT.* 전부 unknown command → 검색 API가 503). 루트 compose와 동일하게
+    # redis-stack-server를 지정하고 옵션만 얹는다.
+    command: ["redis-stack-server", "--appendonly", "yes", "--appendfsync", "everysec", "--protected-mode", "no"]
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG && redis-cli FT._LIST >/dev/null"]
+      # redis-cli는 서버가 에러를 돌려줘도 exit 0이라, FT._LIST 호출만으로는 모듈이
+      # 빠진 것을 못 잡는다(모듈 없이도 healthy로 떴다). 모듈 목록에서 직접 확인한다.
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG && redis-cli MODULE LIST | grep -q search"]
       interval: 5s
       timeout: 3s
       retries: 20

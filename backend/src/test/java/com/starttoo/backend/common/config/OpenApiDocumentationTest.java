@@ -91,6 +91,7 @@ class OpenApiDocumentationTest {
             "PATCH /v1/users/me",
             "PATCH /v1/users/me/profile-image",
             "PATCH /v1/users/me/recent-searches",
+            "POST /v1/artists/me/verification",
             "POST /v1/auth/logout",
             "POST /v1/auth/signup",
             "POST /v1/auth/social/login",

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ApiError } from "../../services/api";
 import { checkNicknameAvailability } from "../../services/authApi";
-import type { RequestedRole, SignupGender } from "../../types/auth";
+import type { SignupGender } from "../../types/auth";
 import { birthDateMessage, formatBirthDigits } from "../../utils/birthDate";
 
 /** 백엔드 UpdateProfileRequest.nickname 과 같은 제약 */
@@ -17,13 +17,9 @@ export type ProfileFormValues = {
 	/** YYYY-MM-DD — 8자리를 다 채워야 다음으로 넘어가므로 항상 값이 있다 */
 	birthDate: string;
 	gender: SignupGender;
-	/** 타투이스트일 때만 채운다 */
-	shopName: string | null;
-	shopAddress: string | null;
 };
 
 type ProfileFormStepProps = {
-	role: RequestedRole;
 	/**
 	 * 가입 때 배정된 임시 닉네임.
 	 * 이미 내 것이라 그대로 두면 중복 확인이 필요 없고, 바꾸면 다시 확인해야 한다.
@@ -37,10 +33,10 @@ type ProfileFormStepProps = {
 /**
  * 온보딩 2단계 — 프로필 입력.
  *
- * 타투이스트는 여기서 매장 정보를 함께 받는다. 일반 사용자와 다른 부분은 그 두 칸뿐이다.
+ * 역할과 무관하게 모두 같은 화면을 본다. 타투이스트의 매장 정보는 이 단계를 넘긴
+ * 다음의 별도 단계(ArtistShopStep)에서 받는다.
  */
 export default function ProfileFormStep({
-	role,
 	assignedNickname,
 	submitting,
 	submitError,
@@ -50,8 +46,6 @@ export default function ProfileFormStep({
 	// 화면에 보이는 하이픈은 표시용이라, 상태에는 숫자만 담는다.
 	const [birthDigits, setBirthDigits] = useState("");
 	const [gender, setGender] = useState<SignupGender | null>(null);
-	const [shopName, setShopName] = useState("");
-	const [shopAddress, setShopAddress] = useState("");
 
 	const [checking, setChecking] = useState(false);
 	const [nicknameError, setNicknameError] = useState<string | null>(null);
@@ -101,8 +95,6 @@ export default function ProfileFormStep({
 			// 8자리를 통과했으므로 이 결과가 곧 YYYY-MM-DD다.
 			birthDate: formatBirthDigits(birthDigits),
 			gender,
-			shopName: shopName.trim() || null,
-			shopAddress: shopAddress.trim() || null,
 		});
 	};
 
@@ -213,42 +205,6 @@ export default function ProfileFormStep({
 					);
 				})}
 			</div>
-
-			{role === "ARTIST" && (
-				<>
-					<label
-						htmlFor="onboarding-shop-name"
-						className="mt-6 block text-[13px] font-semibold text-black/60">
-						매장이름
-					</label>
-					<input
-						id="onboarding-shop-name"
-						value={shopName}
-						onChange={(event) => setShopName(event.target.value)}
-						placeholder="매장이름"
-						maxLength={100}
-						className="mt-2 h-[48px] w-full rounded-[10px] border border-[#D9D9D9] px-4 text-[15px] outline-none transition placeholder:text-[#999] focus:border-brand"
-					/>
-
-					<label
-						htmlFor="onboarding-shop-address"
-						className="mt-6 block text-[13px] font-semibold text-black/60">
-						매장 위치
-					</label>
-					<input
-						id="onboarding-shop-address"
-						value={shopAddress}
-						onChange={(event) => setShopAddress(event.target.value)}
-						placeholder="서울시 강남구 테헤란로 123 2층"
-						maxLength={255}
-						className="mt-2 h-[48px] w-full rounded-[10px] border border-[#D9D9D9] px-4 text-[15px] outline-none transition placeholder:text-[#999] focus:border-brand"
-					/>
-					<p className="mt-2 text-[12px] font-light leading-5 text-black/45">
-						승인 전까지는 일반 사용자로 이용할 수 있어요. 비워 두면 나중에
-						마이페이지에서 채울 수 있습니다.
-					</p>
-				</>
-			)}
 
 			{submitError && (
 				<p role="alert" className="mt-5 text-[13px] leading-5 text-brand">

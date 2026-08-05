@@ -379,6 +379,7 @@ public class PostService {
                     userSeq
             );
             postRepository.addReportCount(postSeq, 1);
+            setNotInterested(userSeq, postSeq, true);
             return new PostDtos.ReportResponse(
                     reportSeq,
                     PostDtos.ReportStatus.PENDING
@@ -421,11 +422,19 @@ public class PostService {
                        author.nickname,
                        author.role,
                        author.profile_image_seq,
-                       profile_image.object_key AS profile_object_key
+                       profile_image.object_key AS profile_object_key,
+                       COALESCE(
+                           author.role = 'ARTIST'
+                           AND artist.verification_status = 'VERIFIED',
+                           FALSE
+                       ) AS verified
                   FROM users author
                   LEFT JOIN images profile_image
                     ON profile_image.image_seq = author.profile_image_seq
                    AND profile_image.is_deleted = FALSE
+                  LEFT JOIN artists artist
+                    ON artist.user_seq = author.user_seq
+                   AND artist.is_deleted = FALSE
                  WHERE author.user_seq IN (:authorSeqs)
                 """, new MapSqlParameterSource("authorSeqs", authorSeqs), rs -> {
             Integer authorSeq = rs.getInt("user_seq");
@@ -434,7 +443,8 @@ public class PostService {
                     rs.getString("nickname"),
                     UserRole.valueOf(rs.getString("role")),
                     rs.getObject("profile_image_seq", Long.class),
-                    downloadUrl(rs.getString("profile_object_key"))
+                    downloadUrl(rs.getString("profile_object_key")),
+                    rs.getBoolean("verified")
             ));
         });
 

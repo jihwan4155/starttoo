@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -63,6 +64,21 @@ public class ArtistController {
             @Valid @RequestBody ArtistDtos.UpdateArtistRequest request
     ) {
         return ApiResponse.of(artistService.update(SecurityUtils.currentUserSeq(), request));
+    }
+
+    @PostMapping("/me/verification")
+    @Operation(
+            summary = "아티스트 인증 처리",
+            description = """
+                    users.role=ARTIST이면서 아직 VERIFIED가 아닌 회원이 자신의 인증 상태를
+                    VERIFIED로 변경한다. 원래는 관리자 승인 흐름이 필요하지만 현재는 승인
+                    단계를 생략하고 호출 즉시 인증이 완료된다. USER이면 403, artists 행이
+                    없으면 404, 이미 VERIFIED이면 409를 반환한다.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<ArtistDtos.ArtistProfile> verify() {
+        return ApiResponse.of(artistService.verify(SecurityUtils.currentUserSeq()));
     }
 
 }
