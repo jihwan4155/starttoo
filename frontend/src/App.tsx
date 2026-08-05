@@ -7,6 +7,7 @@ import StarttooLoader from "./components/loader/StarttooLoader";
 import { useAppReady } from "./hooks/useAppReady";
 import CommunityPage from "./pages/CommunityPage";
 import CommunitySearchPage from "./pages/CommunitySearchPage";
+import PostDetailPage from "./pages/PostDetailPage";
 import CoverUpPage from "./pages/CoverUpPage";
 import DmPage from "./pages/DmPage";
 import HomePage from "./pages/HomePage";
@@ -78,6 +79,10 @@ export default function App() {
 						<Route path="/coverups" element={<CoverUpPage />} />
 						{/* API: GET /posts */}
 						<Route path="/posts" element={<CommunityPage />} />
+						{/* 게시글 단건 주소 — DM으로 공유한 링크가 여기로 들어온다.
+						    정적 세그먼트가 우선이라 위쪽 /posts/search 와 부딪히지 않는다.
+						    API: GET /posts/{postId} */}
+						<Route path="/posts/:postId" element={<PostDetailPage />} />
 						{/* API: GET /dm/rooms */}
 						<Route path="/dm" element={<DmPage />} />
 						{/* API: GET /notifications/unread */}

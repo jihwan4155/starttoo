@@ -12,6 +12,7 @@ import ArtistBadge from "../common/ArtistBadge";
 import ReportPostModal from "./ReportPostModal";
 import EditPostModal from "./EditPostModal";
 import DeletePostModal from "./DeletePostModal";
+import SharePostModal from "./SharePostModal";
 import HiddenPostOverlay from "./HiddenPostOverlay";
 import useDeletePost from "../../hooks/mutations/useDeletePost";
 import useHidePost from "../../hooks/mutations/useHidePost";
@@ -37,6 +38,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	const [isReportOpen, setReportOpen] = useState(false);
 	const [isEditOpen, setEditOpen] = useState(false);
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
+	const [isShareOpen, setShareOpen] = useState(false);
 	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
@@ -332,6 +334,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 							type="button"
 							aria-label="공유"
 							disabled={isHidden}
+							onClick={() => requireAuth(() => setShareOpen(true))}
 							className="transition hover:text-black/60 disabled:opacity-50">
 							<ShareIcon />
 						</button>
@@ -385,6 +388,10 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 				onClose={() => setDeleteOpen(false)}
 				onConfirm={confirmDelete}
 				isPending={isDeletePending}
+			/>
+			<SharePostModal
+				post={isShareOpen ? post : null}
+				onClose={() => setShareOpen(false)}
 			/>
 		</article>
 	);
