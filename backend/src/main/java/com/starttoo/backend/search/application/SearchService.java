@@ -67,7 +67,8 @@ public class SearchService {
             boolean rebuildRequired = redisSearchGateway.prepareIndexes()
                     || !Boolean.TRUE.equals(redisTemplate.hasKey(ACCOUNT_KEY));
             if (rebuildRequired) {
-                rebuildIndexes();
+                // prepareIndexes를 이미 수행했으므로 문서 적재만 진행한다.
+                rebuildDocuments();
             } else {
                 refreshSubjectAutocomplete();
             }
@@ -97,12 +98,16 @@ public class SearchService {
     public void rebuildIndexes() {
         try {
             redisSearchGateway.prepareIndexes();
-            rebuildAccounts();
-            rebuildSubjects();
-            redisSearchGateway.markRebuilt();
+            rebuildDocuments();
         } catch (RuntimeException exception) {
             log.warn("Search index reconciliation skipped: {}", exception.getMessage());
         }
+    }
+
+    private void rebuildDocuments() {
+        rebuildAccounts();
+        rebuildSubjects();
+        redisSearchGateway.markRebuilt();
     }
 
     @TransactionalEventListener(

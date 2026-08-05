@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -56,20 +55,18 @@ public class RedisSearchGateway {
      * true? PostgreSQL ??????? ? ??.
      */
     public boolean prepareIndexes() {
-        Set<String> indexes = rawStringSet(execute("FT._LIST"));
         boolean versionChanged = !INDEX_VERSION.equals(
                 redisTemplate.opsForValue().get(INDEX_VERSION_KEY)
         );
         if (versionChanged) {
-            dropIndexIfPresent(indexes, ACCOUNT_INDEX);
-            dropIndexIfPresent(indexes, ARTIST_INDEX);
-            dropIndexIfPresent(indexes, SUBJECT_INDEX);
-            indexes = Set.of();
+            dropIndexIfPresent(ACCOUNT_INDEX);
+            dropIndexIfPresent(ARTIST_INDEX);
+            dropIndexIfPresent(SUBJECT_INDEX);
         }
 
-        boolean created = ensureIndex(indexes, ACCOUNT_INDEX, ACCOUNT_PREFIX);
-        created |= ensureIndex(indexes, ARTIST_INDEX, ARTIST_PREFIX);
-        created |= ensureIndex(indexes, SUBJECT_INDEX, SUBJECT_PREFIX);
+        boolean created = ensureIndex(ACCOUNT_INDEX, ACCOUNT_PREFIX);
+        created |= ensureIndex(ARTIST_INDEX, ARTIST_PREFIX);
+        created |= ensureIndex(SUBJECT_INDEX, SUBJECT_PREFIX);
         return versionChanged || created;
     }
 
@@ -129,10 +126,32 @@ public class RedisSearchGateway {
         return candidates(SUBJECT_INDEX, SUBJECT_PREFIX, normalizedQuery, limit);
     }
 
-    private boolean ensureIndex(Set<String> indexes, String index, String prefix) {
-        if (indexes.contains(index)) {
+    private boolean ensureIndex(String index, String prefix) {
+        if (indexExists(index)) {
             return false;
         }
+        try {
+            createIndex(index, prefix);
+            return true;
+        } catch (BusinessException exception) {
+            if (indexExists(index)) {
+                // 다른 호출자가 먼저 만든 경우이므로 실패로 보지 않는다.
+                return false;
+            }
+            throw exception;
+        }
+    }
+
+    private boolean indexExists(String index) {
+        try {
+            executeSearch("FT.INFO", false, index);
+            return true;
+        } catch (BusinessException exception) {
+            return false;
+        }
+    }
+
+    private void createIndex(String index, String prefix) {
         execute(
                 "FT.CREATE",
                 index,
@@ -144,11 +163,10 @@ public class RedisSearchGateway {
                 EXACT_FIELD, "TAG", "SEPARATOR", "\u0002",
                 "CASESENSITIVE", "WITHSUFFIXTRIE"
         );
-        return true;
     }
 
-    private void dropIndexIfPresent(Set<String> indexes, String index) {
-        if (indexes.contains(index)) {
+    private void dropIndexIfPresent(String index) {
+        if (indexExists(index)) {
             // DD???? ?  HASH ??? ??? ?.
             execute("FT.DROPINDEX", index);
         }
@@ -412,6 +430,10 @@ public class RedisSearchGateway {
     }
 
     private Object executeSearch(String command, String... arguments) {
+        return executeSearch(command, true, arguments);
+    }
+
+    private Object executeSearch(String command, boolean logFailure, String... arguments) {
         byte[][] rawArguments = new byte[arguments.length][];
         for (int index = 0; index < arguments.length; index++) {
             rawArguments[index] = bytes(arguments[index]);
@@ -458,26 +480,19 @@ public class RedisSearchGateway {
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
-            log.warn("Redis search command failed: {} {}", command, List.of(arguments), exception);
+            if (logFailure) {
+                log.warn(
+                        "Redis search command failed: {} {}",
+                        command,
+                        List.of(arguments),
+                        exception
+                );
+            }
             throw new BusinessException(
                     ErrorCode.SERVICE_UNAVAILABLE,
                     "????? ??????????."
             );
         }
-    }
-
-    private Set<String> rawStringSet(Object value) {
-        if (!(value instanceof Collection<?> values)) {
-            return Set.of();
-        }
-        Set<String> result = new LinkedHashSet<>();
-        values.forEach(item -> {
-            String converted = rawString(item);
-            if (converted != null) {
-                result.add(converted);
-            }
-        });
-        return result;
     }
 
     private String rawString(Object value) {

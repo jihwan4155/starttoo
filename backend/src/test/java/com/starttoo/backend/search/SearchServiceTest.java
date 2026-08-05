@@ -1,5 +1,7 @@
 package com.starttoo.backend.search;
 
+import com.starttoo.backend.common.error.BusinessException;
+import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.post.api.PostDtos;
 import com.starttoo.backend.post.application.PostService;
 import com.starttoo.backend.search.api.SearchDtos;
@@ -14,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
@@ -28,12 +31,14 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -63,6 +68,45 @@ class SearchServiceTest {
 
     @InjectMocks
     private SearchService searchService;
+
+    @Test
+    void initializeRebuildsDocumentsAndMarksRebuiltAfterIndexCreation() {
+        when(redisSearchGateway.prepareIndexes()).thenReturn(true);
+        @SuppressWarnings("unchecked")
+        ZSetOperations<String, String> zSetOperations = mock(ZSetOperations.class);
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+
+        searchService.initialize();
+
+        verify(redisSearchGateway).replaceAccounts(anyMap());
+        verify(redisSearchGateway).replaceSubjects(anyMap());
+        verify(redisSearchGateway).markRebuilt();
+    }
+
+    @Test
+    void initializeSkipsRebuildWhenIndexesAndDictionariesAlreadyExist() {
+        when(redisSearchGateway.prepareIndexes()).thenReturn(false);
+        when(redisTemplate.hasKey("autocomplete:accounts")).thenReturn(true);
+        @SuppressWarnings("unchecked")
+        ZSetOperations<String, String> zSetOperations = mock(ZSetOperations.class);
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+
+        searchService.initialize();
+
+        verify(redisSearchGateway, never()).replaceAccounts(anyMap());
+        verify(redisSearchGateway, never()).markRebuilt();
+    }
+
+    @Test
+    void initializeDefersWithoutThrowingWhenIndexPreparationFails() {
+        when(redisSearchGateway.prepareIndexes()).thenThrow(
+                new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "redis down")
+        );
+
+        searchService.initialize();
+
+        verify(redisSearchGateway, never()).markRebuilt();
+    }
 
     @Test
     void subjectAutocompleteLoadsCurrentNamesFromSequenceOnlyMembers() throws Exception {
