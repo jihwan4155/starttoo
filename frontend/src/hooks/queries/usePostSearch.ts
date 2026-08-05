@@ -5,9 +5,6 @@ import { isSearchableQuery } from "../../types/search";
 
 export const postSearchQueryKey = ["search", "posts"] as const;
 
-/** 서버 본 검색의 최소 길이 (@Pattern {2,50}) */
-const MIN_QUERY_LENGTH = 2;
-
 /**
  * GET /search/posts — subject 기반 게시물 검색 (커서 무한 스크롤)
  *
@@ -17,8 +14,8 @@ const MIN_QUERY_LENGTH = 2;
  */
 export default function usePostSearch(query: string, size = 20) {
 	const trimmed = query.trim();
-	const isValid =
-		trimmed.length >= MIN_QUERY_LENGTH && isSearchableQuery(trimmed);
+	// 서버 @Pattern이 {1,50}이라 한 글자부터 보낸다 (BE a8a2020).
+	const isValid = trimmed.length > 0 && isSearchableQuery(trimmed);
 
 	return useInfiniteQuery({
 		queryKey: [...postSearchQueryKey, { q: trimmed, size }],

@@ -14,7 +14,6 @@ import { updateMe } from "../services/userApi";
 import useAuthStore from "../store/useAuthStore";
 import useSignupStore from "../store/useSignupStore";
 import type { RequestedRole } from "../types/auth";
-import type { TattooDesignItem } from "../types/tattoo";
 
 type Step = "role" | "profile" | "shop" | "taste";
 
@@ -116,31 +115,19 @@ export default function OnboardingPage() {
 		setStep("taste");
 	};
 
-	const handleTasteSubmit = async (picked: TattooDesignItem[]) => {
-		const primaryStyleSeqs = [
-			...new Set(
-				picked
-					.map((item) => item.primaryStyleSeq)
-					.filter((seq): seq is number => seq != null),
-			),
-		];
-		// 분류가 붙지 않은 도안만 골랐다면 보낼 점수가 없다.
+	const handleTasteSubmit = async (picked: number[]) => {
+		const primaryStyleSeqs = [...new Set(picked)];
+		// 아무것도 고르지 않았거나(건너뛰기) 분류를 못 받아왔다면 보낼 점수가 없다.
 		if (primaryStyleSeqs.length === 0) {
 			finish();
 			return;
 		}
-		const colorSeqs = [
-			...new Set(
-				picked
-					.map((item) => item.colorSeq)
-					.filter((seq): seq is number => seq != null),
-			),
-		];
 
 		setError(null);
 		setSubmitting(true);
 		try {
-			await submitPreferenceSurvey({ primaryStyleSeqs, colorSeqs });
+			// 스타일 이미지에는 색상 정보가 없어 색 취향은 둘러보며 쌓인다.
+			await submitPreferenceSurvey({ primaryStyleSeqs });
 			finish();
 		} catch (cause) {
 			setError(
