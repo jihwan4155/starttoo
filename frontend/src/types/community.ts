@@ -132,6 +132,8 @@ export type CommentAuthorDto = {
 	nickname: string;
 	profileImageSeq: number | null;
 	profileImageUrl: string | null;
+	/** role=ARTIST이고 인증까지 끝난 계정인지 — 뱃지 판정은 이 값만 본다 */
+	verified: boolean;
 };
 
 export type CommentResponse = {

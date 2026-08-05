@@ -46,7 +46,7 @@ export function mapCommentResponse(
 		author: {
 			userId: dto.author.userSeq,
 			nickname: dto.author.nickname,
-			isArtist: false,
+			isArtist: dto.author.verified ?? false,
 			avatarUrl: dto.author.profileImageUrl,
 		},
 		content: dto.deleted ? "" : dto.content,
