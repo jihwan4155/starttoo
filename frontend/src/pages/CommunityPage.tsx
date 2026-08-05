@@ -120,6 +120,14 @@ export default function CommunityPage() {
 			 */}
 			<div className="mx-auto flex w-full max-w-[440px] justify-center gap-10 px-4 lg:max-w-[900px] lg:justify-between lg:px-6">
 				<div className="flex w-full min-w-0 flex-col gap-6 lg:max-w-[380px] lg:gap-6">
+				{/*
+				  회원 검색 — lg 이상에서는 오른쪽 열이 같은 패널을 띄우므로 여기서는 숨긴다.
+				  좁은 화면에서는 그 열이 통째로 사라져 친구를 찾을 방법이 아예 없었다.
+				*/}
+				<div className="hidden max-lg:block">
+					<UserSearchPanel />
+				</div>
+
 				{isPending && (
 					<StarttooLoader variant="block" label="피드를 불러오는 중…" />
 				)}
@@ -166,7 +174,7 @@ export default function CommunityPage() {
 				</div>
 
 				{/*
-				 * 모든 회원 검색 — 좁은 화면에서는 상단 검색 바가 대신한다.
+				 * 모든 회원 검색 — 좁은 화면에서는 이 열이 사라지고 피드 위 패널이 대신한다.
 				 * 스크롤을 따라오지 않고 페이지 맨 위에 그대로 둔다 (sticky 없음).
 				 */}
 				<div className="hidden w-[300px] shrink-0 self-start lg:block">
