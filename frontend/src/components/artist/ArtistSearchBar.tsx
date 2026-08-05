@@ -23,8 +23,8 @@ export default function ArtistSearchBar() {
 
 	return (
 		<div className="w-full max-w-[520px]">
-			<div className="flex h-9 items-center gap-2 rounded-full bg-white pl-4 pr-2 shadow-sm">
-				<SearchIcon size={16} className="shrink-0 text-black/40" />
+			<div className="flex h-9 items-center gap-2 rounded-full border border-solid border-black bg-white pl-4 pr-2 shadow-none">
+				<SearchIcon size={16} className="shrink-0 text-black" />
 				<input
 					value={value}
 					onChange={(e) => update(e.target.value)}
@@ -38,7 +38,7 @@ export default function ArtistSearchBar() {
 						type="button"
 						aria-label="검색어 지우기"
 						onClick={() => update("")}
-						className="p-1 text-black/40 transition hover:text-black">
+						className="p-1 text-black">
 						<CloseIcon size={14} />
 					</button>
 				)}

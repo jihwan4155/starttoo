@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
 import mobileLogo from "../../assets/images/mobile-logo.png";
-import topnavGrain from "../../assets/images/topnav-grain.png";
+import topNavDefaultProfile from "../../assets/images/topnav-default-profile.png";
 import ArtistSearchBar from "../artist/ArtistSearchBar";
 import LoginModal from "../auth/LoginModal";
 import WithdrawAccountModal from "../auth/WithdrawAccountModal";
@@ -376,7 +376,7 @@ function MobileTopNav() {
 
 	return (
 		<>
-			<header className="fixed inset-x-0 top-0 z-[60] h-[50px] border-b border-black/10 bg-white lg:hidden">
+			<header className="fixed inset-x-0 top-0 z-[60] h-[44px] border-b border-black/10 bg-white lg:hidden">
 				<div className="grid h-full grid-cols-[48px_1fr_48px] items-center px-4">
 					<button
 						type="button"
@@ -394,7 +394,7 @@ function MobileTopNav() {
 						<img
 							src={mobileLogo}
 							alt="starttoo"
-							className="h-5 w-[120px] object-contain"
+							className="h-4 w-[96px] object-contain"
 						/>
 					</Link>
 
@@ -406,14 +406,14 @@ function MobileTopNav() {
 
 			{open && (
 				<div
-					className="fixed inset-x-0 bottom-0 top-[50px] z-50 bg-black/45 lg:hidden"
+					className="fixed inset-x-0 bottom-0 top-[44px] z-50 bg-black/45 lg:hidden"
 					onClick={() => setOpen(false)}>
 					<div
 						role="dialog"
 						aria-modal="true"
 						aria-label="전체 메뉴"
 						onClick={(event) => event.stopPropagation()}
-						className="max-h-[calc(100dvh-50px)] overflow-y-auto rounded-b-[24px] bg-white pb-6 shadow-[0_20px_45px_rgba(0,0,0,0.12)]">
+						className="max-h-[calc(100dvh-44px)] overflow-y-auto rounded-b-[24px] bg-white pb-6 shadow-[0_20px_45px_rgba(0,0,0,0.12)]">
 						<nav className="flex flex-col items-center gap-4 px-6 pb-4 pt-3">
 							{MOBILE_MENU_ITEMS.map((item) => {
 								const active =
@@ -488,6 +488,8 @@ export default function TopNav() {
 	const showSearch = pathname.startsWith("/posts/search");
 	const showArtistSearch = pathname.startsWith("/artists");
 	const avatarUrl = useUserStore((s) => s.avatarUrl);
+	const headerAvatar = avatarUrl || topNavDefaultProfile;
+	const usesDefaultHeaderAvatar = !avatarUrl;
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 	// 설정 메뉴와 아바타가 같은 모달을 열기 때문에 상태를 여기서 들고 있는다.
 	const [loginOpen, setLoginOpen] = useState(false);
@@ -495,20 +497,16 @@ export default function TopNav() {
 	return (
 		<>
 			<MobileTopNav />
-		<header
-			className="fixed inset-x-0 top-0 z-50 hidden h-[60px] lg:block"
-			style={{
-				background: `url(${topnavGrain}) center / 100% 100% no-repeat, linear-gradient(90.22deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 80, 38, 0.7) 100.62%), #FFFFFF`,
-			}}>
+		<header className="fixed inset-x-0 top-0 z-50 hidden h-[52px] bg-white lg:block">
 			<div className="relative z-10 flex h-full items-center justify-between pl-[12px] pr-7">
 				<Link
 					to="/"
-					className="flex h-[60px] items-center overflow-hidden"
+					className="flex h-[52px] items-center overflow-hidden"
 					aria-label="starttoo 홈">
 					<img
 						src={logo}
 						alt="starttoo"
-						className="h-[66px] w-[122px] object-contain object-left"
+						className="h-[48px] w-[100px] object-contain object-left"
 					/>
 				</Link>
 
@@ -526,11 +524,11 @@ export default function TopNav() {
 						<Link
 							to="/mypage"
 							aria-label="마이페이지"
-							className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
+							className="block size-7 shrink-0 overflow-hidden rounded-full border border-solid border-black bg-white">
 							<img
-								src={resolveAvatar(avatarUrl)}
+								src={headerAvatar}
 								alt=""
-								className="size-full object-cover"
+								className={`size-full ${usesDefaultHeaderAvatar ? "object-contain" : "object-cover"}`}
 							/>
 						</Link>
 					) : (
@@ -538,11 +536,11 @@ export default function TopNav() {
 							type="button"
 							onClick={() => setLoginOpen(true)}
 							aria-label="로그인"
-							className="block size-9 shrink-0 overflow-hidden rounded-full bg-[#D9D9D9]">
-							<img
-								src={resolveAvatar(avatarUrl)}
-								alt=""
-								className="size-full object-cover"
+						className="block size-7 shrink-0 overflow-hidden rounded-full border border-solid border-black bg-white">
+						<img
+							src={headerAvatar}
+							alt=""
+							className={`size-full ${usesDefaultHeaderAvatar ? "object-contain" : "object-cover"}`}
 							/>
 						</button>
 					)}

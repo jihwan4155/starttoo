@@ -106,8 +106,8 @@ export default function CommunitySearchBar() {
 					e.preventDefault();
 					submit(value);
 				}}
-				className="flex h-9 items-center gap-2 rounded-full bg-white pl-4 pr-2 shadow-sm">
-				<SearchIcon size={16} className="shrink-0 text-black/40" />
+				className="flex h-9 items-center gap-2 rounded-full border border-solid border-black bg-white pl-4 pr-2 shadow-none">
+				<SearchIcon size={16} className="shrink-0 text-black" />
 				<input
 					value={value}
 					onChange={(e) => setValue(e.target.value)}
@@ -126,7 +126,7 @@ export default function CommunitySearchBar() {
 						aria-label="검색어 지우기"
 						onMouseDown={(e) => e.preventDefault()}
 						onClick={() => setValue("")}
-						className="text-black/40 transition hover:text-black">
+						className="text-black">
 						<CloseIcon size={14} />
 					</button>
 				)}
@@ -134,9 +134,7 @@ export default function CommunitySearchBar() {
 					type="button"
 					aria-label="사진으로 검색"
 					onClick={() => setCameraOpen((prev) => !prev)}
-					className={`shrink-0 rounded-full p-1 transition ${
-						isCameraOpen ? "text-brand" : "text-black/45 hover:text-black"
-					}`}>
+					className="shrink-0 rounded-full p-1 text-black">
 					<CameraIcon size={18} />
 				</button>
 			</form>
@@ -197,7 +195,7 @@ export default function CommunitySearchBar() {
 										type="button"
 										onClick={() => submit(suggestion)}
 										className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[13px] font-light text-black transition hover:bg-black/5">
-										<SearchIcon size={14} className="text-black/35" />
+										<SearchIcon size={14} className="text-black" />
 										{suggestion}
 									</button>
 								</li>
