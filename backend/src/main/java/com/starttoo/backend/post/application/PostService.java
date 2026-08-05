@@ -379,6 +379,7 @@ public class PostService {
                     userSeq
             );
             postRepository.addReportCount(postSeq, 1);
+            setNotInterested(userSeq, postSeq, true);
             return new PostDtos.ReportResponse(
                     reportSeq,
                     PostDtos.ReportStatus.PENDING
