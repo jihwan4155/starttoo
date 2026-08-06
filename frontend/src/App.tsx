@@ -41,6 +41,12 @@ export default function App() {
 					variant="page"
 					visible={!ready}
 					label={null}
+					/*
+					 * 부팅 화면은 첫 프레임부터 덮어야 한다. 기본 지연(300ms)을 두면
+					 * 그 사이 실제 화면이 먼저 보이고 나서 로더가 덮어, 다 불러왔는데
+					 * 로딩 화면이 다시 뜬 것처럼 보인다.
+					 */
+					delayMs={0}
 					onExited={() => setShowLoader(false)}
 				/>
 			)}
