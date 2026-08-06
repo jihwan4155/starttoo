@@ -7,6 +7,7 @@ import PostDetailModal from "../components/community/PostDetailModal";
 import CollectionEditor from "../components/collections/CollectionEditor";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import ArtistBadgeRequestModal from "../components/mypage/ArtistBadgeRequestModal";
+import BlockedListModal from "../components/mypage/BlockedListModal";
 import DesignThumbnailGrid from "../components/mypage/DesignThumbnailGrid";
 import FollowListModal from "../components/mypage/FollowListModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
@@ -63,6 +64,7 @@ export default function MyPage() {
 		null,
 	);
 	const [isBadgeRequestOpen, setBadgeRequestOpen] = useState(false);
+	const [isBlockedListOpen, setBlockedListOpen] = useState(false);
 
 	useEffect(() => {
 		if (isMyPageTab(tabParam)) {
@@ -233,6 +235,11 @@ export default function MyPage() {
 							? () => setBadgeRequestOpen(true)
 							: undefined
 					}
+					onOpenBlockedList={
+						isLoggedIn
+							? () => requireAuth(() => setBlockedListOpen(true))
+							: undefined
+					}
 				/></div>
 
 				{isArtist && (
@@ -346,6 +353,10 @@ export default function MyPage() {
 			<ArtistBadgeRequestModal
 				isOpen={isBadgeRequestOpen}
 				onClose={() => setBadgeRequestOpen(false)}
+			/>
+			<BlockedListModal
+				isOpen={isBlockedListOpen}
+				onClose={() => setBlockedListOpen(false)}
 			/>
 		</div>
 	);
