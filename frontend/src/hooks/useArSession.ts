@@ -7,6 +7,22 @@ import {
 } from "../services/simulationApi";
 import type { ArComposite, ArSessionStatus } from "../types/simulation";
 
+/**
+ * QR에 실을 폰 진입 주소의 오리진.
+ *
+ * <p>기본은 현재 오리진이다. 다만 로컬 개발에서는 PC를 localhost로 열어야
+ * 소셜 로그인이 되고(리다이렉트 URI가 콘솔에 등록된 값이어야 한다), 폰은
+ * localhost로 들어올 수 없다. 이때만 `VITE_AR_JOIN_ORIGIN`에 PC의 LAN 주소를
+ * 넣어 QR만 그쪽을 가리키게 한다. 폰이 여는 AR 페이지는 로그인이 필요 없다.
+ */
+function resolveJoinOrigin(): string {
+	const override = import.meta.env.VITE_AR_JOIN_ORIGIN;
+	if (typeof override === "string" && override.trim()) {
+		return override.trim().replace(/\/+$/, "");
+	}
+	return window.location.origin;
+}
+
 type UseArSessionOptions = {
 	/** false면 세션을 만들지 않는다 (AR 2단계에 들어왔을 때만 켠다) */
 	enabled?: boolean;
@@ -117,9 +133,7 @@ export default function useArSession({
 		};
 	}, [sessionId]);
 
-	const joinUrl = sessionId
-		? `${window.location.origin}/simulations/ar/${sessionId}`
-		: null;
+	const joinUrl = sessionId ? `${resolveJoinOrigin()}/simulations/ar/${sessionId}` : null;
 
 	return {
 		sessionId,
