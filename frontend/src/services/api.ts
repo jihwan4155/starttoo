@@ -98,7 +98,10 @@ const AUTH_SKIP_PATHS = [
 api.interceptors.request.use((config) => {
 	const path = config.url ?? "";
 	const skipAuth = AUTH_SKIP_PATHS.some((segment) => path.includes(segment));
-	if (accessToken && !skipAuth) {
+	// 요청이 Authorization을 직접 지정했으면 그대로 둔다. AR 세션의 폰 업로드는
+	// JWT가 아니라 `Session {sessionToken}`을 쓰는데, 폰에 로그인 흔적이 남아
+	// accessToken이 있으면 여기서 Bearer로 덮여 401이 난다.
+	if (accessToken && !skipAuth && !config.headers.Authorization) {
 		config.headers.Authorization = `Bearer ${accessToken}`;
 	}
 	return config;
@@ -117,6 +120,12 @@ api.interceptors.response.use(
 		const isAuthPath = AUTH_SKIP_PATHS.some((segment) =>
 			(config?.url ?? "").includes(segment),
 		);
+		// AR 세션 업로드는 `Session {sessionToken}`으로 인증한다. 그 401은 세션
+		// 토큰이 만료·무효라는 뜻이지 로그인 만료가 아니므로, 재발급이나 세션
+		// 정리에 끌어들이면 폰에서 로그인만 풀린다.
+		const usesSessionToken = String(
+			config?.headers?.Authorization ?? "",
+		).startsWith("Session ");
 
 		// 1) 액세스 토큰 만료로 보이는 401 → refreshToken으로 재발급 후 원 요청 재시도.
 		//    로그인·재발급 경로 자체의 401은 자격 증명 문제이므로 제외한다.
@@ -125,6 +134,7 @@ api.interceptors.response.use(
 			accessToken &&
 			config &&
 			!isAuthPath &&
+			!usesSessionToken &&
 			!config._retriedWithRefresh
 		) {
 			config._retriedWithRefresh = true;
@@ -142,6 +152,7 @@ api.interceptors.response.use(
 			accessToken &&
 			config &&
 			!isAuthPath &&
+			!usesSessionToken &&
 			!config._retryWithoutAuth
 		) {
 			setAccessToken(null);
