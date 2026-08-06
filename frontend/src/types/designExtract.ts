@@ -1,19 +1,6 @@
-/** POST /api/convert 응답의 outputs 항목 */
-export type DesignExtractOutput = {
-	id: string;
-	preview_url: string;
-	download_url: string;
-};
-
-/** POST /api/convert 응답 */
-export type DesignExtractResponse = {
-	ok: boolean;
-	outputs: DesignExtractOutput[];
-};
-
-/** 프론트에서 사용하는 도안 추출 결과 (절대 URL로 변환됨) */
+/** 도안 결과 모달에서 사용하는 이미지 URL */
 export type DesignExtractResult = {
-	/** 화면 표시용 이미지 URL */
+	/** 화면에 표시할 이미지 URL */
 	previewUrl: string;
 	/** PNG 다운로드 URL */
 	downloadUrl: string;
@@ -23,11 +10,8 @@ export type DesignExtractResult = {
 export type SavedDesign = DesignExtractResult & {
 	id: number;
 	createdAt: string;
-	/**
-	 * POST /collections의 imageSeq. 로컬 샘플 도안에는 없다.
-	 * 없으면 컬렉션에 서버 저장을 할 수 없다.
-	 */
+	/** POST /collections 요청에 사용하는 imageSeq */
 	imageSeq?: number;
-	/** BE 보관함이 아닌 로컬 샘플 도안 */
+	/** 백엔드 보관함이 아닌 로컬 샘플 도안 */
 	isDemo?: boolean;
 };
