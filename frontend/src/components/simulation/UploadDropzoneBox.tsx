@@ -36,14 +36,16 @@ export default function UploadDropzoneBox({
 					visible ? "" : "hidden"
 				} ${
 					preview
-						? "border-black/10 bg-black"
+						? "border-black/10 bg-[#f5f5f5]"
 						: "border-dashed border-black/15 bg-white"
 				}`}>
 				{preview ? (
+					/* 도안은 배경이 비어 있어 검은 바탕에서는 검은 선이 묻힌다.
+					   보관함 썸네일과 같은 흰 바탕에 얹어 목록에서 보던 그대로 보여준다. */
 					<img
 						src={preview}
 						alt="업로드한 이미지"
-						className="size-full object-contain"
+						className="size-full object-contain mix-blend-multiply"
 					/>
 				) : (
 					<>
