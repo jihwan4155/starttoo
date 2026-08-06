@@ -190,6 +190,10 @@ export default function SimulationsPage() {
 	// 돌아가면 세션이 어긋난다 — 다시 하려면 '처음부터 다시 하기'를 쓴다.
 	const hideBack = step === 1 || (tab === "ar" && step === maxStep);
 
+	// AR QR 단계는 폰이 붙고 촬영하면 알아서 넘어간다. 여기서 '다음'을 누르면
+	// 결과가 없는 빈 화면으로 앞질러 가게 되므로 감춘다.
+	const hideNext = step === maxStep || (tab === "ar" && step === 2);
+
 	const handleMobileBack = () => {
 		if (!mobileModeConfirmed) {
 			navigate(-1);
@@ -359,7 +363,7 @@ export default function SimulationsPage() {
 								canAdvance
 									? "text-brand hover:brightness-90"
 									: "cursor-not-allowed text-black/20"
-							} ${step === maxStep ? "invisible" : ""}`}>
+							} ${hideNext ? "invisible" : ""}`}>
 							<span className="hidden sm:inline">다음</span>
 							<ChevronRightIcon />
 						</button>
