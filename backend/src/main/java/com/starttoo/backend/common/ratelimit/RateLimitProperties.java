@@ -13,6 +13,8 @@ public record RateLimitProperties(
         long phoneAvailabilityCapacity,
         Duration phoneAvailabilityWindow,
         long coverupSearchCapacity,
-        Duration coverupSearchWindow
+        Duration coverupSearchWindow,
+        long arSessionCapacity,
+        Duration arSessionWindow
 ) {
 }

@@ -82,12 +82,16 @@ public class OpenApiConfig {
             if (isMutation(handlerMethod)) {
                 addError(responses, "409", "중복 요청 또는 현재 상태와 충돌");
             }
+            if (usesArSession(handlerMethod)) {
+                addError(responses, "410", "AR 세션이 만료되었거나 종료됨");
+            }
             if (usesMinio(handlerMethod)) {
                 addError(responses, "503", "MinIO 연결 장애 또는 저장소 사용 불가");
-                if (handlerMethod.getMethod().getName().equals("presign")) {
+                String method = handlerMethod.getMethod().getName();
+                if (method.startsWith("presign")) {
                     addError(responses, "413", "요청 파일 크기가 설정된 최대값을 초과함");
                 }
-                if (handlerMethod.getMethod().getName().equals("complete")) {
+                if (method.equals("complete") || method.equals("createComposite")) {
                     addError(responses, "404", "업로드 완료할 MinIO 객체가 없음");
                     addError(responses, "413", "실제 업로드 파일 크기가 설정된 최대값을 초과함");
                     addError(responses, "415", "object key 확장자와 실제 Content-Type이 일치하지 않음");
@@ -153,7 +157,21 @@ public class OpenApiConfig {
     }
 
     private boolean usesMinio(org.springframework.web.method.HandlerMethod handlerMethod) {
-        return handlerMethod.getBeanType().getSimpleName().equals("MediaController");
+        String controller = handlerMethod.getBeanType().getSimpleName();
+        // AR 세션도 도안 Presigned GET·합성 결과 업로드로 MinIO를 그대로 탄다.
+        return controller.equals("MediaController")
+                || controller.equals("SimulationController");
+    }
+
+    private boolean usesArSession(org.springframework.web.method.HandlerMethod handlerMethod) {
+        if (!handlerMethod.getBeanType().getSimpleName().equals("SimulationController")) {
+            return false;
+        }
+        // 세션 생성·종료는 만료 개념이 없고, 상태 조회는 복구용이라 만료도 EXPIRED로 응답한다.
+        return switch (handlerMethod.getMethod().getName()) {
+            case "connect", "presignComposite", "createComposite" -> true;
+            default -> false;
+        };
     }
 
     private boolean usesTattooAnalysis(

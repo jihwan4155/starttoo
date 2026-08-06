@@ -1,7 +1,7 @@
 # Starttoo API v1 범용 명세서
 
 > 최종 갱신: 2026-08-01
-> 현재 서버 구현 및 Swagger 기준 API 수: 83개
+> 현재 서버 구현 및 Swagger 기준 API 수: 89개
 
 ## 0. 문서 목적
 
@@ -2476,7 +2476,7 @@ Subject 자동완성:
 
 # 18. 전체 엔드포인트 인덱스
 
-아래 83개 항목은 현재 컨트롤러와 Swagger에 공개되는 v1 HTTP API 전체다.
+아래 89개 항목은 현재 컨트롤러와 Swagger에 공개되는 v1 HTTP API 전체다.
 각 API의 요청·응답·처리 규칙은 앞선 도메인별 절을 따른다.
 
 | 도메인 | Method | Path |
@@ -2542,6 +2542,12 @@ Subject 자동완성:
 | 게시글 | POST | `/v1/posts/{postSeq}/dwell` |
 | 게시글 | POST | `/v1/posts/{postSeq}/reports` |
 | 취향 | POST | `/v1/preferences/survey` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions/{sessionId}/connect` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions/{sessionId}/composites/presign` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions/{sessionId}/composites` |
+| AR 시뮬레이션 | GET | `/v1/simulations/ar-sessions/{sessionId}` |
+| AR 시뮬레이션 | DELETE | `/v1/simulations/ar-sessions/{sessionId}` |
 | 검색 | GET | `/v1/search/accounts/autocomplete` |
 | 검색 | GET | `/v1/search/accounts` |
 | 검색 | GET | `/v1/search/artists/autocomplete` |
@@ -4426,4 +4432,172 @@ X-Generation-Seed: 42
 **실패 예시**
 ```json
 {"status":409,"code":"STATE_CONFLICT","message":"최초 취향 설문이 이미 반영되었습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.10 AR 시뮬레이션
+
+QR로 붙는 폰은 로그인 상태가 아니다. PC(Bearer 인증)가 만든 단기 세션의 `sessionId`로
+폰이 접속하고, 그 세션에서만 통하는 `sessionToken`으로 업로드까지 마친다. 폰이 쓰는 두
+API는 `Authorization: Session {sessionToken}` 헤더를 사용하며 Bearer JWT를 요구하지
+않는다. `sessionToken`은 액세스 토큰과 같은 키로 서명하지만 `token_type`이 다르므로
+다른 API를 회원 자격으로 호출할 수 없다.
+
+세션 수명은 기본 10분이고 만료·종료된 세션은 410이다. `connect`는 세션당 최초 1대만
+성공하며 이후 요청은 409다. 세션당 업로드 횟수에도 상한이 있고, 비로그인 진입점인
+`connect`·업로드는 IP 기준의 별도 레이트리밋 버킷을 쓴다.
+
+### POST `/v1/simulations/ar-sessions`
+
+**API 개요:** PC가 QR에 실을 단기 AR 세션을 만든다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `designSeqs`는 선택이며 최대 50개다. 각 값은 `GET
+/v1/tattoo-designs`가 반환하는 `tattooSeq`와 같고, 설정된 세션당 도안 상한(기본 20개)을
+넘으면 400이다.
+
+```json
+{"designSeqs":[501,502]}
+```
+
+**Response:** `sessionId`, `expiresInSeconds`, `expiresAt`을 반환한다.
+
+**설명:** `sessionId`는 순번이 아니라 추측 불가능한 UUID이며 요청한 로그인 회원에 묶인다.
+삭제됐거나 없는 도안이 하나라도 있으면 404로 끝낸다. 세션과 도안 목록 저장은 한 트랜잭션이다.
+
+**성공 예시**
+```json
+{"data":{"sessionId":"6f1c5c0e-6f0a-4f6e-9f1a-1b2c3d4e5f60","expiresInSeconds":600,"expiresAt":"2026-08-01T10:10:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"TATTOO_NOT_FOUND","message":"타투를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/simulations/ar-sessions/{sessionId}/connect`
+
+**API 개요:** QR을 찍은 비로그인 폰이 `sessionId`만으로 세션에 붙는다. 인증은 필요 없다.
+
+**Request:** body 없음. 경로의 `sessionId`는 UUID 형식이어야 하며 아니면 400이다.
+
+**Response:** `sessionToken`, `expiresInSeconds`, `expiresAt`, `designs`를 반환한다.
+`designs`의 각 항목은 `designSeq`와 도안 이미지의 Presigned GET URL인 `imageUrl`이며,
+PC가 도안을 지정하지 않았으면 빈 배열이다.
+
+**설명:** 세션당 최초 1대만 성공하고 이후 접속 요청은 409다. 만료·종료된 세션은 410이다.
+`sessionToken`은 남은 세션 시간만큼만 유효하고 이 세션의 업로드 API에서만 통한다.
+커밋 이후 PC 개인 큐로 `PHONE_CONNECTED`를 전달한다.
+
+**성공 예시**
+```json
+{"data":{"sessionToken":"session.jwt","expiresInSeconds":580,"expiresAt":"2026-08-01T10:10:00Z","designs":[{"designSeq":501,"imageUrl":"https://minio.example.com/starttoo/design.png?X-Amz-Algorithm=AWS4-HMAC-SHA256"}]}}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"STATE_CONFLICT","message":"현재 상태에서는 요청을 처리할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/simulations/ar-sessions/{sessionId}/composites/presign`
+
+**API 개요:** 폰이 합성 결과를 MinIO에 직접 PUT할 단기 URL을 발급받는다.
+`Authorization: Session {sessionToken}` 헤더가 필요하다.
+
+**Request:** JSON body. `contentType`은 `image/jpeg|image/png|image/webp`,
+`originalFilename`은 확장자를 포함한 최대 150자, `fileSize`는 양수 byte다.
+
+```json
+{"contentType":"image/png","originalFilename":"ar-capture.png","fileSize":1024000}
+```
+
+**Response:** `objectKey`, `uploadUrl`, `requiredHeaders`, `expiresInSeconds`를
+반환한다. 회원 presign과 같은 응답 모양이라 클라이언트 업로드 흐름을 그대로 재사용한다.
+
+**설명:** 확장자와 `contentType` 일치, 파일 크기 상한을 회원 presign과 같은 규칙으로
+검증한다. `objectKey`는 세션 소유자 경로인 `users/{ownerSeq}/simulation/` 아래에 만든다.
+합성 결과는 결국 PC 회원의 자산이기 때문이다. 세션당 업로드 상한에 닿으면 409이며
+이 단계에서는 `images` 행을 만들지 않는다.
+
+**성공 예시**
+```json
+{"data":{"objectKey":"users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png","uploadUrl":"https://minio.example.com/starttoo/users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256","requiredHeaders":{"Content-Type":"image/png"},"expiresInSeconds":600}}
+```
+
+**실패 예시**
+```json
+{"status":410,"code":"SESSION_EXPIRED","message":"세션이 만료되었거나 종료되었습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/simulations/ar-sessions/{sessionId}/composites`
+
+**API 개요:** presign으로 올린 객체를 확인하고 세션의 합성 결과로 등록한다.
+`Authorization: Session {sessionToken}` 헤더가 필요하다.
+
+**Request:** JSON body. `objectKey`는 presign 응답으로 받은 값이며 최대 512자다.
+
+```json
+{"objectKey":"users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png"}
+```
+
+**Response:** `compositeSeq`, `imageSeq`, `imageUrl`, `regDttm`을 반환한다.
+
+**설명:** `objectKey`의 소유 경로·UUID·확장자 구조를 확인하고 MinIO stat으로 객체 존재,
+크기, Content-Type을 검증한다. 검증과 `images` 등록을 마친 뒤에야 세션 행을 잠그는 짧은
+쓰기 트랜잭션에서 합성 결과를 남긴다. 세션 잠금을 쥔 채로 저장소를 왕복하지 않기 위한
+순서다. 업로드 상한은 이 트랜잭션에서 한 번 더 확인한다. 커밋 이후 PC 개인 큐로
+`COMPOSITE_CREATED`를 전달한다.
+
+**성공 예시**
+```json
+{"data":{"compositeSeq":9001,"imageSeq":3201,"imageUrl":"https://minio.example.com/starttoo/users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256","regDttm":"2026-08-01T10:03:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"UPLOAD_OBJECT_NOT_FOUND","message":"업로드된 객체를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/simulations/ar-sessions/{sessionId}`
+
+**API 개요:** PC가 세션 상태와 지금까지의 합성 결과를 조회한다. Bearer 인증이 필요하다.
+
+**Request:** 경로 변수 `sessionId`만 사용한다. 쿼리 파라미터는 없다.
+
+**Response:** `sessionId`, `status`, `phoneConnected`, `phoneConnectedDttm`,
+`expiresAt`, `expiresInSeconds`, `designs`, `composites`를 반환한다. `status`는
+`CREATED|CONNECTED|CLOSED|EXPIRED`이며 `composites`는 오래된 순이다.
+
+**설명:** 새로고침·재접속 시 화면을 복구하는 조회이자 소켓을 쓰지 않는 클라이언트의 폴링
+경로다. 만료된 세션도 410 대신 `EXPIRED` 상태와 지금까지의 결과를 그대로 반환한다.
+세션 소유자가 아니면 존재 여부를 감추기 위해 404다.
+
+**성공 예시**
+```json
+{"data":{"sessionId":"6f1c5c0e-6f0a-4f6e-9f1a-1b2c3d4e5f60","status":"CONNECTED","phoneConnected":true,"phoneConnectedDttm":"2026-08-01T10:01:00Z","expiresAt":"2026-08-01T10:10:00Z","expiresInSeconds":412,"designs":[{"designSeq":501,"imageUrl":"https://minio.example.com/starttoo/design.png?X-Amz-Algorithm=AWS4-HMAC-SHA256"}],"composites":[]}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"RESOURCE_NOT_FOUND","message":"요청한 리소스를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/simulations/ar-sessions/{sessionId}`
+
+**API 개요:** PC가 AR 세션을 종료한다. Bearer 인증이 필요하다.
+
+**Request:** 경로 변수 `sessionId`만 사용하며 body는 없다.
+
+**Response:** `true`를 반환한다.
+
+**설명:** 저장된 `sessionToken` 식별자를 비우므로 JWT 만료 전이라도 폰의 후속 업로드가
+즉시 거부된다. 이미 닫힌 세션에 다시 요청해도 성공으로 끝나며 `SESSION_CLOSED` 이벤트는
+한 번만 나간다. 세션 소유자가 아니면 403이다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"요청한 작업을 수행할 권한이 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```

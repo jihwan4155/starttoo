@@ -13,6 +13,8 @@ import com.starttoo.backend.notification.application.NotificationService;
 import com.starttoo.backend.post.application.PostService;
 import com.starttoo.backend.post.application.PostWriteService;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
+import com.starttoo.backend.simulation.application.ArSimulationCompositeRegistrationService;
+import com.starttoo.backend.simulation.application.ArSimulationSessionService;
 import com.starttoo.backend.user.application.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +57,10 @@ class TransactionBoundaryTest {
                 ref(DmService.class, "leave"),
                 ref(DmService.class, "notification"),
                 ref(MediaImageRegistrationService.class, "register"),
+                ref(ArSimulationSessionService.class, "create"),
+                ref(ArSimulationSessionService.class, "connect"),
+                ref(ArSimulationSessionService.class, "close"),
+                ref(ArSimulationCompositeRegistrationService.class, "register"),
                 ref(DeviceService.class, "register"),
                 ref(DeviceService.class, "deactivate"),
                 ref(DeviceService.class, "deactivateForLogout"),

@@ -9,6 +9,7 @@ import com.starttoo.backend.common.config.OAuthProperties;
 import com.starttoo.backend.common.ratelimit.RateLimitProperties;
 import com.starttoo.backend.coverup.config.CoverupProperties;
 import com.starttoo.backend.preference.config.PreferenceProperties;
+import com.starttoo.backend.simulation.config.SimulationProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,7 +25,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         RateLimitProperties.class,
         PreferenceProperties.class,
         CorsProperties.class,
-        CoverupProperties.class
+        CoverupProperties.class,
+        SimulationProperties.class
 })
 @SpringBootApplication
 public class StarttooBackendApplication {
