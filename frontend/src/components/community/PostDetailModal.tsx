@@ -40,6 +40,19 @@ import { formatTimeAgo } from "../../utils/timeAgo";
 import { getPostImageUrls, isTattooImage } from "../../utils/mapPost";
 import type { Post, PostComment } from "../../types/community";
 
+/*
+ * 사진 넘기기 화살표 버튼 — 모양을 바꾸려면 여기 두 값만 고치면 된다.
+ * 어두운 사진 위에 얹히므로 피드 카드(흰 원)와 달리 검은 원이다.
+ *
+ *   size-7         원 지름 28px (size-6=24 · size-8=32 · size-9=36)
+ *   bg-black/40    평소 불투명도 40% — 숫자를 낮출수록 더 투명해진다
+ *   hover:bg-black/65  커서를 올렸을 때
+ *   ARROW_ICON_SIZE  안쪽 꺾쇠 크기(px)
+ */
+const ARROW_BUTTON_CLASS =
+	"absolute top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/65 disabled:opacity-30";
+const ARROW_ICON_SIZE = 14;
+
 function ExtractIcon() {
 	return (
 		<svg
@@ -517,8 +530,8 @@ export default function PostDetailModal({
 								aria-label="이전 사진"
 								disabled={safeIndex === 0}
 								onClick={() => setImageIndex((i) => Math.max(0, i - 1))}
-								className="absolute left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 disabled:opacity-30">
-								<ChevronIcon direction="left" size={16} />
+								className={`${ARROW_BUTTON_CLASS} left-3`}>
+								<ChevronIcon direction="left" size={ARROW_ICON_SIZE} />
 							</button>
 							<button
 								type="button"
@@ -529,8 +542,8 @@ export default function PostDetailModal({
 										Math.min(imageUrls.length - 1, i + 1),
 									)
 								}
-								className="absolute right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 disabled:opacity-30">
-								<ChevronIcon direction="right" size={16} />
+								className={`${ARROW_BUTTON_CLASS} right-3`}>
+								<ChevronIcon direction="right" size={ARROW_ICON_SIZE} />
 							</button>
 							<div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
 								{imageUrls.map((_, index) => (
