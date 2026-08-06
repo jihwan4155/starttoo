@@ -1,8 +1,10 @@
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
+import useBackClose from "../../hooks/useBackClose";
 import {
 	GENRE_TAGS,
 	MAX_GENRE_SELECTION,
 	MAX_REFERENCE_IMAGES,
+	type GenreTag,
 } from "./constants";
 
 type StyleInputFormProps = {
@@ -20,6 +22,26 @@ type StyleInputFormProps = {
 	onGenerate: () => void;
 };
 
+const TOOLTIP_WIDTH = 260;
+const TOOLTIP_OFFSET = 16;
+
+function clampTooltipPosition(clientX: number, clientY: number) {
+	const maxX = window.innerWidth - TOOLTIP_WIDTH - 12;
+	const x = Math.min(Math.max(clientX + TOOLTIP_OFFSET, 12), Math.max(maxX, 12));
+	const y = Math.max(clientY + TOOLTIP_OFFSET, 12);
+	return { x, y };
+}
+
+function InfoIcon() {
+	return (
+		<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+			<circle cx="7" cy="7" r="6.25" stroke="currentColor" strokeWidth="1.5" />
+			<path d="M7 6.2V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+			<circle cx="7" cy="4.2" r="0.9" fill="currentColor" />
+		</svg>
+	);
+}
+
 export default function StyleInputForm({
 	selectedGenres,
 	prompt,
@@ -35,6 +57,31 @@ export default function StyleInputForm({
 	onGenerate,
 }: StyleInputFormProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const tooltipRef = useRef<HTMLDivElement>(null);
+	const [hoveredTag, setHoveredTag] = useState<GenreTag | null>(null);
+	const [infoTag, setInfoTag] = useState<GenreTag | null>(null);
+
+	const closeInfo = useCallback(() => setInfoTag(null), []);
+	useBackClose(Boolean(infoTag), closeInfo);
+
+	const moveTooltip = useCallback((clientX: number, clientY: number) => {
+		const el = tooltipRef.current;
+		if (!el) return;
+		const { x, y } = clampTooltipPosition(clientX, clientY);
+		el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+	}, []);
+
+	const showTooltip = useCallback(
+		(tag: GenreTag, clientX: number, clientY: number) => {
+			moveTooltip(clientX, clientY);
+			setHoveredTag(tag);
+		},
+		[moveTooltip],
+	);
+
+	const hideTooltip = useCallback(() => {
+		setHoveredTag(null);
+	}, []);
 
 	return (
 		<div className="px-8 py-10 max-lg:px-0 max-lg:pb-32 max-lg:pt-9">
@@ -63,24 +110,90 @@ export default function StyleInputForm({
 							const isDisabled = !isSelected && selectedGenres.length >= MAX_GENRE_SELECTION;
 
 							return (
-								<button
-									key={tag.id}
-									type="button"
-									aria-pressed={isSelected}
-									disabled={isDisabled}
-									onClick={() => onToggleGenre(tag.id)}
-									className={`group relative size-[140px] shrink-0 snap-start overflow-hidden rounded-[10px] border-[3px] transition max-lg:size-[100px] max-lg:rounded-lg max-lg:border-2 ${isSelected ? "border-brand" : "border-[#D7D7D7] lg:border-transparent"} ${isDisabled ? "opacity-40" : "hover:opacity-90"}`}>
-									<img src={tag.image} alt={tag.label} className="size-full object-cover" />
-									<div
-										aria-hidden="true"
-										className={`pointer-events-none absolute inset-0 flex items-end justify-center bg-black/50 pb-4 transition-opacity duration-200 max-lg:bg-transparent max-lg:bg-gradient-to-t max-lg:from-black/65 max-lg:to-transparent max-lg:pb-2 max-lg:opacity-100 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`}>
-										<span className="text-[18px] font-bold text-white max-lg:text-[14px]">{tag.label}</span>
-									</div>
-								</button>
+								<div key={tag.id} className="relative size-[140px] shrink-0 snap-start max-lg:size-[100px]">
+									<button
+										type="button"
+										aria-pressed={isSelected}
+										aria-describedby={hoveredTag?.id === tag.id ? "genre-tag-tooltip" : undefined}
+										disabled={isDisabled}
+										onClick={() => onToggleGenre(tag.id)}
+										onMouseEnter={(event) => showTooltip(tag, event.clientX, event.clientY)}
+										onMouseMove={(event) => {
+											if (hoveredTag?.id !== tag.id) {
+												showTooltip(tag, event.clientX, event.clientY);
+												return;
+											}
+											moveTooltip(event.clientX, event.clientY);
+										}}
+										onMouseLeave={hideTooltip}
+										className={`group relative size-full overflow-hidden rounded-[10px] border-[3px] transition max-lg:rounded-lg max-lg:border-2 ${isSelected ? "border-brand" : "border-[#D7D7D7] lg:border-transparent"} ${isDisabled ? "opacity-40" : "hover:opacity-90"}`}
+										style={{ backgroundColor: tag.bgColor }}>
+										<img src={tag.image} alt={tag.label} className="size-full object-contain p-1.5 max-lg:p-1" />
+										<div
+											aria-hidden="true"
+											className={`pointer-events-none absolute inset-0 flex items-end justify-center bg-black/50 pb-4 transition-opacity duration-200 max-lg:bg-transparent max-lg:bg-gradient-to-t max-lg:from-black/65 max-lg:to-transparent max-lg:pb-2 max-lg:opacity-100 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`}>
+											<span className="text-[18px] font-bold text-white max-lg:text-[14px]">{tag.label}</span>
+										</div>
+									</button>
+
+									<button
+										type="button"
+										aria-label={`${tag.label} 스타일 설명 보기`}
+										onClick={() => setInfoTag(tag)}
+										className="absolute right-1.5 top-1.5 z-10 flex size-6 items-center justify-center text-black lg:hidden">
+										<InfoIcon />
+									</button>
+								</div>
 							);
 						})}
 					</div>
 				</div>
+
+				{/* 데스크톱: 마우스 근처 툴팁 */}
+				<div
+					ref={tooltipRef}
+					id="genre-tag-tooltip"
+					role="tooltip"
+					aria-hidden={!hoveredTag}
+					style={{ width: TOOLTIP_WIDTH }}
+					className={`pointer-events-none fixed left-0 top-0 z-50 max-lg:hidden will-change-transform ${hoveredTag ? "opacity-100" : "opacity-0"}`}>
+					<div className="rounded-[12px] border border-[#E5E5E5] bg-white px-3.5 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
+						{hoveredTag && (
+							<>
+								<p className="text-[14px] font-semibold leading-5 text-black">{hoveredTag.label}</p>
+								<p className="mt-1 text-[13px] font-light leading-[18px] text-[#555]">{hoveredTag.description}</p>
+							</>
+						)}
+					</div>
+				</div>
+
+				{/* 모바일: 설명 모달 */}
+				{infoTag && (
+					<div
+						className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-6 lg:hidden"
+						onClick={closeInfo}
+						role="presentation">
+						<div
+							className="w-full max-w-[320px] rounded-[16px] bg-white px-5 pb-5 pt-6"
+							onClick={(event) => event.stopPropagation()}
+							role="dialog"
+							aria-modal="true"
+							aria-labelledby="genre-info-title">
+							<p id="genre-info-title" className="text-center text-[18px] font-bold leading-6 text-black">
+								{infoTag.label}
+							</p>
+							<p className="mt-3 text-center text-[14px] font-light leading-[20px] text-[#555]">
+								{infoTag.description}
+							</p>
+							<button
+								type="button"
+								onClick={closeInfo}
+								className="mt-5 flex h-11 w-full items-center justify-center rounded-[50px] bg-brand text-[16px] font-semibold text-white active:brightness-95">
+								닫기
+							</button>
+						</div>
+					</div>
+				)}
 			</section>
 
 			<section className="mb-10 max-lg:mb-8 max-lg:px-4">

@@ -60,27 +60,43 @@ export default function useDmRealtime() {
 
 		connectRealtime(accessToken);
 
-		const flush = () => {
+		const flush = async () => {
 			flushTimer.current = null;
-			for (const roomSeq of pendingRoomSeqs.current) {
-				void queryClient.invalidateQueries({
-					queryKey: dmMessagesQueryKey(roomSeq),
-				});
-			}
-			if (pendingRoomSeqs.current.size > 0) {
-				// 목록의 미리보기·안읽음 수도 같이 흔들린다.
-				void queryClient.invalidateQueries({ queryKey: dmRoomsQueryKey });
-			}
-			if (needsNotificationRefresh.current) {
-				void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-			}
+			const rooms = [...pendingRoomSeqs.current];
+			const refreshNotifications = needsNotificationRefresh.current;
 			pendingRoomSeqs.current.clear();
 			needsNotificationRefresh.current = false;
+
+			/*
+			 * 메시지를 먼저 받고 나서 목록·뱃지를 받는다.
+			 *
+			 * 열어 둔 방의 메시지 조회는 서버에서 읽음 처리까지 겸한다. 이 순서를
+			 * 지키지 않고 한꺼번에 무효화하면 목록이 읽음 처리 전에 먼저 응답해
+			 * 안읽음 뱃지가 남은 채로 굳는다. 요청 수는 그대로다.
+			 */
+			await Promise.all(
+				rooms.map((roomSeq) =>
+					queryClient.invalidateQueries({
+						queryKey: dmMessagesQueryKey(roomSeq),
+					}),
+				),
+			);
+			if (rooms.length > 0) {
+				// 목록의 미리보기·안읽음 수도 같이 흔들린다.
+				await queryClient.invalidateQueries({ queryKey: dmRoomsQueryKey });
+			}
+			if (refreshNotifications) {
+				await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+			}
 		};
 
 		const schedule = () => {
 			if (flushTimer.current != null) return;
-			flushTimer.current = setTimeout(flush, COALESCE_MS);
+			// 재조회 실패는 각 쿼리의 error 상태로 남는다 — 여기서 삼켜 unhandled로
+			// 새어 나가지 않게만 한다.
+			flushTimer.current = setTimeout(() => {
+				flush().catch(() => {});
+			}, COALESCE_MS);
 		};
 
 		const unsubscribeDm = subscribeRealtime(

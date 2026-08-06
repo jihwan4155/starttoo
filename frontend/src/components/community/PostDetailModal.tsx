@@ -37,7 +37,7 @@ import DeleteCommentModal from "./DeleteCommentModal";
 import SharePostModal from "./SharePostModal";
 import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
-import { getPostImageUrls, isTattooImage } from "../../utils/mapPost";
+import { getPostImageUrls } from "../../utils/mapPost";
 import type { Post, PostComment } from "../../types/community";
 
 /*
@@ -438,13 +438,13 @@ export default function PostDetailModal({
 			},
 		);
 	};
-	// 도안 추출: 성공 시 결과 모달 표시. TODO: 내 보관함 저장 연동
+	// 분류 과정에서 저장한 도안 조회: 성공 시 결과 모달 표시
 	const {
-		mutate: extractDesign,
-		data: extractResult,
-		isPending: isExtracting,
-		error: extractError,
-		reset: resetExtract,
+		mutate: loadStoredDesign,
+		data: storedDesignResult,
+		isPending: isDesignLoading,
+		error: designLoadError,
+		reset: resetStoredDesign,
 	} = useDesignExtractMutation();
 
 	// GET /posts/{postId}/comments (auth 없이 조회 가능)
@@ -463,8 +463,9 @@ export default function PostDetailModal({
 			: Math.min(imageIndex, imageUrls.length - 1);
 	const postImageUrl = imageUrls[safeIndex] ?? null;
 	const hasMultipleImages = imageUrls.length > 1;
-	// 도안 추출은 타투 사진에만 의미가 있다 — AI가 타투로 판별한 사진에서만 버튼을 낸다
-	const canExtractDesign = !!post && !!postImageUrl && isTattooImage(post, safeIndex);
+	const currentTattooSeq = post?.imageTattooSeqs?.[safeIndex] ?? null;
+	// tattooSeq가 있으면 분류 과정에서 타투로 판별되어 저장된 이미지다.
+	const canExtractDesign = !!postImageUrl && currentTattooSeq != null;
 
 	const { handlers: swipeHandlers, trackStyle } = useImageSwipe({
 		count: imageUrls.length,
@@ -564,25 +565,37 @@ export default function PostDetailModal({
 					)}
 
 					{/* 호버 시 노출되는 도안 추출 버튼 — 타투로 판별된 사진에서만 */}
-					{canExtractDesign && postImageUrl && (
+					{canExtractDesign && currentTattooSeq != null && (
 						<button
 							type="button"
 							aria-label="도안 추출"
-							disabled={isExtracting}
-							onClick={() => extractDesign(postImageUrl)}
+							disabled={isDesignLoading}
+							onClick={() => loadStoredDesign(currentTattooSeq)}
 							className={`absolute right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 group-hover:opacity-100 ${
 								hasMultipleImages ? "bottom-10" : "bottom-4"
 							}`}>
-							<ExtractIcon />
-							{isExtracting ? "추출 중..." : "도안 추출"}
+							{isDesignLoading ? (
+								<>
+									<span
+										aria-hidden="true"
+										className="size-3.5 animate-spin rounded-full border-2 border-black/20 border-t-black"
+									/>
+									도안 추출 중...
+								</>
+							) : (
+								<>
+									<ExtractIcon />
+									도안 추출
+								</>
+							)}
 						</button>
 					)}
-					{extractError && (
+					{designLoadError && (
 						<p
 							className={`absolute right-4 rounded-lg bg-black/60 px-3 py-1.5 text-[12px] font-light text-white ${
 								hasMultipleImages ? "bottom-24" : "bottom-16"
 							}`}>
-							{extractError.message}
+							{designLoadError.message}
 						</p>
 					)}
 				</div>
@@ -845,8 +858,8 @@ export default function PostDetailModal({
 			</div>
 
 			<DesignExtractResultModal
-				result={extractResult ?? null}
-				onClose={resetExtract}
+				result={storedDesignResult ?? null}
+				onClose={resetStoredDesign}
 			/>
 			<ReportPostModal
 				postId={post.id}
