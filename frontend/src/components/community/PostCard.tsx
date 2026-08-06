@@ -28,8 +28,22 @@ import { getPostImageUrls } from "../../utils/mapPost";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post } from "../../types/community";
 
+/*
+ * 사진 넘기기 화살표 버튼 — 모양을 바꾸려면 여기 두 값만 고치면 된다.
+ * 좌/우 위치(left-2·right-2)만 쓰는 쪽에서 붙인다.
+ *
+ *   size-6         원 지름 24px (size-5=20 · size-7=28 · size-8=32)
+ *   bg-white/55    평소 불투명도 55% — 숫자를 낮출수록 더 투명해진다
+ *   hover:bg-white/80  커서를 올렸을 때
+ *   size={13}      안쪽 꺾쇠 크기(px) — ARROW_ICON_SIZE
+ */
+const ARROW_BUTTON_CLASS =
+	"absolute top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/55 text-black shadow-[0_2px_6px_rgba(0,0,0,0.10)] backdrop-blur-sm transition hover:bg-white/80 disabled:pointer-events-none disabled:opacity-0";
+const ARROW_ICON_SIZE = 13;
+
 type PostCardProps = {
 	post: Post;
+	/** 댓글 버튼을 눌렀을 때 — 사진 클릭으로는 열리지 않는다 */
 	onOpen: (post: Post) => void;
 };
 
@@ -233,13 +247,14 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 							: undefined
 					}>
 					<div className="relative">
-						<button
-							type="button"
-							onClick={() => !isHidden && onOpen(post)}
-							disabled={isHidden}
+						{/*
+						  사진은 넘겨 보기만 한다. 댓글은 아래 댓글 버튼으로 연다 —
+						  사진을 누르면 댓글이 열려서, 다음 장으로 넘기려다 상세가
+						  열리는 일이 잦았다. 그래서 클릭 대상이 아닌 div로 둔다.
+						*/}
+						<div
 							{...swipeHandlers}
-							className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
-							aria-label="게시글 상세 보기">
+							className="w-full overflow-hidden lg:rounded-[10px]">
 							{imageUrls.length > 0 ? (
 								<div className="flex" style={trackStyle}>
 									{imageUrls.map((url, index) => (
@@ -248,16 +263,14 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 											src={url}
 											alt={`${post.author.nickname}의 게시글 ${index + 1}`}
 											draggable={false}
-											className={`aspect-[3/4] h-auto w-full shrink-0 object-cover ${
-												hasMultipleImages ? "" : "transition hover:scale-[1.01]"
-											}`}
+											className="aspect-[3/4] h-auto w-full shrink-0 object-cover"
 										/>
 									))}
 								</div>
 							) : (
 								<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
 							)}
-						</button>
+						</div>
 
 						{hasMultipleImages && !isHidden && (
 							<>
@@ -266,8 +279,8 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 									aria-label="이전 사진"
 									disabled={safeIndex === 0}
 									onClick={() => setImageIndex((i) => Math.max(0, i - 1))}
-									className="absolute left-2 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-black shadow-[0_2px_8px_rgba(0,0,0,0.15)] backdrop-blur-sm transition hover:bg-white disabled:pointer-events-none disabled:opacity-0">
-									<ChevronIcon direction="left" size={16} />
+									className={`${ARROW_BUTTON_CLASS} left-2`}>
+									<ChevronIcon direction="left" size={ARROW_ICON_SIZE} />
 								</button>
 								<button
 									type="button"
@@ -276,8 +289,8 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 									onClick={() =>
 										setImageIndex((i) => Math.min(imageUrls.length - 1, i + 1))
 									}
-									className="absolute right-2 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-black shadow-[0_2px_8px_rgba(0,0,0,0.15)] backdrop-blur-sm transition hover:bg-white disabled:pointer-events-none disabled:opacity-0">
-									<ChevronIcon direction="right" size={16} />
+									className={`${ARROW_BUTTON_CLASS} right-2`}>
+									<ChevronIcon direction="right" size={ARROW_ICON_SIZE} />
 								</button>
 								<span className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
 									{safeIndex + 1} / {imageUrls.length}

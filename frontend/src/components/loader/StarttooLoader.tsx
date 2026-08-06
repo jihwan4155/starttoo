@@ -106,9 +106,11 @@ export default function StarttooLoader({
 			setReady(true);
 			return undefined;
 		}
+		// 숨는 중에는 ready를 건드리지 않는다. 여기서 false로 되돌리면 곧바로
+		// null을 반환해 페이드아웃이 통째로 잘린다.
+		if (!visible) return undefined;
 		// 다시 로딩이 시작되면 지연도 처음부터 — 두 번째 로딩만 즉시 뜨면 어색하다.
 		setReady(false);
-		if (!visible) return undefined;
 		const timer = setTimeout(() => setReady(true), delayMs);
 		return () => clearTimeout(timer);
 	}, [delayMs, visible]);
