@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import useNavRefresh from "../../hooks/useNavRefresh";
 import useUnreadCounts from "../../hooks/queries/useUnreadCounts";
 
 type NavItem = {
@@ -169,6 +170,8 @@ export default function SideNav() {
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const [communityHovered, setCommunityHovered] = useState(false);
 	const { pathname } = useLocation();
+	// 보고 있는 화면의 아이콘을 다시 누르면 새로고침
+	const navRefresh = useNavRefresh();
 	// 미확인 NEW_DM 알림 수 — 방을 읽으면 서버가 함께 읽음 처리해 줄어든다.
 	const { data: unreadCounts } = useUnreadCounts();
 	const unreadDmCount = unreadCounts?.byType.NEW_DM ?? 0;
@@ -213,6 +216,7 @@ export default function SideNav() {
 					to={item.to}
 					aria-label={item.label}
 					aria-current={isActive ? "page" : undefined}
+					onClick={navRefresh(item.to)}
 					className={`relative flex ${boxSize} items-center justify-center rounded-[10px] bg-white transition ${
 						showLabel || isActive
 							? "shadow-[0_0_15px_rgba(255,0,4,0.12),4px_8px_30px_rgba(0,0,0,0.15)]"

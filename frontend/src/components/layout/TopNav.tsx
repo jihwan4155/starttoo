@@ -15,6 +15,7 @@ import {
 	useMarkAllNotificationsRead,
 } from "../../hooks/mutations/useMarkNotificationsRead";
 import useBackClose from "../../hooks/useBackClose";
+import useNavRefresh from "../../hooks/useNavRefresh";
 import useNotificationAction from "../../hooks/useNotificationAction";
 import useUserStore from "../../store/useUserStore";
 import useAuthStore from "../../store/useAuthStore";
@@ -360,6 +361,8 @@ function MobileTopNav() {
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 	const logout = useAuthStore((s) => s.logout);
 	const showToast = useToastStore((s) => s.showToast);
+	// 보고 있는 화면의 메뉴를 다시 누르면 새로고침
+	const navRefresh = useNavRefresh();
 
 	useEffect(() => setOpen(false), [pathname]);
 
@@ -434,6 +437,11 @@ function MobileTopNav() {
 									<div key={item.to} className={`flex w-full justify-center ${"dividerBefore" in item && item.dividerBefore ? "border-t border-black/15 pt-4" : ""}`}>
 										<Link
 											to={item.to}
+											onClick={(event) => {
+												// 같은 화면이면 주소가 그대로라 메뉴가 저절로 닫히지 않는다
+												setOpen(false);
+												navRefresh(item.to)(event);
+											}}
 											aria-current={active ? "page" : undefined}
 											className={`text-[17px] leading-6 tracking-[-0.03em] transition ${active ? "font-semibold text-black" : "font-normal text-black/90"}`}>
 											{item.label}

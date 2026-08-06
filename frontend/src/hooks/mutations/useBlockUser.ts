@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { blockUser, unblockUser } from "../../services/userApi";
+import { blockedUsersQueryKey } from "../queries/useBlockedUsers";
 import { dmRoomsQueryKey } from "../queries/useDmRooms";
 import { postsQueryKey } from "../queries/usePosts";
 import { userProfileQueryKey } from "../queries/useUserProfile";
@@ -31,6 +32,8 @@ export default function useBlockUser() {
 			// postsQueryKey(["posts"])는 내 글·상대 글 목록의 접두사도 함께 덮는다.
 			void queryClient.invalidateQueries({ queryKey: postsQueryKey });
 			void queryClient.invalidateQueries({ queryKey: dmRoomsQueryKey });
+			// 차단·해제 모두 마이페이지의 차단 목록을 바꾼다.
+			void queryClient.invalidateQueries({ queryKey: blockedUsersQueryKey });
 		},
 	});
 }

@@ -270,8 +270,9 @@ export default function CreatePostModal({
 			className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-6 max-lg:bg-surface max-lg:p-0"
 			onClick={handleClose}
 			role="presentation">
+			{/* 헤더가 흰 배경이라 잘라내지 않으면 둥근 모서리를 덮어 각이 진다 */}
 			<div
-				className="w-full max-w-[640px] rounded-2xl bg-white max-lg:flex max-lg:min-h-dvh max-lg:max-w-none max-lg:flex-col max-lg:rounded-none max-lg:bg-surface"
+				className="w-full max-w-[640px] overflow-hidden rounded-2xl bg-white max-lg:flex max-lg:min-h-dvh max-lg:max-w-none max-lg:flex-col max-lg:rounded-none max-lg:bg-surface"
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
