@@ -108,6 +108,12 @@ public class DmController {
                     마지막으로 나갈 때 기록한 lastHiddenMessageSeq 이하의 과거 메시지는 제외한다.
                     삭제 메시지는 행을 유지하되 본문·이미지 seq·이미지 URL을 null로 반환한다.
                     이미지 URL은 DB에 저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
+
+                    이 조회는 "지금 이 방을 보고 있다"는 뜻이므로 PATCH /dm/rooms/{roomSeq}/read 와
+                    같은 읽음 처리를 함께 수행한다. 상대 메시지의 readDttm과 이 방의 미읽음 NEW_DM
+                    알림을 같은 트랜잭션에서 기록하고, 실제로 바뀐 게 있을 때만 상대에게
+                    MESSAGES_READ 이벤트를 보낸다. 따라서 방을 열어 둔 채 새 메시지를 받는
+                    클라이언트는 읽음 처리를 위해 별도 요청을 보낼 필요가 없다.
                     """
     )
     public ApiResponse<CursorPageResponse<DmDtos.MessageResponse>> messages(

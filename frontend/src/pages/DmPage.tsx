@@ -120,11 +120,20 @@ export default function DmPage() {
 	// DM 페이지를 벗어나면 선택 해제 (이후 수신 메시지는 알림으로 표시)
 	useEffect(() => () => leaveDm(), [leaveDm]);
 
-	// 방을 열면 상대 메시지·이 방의 NEW_DM 알림을 읽음 처리한다.
+	/*
+	 * 읽음 처리는 기본적으로 서버가 메시지 조회에서 함께 한다. 열어 둔 방은 새
+	 * 메시지마다 어차피 메시지를 다시 받으므로, 그것만으로 안읽음이 따라 내려간다.
+	 *
+	 * 여기 남은 건 그 조회가 일어나지 않는 경우를 위한 안전망이다. 메시지 쿼리는
+	 * staleTime이 있어서 방을 닫았다 곧바로 다시 열면 캐시로 그려지고 요청이
+	 * 나가지 않는다. 그때는 안읽음이 남아 있을 수 있으니 직접 한 번 처리한다.
+	 * 0이면 요청하지 않으므로 평소에는 나가지 않는다.
+	 */
+	const activeUnreadCount = selectedRoom?.unreadCount ?? 0;
 	useEffect(() => {
-		if (activeRoomSeq == null) return;
+		if (activeRoomSeq == null || activeUnreadCount === 0) return;
 		markRead(activeRoomSeq);
-	}, [activeRoomSeq, markRead]);
+	}, [activeRoomSeq, activeUnreadCount, markRead]);
 
 	// 방 전환·새 메시지 시 맨 아래로. 과거 메시지를 더 불러온 경우는 제외한다.
 	useEffect(() => {

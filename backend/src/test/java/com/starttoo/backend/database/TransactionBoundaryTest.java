@@ -53,6 +53,8 @@ class TransactionBoundaryTest {
                 ref(PreferenceScoreService.class, "survey"),
                 ref(DmService.class, "createRoom"),
                 ref(DmService.class, "send"),
+                // 조회지만 "이 방을 보고 있다"는 뜻이라 읽음 처리까지 겸한다
+                ref(DmService.class, "messages"),
                 ref(DmService.class, "markRead"),
                 ref(DmService.class, "leave"),
                 ref(DmService.class, "notification"),

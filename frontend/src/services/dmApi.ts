@@ -37,6 +37,10 @@ export async function createDmRoom(partnerSeq: number): Promise<DmRoomResponse> 
  *
  * dmMessageSeq 내림차순이라 items는 최신이 먼저다. 화면에 시간순으로 그리려면
  * 뒤집어야 한다. 방을 나갈 때 기록된 숨김 기준 이전 메시지는 내려오지 않는다.
+ *
+ * 서버가 이 호출을 "그 방을 보고 있다"로 보고 읽음 처리까지 겸한다. 방을 열어 둔
+ * 채 새 메시지를 받으면 실시간 쪽이 이 쿼리를 무효화하므로, 다시 받는 것만으로
+ * 안읽음이 따라 내려간다 — 읽음 처리용 요청을 따로 보내지 않는다.
  */
 export async function fetchDmMessages(
 	roomSeq: number,
