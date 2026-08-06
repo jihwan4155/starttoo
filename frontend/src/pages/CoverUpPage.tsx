@@ -222,7 +222,11 @@ export default function CoverUpPage() {
 		? "가릴 부위를 그려주세요."
 		: hasEmptyResult
 			? "조건에 맞는 도안이 없습니다. 영역을 조금 바꿔 다시 시도해주세요."
-			: errorInfo?.message ?? null;
+			: (errorInfo?.message ?? null);
+	// 오류가 아니라 그리기 안내라, 빨간 searchMessage와 자리를 나눈다
+	const openShapeHint = canvas.hasOpenShape
+		? "시작점까지 이어 그리면 안쪽까지 덮어요."
+		: null;
 
 	if (isMobile) {
 		return (
@@ -246,6 +250,7 @@ export default function CoverUpPage() {
 				nextDisabled={!forwardEnabled}
 				isSearching={searchMutation.isPending}
 				searchMessage={mobileSearchMessage}
+				openShapeHint={openShapeHint}
 				results={results}
 				selectedIndex={selectedIndex}
 				onSelectResult={setSelectedIndex}
@@ -433,11 +438,18 @@ export default function CoverUpPage() {
 										)}
 									</>
 								)}
-								{!showEmptyStrokeHint && !hasEmptyResult && !errorInfo && (
-									<p className="text-[13px] font-light text-black/50">
-										{MODES[mode].hint}
-									</p>
-								)}
+								{!showEmptyStrokeHint &&
+									!hasEmptyResult &&
+									!errorInfo &&
+									(canvas.hasOpenShape ? (
+										<p className="text-[13px] font-light text-black/60">
+											시작점까지 이어 그리면 안쪽까지 덮어요.
+										</p>
+									) : (
+										<p className="text-[13px] font-light text-black/50">
+											{MODES[mode].hint}
+										</p>
+									))}
 							</div>
 						</>
 					)}
