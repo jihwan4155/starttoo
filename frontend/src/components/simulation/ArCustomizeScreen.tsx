@@ -25,7 +25,8 @@ const DEFAULT_OPTIONS: ArOptions = {
 /** PoC 기본 배율 — UI 100%가 이 값이 되도록 매핑 */
 const BASE_SCALE = 4.4;
 
-const DESIGNS = [
+/** 세션 도안을 못 받은 화면(폰에서 바로 진입 등)에서 쓰는 기본 도안 */
+const DEFAULT_DESIGNS = [
 	{ name: "별", url: starDesign },
 	{ name: "덩굴", url: vineDesign },
 ];
@@ -33,6 +34,11 @@ const DESIGNS = [
 type ArCustomizeScreenProps = {
 	/** 캡처 시 합성 화면 dataURL 전달 */
 	onCapture: (dataUrl: string) => void;
+	/**
+	 * 보관함에 띄울 도안 목록. QR로 들어온 폰은 세션 /connect 응답으로 받은
+	 * 도안을 넘긴다. 비우면 기본 도안을 쓴다.
+	 */
+	designs?: { name: string; url: string }[];
 };
 
 type SliderRowProps = {
@@ -79,8 +85,10 @@ function SliderRow({
  */
 export default function ArCustomizeScreen({
 	onCapture,
+	designs,
 }: ArCustomizeScreenProps) {
-	const [designUrl, setDesignUrl] = useState(DESIGNS[0].url);
+	const designList = designs?.length ? designs : DEFAULT_DESIGNS;
+	const [designUrl, setDesignUrl] = useState(designList[0].url);
 	const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 	const [options, setOptions] = useState<ArOptions>(DEFAULT_OPTIONS);
 	const uploadedUrlRef = useRef<string | null>(null);
@@ -132,7 +140,7 @@ export default function ArCustomizeScreen({
 					내 타투 보관함
 				</p>
 				<div className="flex gap-2 overflow-x-auto pb-1">
-					{DESIGNS.map((design) => (
+					{designList.map((design) => (
 						<button
 							key={design.url}
 							type="button"
