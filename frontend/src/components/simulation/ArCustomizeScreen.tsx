@@ -32,10 +32,22 @@ const BASE_SCALE = 4.4;
  *
  * AR 엔진은 항상 얹을 도안이 하나는 있어야 해서, 레일을 비워 두는 대신 샘플을 남긴다.
  */
-const SAMPLE_DESIGNS = [
+const SAMPLE_DESIGNS: RailDesign[] = [
 	{ name: "샘플 · 별", url: starDesign },
 	{ name: "샘플 · 덩굴", url: vineDesign },
 ];
+
+/** 레일에 놓이는 도안 한 칸 */
+type RailDesign = {
+	/**
+	 * 도안 식별자(tattooSeq). 세션 도안과 보관함 도안이 같은 도안을 가리켜도
+	 * presigned URL이 서로 달라 URL로는 같은 것인지 알 수 없다 — 이 값으로 겹침을
+	 * 판단한다. 직접 올린 이미지·샘플에는 없다.
+	 */
+	seq?: number;
+	name: string;
+	url: string;
+};
 
 type ArCustomizeScreenProps = {
 	/** 캡처 시 합성 화면 dataURL 전달 */
@@ -43,9 +55,9 @@ type ArCustomizeScreenProps = {
 	/**
 	 * 레일 맨 앞에 붙일 도안. QR로 들어온 폰은 세션 /connect 응답으로 받은 도안을
 	 * 넘긴다 — 그 폰은 로그인 상태가 아닐 수 있어 보관함을 못 읽기 때문이다.
-	 * 이 값과 별개로 로그인해 있으면 내 도안 보관함을 함께 보여준다.
+	 * 로그인한 폰이라면 같은 도안이 보관함에도 있으므로 seq로 겹치는 것을 걸러낸다.
 	 */
-	designs?: { name: string; url: string }[];
+	designs?: RailDesign[];
 };
 
 type SliderRowProps = {
@@ -99,22 +111,30 @@ export default function ArCustomizeScreen({
 	const { data: archiveData, isFetching: isArchiveFetching } = useArchive({
 		size: 30,
 	});
-	const archiveDesigns = useMemo(
+	const archiveDesigns = useMemo<RailDesign[]>(
 		() =>
 			archiveData?.pages
 				.flatMap((page) => page.items.map(mapArchiveItemToSavedDesign))
 				.map((design, index) => ({
+					seq: design.id,
 					name: `보관한 도안 ${index + 1}`,
 					url: design.previewUrl,
 				})) ?? [],
 		[archiveData?.pages],
 	);
 	const hasOwnDesigns = Boolean(designs?.length) || archiveDesigns.length > 0;
-	const designList = useMemo(
-		() =>
-			hasOwnDesigns ? [...(designs ?? []), ...archiveDesigns] : SAMPLE_DESIGNS,
-		[hasOwnDesigns, designs, archiveDesigns],
-	);
+	const designList = useMemo(() => {
+		if (!hasOwnDesigns) return SAMPLE_DESIGNS;
+		// 로그인한 폰이 QR로 들어오면 PC가 실어 보낸 세션 도안과 자기 보관함이
+		// 같은 도안을 가리켜 한 칸씩 두 번 나온다. seq로 먼저 온 쪽만 남긴다.
+		const seen = new Set<number>();
+		return [...(designs ?? []), ...archiveDesigns].filter((design) => {
+			if (design.seq == null) return true;
+			if (seen.has(design.seq)) return false;
+			seen.add(design.seq);
+			return true;
+		});
+	}, [hasOwnDesigns, designs, archiveDesigns]);
 
 	const [designUrl, setDesignUrl] = useState(designList[0].url);
 	const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -190,9 +210,13 @@ export default function ArCustomizeScreen({
 							className={`grid size-16 shrink-0 place-items-center overflow-hidden rounded-[10px] border-2 bg-white ${
 								designUrl === design.url ? "border-brand" : "border-transparent"
 							}`}>
+							{/* 레일이 스무 칸까지 늘어난다. 폰이 접속 직후 전부 내려받느라
+							    느려지지 않게 화면에 들어온 것부터 받는다 */}
 							<img
 								src={design.url}
 								alt={design.name}
+								loading="lazy"
+								decoding="async"
 								className="size-12 object-contain"
 							/>
 						</button>
