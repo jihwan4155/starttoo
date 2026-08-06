@@ -328,9 +328,11 @@ export default function MyPage() {
 				isOpen={isWriteOpen}
 				onClose={() => setWriteOpen(false)}
 			/>
+			{/* 도안은 배경이 비어 있어 보관함 썸네일과 같은 흰 바탕에서 봐야 한다 */}
 			<ImageViewerModal
 				src={activeDesign?.previewUrl ?? ""}
 				alt="저장한 도안"
+				variant="light"
 				isOpen={!!activeDesign}
 				onClose={() => setActiveDesign(null)}
 			/>
