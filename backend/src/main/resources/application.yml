@@ -1,6 +1,20 @@
 spring:
   application:
     name: starttoo-backend
+  threads:
+    virtual:
+      # 요청 스레드를 가상 스레드로 돌린다. AI 생성·MinIO·FCM 처럼 응답을 기다리는
+      # 구간이 톰캣 스레드(기본 200개)를 잠식하지 않게 하는 것이 목적이다.
+      # 주의: 직접 정의한 @Bean 실행기(realtimeTaskExecutor 등)는 이 설정과 무관하게
+      # 플랫폼 스레드를 유지한다. RealtimeAsyncConfig 참고.
+      enabled: true
+  task:
+    scheduling:
+      simple:
+        # 가상 스레드를 켜면 스케줄러가 SimpleAsyncTaskScheduler 로 바뀌어 동시 실행에
+        # 제한이 없어진다. @Scheduled 잡들은 지금까지 1개 스레드로 직렬 실행되는 것을
+        # 전제로 쓰였으므로 그 동작을 유지한다.
+        concurrency-limit: 1
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/starttoo}
     username: ${DB_USERNAME:starttoo}

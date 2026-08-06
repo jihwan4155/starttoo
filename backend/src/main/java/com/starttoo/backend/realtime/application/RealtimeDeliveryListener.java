@@ -1,9 +1,7 @@
 package com.starttoo.backend.realtime.application;
 
 import com.starttoo.backend.dm.application.DmRealtimeDeliveryEvent;
-import com.starttoo.backend.notification.application.DeviceService;
 import com.starttoo.backend.notification.application.NotificationCreatedEvent;
-import com.starttoo.backend.notification.application.PushNotificationSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -12,16 +10,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import java.util.List;
-
+/**
+ * WebSocket 전달만 담당한다. FCM 은 {@link PushDeliveryListener} 가 별도 풀에서 처리한다.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class RealtimeDeliveryListener {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final DeviceService deviceService;
-    private final PushNotificationSender pushNotificationSender;
 
     @Async("realtimeTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -55,26 +52,6 @@ public class RealtimeDeliveryListener {
         } catch (RuntimeException exception) {
             log.error(
                     "WebSocket notification delivery failed. receiverSeq={}, notificationSeq={}",
-                    event.receiverSeq(),
-                    event.notification().notificationSeq(),
-                    exception
-            );
-        }
-
-        try {
-            List<String> tokens = deviceService.activePushTokens(event.receiverSeq());
-            if (tokens.isEmpty()) {
-                return;
-            }
-            List<String> invalidTokens = pushNotificationSender.send(
-                    tokens,
-                    event.notification()
-            );
-            deviceService.deactivateInvalidPushTokens(event.receiverSeq(), invalidTokens);
-        } catch (RuntimeException exception) {
-            // 변경: 외부 푸시 실패는 이미 커밋된 메시지·알림을 롤백하지 않는다.
-            log.error(
-                    "FCM notification delivery failed. receiverSeq={}, notificationSeq={}",
                     event.receiverSeq(),
                     event.notification().notificationSeq(),
                     exception
