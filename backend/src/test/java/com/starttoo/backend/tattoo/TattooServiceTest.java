@@ -11,11 +11,13 @@ import com.starttoo.backend.tattoo.api.TattooDtos;
 import com.starttoo.backend.tattoo.application.TattooModelClient;
 import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.tattoo.domain.Tattoo;
+import com.starttoo.backend.tattoo.domain.TattooDesign;
 import com.starttoo.backend.tattoo.domain.TattooDesignRepository;
 import com.starttoo.backend.tattoo.domain.TattooRepository;
 import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -110,6 +112,34 @@ class TattooServiceTest {
                                 .isEqualTo(ErrorCode.NOT_TATTOO_IMAGE));
 
         verify(tattooRepository, never()).save(any());
+    }
+
+    @Test
+    void postAnalysisLinksStoredDesignImageToExistingTattoo() {
+        TattooModelClient.Analysis analysis = new TattooModelClient.Analysis(
+                "OTHER", List.of(), List.of("LINE"), "BLACK", List.of("타투")
+        );
+        Tattoo tattoo = tattoo(501L, 301L);
+        Image designImage = image(302L, "users/7/extraction/design.png");
+        when(tattooRepository.findByImageSeqAndDeletedFalse(301L))
+                .thenReturn(Optional.of(tattoo));
+        when(imageRepository.findByObjectKeyAndDeletedFalse(
+                "users/7/extraction/design.png"))
+                .thenReturn(Optional.of(designImage));
+        when(tattooDesignRepository.findById(501L)).thenReturn(Optional.empty());
+
+        tattooService.persistPostImageAnalysis(
+                7,
+                new TattooService.PreparedPostImage(301L, "users/7/post/original.png"),
+                analysis,
+                "users/7/extraction/design.png"
+        );
+
+        ArgumentCaptor<TattooDesign> captor = ArgumentCaptor.forClass(TattooDesign.class);
+        verify(tattooDesignRepository).save(captor.capture());
+        assertThat(captor.getValue().getTattooSeq()).isEqualTo(501L);
+        assertThat(captor.getValue().getImageSeq()).isEqualTo(302L);
+        assertThat(captor.getValue().isIndexed()).isFalse();
     }
 
     @Test

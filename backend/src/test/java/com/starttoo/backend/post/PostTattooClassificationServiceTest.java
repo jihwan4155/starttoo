@@ -43,16 +43,15 @@ class PostTattooClassificationServiceTest {
     @Test
     void appliesEachResultToItsOwnImage() {
         stubUrls();
-        when(tattooModelClient.analyzeBatch(any())).thenReturn(List.of(
-                new TattooModelClient.AnalysisResult(
-                        TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS),
-                new TattooModelClient.AnalysisResult(
-                        TattooModelClient.AnalysisStatus.NOT_TATTOO, null)
+        when(tattooModelClient.analyzeBatchItems(any())).thenReturn(List.of(
+                result(62L, TattooModelClient.AnalysisStatus.NOT_TATTOO, null),
+                result(61L, TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS)
         ));
 
         service.classify(7, images());
 
-        verify(writer).applyTattoo(eq(7), eq(images().get(0)), eq(ANALYSIS));
+        verify(writer).applyTattoo(
+                eq(7), eq(images().get(0)), eq(ANALYSIS), eq("design-61"));
         verify(writer).markNotTattoo(62L);
         verifyNoMoreInteractions(writer);
     }
@@ -63,19 +62,19 @@ class PostTattooClassificationServiceTest {
     @Test
     void oneImageFailureDoesNotAffectTheOtherImage() {
         stubUrls();
-        when(tattooModelClient.analyzeBatch(any())).thenReturn(List.of(
-                new TattooModelClient.AnalysisResult(
-                        TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS),
-                new TattooModelClient.AnalysisResult(
-                        TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS)
+        when(tattooModelClient.analyzeBatchItems(any())).thenReturn(List.of(
+                result(61L, TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS),
+                result(62L, TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS)
         ));
         doThrow(new BusinessException(ErrorCode.STATE_CONFLICT, "코드 없음"))
-                .when(writer).applyTattoo(eq(7), eq(images().get(0)), any());
+                .when(writer).applyTattoo(
+                        eq(7), eq(images().get(0)), any(), eq("design-61"));
 
         service.classify(7, images());
 
         verify(writer).markFailed(61L);
-        verify(writer).applyTattoo(eq(7), eq(images().get(1)), eq(ANALYSIS));
+        verify(writer).applyTattoo(
+                eq(7), eq(images().get(1)), eq(ANALYSIS), eq("design-62"));
         verify(writer, never()).markFailed(62L);
     }
 
@@ -85,11 +84,9 @@ class PostTattooClassificationServiceTest {
     @Test
     void failedResultIsMarkedFailedNotNonTattoo() {
         stubUrls();
-        when(tattooModelClient.analyzeBatch(any())).thenReturn(List.of(
-                new TattooModelClient.AnalysisResult(
-                        TattooModelClient.AnalysisStatus.FAILED, null),
-                new TattooModelClient.AnalysisResult(
-                        TattooModelClient.AnalysisStatus.NOT_TATTOO, null)
+        when(tattooModelClient.analyzeBatchItems(any())).thenReturn(List.of(
+                result(61L, TattooModelClient.AnalysisStatus.FAILED, null),
+                result(62L, TattooModelClient.AnalysisStatus.NOT_TATTOO, null)
         ));
 
         service.classify(7, images());
@@ -105,7 +102,7 @@ class PostTattooClassificationServiceTest {
     @Test
     void batchFailureMarksEveryImageForRetry() {
         stubUrls();
-        when(tattooModelClient.analyzeBatch(any()))
+        when(tattooModelClient.analyzeBatchItems(any()))
                 .thenThrow(BusinessException.of(ErrorCode.PROCESSING_TIMEOUT));
 
         service.classify(7, images());
@@ -121,21 +118,37 @@ class PostTattooClassificationServiceTest {
     @Test
     void sizeMismatchMarksEveryImageForRetryWithoutApplyingResults() {
         stubUrls();
-        when(tattooModelClient.analyzeBatch(any())).thenReturn(List.of(
-                new TattooModelClient.AnalysisResult(
-                        TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS)
+        when(tattooModelClient.analyzeBatchItems(any())).thenReturn(List.of(
+                result(61L, TattooModelClient.AnalysisStatus.TATTOO, ANALYSIS)
         ));
 
         service.classify(7, images());
 
         verify(writer).markFailed(61L);
         verify(writer).markFailed(62L);
-        verify(writer, never()).applyTattoo(any(), any(), any());
+        verify(writer, never()).applyTattoo(any(), any(), any(), any());
     }
 
     private void stubUrls() {
         when(mediaService.downloadUrl("object-61")).thenReturn("https://minio.test/61");
         when(mediaService.downloadUrl("object-62")).thenReturn("https://minio.test/62");
+        when(mediaService.presignTattooDesignUpload(7, 61L))
+                .thenReturn(new MediaService.PresignedUpload(
+                        "design-61", "https://minio.test/design-61"));
+        when(mediaService.presignTattooDesignUpload(7, 62L))
+                .thenReturn(new MediaService.PresignedUpload(
+                        "design-62", "https://minio.test/design-62"));
+    }
+
+    private TattooModelClient.AnalysisResult result(
+            Long imageSeq,
+            TattooModelClient.AnalysisStatus status,
+            TattooModelClient.Analysis analysis
+    ) {
+        TattooModelClient.Design design = status == TattooModelClient.AnalysisStatus.TATTOO
+                ? new TattooModelClient.Design("design-" + imageSeq)
+                : null;
+        return new TattooModelClient.AnalysisResult(imageSeq, status, analysis, design);
     }
 
     private List<TattooService.PreparedPostImage> images() {

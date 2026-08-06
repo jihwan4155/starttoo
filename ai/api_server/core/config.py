@@ -51,6 +51,7 @@ class Settings:
     low_vram_mode: bool = False
     generator_cpu_offload: bool = False
     generator_unload_after_request: bool = False
+    design_upload_allowed_origins: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -113,6 +114,9 @@ class Settings:
             generator_unload_after_request=_as_bool(
                 os.getenv("GENERATOR_UNLOAD_AFTER_REQUEST"),
                 default=False,
+            ),
+            design_upload_allowed_origins=_as_origins(
+                os.getenv("DESIGN_UPLOAD_ALLOWED_ORIGINS")
             ),
         )
 

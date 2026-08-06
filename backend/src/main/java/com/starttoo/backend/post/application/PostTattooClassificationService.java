@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 게시물 이미지의 타투 분류를 실행한다. 게시 응답 직후의 비동기 워커와 백필 스케줄러가
@@ -44,11 +46,20 @@ public class PostTattooClassificationService {
         }
         List<TattooModelClient.AnalysisResult> results;
         try {
-            List<String> imageUrls = preparedImages.stream()
-                    .map(TattooService.PreparedPostImage::objectKey)
-                    .map(mediaService::downloadUrl)
+            List<TattooModelClient.BatchImage> requests = preparedImages.stream()
+                    .map(image -> {
+                        MediaService.PresignedUpload upload =
+                                mediaService.presignTattooDesignUpload(
+                                        userSeq, image.imageSeq());
+                        return new TattooModelClient.BatchImage(
+                                image.imageSeq(),
+                                mediaService.downloadUrl(image.objectKey()),
+                                upload.objectKey(),
+                                upload.url()
+                        );
+                    })
                     .toList();
-            results = tattooModelClient.analyzeBatch(imageUrls);
+            results = tattooModelClient.analyzeBatchItems(requests);
         } catch (RuntimeException exception) {
             // 배치 단위 실패(타임아웃, AI 서버 장애)다. 전량을 재시도 대상으로 남긴다.
             log.warn("Post tattoo classification call failed: userSeq={}, imageSeqs={}",
@@ -62,8 +73,21 @@ public class PostTattooClassificationService {
             preparedImages.forEach(image -> markFailedQuietly(image.imageSeq()));
             return;
         }
-        for (int index = 0; index < preparedImages.size(); index++) {
-            apply(userSeq, preparedImages.get(index), results.get(index));
+        Map<Long, TattooModelClient.AnalysisResult> resultsByImageSeq = new HashMap<>();
+        for (TattooModelClient.AnalysisResult result : results) {
+            if (result.imageSeq() == null
+                    || resultsByImageSeq.put(result.imageSeq(), result) != null) {
+                preparedImages.forEach(image -> markFailedQuietly(image.imageSeq()));
+                return;
+            }
+        }
+        for (TattooService.PreparedPostImage image : preparedImages) {
+            TattooModelClient.AnalysisResult result = resultsByImageSeq.get(image.imageSeq());
+            if (result == null) {
+                markFailedQuietly(image.imageSeq());
+                continue;
+            }
+            apply(userSeq, image, result);
         }
     }
 
@@ -82,7 +106,21 @@ public class PostTattooClassificationService {
                 return;
             }
             if (result.tattoo()) {
-                writer.applyTattoo(userSeq, image, result.analysis());
+                if (result.design() == null) {
+                    writer.markFailed(image.imageSeq());
+                    return;
+                }
+                mediaService.verifyTattooDesignUpload(
+                        userSeq,
+                        image.imageSeq(),
+                        result.design().objectKey()
+                );
+                writer.applyTattoo(
+                        userSeq,
+                        image,
+                        result.analysis(),
+                        result.design().objectKey()
+                );
                 return;
             }
             writer.markNotTattoo(image.imageSeq());

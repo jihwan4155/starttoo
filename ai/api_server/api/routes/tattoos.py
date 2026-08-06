@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from urllib.error import HTTPError, URLError
+from urllib.parse import unquote, urlsplit
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen
 
@@ -27,6 +28,7 @@ from api_server.schemas.tattoos import (
     TattooBatchAnalysisResult,
     TattooBatchImageRequest,
     TattooDetectionResponse,
+    TattooDesignResponse,
     TattooImageRequest,
 )
 from api_server.services.tattoo_classifier import TattooClassifierService
@@ -36,6 +38,7 @@ router = APIRouter(prefix="/tattoos", tags=["tattoo analysis"])
 
 MIN_TATTOO_RATIO = 0.0005
 DOWNLOAD_TIMEOUT_SECONDS = 10
+UPLOAD_TIMEOUT_SECONDS = 15
 
 
 def _download_image_sync(image_url: str, max_bytes: int) -> bytes:
@@ -76,6 +79,65 @@ def _download_image_sync(image_url: str, max_bytes: int) -> bytes:
 
 async def _download_image(image_url: str, max_bytes: int) -> bytes:
     return await asyncio.to_thread(_download_image_sync, image_url, max_bytes)
+
+
+def _normalized_origin(url: str) -> tuple[str, str, int]:
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or parsed.hostname is None:
+        raise ValueError("Only HTTP(S) origins are supported.")
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    return parsed.scheme, parsed.hostname.lower(), port
+
+
+def _validate_design_upload_destination(
+    image_url: str,
+    upload_url: str,
+    object_key: str,
+    allowed_origins: tuple[str, ...],
+) -> None:
+    try:
+        source_origin = _normalized_origin(image_url)
+        target_origin = _normalized_origin(upload_url)
+        allowed = {_normalized_origin(origin) for origin in allowed_origins}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if target_origin != source_origin or target_origin not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="Design upload URL is not an allowed MinIO destination.",
+        )
+    if not unquote(urlsplit(upload_url).path).endswith(f"/{object_key}"):
+        raise HTTPException(
+            status_code=400,
+            detail="Design upload URL does not match designObjectKey.",
+        )
+
+
+def _upload_design_sync(upload_url: str, content: bytes) -> None:
+    request = UrlRequest(
+        upload_url,
+        data=content,
+        headers={
+            "User-Agent": "starttoo-ai-server/1.0",
+            "Content-Type": "image/png",
+        },
+        method="PUT",
+    )
+    try:
+        with urlopen(request, timeout=UPLOAD_TIMEOUT_SECONDS) as response:
+            status = getattr(response, "status", 200)
+            if status < 200 or status >= 300:
+                raise RuntimeError(f"Design upload failed with status {status}.")
+    except HTTPError as exc:
+        raise RuntimeError(
+            f"Design upload failed with status {exc.code}."
+        ) from exc
+    except (OSError, URLError, ValueError) as exc:
+        raise RuntimeError("Design upload could not be completed.") from exc
+
+
+async def _upload_design(upload_url: str, content: bytes) -> None:
+    await asyncio.to_thread(_upload_design_sync, upload_url, content)
 
 
 async def _load_valid_image(
@@ -194,13 +256,23 @@ async def analyze_tattoos_batch(
     # 분류기 로딩은 실패하면 이 요청 안에서 다시 성공할 수 없다. 이미지마다 재시도하면
     # 매번 모델 로딩(가중치 다운로드 포함)을 헛되게 반복하므로 한 번 실패하면 건너뛴다.
     classifier_unavailable = False
-    for index, image_url in enumerate(payload.image_urls):
+    for index, item in enumerate(payload.items):
         try:
-            raw = await _download_image(str(image_url), extractor.max_upload_bytes)
+            if item.design_upload_url is not None and item.design_object_key is not None:
+                _validate_design_upload_destination(
+                    str(item.image_url),
+                    str(item.design_upload_url),
+                    item.design_object_key,
+                    request.app.state.settings.design_upload_allowed_origins,
+                )
+            raw = await _download_image(str(item.image_url), extractor.max_upload_bytes)
             _validate_image(raw)
             extracted = await extractor.extract(raw, "transparent")
             if extracted.predicted_ratio < MIN_TATTOO_RATIO:
-                results.append(TattooBatchAnalysisResult(status="NOT_TATTOO"))
+                results.append(TattooBatchAnalysisResult(
+                    image_seq=item.image_seq,
+                    status="NOT_TATTOO",
+                ))
                 continue
             if classifier_unavailable:
                 raise ClassifierNotReadyError("분류 모델을 사용할 수 없습니다.")
@@ -218,7 +290,12 @@ async def analyze_tattoos_batch(
                 rendering.label
                 for rendering in classification.renderings[:2]
             ]
+            design = None
+            if item.design_upload_url is not None and item.design_object_key is not None:
+                await _upload_design(str(item.design_upload_url), extracted.content)
+                design = TattooDesignResponse(object_key=item.design_object_key)
             results.append(TattooBatchAnalysisResult(
+                image_seq=item.image_seq,
                 status="TATTOO",
                 analysis=TattooAnalysisResponse(
                     primary_style_code=classification.primary.label,
@@ -227,6 +304,7 @@ async def analyze_tattoos_batch(
                     color_code=classification.color.label,
                     subjects=[classification.subject.label],
                 ),
+                design=design,
             ))
             event_log.add(
                 "info",
@@ -246,7 +324,10 @@ async def analyze_tattoos_batch(
         except Exception as exc:
             # 이 이미지 하나만의 문제(다운로드 실패, 손상된 파일, 분류 오류)다.
             # 슬롯을 FAILED로 채워 배열 길이를 유지하고 나머지 이미지를 계속 처리한다.
-            results.append(TattooBatchAnalysisResult(status="FAILED"))
+            results.append(TattooBatchAnalysisResult(
+                image_seq=item.image_seq,
+                status="FAILED",
+            ))
             event_log.add(
                 "warning",
                 "tattoo.batch.item.failed",
