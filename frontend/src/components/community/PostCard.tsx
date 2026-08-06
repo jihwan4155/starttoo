@@ -43,7 +43,7 @@ const ARROW_ICON_SIZE = 13;
 
 type PostCardProps = {
 	post: Post;
-	/** 댓글 버튼을 눌렀을 때 — 사진 클릭으로는 열리지 않는다 */
+	/** 사진이나 댓글 버튼을 눌렀을 때 */
 	onOpen: (post: Post) => void;
 };
 
@@ -248,13 +248,17 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					}>
 					<div className="relative">
 						{/*
-						  사진은 넘겨 보기만 한다. 댓글은 아래 댓글 버튼으로 연다 —
-						  사진을 누르면 댓글이 열려서, 다음 장으로 넘기려다 상세가
-						  열리는 일이 잦았다. 그래서 클릭 대상이 아닌 div로 둔다.
+						  사진을 누르면 상세로 들어간다. 넘기려다 잘못 열리는 일은
+						  useImageSwipe가 막는다 — 드래그로 끝난 입력은 onClickCapture에서
+						  클릭을 취소하므로, 탭일 때만 여기까지 온다.
 						*/}
-						<div
+						<button
+							type="button"
+							onClick={() => !isHidden && onOpen(post)}
+							disabled={isHidden}
 							{...swipeHandlers}
-							className="w-full overflow-hidden lg:rounded-[10px]">
+							className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
+							aria-label="게시글 상세 보기">
 							{imageUrls.length > 0 ? (
 								<div className="flex" style={trackStyle}>
 									{imageUrls.map((url, index) => (
@@ -263,14 +267,16 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 											src={url}
 											alt={`${post.author.nickname}의 게시글 ${index + 1}`}
 											draggable={false}
-											className="aspect-[3/4] h-auto w-full shrink-0 object-cover"
+											className={`aspect-[3/4] h-auto w-full shrink-0 object-cover ${
+												hasMultipleImages ? "" : "transition hover:scale-[1.01]"
+											}`}
 										/>
 									))}
 								</div>
 							) : (
 								<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
 							)}
-						</div>
+						</button>
 
 						{hasMultipleImages && !isHidden && (
 							<>
