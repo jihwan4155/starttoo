@@ -7,7 +7,14 @@ const stack: Entry[] = [];
 let seq = 0;
 
 const handlePopState = () => {
-	stack.pop()?.close();
+	const top = stack[stack.length - 1];
+	if (!top) return;
+	// 아래 cleanup이 부른 history.back()도 여기로 들어온다. 그때는 남은 오버레이가
+	// 밀어 넣은 항목으로 돌아온 것이라, 아직 열려 있는 창을 같이 닫으면 안 된다.
+	// (겹쳐 뜬 창을 버튼으로 닫으면 뒤에 있던 창까지 사라지던 문제)
+	if (window.history.state?.overlay === top.key) return;
+	stack.pop();
+	top.close();
 };
 
 /**
