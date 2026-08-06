@@ -26,6 +26,11 @@ export type Post = {
 	imageUrl: string | null;
 	imageUrls?: string[];
 	postImageIds?: number[];
+	/**
+	 * imageUrls와 같은 순서의 타투 판별 결과.
+	 * 값이 있으면 AI가 타투로 판별한 사진, null이면 타투가 아니거나 아직 판별 전이다.
+	 */
+	imageTattooSeqs?: (number | null)[];
 	caption: string;
 	likeCount: number;
 	commentCount: number;

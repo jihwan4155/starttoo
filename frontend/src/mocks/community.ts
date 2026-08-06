@@ -37,6 +37,8 @@ export const mockPosts: Post[] = mockFeedImages.map((imageUrl, index) => ({
 	createdAt: new Date(Date.now() - (index + 1) * 60 * 60 * 1000).toISOString(),
 	imageUrl,
 	imageUrls: [imageUrl],
+	// 목업 사진은 모두 타투 작업물이다 — 도안 추출 버튼이 QA에서도 보이게 채워 둔다
+	imageTattooSeqs: [8000 + index],
 	caption: captions[index % captions.length],
 	likeCount: 128 + index * 57,
 	commentCount: 8 + index * 3,

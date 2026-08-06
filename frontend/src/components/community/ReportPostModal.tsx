@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
+import useBackClose from "../../hooks/useBackClose";
 import useReportPost from "../../hooks/mutations/useReportPost";
 import { ApiError } from "../../services/api";
 import { REPORT_REASONS } from "../../constants/community";
@@ -23,6 +24,9 @@ export default function ReportPostModal({
 	const [reasonCode, setReasonCode] = useState<ReportReasonCode>("SPAM");
 	const [reasonDetail, setReasonDetail] = useState("");
 	const { mutate, isPending } = useReportPost();
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
+	useBackClose(isOpen, onClose);
 
 	if (!isOpen) return null;
 
