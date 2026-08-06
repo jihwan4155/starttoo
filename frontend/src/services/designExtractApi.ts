@@ -20,6 +20,8 @@ export async function getStoredDesign(
 	);
 
 	return {
+		tattooSeq,
+		imageSeq: data.imageSeq,
 		previewUrl: data.downloadUrl,
 		downloadUrl: data.downloadUrl,
 	};
