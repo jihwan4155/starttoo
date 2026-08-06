@@ -1,6 +1,6 @@
 import CommunitySection from "../components/home/CommunitySection";
 import DoodleFloatingLauncher from "../components/home/DoodleFloatingLauncher";
-import FruitMarqueeHero from "../components/home/FruitMarqueeHero";
+import TattooMarqueeHero from "../components/home/TattooMarqueeHero";
 import DualImageFeatureSection from "../components/home/DualImageFeatureSection";
 import FeatureSection from "../components/home/FeatureSection";
 import Footer from "../components/home/Footer";
@@ -13,7 +13,7 @@ export default function HomePage() {
 	return (
 		<div className="min-h-screen bg-surface">
 			{/* 기존 이미지 히어로(HeroSection)는 그림판으로 교체 — 되돌릴 때 다시 끼우면 됨 */}
-			<FruitMarqueeHero />
+			<TattooMarqueeHero />
 			<div className="mx-auto max-w-[1200px]">
 				<FeatureSection
 					id="ai-design"
