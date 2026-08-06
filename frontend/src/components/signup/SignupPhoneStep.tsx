@@ -34,11 +34,16 @@ function phoneFormatError(digits: string): string | null {
 }
 
 type SignupPhoneStepProps = {
-	/** 상위에서 진행하는 가입 요청 중인지 */
+	/** 상위에서 진행하는 요청 중인지 */
 	submitting: boolean;
-	/** 가입 요청 중 발생한 오류 (상위에서 내려준다) */
+	/** 상위에서 내려준 오류 */
 	submitError: string | null;
-	/** 서버가 정규화한 번호를 넘긴다 — 이 시점에 가입이 완료된다 */
+	/**
+	 * 서버가 정규화한 번호를 넘긴다.
+	 *
+	 * 가입은 여기서 끝나지 않는다 — 역할까지 고른 뒤에 signup을 부르므로
+	 * 이 콜백은 다음 단계로 넘기는 역할만 한다.
+	 */
 	onConfirmed: (normalizedPhoneNumber: string) => void;
 };
 
@@ -192,7 +197,7 @@ export default function SignupPhoneStep({
 						onClick={() => onConfirmed(available)}
 						disabled={code.trim() !== PHONE_CONFIRM_CODE || submitting}
 						className="mt-4 h-[52px] w-full rounded-[10px] bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#FFB4B4]">
-						{submitting ? "가입하는 중…" : "회원가입 완료"}
+						{submitting ? "확인 중…" : "다음"}
 					</button>
 				</>
 			)}

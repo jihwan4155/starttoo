@@ -17,7 +17,9 @@ export function mapPostResponse(dto: PostResponse): Post {
 		author: {
 			userId: dto.author.userSeq,
 			nickname: dto.author.nickname,
-			isArtist: dto.author.role === "ARTIST",
+			// role만 보면 심사 전 계정에도 뱃지가 붙는다. 서버가 role과
+			// verificationStatus를 함께 보고 계산해 주는 verified를 쓴다.
+			isArtist: dto.author.verified ?? false,
 			avatarUrl: dto.author.profileImageUrl,
 		},
 		createdAt: dto.regDttm,
@@ -44,7 +46,7 @@ export function mapCommentResponse(
 		author: {
 			userId: dto.author.userSeq,
 			nickname: dto.author.nickname,
-			isArtist: false,
+			isArtist: dto.author.verified ?? false,
 			avatarUrl: dto.author.profileImageUrl,
 		},
 		content: dto.deleted ? "" : dto.content,

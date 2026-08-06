@@ -67,6 +67,7 @@ export function mapRelationUser(dto: BeRelationUser): RelationUser {
 		role: dto.role,
 		profileImageUrl: dto.profileImageUrl ?? null,
 		isFollowing: dto.followedByMe ?? false,
+		isVerifiedArtist: dto.verified ?? false,
 	};
 }
 

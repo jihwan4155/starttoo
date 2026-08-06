@@ -355,11 +355,14 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					<p className="mt-2 line-clamp-2 px-3 text-[13px] font-light leading-5 text-black lg:px-0">
 						<Link
 							to={profileTo}
-							className="mr-2 font-semibold hover:underline"
+							className="font-semibold hover:underline"
 							tabIndex={isHidden ? -1 : undefined}>
 							{nickname}
 						</Link>
-						{post.caption}
+						{post.author.isArtist && (
+							<ArtistBadge size={13} className="mx-1 inline-block align-[-2px]" />
+						)}
+						<span className="ml-2">{post.caption}</span>
 					</p>
 				</div>
 

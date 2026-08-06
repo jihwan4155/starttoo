@@ -89,7 +89,7 @@ export default function MyPageHeader({
 						type="button"
 						onClick={onRequestArtistBadge}
 						className="whitespace-nowrap rounded-full border border-black/20 bg-white px-4 py-1.5 text-[13px] font-semibold text-black/70 transition hover:border-black/35 hover:bg-black/5 hover:text-black">
-						타투이스트 인증 뱃지 신청
+						타투이스트 인증하기
 					</button>
 				)}
 			</div>

@@ -9,6 +9,7 @@ import {
 	MoreIcon,
 	ShareIcon,
 } from "./icons";
+import ArtistBadge from "../common/ArtistBadge";
 import StarttooLoader from "../loader/StarttooLoader";
 import useCreateComment from "../../hooks/mutations/useCreateComment";
 import useDeleteComment from "../../hooks/mutations/useDeleteComment";
@@ -23,6 +24,7 @@ import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import useImageSwipe from "../../hooks/useImageSwipe";
+import usePostDwell from "../../hooks/usePostDwell";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
@@ -164,10 +166,14 @@ function CommentRow({
 						<Link
 							to={profileTo}
 							onClick={onNavigate}
-							className="mr-2 font-semibold hover:underline">
+							className="font-semibold hover:underline">
 							{nickname}
 						</Link>
-						<span className="font-light">{comment.content}</span>
+						{/* 본문과 한 문단으로 흐르므로 인라인으로 끼운다 */}
+						{comment.author.isArtist && (
+							<ArtistBadge size={13} className="mx-1 inline-block align-[-2px]" />
+						)}
+						<span className="ml-2 font-light">{comment.content}</span>
 					</p>
 					<div className="mt-1 flex items-center gap-3 text-[11px] font-light text-black/40">
 						<span>{formatTimeAgo(comment.createdAt)}</span>
@@ -309,6 +315,9 @@ export default function PostDetailModal({
 	const { data: detailPost } = usePost(seedPost?.id);
 	const post = detailPost ?? seedPost;
 	const isOpen = !!post;
+
+	// 상세를 열어 둔 시간을 취향 점수에 반영 (닫히면 post가 없어져 그때 전송된다)
+	usePostDwell(post?.id);
 
 	const emptyPost: Post = {
 		id: 0,
@@ -573,12 +582,15 @@ export default function PostDetailModal({
 							/>
 						</Link>
 						<div className="min-w-0 flex-1">
-							<Link
-								to={authorProfileTo}
-								onClick={onClose}
-								className="block truncate text-[14px] font-semibold text-black hover:underline">
-								{authorName}
-							</Link>
+							<div className="flex items-center gap-1.5">
+								<Link
+									to={authorProfileTo}
+									onClick={onClose}
+									className="min-w-0 truncate text-[14px] font-semibold text-black hover:underline">
+									{authorName}
+								</Link>
+								{post.author.isArtist && <ArtistBadge size={15} />}
+							</div>
 							<p className="text-[11px] font-light text-black/40">
 								{formatTimeAgo(post.createdAt)}
 							</p>
@@ -657,10 +669,13 @@ export default function PostDetailModal({
 							<Link
 								to={authorProfileTo}
 								onClick={onClose}
-								className="mr-2 font-semibold hover:underline">
+								className="font-semibold hover:underline">
 								{authorName}
 							</Link>
-							{post.caption}
+							{post.author.isArtist && (
+								<ArtistBadge size={13} className="mx-1 inline-block align-[-2px]" />
+							)}
+							<span className="ml-2">{post.caption}</span>
 						</p>
 
 						{isCommentsPending && (

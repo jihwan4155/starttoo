@@ -50,6 +50,8 @@ export type PostAuthorDto = {
 	role: string;
 	profileImageSeq: number | null;
 	profileImageUrl: string | null;
+	/** role=ARTIST이고 인증까지 끝난 계정인지 — 뱃지 판정은 이 값만 본다 */
+	verified: boolean;
 };
 
 export type PostImageDto = {
@@ -92,6 +94,17 @@ export type StateResponse = {
 	enabled: boolean;
 };
 
+/**
+ * POST /posts/{postSeq}/dwell 요청
+ *
+ * 보내는 건 체류 초뿐이다. 3초 미만/3~9초/10~29초/30초 이상 구간별 점수 환산은
+ * 서버(app.preference.dwell-*)가 하므로 프론트는 점수를 계산하지 않는다.
+ */
+export type DwellRequest = {
+	/** 프론트에서 계산한 체류시간(초) — 서버 검증 범위 0~3600 */
+	seconds: number;
+};
+
 export type LikeResponse = {
 	postId: number;
 	liked: boolean;
@@ -130,6 +143,8 @@ export type CommentAuthorDto = {
 	nickname: string;
 	profileImageSeq: number | null;
 	profileImageUrl: string | null;
+	/** role=ARTIST이고 인증까지 끝난 계정인지 — 뱃지 판정은 이 값만 본다 */
+	verified: boolean;
 };
 
 export type CommentResponse = {
