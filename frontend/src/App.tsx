@@ -9,6 +9,7 @@ import CommunityPage from "./pages/CommunityPage";
 import CommunitySearchPage from "./pages/CommunitySearchPage";
 import PostDetailPage from "./pages/PostDetailPage";
 import CoverUpPage from "./pages/CoverUpPage";
+import DesignExtractPage from "./pages/DesignExtractPage";
 import DmPage from "./pages/DmPage";
 import HomePage from "./pages/HomePage";
 import AiPage from "./pages/AiPage";
@@ -83,6 +84,8 @@ export default function App() {
 						<Route path="/simulations" element={<SimulationsPage />} />
 						{/* API: POST /coverups/recommendations */}
 						<Route path="/coverups" element={<CoverUpPage />} />
+						{/* AI: POST {ai}/extract — 올린 사진에서 도안 PNG 추출 */}
+						<Route path="/extract" element={<DesignExtractPage />} />
 						{/* API: GET /posts */}
 						<Route path="/posts" element={<CommunityPage />} />
 						{/* 게시글 단건 주소 — DM으로 공유한 링크가 여기로 들어온다.

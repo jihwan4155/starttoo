@@ -12,6 +12,7 @@ type NavItem = {
 		| "ai"
 		| "sim"
 		| "cover"
+		| "extract"
 		| "community"
 		| "search"
 		| "dm"
@@ -25,6 +26,7 @@ const MAIN_ITEMS: NavItem[] = [
 	{ id: "ai", label: "AI 도안 생성", to: "/ai", icon: "ai" },
 	{ id: "sim", label: "타투 시뮬레이션", to: "/simulations", icon: "sim" },
 	{ id: "cover", label: "커버업 타투", to: "/coverups", icon: "cover" },
+	{ id: "extract", label: "도안 추출", to: "/extract", icon: "extract" },
 ];
 
 // 커뮤니티 그룹: 평소엔 커뮤니티 아이콘만 보이고,
@@ -94,6 +96,32 @@ function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 						fill={color}
 					/>
 					<path d="M4 14h14" stroke="#fff" strokeWidth="2" />
+				</svg>
+			);
+		case "extract":
+			// 사진에서 도안을 뽑아낸다 — 사진 틀 + 밖으로 빠져나가는 화살표
+			return (
+				<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+					<path
+						d="M14 6H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-7"
+						stroke={color}
+						strokeWidth="2"
+						strokeLinecap="round"
+					/>
+					<path
+						d="m5.5 18 3.5-3.5 3 3 2.5-2.5"
+						stroke={color}
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
+					<path
+						d="M17 11l7-7m0 0h-5m5 0v5"
+						stroke={color}
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
 				</svg>
 			);
 		case "community":
