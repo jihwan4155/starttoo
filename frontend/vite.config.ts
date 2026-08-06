@@ -39,6 +39,24 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        // 도안 추출 AI 서버. 배포에서는 nginx가 /ai-service/ prefix를 벗겨
+        // ai:8000으로 넘긴다. dev도 같은 경로를 쓰도록 여기서 프록시한다.
+        // (로컬에서 AI 서버를 직접 띄웠다면 VITE_AI_PROXY_TARGET으로 가리킨다)
+        '/ai-service': {
+          target: env.VITE_AI_PROXY_TARGET || apiProxyTarget,
+          changeOrigin: true,
+          // 로컬 AI 서버를 직접 가리키는 경우 prefix를 여기서 벗겨야 한다.
+          // 배포 서버(nginx)로 보낼 때는 nginx가 벗기므로 그대로 둔다.
+          ...(env.VITE_AI_PROXY_TARGET
+            ? { rewrite: (path: string) => path.replace(/^\/ai-service/, '') }
+            : {}),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq: ClientRequest) => {
+              proxyReq.removeHeader('origin');
+              proxyReq.removeHeader('referer');
+            });
+          },
+        },
         // STOMP over WebSocket (DM·알림 실시간 수신). dev가 https면 브라우저는
         // wss로 붙고 여기서 평문 ws로 백엔드에 넘긴다. ws:true 없으면 업그레이드가
         // 프록시되지 않아 연결이 즉시 끊긴다.
