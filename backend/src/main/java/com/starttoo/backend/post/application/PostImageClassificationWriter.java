@@ -32,9 +32,11 @@ public class PostImageClassificationWriter {
     public void applyTattoo(
             Integer userSeq,
             TattooService.PreparedPostImage image,
-            TattooModelClient.Analysis analysis
+            TattooModelClient.Analysis analysis,
+            String designObjectKey
     ) {
-        tattooService.persistPostImageAnalysis(userSeq, image, analysis);
+        tattooService.persistPostImageAnalysis(
+                userSeq, image, analysis, designObjectKey);
         updateStatus(image.imageSeq(), ClassificationStatus.DONE);
     }
 

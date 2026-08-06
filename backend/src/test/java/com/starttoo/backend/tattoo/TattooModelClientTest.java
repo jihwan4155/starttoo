@@ -46,7 +46,10 @@ class TattooModelClientTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo(BASE_URL + "/v1/tattoos/analyze-batch"))
                 .andExpect(content().json("""
-                        {"imageUrls":["https://minio.test/one","https://minio.test/two"]}
+                        {"items":[
+                          {"imageUrl":"https://minio.test/one"},
+                          {"imageUrl":"https://minio.test/two"}
+                        ]}
                         """))
                 .andRespond(withSuccess(
                         """
@@ -80,6 +83,53 @@ class TattooModelClientTest {
         assertThat(results.get(0).analysis().primaryStyleCode()).isEqualTo("OTHER");
         assertThat(results.get(1).tattoo()).isFalse();
         assertThat(results.get(1).failed()).isFalse();
+        server.verify();
+    }
+
+    @Test
+    void sendsImageIdentityAndDesignUploadTargetForPostImages() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(BASE_URL + "/v1/tattoos/analyze-batch"))
+                .andExpect(content().json("""
+                        {"items":[{
+                          "imageSeq":61,
+                          "imageUrl":"https://minio.test/source",
+                          "designObjectKey":"users/7/extraction/design.png",
+                          "designUploadUrl":"https://minio.test/upload"
+                        }]}
+                        """))
+                .andRespond(withSuccess(
+                        """
+                        {"results":[{
+                          "imageSeq":61,
+                          "status":"TATTOO",
+                          "analysis":{
+                            "primaryStyleCode":"OTHER",
+                            "secondaryStyleCodes":[],
+                            "renderingStyleCodes":["LINE"],
+                            "colorCode":"BLACK",
+                            "subjects":["SAMPLE"]
+                          },
+                          "design":{"objectKey":"users/7/extraction/design.png"}
+                        }]}
+                        """,
+                        MediaType.APPLICATION_JSON
+                ));
+        TattooModelClient client = client(builder, properties(true));
+
+        var results = client.analyzeBatchItems(List.of(new TattooModelClient.BatchImage(
+                61L,
+                "https://minio.test/source",
+                "users/7/extraction/design.png",
+                "https://minio.test/upload"
+        )));
+
+        assertThat(results).singleElement().satisfies(result -> {
+            assertThat(result.imageSeq()).isEqualTo(61L);
+            assertThat(result.design().objectKey())
+                    .isEqualTo("users/7/extraction/design.png");
+        });
         server.verify();
     }
 

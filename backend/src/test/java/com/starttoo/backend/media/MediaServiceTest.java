@@ -88,6 +88,37 @@ class MediaServiceTest {
     }
 
     @Test
+    void tattooDesignPresignUsesStableKeyForTheSourceImage() throws Exception {
+        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+                .thenReturn("https://minio.example/upload");
+
+        MediaService.PresignedUpload first =
+                mediaService.presignTattooDesignUpload(7, 301L);
+        MediaService.PresignedUpload retry =
+                mediaService.presignTattooDesignUpload(7, 301L);
+
+        assertThat(first.objectKey())
+                .matches("users/7/extraction/[0-9a-f-]{36}\\.png");
+        assertThat(retry.objectKey()).isEqualTo(first.objectKey());
+        assertThat(first.url()).isEqualTo("https://minio.example/upload");
+    }
+
+    @Test
+    void tattooDesignVerificationRejectsAKeyNotIssuedForTheSourceImage()
+            throws Exception {
+        assertError(
+                () -> mediaService.verifyTattooDesignUpload(
+                        7,
+                        301L,
+                        "users/7/extraction/123e4567-e89b-12d3-a456-426614174000.png"
+                ),
+                ErrorCode.INVALID_FILE
+        );
+
+        verify(minioClient, never()).statObject(any(StatObjectArgs.class));
+    }
+
+    @Test
     void presignRejectsExtensionAndMimeMismatch() {
         assertError(
                 () -> mediaService.presign(
