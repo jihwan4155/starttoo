@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	closeArSession,
 	createArSession,
@@ -79,11 +79,12 @@ export default function useArSession({
 		setNonce((current) => current + 1);
 	}, []);
 
-	// 보관함은 배열이라 렌더마다 신원이 바뀐다. 그대로 effect 의존성에 넣으면
-	// 세션을 끝없이 다시 발급하므로 값으로 비교할 수 있게 문자열로 접는다.
-	const designKey = (designSeqs ?? [])
-		.slice(0, MAX_SESSION_DESIGNS)
-		.join(",");
+	// 도안 목록은 세션을 만드는 그 순간에만 필요하다. effect 의존성에 넣으면
+	// 보관함이 갱신될 때마다 세션을 닫고 다시 발급해 QR이 갈리고, 그 사이 폰이
+	// 스캔한 QR은 이미 닫힌 세션을 가리킨다. ref로 읽어 재발급을 막는다.
+	// 목록이 준비됐는지는 호출부가 enabled로 알려 준다.
+	const designSeqsRef = useRef(designSeqs);
+	designSeqsRef.current = designSeqs;
 
 	// 세션 생성 — enabled가 켜질 때와 restart마다 새로 발급한다.
 	// 취소 표식은 이 실행에만 속한 지역 변수로 둔다. ref로 공유하면 다음 실행이
@@ -97,7 +98,10 @@ export default function useArSession({
 
 		void (async () => {
 			try {
-				const seqs = designKey ? designKey.split(",").map(Number) : [];
+				const seqs = (designSeqsRef.current ?? []).slice(
+					0,
+					MAX_SESSION_DESIGNS,
+				);
 				const session = await createArSession(
 					seqs.length ? { designSeqs: seqs } : {},
 				);
@@ -124,7 +128,7 @@ export default function useArSession({
 			if (created) void closeArSession(created);
 			setSessionId(null);
 		};
-	}, [enabled, nonce, designKey]);
+	}, [enabled, nonce]);
 
 	// 이벤트 수신 → 세션 재조회
 	useEffect(() => {
