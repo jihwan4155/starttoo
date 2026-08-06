@@ -23,6 +23,7 @@ import useCommentReplies from "../../hooks/queries/useCommentReplies";
 import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import useBackClose from "../../hooks/useBackClose";
 import useImageSwipe from "../../hooks/useImageSwipe";
 import usePostDwell from "../../hooks/usePostDwell";
 import usePostEngagement from "../../hooks/usePostEngagement";
@@ -318,6 +319,9 @@ export default function PostDetailModal({
 
 	// 상세를 열어 둔 시간을 취향 점수에 반영 (닫히면 post가 없어져 그때 전송된다)
 	usePostDwell(post?.id);
+
+	// 뒤로가기는 뒤 페이지로 나가는 대신 이 모달만 닫는다
+	useBackClose(isOpen, onClose);
 
 	const emptyPost: Post = {
 		id: 0,

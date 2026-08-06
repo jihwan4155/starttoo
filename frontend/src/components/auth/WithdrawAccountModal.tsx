@@ -4,6 +4,7 @@ import { REAUTH_REQUIRED_STORAGE_KEY } from "../../constants/auth";
 import { ApiError } from "../../services/api";
 import { withdrawMe } from "../../services/userApi";
 import useAuthStore from "../../store/useAuthStore";
+import useBackClose from "../../hooks/useBackClose";
 
 type WithdrawAccountModalProps = {
 	isOpen: boolean;
@@ -52,6 +53,11 @@ export default function WithdrawAccountModal({
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
 	}, [isOpen, submitting, onClose]);
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다 (처리 중에는 닫지 않는다)
+	useBackClose(isOpen, () => {
+		if (!submitting) onClose();
+	});
 
 	if (!isOpen) return null;
 

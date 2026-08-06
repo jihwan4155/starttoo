@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon, SearchIcon } from "./icons";
 import StarttooLoader from "../loader/StarttooLoader";
+import useBackClose from "../../hooks/useBackClose";
 import useFollowList from "../../hooks/queries/useFollowList";
 import { ApiError } from "../../services/api";
 import { createDmRoom, sendDmMessage } from "../../services/dmApi";
@@ -36,6 +37,11 @@ export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 	const [selected, setSelected] = useState<number[]>([]);
 	const [sending, setSending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다 (보내는 중에는 닫지 않는다)
+	useBackClose(post != null, () => {
+		if (!sending) onClose();
+	});
 
 	// 서버 최대 50 — 한 번에 받아 두고 아래에서 닉네임으로 거른다.
 	const { data, isPending, isError } = useFollowList({

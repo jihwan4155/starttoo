@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import mobileLogo from "../../assets/images/mobile-logo.png";
 import PostCard from "./PostCard";
 import { ChevronIcon } from "./icons";
+import useBackClose from "../../hooks/useBackClose";
 import type { Post } from "../../types/community";
 
 type PostCardSheetProps = {
@@ -28,6 +29,9 @@ export default function PostCardSheet({
 	onClose,
 }: PostCardSheetProps) {
 	const isOpen = !!post;
+
+	// 뒤로가기는 프로필 페이지를 떠나는 대신 이 화면만 닫는다
+	useBackClose(isOpen, onClose);
 
 	// 열려 있는 동안 뒤 목록이 스크롤되지 않게 막는다 (상세 모달과 같은 방식).
 	useEffect(() => {

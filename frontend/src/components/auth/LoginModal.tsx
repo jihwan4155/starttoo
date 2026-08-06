@@ -4,6 +4,7 @@ import {
 	POST_LOGIN_REDIRECT_STORAGE_KEY,
 	isAuthFlowPath,
 } from "../../constants/auth";
+import useBackClose from "../../hooks/useBackClose";
 import LoginPanel from "./LoginPanel";
 
 type LoginModalProps = {
@@ -35,6 +36,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
 	}, [isOpen, onClose]);
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
+	useBackClose(isOpen, onClose);
 
 	if (!isOpen) return null;
 
