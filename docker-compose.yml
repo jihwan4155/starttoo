@@ -301,6 +301,9 @@ services:
 networks:
   starttoo-net:
     driver: bridge
+    # UFW 규칙이 재배포마다 바뀌는 br-<network-id> 이름에 묶이지 않도록 고정한다.
+    driver_opts:
+      com.docker.network.bridge.name: starttoo-br
     ipam:
       config:
         - subnet: 172.19.0.0/16
