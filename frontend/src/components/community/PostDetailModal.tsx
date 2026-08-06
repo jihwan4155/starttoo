@@ -37,7 +37,7 @@ import DeleteCommentModal from "./DeleteCommentModal";
 import SharePostModal from "./SharePostModal";
 import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
-import { getPostImageUrls } from "../../utils/mapPost";
+import { getPostImageUrls, isTattooImage } from "../../utils/mapPost";
 import type { Post, PostComment } from "../../types/community";
 
 function ExtractIcon() {
@@ -450,6 +450,8 @@ export default function PostDetailModal({
 			: Math.min(imageIndex, imageUrls.length - 1);
 	const postImageUrl = imageUrls[safeIndex] ?? null;
 	const hasMultipleImages = imageUrls.length > 1;
+	// 도안 추출은 타투 사진에만 의미가 있다 — AI가 타투로 판별한 사진에서만 버튼을 낸다
+	const canExtractDesign = !!post && !!postImageUrl && isTattooImage(post, safeIndex);
 
 	const { handlers: swipeHandlers, trackStyle } = useImageSwipe({
 		count: imageUrls.length,
@@ -548,8 +550,8 @@ export default function PostDetailModal({
 						</>
 					)}
 
-					{/* 호버 시 노출되는 도안 추출 버튼 */}
-					{postImageUrl && (
+					{/* 호버 시 노출되는 도안 추출 버튼 — 타투로 판별된 사진에서만 */}
+					{canExtractDesign && postImageUrl && (
 						<button
 							type="button"
 							aria-label="도안 추출"

@@ -26,6 +26,7 @@ export function mapPostResponse(dto: PostResponse): Post {
 		imageUrl: imageUrls[0] ?? null,
 		imageUrls,
 		postImageIds: sortedImages.map((image) => image.postImageSeq),
+		imageTattooSeqs: sortedImages.map((image) => image.tattooSeq ?? null),
 		caption: dto.content ?? "",
 		likeCount: dto.likeCount,
 		commentCount: dto.commentCount,
@@ -62,4 +63,14 @@ export function mapCommentResponse(
 export function getPostImageUrls(post: Post): string[] {
 	if (post.imageUrls && post.imageUrls.length > 0) return post.imageUrls;
 	return post.imageUrl ? [post.imageUrl] : [];
+}
+
+/**
+ * 해당 순서의 사진이 타투로 판별됐는지.
+ *
+ * 서버는 타투로 판별된 사진에만 tattooSeq를 채워 준다. 아직 판별이 끝나지 않은
+ * 사진도 null이므로, 방금 올린 게시글은 판별이 끝난 뒤 목록을 다시 받아야 true가 된다.
+ */
+export function isTattooImage(post: Post, index: number): boolean {
+	return post.imageTattooSeqs?.[index] != null;
 }
