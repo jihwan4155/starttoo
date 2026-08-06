@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import useBackClose from "../../hooks/useBackClose";
 import type { NotificationItem } from "../../types/notification";
 import { formatNotifTime, getNotificationTypeLabel } from "../../utils/notification";
 
@@ -14,6 +15,9 @@ export default function SystemNotificationModal({
 	isOpen,
 	onClose,
 }: SystemNotificationModalProps) {
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
+	useBackClose(isOpen && !!item, onClose);
+
 	if (!isOpen || !item) return null;
 
 	return createPortal(

@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { CloseIcon } from "./icons";
+import useBackClose from "../../hooks/useBackClose";
 import useDesignStore from "../../store/useDesignStore";
 import type { DesignExtractResult } from "../../types/designExtract";
 
@@ -22,6 +23,9 @@ export default function DesignExtractResultModal({
 	);
 	const addDesign = useDesignStore((s) => s.addDesign);
 	const navigate = useNavigate();
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
+	useBackClose(!!result, onClose);
 
 	if (!result) return null;
 

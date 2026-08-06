@@ -40,7 +40,7 @@ public class MediaService {
 
     private static final Set<String> EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Pattern OBJECT_KEY_PATTERN = Pattern.compile(
-            "^users/(\\d+)/(profile|post|dm|collection|extraction)/"
+            "^users/(\\d+)/(profile|post|dm|collection|extraction|simulation)/"
                     + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
                     + "\\.(jpg|png|webp)$"
     );

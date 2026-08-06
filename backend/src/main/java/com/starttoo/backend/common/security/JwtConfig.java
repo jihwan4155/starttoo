@@ -31,7 +31,7 @@ import java.util.UUID;
 public class JwtConfig {
 
     @Bean
-    SecretKey jwtSecretKey(JwtProperties properties) {
+    public SecretKey jwtSecretKey(JwtProperties properties) {
         byte[] bytes = properties.secret().getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             throw new IllegalStateException("JWT secret must contain at least 32 bytes");
@@ -40,13 +40,13 @@ public class JwtConfig {
     }
 
     @Bean
-    JwtEncoder jwtEncoder(SecretKey key) {
+    public JwtEncoder jwtEncoder(SecretKey key) {
         return new NimbusJwtEncoder(new ImmutableSecret<>(key));
     }
 
     @Bean
     @Primary
-    JwtDecoder jwtDecoder(SecretKey key, JwtProperties properties) {
+    public JwtDecoder jwtDecoder(SecretKey key, JwtProperties properties) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
@@ -58,7 +58,7 @@ public class JwtConfig {
     }
 
     @Bean("rawJwtDecoder")
-    JwtDecoder rawJwtDecoder(SecretKey key, JwtProperties properties) {
+    public JwtDecoder rawJwtDecoder(SecretKey key, JwtProperties properties) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();

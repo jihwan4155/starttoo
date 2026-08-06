@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ArtistBadge from "../common/ArtistBadge";
 import useVerifyArtist from "../../hooks/mutations/useVerifyArtist";
+import useBackClose from "../../hooks/useBackClose";
 import { ApiError } from "../../services/api";
 import useToastStore from "../../store/useToastStore";
 
@@ -44,6 +45,11 @@ export default function ArtistBadgeRequestModal({
 	useEffect(() => {
 		if (isOpen) setError(null);
 	}, [isOpen]);
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다 (인증 요청 중에는 닫지 않는다)
+	useBackClose(isOpen, () => {
+		if (!isPending) onClose();
+	});
 
 	if (!isOpen) return null;
 

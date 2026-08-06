@@ -2,6 +2,7 @@ package com.starttoo.backend.realtime.application;
 
 import com.starttoo.backend.dm.application.DmRealtimeDeliveryEvent;
 import com.starttoo.backend.notification.application.NotificationCreatedEvent;
+import com.starttoo.backend.simulation.application.SimulationRealtimeDeliveryEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -33,6 +34,30 @@ public class RealtimeDeliveryListener {
             // 변경: 커밋된 메시지를 되돌리지 않고 재접속 REST 동기화로 복구한다.
             log.error(
                     "WebSocket DM delivery failed. receiverSeq={}, eventId={}",
+                    event.receiverSeq(),
+                    event.payload().eventId(),
+                    exception
+            );
+        }
+    }
+
+    /**
+     * AR 시뮬레이션 세션의 수신자는 항상 세션을 만든 PC 회원이다.
+     * 폰은 로그인이 없어 소켓을 쓰지 못하고 HTTP 응답으로만 결과를 받는다.
+     */
+    @Async("realtimeTaskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void deliverSimulation(SimulationRealtimeDeliveryEvent event) {
+        try {
+            messagingTemplate.convertAndSendToUser(
+                    event.receiverSeq().toString(),
+                    "/queue/simulation-events",
+                    event.payload()
+            );
+        } catch (RuntimeException exception) {
+            // 변경: 상태 복구는 GET /v1/simulations/ar-sessions/{sessionId} 폴링이 담당한다.
+            log.error(
+                    "WebSocket simulation delivery failed. receiverSeq={}, eventId={}",
                     event.receiverSeq(),
                     event.payload().eventId(),
                     exception

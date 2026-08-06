@@ -6,6 +6,7 @@ import ArchivePickerModal from "./ArchivePickerModal";
 import ImageCropper from "./ImageCropper";
 import { CloseIcon } from "./icons";
 import useCreatePost from "../../hooks/mutations/useCreatePost";
+import useBackClose from "../../hooks/useBackClose";
 import useDragSort from "../../hooks/useDragSort";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useAuthStore from "../../store/useAuthStore";
@@ -143,6 +144,12 @@ export default function CreatePostModal({
 	};
 
 	const { getItemProps, dragIndex } = useDragSort({ onReorder: moveImage });
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다 (올리는 중에는 닫지 않는다).
+	// handleClose는 아래에서 선언되지만, 이 함수는 렌더가 끝난 뒤에만 불린다.
+	useBackClose(isOpen, () => {
+		if (!isSubmitting && !isCreatePending) handleClose();
+	});
 
 	if (!isOpen) return null;
 

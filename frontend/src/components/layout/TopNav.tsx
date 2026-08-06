@@ -14,6 +14,7 @@ import useUnreadCounts from "../../hooks/queries/useUnreadCounts";
 import {
 	useMarkAllNotificationsRead,
 } from "../../hooks/mutations/useMarkNotificationsRead";
+import useBackClose from "../../hooks/useBackClose";
 import useNotificationAction from "../../hooks/useNotificationAction";
 import useUserStore from "../../store/useUserStore";
 import useAuthStore from "../../store/useAuthStore";
@@ -352,6 +353,9 @@ function MobileTopNav() {
 	const showToast = useToastStore((s) => s.showToast);
 
 	useEffect(() => setOpen(false), [pathname]);
+
+	// 뒤로가기는 앞 화면으로 나가는 대신 메뉴만 닫는다
+	useBackClose(open, () => setOpen(false));
 
 	useEffect(() => {
 		if (!open) return undefined;

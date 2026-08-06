@@ -52,6 +52,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
+    volumes:
+      # Firebase 서비스 계정 키. 커밋하지 않고 서버에 직접 배치한 디렉터리를 붙인다.
+      # 파일 단위로 마운트하면 파일이 없을 때 Docker 가 그 경로에 빈 디렉터리를
+      # 만들어 버려서, 디렉터리 단위로 잡고 컨테이너 안 경로를 고정한다.
+      - ${FIREBASE_SECRETS_DIR:-./secrets}:/run/secrets:ro
 
   frontend:
     build:

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import useBackClose from "../../hooks/useBackClose";
 
 type SaveConfirmModalProps = {
 	onClose: () => void;
@@ -18,6 +19,9 @@ function CloseIcon() {
 }
 
 export default function SaveConfirmModal({ onClose }: SaveConfirmModalProps) {
+	// 이 컴포넌트는 열릴 때만 마운트된다 — 뒤로가기로 닫는다
+	useBackClose(true, onClose);
+
 	return (
 		<div
 			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-3 sm:px-6"
