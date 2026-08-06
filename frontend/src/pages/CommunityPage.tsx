@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import CreatePostModal from "../components/community/CreatePostModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
+import { PostFeedSkeleton } from "../components/loader/Skeletons";
 import PostCard from "../components/community/PostCard";
 import PostDetailModal from "../components/community/PostDetailModal";
 import UserSearchPanel from "../components/community/UserSearchPanel";
@@ -128,9 +129,7 @@ export default function CommunityPage() {
 					<UserSearchPanel />
 				</div>
 
-				{isPending && (
-					<StarttooLoader variant="block" label="피드를 불러오는 중…" />
-				)}
+				{isPending && <PostFeedSkeleton />}
 
 				{isError && feedPosts.length === 0 && (
 					<div className="flex flex-col items-center gap-4 py-20">

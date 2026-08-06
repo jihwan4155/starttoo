@@ -1,113 +1,102 @@
 import { useEffect, useState } from "react";
-import StarttooLoader from "../loader/StarttooLoader";
-import { fetchTattooDesigns } from "../../services/tattooApi";
-import type { TattooDesignItem } from "../../types/tattoo";
+import { fetchPrimaryStyles } from "../../services/classificationApi";
+import { TATTOO_STYLE_CHOICES } from "./tattooStyleChoices";
 
-/** 목업의 3×3 그리드 */
-const GRID_SIZE = 9;
-/** 목업 하단의 "n/3" — 최대 이만큼 고른다 */
+/** 최대 이만큼 고른다 — 취향이 한쪽으로 쏠리지 않게 상한을 둔다 */
 const PICK_MAX = 3;
 
 type TastePickStepProps = {
 	submitting: boolean;
 	submitError: string | null;
-	/** 고른 도안 — 주 스타일·색상 seq를 취향 설문으로 보낸다 */
-	onSubmit: (picked: TattooDesignItem[]) => void;
+	/** 고른 스타일의 primaryStyleSeq — 취향 설문으로 보낸다 */
+	onSubmit: (primaryStyleSeqs: number[]) => void;
 };
 
 /**
- * 온보딩 3단계 — 좋아하는 이미지 고르기.
+ * 온보딩 마지막 단계 — 좋아하는 타투 스타일 고르기.
  *
- * 고른 도안의 분류(주 스타일·색상)가 최초 취향 점수가 된다.
- * 일반 사용자와 타투이스트 모두 같은 화면을 본다.
+ * 예전에는 서버 도안을 아홉 장 받아 보여줬다. 무엇이 나올지 모르고, 조회가
+ * 실패하면 설문 자체가 사라져 취향이 비는 채로 가입이 끝났다. 지금은 스타일
+ * 대표 이미지를 앱에 두고 항상 같은 설문을 보여준다.
+ *
+ * 고른 스타일의 seq가 최초 취향 점수가 된다. seq는 DB가 매기는 값이라
+ * GET /classifications/primary-styles에서 code로 찾아 맞춘다.
  */
 export default function TastePickStep({
 	submitting,
 	submitError,
 	onSubmit,
 }: TastePickStepProps) {
-	const [designs, setDesigns] = useState<TattooDesignItem[] | null>(null);
-	const [loadFailed, setLoadFailed] = useState(false);
-	const [pickedSeqs, setPickedSeqs] = useState<number[]>([]);
+	const [pickedCodes, setPickedCodes] = useState<string[]>([]);
+	/** code → seq. 조회 전에는 null이고, 실패하면 빈 Map이 된다 */
+	const [seqByCode, setSeqByCode] = useState<Map<string, number> | null>(null);
 
 	useEffect(() => {
 		let alive = true;
-		fetchTattooDesigns({ size: GRID_SIZE })
-			.then((page) => {
-				if (alive) setDesigns(page.items);
+		fetchPrimaryStyles()
+			.then((items) => {
+				if (!alive) return;
+				setSeqByCode(new Map(items.map((item) => [item.code, item.seq])));
 			})
 			.catch(() => {
-				// 취향 설문은 건너뛸 수 있는 단계라 실패해도 가입은 그대로 유지된다.
-				if (alive) {
-					setDesigns([]);
-					setLoadFailed(true);
-				}
+				// 설문은 건너뛸 수 있는 단계다. 분류를 못 받아도 가입은 그대로 끝낸다.
+				if (alive) setSeqByCode(new Map());
 			});
 		return () => {
 			alive = false;
 		};
 	}, []);
 
-	const toggle = (tattooSeq: number) => {
-		setPickedSeqs((prev) => {
-			if (prev.includes(tattooSeq)) {
-				return prev.filter((seq) => seq !== tattooSeq);
-			}
+	const toggle = (code: string) => {
+		setPickedCodes((prev) => {
+			if (prev.includes(code)) return prev.filter((item) => item !== code);
 			// 가장 오래된 선택을 밀어내 항상 최대 3개만 유지한다.
-			return [...prev, tattooSeq].slice(-PICK_MAX);
+			return [...prev, code].slice(-PICK_MAX);
 		});
 	};
 
 	const handleSubmit = () => {
-		const items = designs ?? [];
-		onSubmit(items.filter((item) => pickedSeqs.includes(item.tattooSeq)));
+		const seqs = pickedCodes
+			.map((code) => seqByCode?.get(code))
+			.filter((seq): seq is number => seq != null);
+		onSubmit(seqs);
 	};
-
-	if (designs === null) {
-		return (
-			<StarttooLoader variant="block" size={170} label="도안을 불러오는 중…" />
-		);
-	}
-
-	// 보여줄 도안이 없으면 취향 설문 없이 넘어간다.
-	if (designs.length === 0) {
-		return (
-			<div>
-				<p className="py-8 text-center text-[14px] font-light leading-6 text-black/50">
-					{loadFailed
-						? "도안을 불러오지 못했어요. 취향은 나중에 둘러보며 채워집니다."
-						: "아직 고를 수 있는 도안이 없어요. 취향은 둘러보며 채워집니다."}
-				</p>
-				<button
-					type="button"
-					onClick={() => onSubmit([])}
-					className="mx-auto block h-[48px] w-[160px] rounded-full bg-brand text-[16px] font-semibold text-white transition hover:brightness-95">
-					시작하기
-				</button>
-			</div>
-		);
-	}
 
 	return (
 		<div>
+			<p className="mb-3 text-center text-[13px] font-light leading-5 text-black/50">
+				마음에 드는 스타일을 최대 {PICK_MAX}개 골라 주세요.
+				<br />
+				고른 취향에 맞춰 도안을 추천해 드려요.
+			</p>
+
 			<div className="grid grid-cols-3 gap-[2px] rounded-[8px] border border-[#D9D9D9] bg-[#D9D9D9] p-[2px]">
-				{designs.map((design) => {
-					const picked = pickedSeqs.includes(design.tattooSeq);
+				{TATTOO_STYLE_CHOICES.map((style) => {
+					const picked = pickedCodes.includes(style.code);
 					return (
 						<button
-							key={design.tattooSeq}
+							key={style.code}
 							type="button"
-							onClick={() => toggle(design.tattooSeq)}
+							onClick={() => toggle(style.code)}
 							aria-pressed={picked}
 							className={`relative aspect-square overflow-hidden bg-white transition ${
 								picked ? "ring-2 ring-inset ring-brand" : ""
 							}`}>
+							{/*
+							  lazy를 걸지 않는다 — 열 칸이 모두 처음부터 보이는 자리라
+							  지연시켜 봐야 그림이 뒤늦게 튀어나올 뿐이다.
+							*/}
 							<img
-								src={design.designImageUrl}
-								alt=""
-								loading="lazy"
+								src={style.imageUrl}
+								alt={style.label}
 								className="h-full w-full object-cover"
 							/>
+							{/* 이름은 이미지 위에 얹는다 — 칸이 작아 아래에 두면 그림이 눌린다 */}
+							<span
+								className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1 pb-1 pt-3 text-[11px] font-semibold text-white"
+								aria-hidden>
+								{style.label}
+							</span>
 							{picked && (
 								<span
 									aria-hidden
@@ -121,7 +110,7 @@ export default function TastePickStep({
 			</div>
 
 			<p className="mt-2 text-[12px] font-light text-black/45">
-				{pickedSeqs.length}/{PICK_MAX}
+				{pickedCodes.length}/{PICK_MAX}
 			</p>
 
 			{submitError && (
@@ -133,9 +122,13 @@ export default function TastePickStep({
 			<button
 				type="button"
 				onClick={handleSubmit}
-				disabled={pickedSeqs.length === 0 || submitting}
+				disabled={submitting}
 				className="mx-auto mt-5 block h-[48px] w-[160px] rounded-full bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#FFB4B4]">
-				{submitting ? "저장하는 중…" : "완료"}
+				{submitting
+					? "저장하는 중…"
+					: pickedCodes.length === 0
+						? "건너뛰기"
+						: "시작하기"}
 			</button>
 		</div>
 	);

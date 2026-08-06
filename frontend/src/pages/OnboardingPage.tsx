@@ -5,7 +5,6 @@ import type { ArtistShopValues } from "../components/onboarding/ArtistShopStep";
 import OnboardingDialog from "../components/onboarding/OnboardingDialog";
 import ProfileFormStep from "../components/onboarding/ProfileFormStep";
 import type { ProfileFormValues } from "../components/onboarding/ProfileFormStep";
-import RoleAskStep from "../components/onboarding/RoleAskStep";
 import TastePickStep from "../components/onboarding/TastePickStep";
 import { ApiError } from "../services/api";
 import { upsertArtistProfile } from "../services/artistApi";
@@ -14,12 +13,10 @@ import { updateMe } from "../services/userApi";
 import useAuthStore from "../store/useAuthStore";
 import useSignupStore from "../store/useSignupStore";
 import type { RequestedRole } from "../types/auth";
-import type { TattooDesignItem } from "../types/tattoo";
 
-type Step = "role" | "profile" | "shop" | "taste";
+type Step = "profile" | "shop" | "taste";
 
 const TITLES: Record<Step, string> = {
-	role: "타투이스트 이신가요?",
 	profile: "프로필 입력",
 	shop: "타투이스트 정보",
 	taste: "좋아하는 이미지 고르기",
@@ -28,12 +25,12 @@ const TITLES: Record<Step, string> = {
 /**
  * 가입 직후 온보딩.
  *
- * 가입 자체는 전화번호 인증 시점에 이미 끝나 있다. 여기서 받는 값은 전부 보강이라
- * 어느 단계에서 X로 닫아도 계정은 살아 있고, 그 경우 일반 사용자 · 임시 닉네임 ·
+ * 가입과 역할 선택은 앞 화면(/signup)에서 이미 끝나 있다. 여기서 받는 값은 전부
+ * 보강이라 어느 단계에서 X로 닫아도 계정은 살아 있고, 그 경우 임시 닉네임 ·
  * 생년월일 없음 상태로 남는다.
  *
- * 프로필 입력까지는 역할과 무관하게 화면이 같고, 타투이스트를 고른 사람만 그
- * 다음에 매장 정보 단계를 한 번 더 거친다.
+ * 프로필 입력은 역할과 무관하게 같고, 타투이스트로 가입한 사람만 그다음에 매장
+ * 정보 단계를 한 번 더 거친다.
  */
 export default function OnboardingPage() {
 	const navigate = useNavigate();
@@ -43,8 +40,10 @@ export default function OnboardingPage() {
 	const signupToken = useSignupStore((s) => s.signupToken);
 	const clearSignup = useSignupStore((s) => s.clearSignup);
 
-	const [step, setStep] = useState<Step>("role");
-	const [role, setRole] = useState<RequestedRole>("USER");
+	// 역할은 가입 화면에서 정해져 스토어에 담겨 온다. 여기서는 읽기만 한다.
+	const role: RequestedRole = useSignupStore((s) => s.role) ?? "USER";
+
+	const [step, setStep] = useState<Step>("profile");
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -63,12 +62,6 @@ export default function OnboardingPage() {
 	const finish = () => {
 		clearSignup();
 		navigate("/", { replace: true });
-	};
-
-	const handleRoleSelect = (isArtist: boolean) => {
-		setRole(isArtist ? "ARTIST" : "USER");
-		setError(null);
-		setStep("profile");
 	};
 
 	const handleProfileSubmit = async (values: ProfileFormValues) => {
@@ -98,8 +91,10 @@ export default function OnboardingPage() {
 	const handleShopSubmit = async (values: ArtistShopValues) => {
 		setError(null);
 		setSubmitting(true);
-		// 서버가 역할 승격을 해 주지 않아 role=USER인 계정에서는 403이 온다.
-		// 숍 정보를 못 담아도 계정은 살아 있으니 온보딩을 막지는 않는다.
+		// 이 단계는 ARTIST로 가입한 사람만 오므로 role 조건은 통과한다.
+		// 그래도 실패를 삼키는 이유는 매장 정보가 선택 입력이기 때문이다 —
+		// 비워 두고 넘어갈 수 있는 값 때문에 가입 마지막을 막을 이유가 없다.
+		// 못 담았으면 마이페이지에서 다시 채울 수 있다.
 		//
 		// 이 PATCH는 전체 덮어쓰기라 본문에서 뺀 필드는 NULL이 된다. 가입
 		// 직후라 어차피 비어 있으므로 여기서는 아는 두 값만 실어도 안전하다.
@@ -109,38 +104,26 @@ export default function OnboardingPage() {
 				...(values.shopAddress ? { shopAddress: values.shopAddress } : {}),
 			});
 		} catch {
-			// 타투이스트 전환은 별도 신청 절차가 생긴 뒤에 붙인다.
+			// 선택 입력이라 실패해도 온보딩을 막지 않는다.
 		} finally {
 			setSubmitting(false);
 		}
 		setStep("taste");
 	};
 
-	const handleTasteSubmit = async (picked: TattooDesignItem[]) => {
-		const primaryStyleSeqs = [
-			...new Set(
-				picked
-					.map((item) => item.primaryStyleSeq)
-					.filter((seq): seq is number => seq != null),
-			),
-		];
-		// 분류가 붙지 않은 도안만 골랐다면 보낼 점수가 없다.
+	const handleTasteSubmit = async (picked: number[]) => {
+		const primaryStyleSeqs = [...new Set(picked)];
+		// 아무것도 고르지 않았거나(건너뛰기) 분류를 못 받아왔다면 보낼 점수가 없다.
 		if (primaryStyleSeqs.length === 0) {
 			finish();
 			return;
 		}
-		const colorSeqs = [
-			...new Set(
-				picked
-					.map((item) => item.colorSeq)
-					.filter((seq): seq is number => seq != null),
-			),
-		];
 
 		setError(null);
 		setSubmitting(true);
 		try {
-			await submitPreferenceSurvey({ primaryStyleSeqs, colorSeqs });
+			// 스타일 이미지에는 색상 정보가 없어 색 취향은 둘러보며 쌓인다.
+			await submitPreferenceSurvey({ primaryStyleSeqs });
 			finish();
 		} catch (cause) {
 			setError(
@@ -155,7 +138,6 @@ export default function OnboardingPage() {
 
 	return (
 		<OnboardingDialog title={TITLES[step]} onClose={finish}>
-			{step === "role" && <RoleAskStep onSelect={handleRoleSelect} />}
 			{step === "profile" && (
 				<ProfileFormStep
 					assignedNickname={assignedNickname ?? ""}

@@ -13,6 +13,7 @@ import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
+import com.starttoo.backend.preference.config.PreferenceProperties;
 import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.user.application.UserService;
 import com.starttoo.backend.user.domain.AccountStatus;
@@ -70,6 +71,9 @@ class PostServiceTest {
     private PreferenceScoreService preferenceScoreService;
 
     @Mock
+    private PreferenceProperties preferenceProperties;
+
+    @Mock
     private UserService userService;
 
     @Mock
@@ -97,7 +101,7 @@ class PostServiceTest {
         when(postRepository.findAllById(any())).thenReturn(List.of());
 
         CursorPageResponse<PostDtos.PostResponse> page =
-                postService.list(null, 20, null, 7);
+                postService.list((String) null, 20, null, null);
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate).queryForList(
@@ -114,6 +118,65 @@ class PostServiceTest {
                 "ORDER BY p.post_seq DESC"
         );
         assertThat(page.items()).isEmpty();
+    }
+
+    @Test
+    void loggedInFeedBlendsPreferenceScoreWithRecency() {
+        when(preferenceProperties.feedPreferenceWeight()).thenReturn(1.0);
+        when(preferenceProperties.feedRecencyPerHour()).thenReturn(0.2);
+        when(jdbcTemplate.query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        )).thenReturn(List.of());
+
+        CursorPageResponse<PostDtos.PostResponse> page =
+                postService.list((String) null, 20, null, 7);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(
+                sql.capture(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        );
+        assertThat(sql.getValue()).contains(
+                "user_primary_style_preferences",
+                "user_color_preferences",
+                "EXTRACT(EPOCH FROM p.reg_dttm)",
+                "p.author_seq <> ?",
+                "user_blocks",
+                "post_hidden_preferences",
+                "ORDER BY ranked.blend_score DESC, ranked.post_seq DESC"
+        );
+        assertThat(page.items()).isEmpty();
+    }
+
+    @Test
+    void authorFilteredListKeepsChronologicalOrderForLoggedInViewer() {
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                eq(Long.class),
+                any(Object[].class)
+        )).thenReturn(List.of());
+        when(postRepository.findAllById(any())).thenReturn(List.of());
+
+        postService.list("31", 20, 5, 7);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForList(
+                sql.capture(),
+                eq(Long.class),
+                any(Object[].class)
+        );
+        assertThat(sql.getValue()).contains("ORDER BY p.post_seq DESC");
+    }
+
+    @Test
+    void invalidFeedCursorIsRejected() {
+        assertThatThrownBy(() -> postService.list("not-a-cursor!!", 20, 5, 7))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.INVALID_CURSOR));
     }
 
     @Test

@@ -28,7 +28,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private static final Set<String> ALLOWED_SUBSCRIPTIONS = Set.of(
             "/user/queue/dm-events",
-            "/user/queue/notifications"
+            "/user/queue/notifications",
+            "/user/queue/simulation-events"
     );
 
     private final JwtDecoder jwtDecoder;

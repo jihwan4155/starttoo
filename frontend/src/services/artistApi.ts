@@ -75,11 +75,25 @@ export async function fetchMyArtistProfile(
 /**
  * 온보딩의 "타투이스트로 시작" — 숍 정보만 실어 위 API를 호출한다.
  *
- * 서버가 역할 승격을 해 주지 않으므로, 가입 시 role=USER로 만들어진 계정에서는
- * 403이 돌아온다. 역할 신청 API가 생기기 전까지는 실패해도 온보딩을 막지 않는다.
+ * ARTIST로 가입한 계정만 이 단계에 오므로 role 조건은 통과한다. 매장 정보가
+ * 선택 입력이라 실패해도 온보딩을 막지 않는다.
  */
 export async function upsertArtistProfile(
 	body: UpdateArtistRequest,
 ): Promise<void> {
 	await updateArtistMe(body);
+}
+
+/**
+ * POST /artists/me/verification — 아티스트 인증 처리
+ *
+ * role=ARTIST이고 아직 VERIFIED가 아닌 계정이 자신의 인증 상태를 VERIFIED로
+ * 바꾼다. 원래는 운영팀 승인이 필요하지만 현재 서버는 승인 단계를 생략하고
+ * 호출 즉시 인증을 끝낸다.
+ *
+ * USER면 403, artists 행이 없으면 404, 이미 VERIFIED면 409가 온다.
+ */
+export async function verifyArtistMe(): Promise<ArtistProfileResponse> {
+	const { data } = await api.post<BeArtistProfile>("/artists/me/verification");
+	return mapArtistProfile(data);
 }

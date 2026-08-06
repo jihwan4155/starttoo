@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
+import useBackClose from "../../hooks/useBackClose";
 import useUpdatePost from "../../hooks/mutations/useUpdatePost";
 import usePost from "../../hooks/queries/usePost";
 import { ApiError } from "../../services/api";
@@ -34,6 +35,11 @@ export default function EditPostModal({
 		setCaption(source.caption);
 		setError(null);
 	}, [isOpen, source.caption]);
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다 (저장 중에는 닫지 않는다)
+	useBackClose(isOpen, () => {
+		if (!isPending) onClose();
+	});
 
 	if (!isOpen) return null;
 

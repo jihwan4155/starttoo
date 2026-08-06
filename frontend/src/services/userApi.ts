@@ -10,6 +10,7 @@ import type {
 	BeUpdateProfileRequest,
 } from "../types/beUser";
 import type {
+	BlockResponse,
 	FollowResponse,
 	MeResponse,
 	PublicProfileResponse,
@@ -84,6 +85,24 @@ export async function followUser(userId: number): Promise<FollowResponse> {
 export async function unfollowUser(userId: number): Promise<FollowResponse> {
 	const { data } = await api.delete<BeRelationState>(`/users/${userId}/follow`);
 	return { userId, following: data.enabled };
+}
+
+/**
+ * PUT /users/{userSeq}/block — 회원 차단
+ *
+ * 차단하면 서버가 양방향 팔로우를 함께 끊고, 이후 그 회원의 프로필·팔로우 목록은
+ * USER_NOT_FOUND, DM 방 입장·전송은 FORBIDDEN이 된다. 즉 차단한 뒤에는 상대
+ * 화면으로 되돌아갈 수 없으므로 호출부에서 화면을 정리해야 한다.
+ */
+export async function blockUser(userId: number): Promise<BlockResponse> {
+	const { data } = await api.put<BeRelationState>(`/users/${userId}/block`);
+	return { userId, blocked: data.enabled };
+}
+
+/** DELETE /users/{userSeq}/block — 차단 해제 (끊긴 팔로우는 복구되지 않는다) */
+export async function unblockUser(userId: number): Promise<BlockResponse> {
+	const { data } = await api.delete<BeRelationState>(`/users/${userId}/block`);
+	return { userId, blocked: data.enabled };
 }
 
 export type FollowListParams = {

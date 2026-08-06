@@ -63,14 +63,20 @@ public class PostController {
     @Operation(
             summary = "게시물 피드",
             description = """
-                    postSeq 내림차순 커서로 PUBLISHED이면서 소프트 삭제되지 않은 게시물만 반환한다.
-                    authorSeq가 있으면 특정 작성자로 필터링한다. 로그인한 조회자에게는 양방향 차단
-                    관계와 관심 없음으로 숨긴 게시물을 제외하고 좋아요·북마크 상태를 계산한다.
-                    비로그인 조회도 가능하다. 이미지 URL은 단기 Presigned GET URL이다.
+                    PUBLISHED이면서 소프트 삭제되지 않은 게시물만 반환한다. authorSeq가 있으면
+                    특정 작성자로 필터링한다. 로그인한 조회자에게는 양방향 차단 관계와 관심
+                    없음으로 숨긴 게시물을 제외하고 좋아요·북마크 상태를 계산한다.
+
+                    로그인 상태이면서 authorSeq가 없는 전체 피드는 조회자의 스타일·색상 취향
+                    점수와 최신성을 가중 합산한 블렌드 점수 내림차순으로 정렬하며, 조회자
+                    본인이 작성한 게시물은 제외한다. 비로그인 조회와 작성자 필터 목록은
+                    기존과 같이 postSeq 내림차순이다. cursor는 응답의
+                    nextCursor를 그대로 되돌려주는 불투명 문자열이다. 이미지 URL은 단기
+                    Presigned GET URL이다.
                     """
     )
     public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> list(
-            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
             @RequestParam(required = false) Integer authorSeq,
             Authentication authentication

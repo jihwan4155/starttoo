@@ -1,6 +1,20 @@
 spring:
   application:
     name: starttoo-backend
+  threads:
+    virtual:
+      # 요청 스레드를 가상 스레드로 돌린다. AI 생성·MinIO·FCM 처럼 응답을 기다리는
+      # 구간이 톰캣 스레드(기본 200개)를 잠식하지 않게 하는 것이 목적이다.
+      # 주의: 직접 정의한 @Bean 실행기(realtimeTaskExecutor 등)는 이 설정과 무관하게
+      # 플랫폼 스레드를 유지한다. RealtimeAsyncConfig 참고.
+      enabled: true
+  task:
+    scheduling:
+      simple:
+        # 가상 스레드를 켜면 스케줄러가 SimpleAsyncTaskScheduler 로 바뀌어 동시 실행에
+        # 제한이 없어진다. @Scheduled 잡들은 지금까지 1개 스레드로 직렬 실행되는 것을
+        # 전제로 쓰였으므로 그 동작을 유지한다.
+        concurrency-limit: 1
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/starttoo}
     username: ${DB_USERNAME:starttoo}
@@ -133,11 +147,22 @@ app:
     phone-availability-window: ${RATE_LIMIT_PHONE_AVAILABILITY_WINDOW:1m}
     coverup-search-capacity: ${RATE_LIMIT_COVERUP_SEARCH_CAPACITY:30}
     coverup-search-window: ${RATE_LIMIT_COVERUP_SEARCH_WINDOW:1m}
+    # AR 세션 connect·업로드는 비로그인 진입점이라 IP 기준으로만 묶인다.
+    # 폰 한 대의 정상 사용은 connect 1회 + 캡처 몇 장이므로 넉넉해도 이 정도면 충분하다.
+    ar-session-capacity: ${RATE_LIMIT_AR_SESSION_CAPACITY:30}
+    ar-session-window: ${RATE_LIMIT_AR_SESSION_WINDOW:1m}
   search:
     log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}
     autocomplete-refresh-delay: ${SEARCH_AUTOCOMPLETE_REFRESH_DELAY:600000}
     reconciliation-cron: "${SEARCH_RECONCILIATION_CRON:0 0 4 * * *}"
+  simulation:
+    # QR 을 띄우고 폰을 꺼내 찍는 시간만 감안한다. 만료 후 재접속은 세션을 새로 만든다.
+    session-ttl: ${AR_SESSION_TTL:10m}
+    max-designs: ${AR_SESSION_MAX_DESIGNS:20}
+    max-composites: ${AR_SESSION_MAX_COMPOSITES:30}
+    # 폰이 도안을 띄워둔 채 시간이 지나도 이미지가 깨지지 않게 세션 수명보다 길게 잡는다.
+    design-url-expiry: ${AR_SESSION_DESIGN_URL_EXPIRY:1h}
   preference:
     survey: 5.0
     post-like: 2.0
@@ -147,6 +172,10 @@ app:
     dwell-short: 0.1
     dwell-medium: 0.5
     dwell-long: 1.0
+    # 개인화 피드 블렌드: 취향점수*weight + 등록시각(시간단위)*per-hour.
+    # 기본값은 취향 5점이 최신성 약 하루(24h*0.2=4.8)와 등가가 되도록 설정.
+    feed-preference-weight: 1.0
+    feed-recency-per-hour: 0.2
 
 logging:
   level:

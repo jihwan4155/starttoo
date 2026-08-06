@@ -29,6 +29,39 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'starttoo-env-file', variable: 'ENV_FILE')]) {
                     sh '''
+                        # 최초 배포 때만 수동 docker run 릴레이를 Compose 관리로 인계한다.
+                        # 예상 이미지가 아니거나 다른 Compose 프로젝트 소유면 삭제하지 않고 중단한다.
+                        legacy_relays=""
+                        for container in starttoo-laptop-ai-relay starttoo-laptop-ai-host-relay; do
+                            if ! docker container inspect "$container" >/dev/null 2>&1; then
+                                continue
+                            fi
+
+                            image="$(docker inspect --format '{{.Config.Image}}' "$container")"
+                            labels="$(docker inspect --format '{{json .Config.Labels}}' "$container")"
+
+                            case "$labels" in
+                                *'"com.docker.compose.project":"s15p11d201"'*)
+                                    continue
+                                    ;;
+                            esac
+
+                            if [ "$labels" = "{}" ] || [ "$labels" = "null" ]; then
+                                if [ "$image" = "starttoo-ai-relay:local" ]; then
+                                    legacy_relays="$legacy_relays $container"
+                                    continue
+                                fi
+                            fi
+
+                            echo "Refusing to replace unexpected container: $container image=$image labels=$labels" >&2
+                            exit 1
+                        done
+
+                        for container in $legacy_relays; do
+                            echo "Removing legacy unmanaged relay for Compose adoption: $container"
+                            docker rm --force "$container"
+                        done
+
                         docker compose --env-file "$ENV_FILE" down --remove-orphans
                         COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file "$ENV_FILE" up -d --remove-orphans
                     '''

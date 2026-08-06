@@ -6,6 +6,7 @@ import StarttooLoader from "../loader/StarttooLoader";
 import useFollowList, {
 	type FollowListKind,
 } from "../../hooks/queries/useFollowList";
+import useBackClose from "../../hooks/useBackClose";
 import { ApiError } from "../../services/api";
 import { profilePath, resolveAvatar } from "../../utils/profile";
 
@@ -68,6 +69,9 @@ export default function FollowListModal({
 	}, [isOpen, onClose]);
 
 	const navigate = useNavigate();
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
+	useBackClose(isOpen, onClose);
 
 	if (!isOpen) return null;
 
@@ -150,7 +154,8 @@ export default function FollowListModal({
 											<span className="truncate text-[15px] font-semibold text-black">
 												{user.nickname}
 											</span>
-											{user.role === "ARTIST" && <ArtistBadge size={15} />}
+											{/* role만 보면 심사 전 계정에도 뱃지가 붙어 verified를 본다 */}
+										{user.isVerifiedArtist && <ArtistBadge size={15} />}
 										</span>
 									</button>
 								</li>

@@ -11,6 +11,7 @@ import FollowListModal from "../components/mypage/FollowListModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
 import MyPageShopInfo from "../components/mypage/MyPageShopInfo";
 import PostThumbnailGrid from "../components/mypage/PostThumbnailGrid";
+import ProfileMoreMenu from "../components/profile/ProfileMoreMenu";
 import ProfileTabs, { type ProfileTab } from "../components/profile/ProfileTabs";
 import { useCreateDmRoom } from "../hooks/mutations/useDmMutations";
 import type { FollowListKind } from "../hooks/queries/useFollowList";
@@ -160,6 +161,14 @@ export default function ProfilePage() {
 		});
 	};
 
+	/**
+	 * 차단 직후 — 이 프로필은 서버가 USER_NOT_FOUND로 막으므로 화면에 남아 있으면
+	 * 다음 조회가 오류로 뜬다. 히스토리를 대체해 뒤로 가기로도 돌아오지 않게 한다.
+	 */
+	const handleBlocked = () => {
+		navigate("/", { replace: true });
+	};
+
 	if (!Number.isFinite(userId) || userId <= 0) {
 		return (
 			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-6">
@@ -230,25 +239,33 @@ export default function ProfilePage() {
 							</div>
 
 							{!profile.isMe && (
-								<div className="grid w-full shrink-0 grid-cols-2 gap-2 lg:flex lg:w-auto lg:items-center">
-									<button
-										type="button"
-										onClick={handleFollow}
-										disabled={isFollowPending}
-										className={`h-10 rounded-full px-4 text-[13px] font-semibold transition disabled:opacity-50 lg:h-[42px] lg:px-7 lg:text-[14px] ${
-											profile.isFollowing
-												? "border border-black/15 bg-white text-black/60 hover:bg-black/5"
-												: "bg-brand text-white hover:brightness-95"
-										}`}>
-										{profile.isFollowing ? "팔로우 취소" : "팔로우"}
-									</button>
-									<button
-										type="button"
-										onClick={handleSendMessage}
-										disabled={isCreatingDmRoom}
-										className="h-10 whitespace-nowrap rounded-full bg-brand px-4 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50 lg:h-[42px] lg:px-6 lg:text-[14px]">
-										{isCreatingDmRoom ? "이동 중…" : "메시지 보내기"}
-									</button>
+								<div className="flex w-full shrink-0 flex-col items-end gap-2 lg:w-auto">
+									{/* 메시지 보내기 위의 더보기 — 차단은 여기서만 들어간다 */}
+									<ProfileMoreMenu
+										userId={profile.userId}
+										nickname={profile.nickname}
+										onBlocked={handleBlocked}
+									/>
+									<div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:items-center">
+										<button
+											type="button"
+											onClick={handleFollow}
+											disabled={isFollowPending}
+											className={`h-10 rounded-full px-4 text-[13px] font-semibold transition disabled:opacity-50 lg:h-[42px] lg:px-7 lg:text-[14px] ${
+												profile.isFollowing
+													? "border border-black/15 bg-white text-black/60 hover:bg-black/5"
+													: "bg-brand text-white hover:brightness-95"
+											}`}>
+											{profile.isFollowing ? "팔로우 취소" : "팔로우"}
+										</button>
+										<button
+											type="button"
+											onClick={handleSendMessage}
+											disabled={isCreatingDmRoom}
+											className="h-10 whitespace-nowrap rounded-full bg-brand px-4 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50 lg:h-[42px] lg:px-6 lg:text-[14px]">
+											{isCreatingDmRoom ? "이동 중…" : "메시지 보내기"}
+										</button>
+									</div>
 								</div>
 							)}
 						</div>

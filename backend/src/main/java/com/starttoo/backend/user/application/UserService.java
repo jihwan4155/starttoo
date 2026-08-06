@@ -220,6 +220,25 @@ public class UserService {
                     WHERE (follower_seq = ? AND following_seq = ?)
                        OR (follower_seq = ? AND following_seq = ?)
                     """, actorSeq, targetSeq, targetSeq, actorSeq);
+            // 차단 후 DM 방은 목록에서 사라지므로 그 방의 미읽음 NEW_DM 알림도 함께
+            // 읽음 처리한다. 그대로 두면 열 수 없는 방의 알림과 미읽음 배지만 남는다.
+            jdbcTemplate.update("""
+                    UPDATE notifications
+                       SET is_read = TRUE, read_dttm = CURRENT_TIMESTAMP
+                     WHERE notification_type = 'NEW_DM'
+                       AND is_read = FALSE
+                       AND receiver_seq IN (?, ?)
+                       AND reference_seq IN (
+                           SELECT dm_room_seq
+                             FROM dm_rooms
+                            WHERE user1_seq = ? AND user2_seq = ?
+                       )
+                    """,
+                    actorSeq,
+                    targetSeq,
+                    Math.min(actorSeq, targetSeq),
+                    Math.max(actorSeq, targetSeq)
+            );
             return true;
         }
         jdbcTemplate.update(

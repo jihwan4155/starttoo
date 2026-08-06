@@ -60,7 +60,13 @@ body,
 body {
 	margin: 0;
 	font-family: var(--font-paperlogy);
-	background: #ffffff;
+	/*
+	 * 페이지 대부분이 bg-surface를 쓰는데 body만 흰색이면, 페이지 높이가 화면에
+	 * 못 미치는 자리에서 흰 띠가 비친다. 헤더는 44px(lg 52px)인데 페이지들은
+	 * h-[calc(100vh-60px)]로 잡고 있어 아래쪽에 8~16px이 남는 것이 그 경우다.
+	 * 바닥색을 같은 surface로 맞춰 어디가 비어도 색이 튀지 않게 한다.
+	 */
+	background: var(--color-surface);
 	color: #000000;
 	-webkit-font-smoothing: antialiased;
 }

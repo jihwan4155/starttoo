@@ -1,7 +1,7 @@
 # Starttoo API v1 범용 명세서
 
 > 최종 갱신: 2026-08-01
-> 현재 서버 구현 및 Swagger 기준 API 수: 83개
+> 현재 서버 구현 및 Swagger 기준 API 수: 89개
 
 ## 0. 문서 목적
 
@@ -845,6 +845,7 @@ GET /v1/dm/rooms?cursor={cursor}&size=30
 ```
 
 - 현재 참여자의 `isActive=true`인 방만 반환한다.
+- 어느 방향이든 차단 관계가 있는 상대의 방은 제외한다. 차단당한 쪽 목록에서도 사라진다.
 - 가장 최근 메시지 시각 내림차순으로 정렬한다.
 - 상대 이름, 프로필, 미읽음 수, 알림 설정, 마지막 메시지 미리보기를 포함한다.
 - 나가기 전에 숨긴 메시지 이하의 메시지는 미리보기와 미읽음 계산에서 제외한다.
@@ -874,6 +875,7 @@ GET /v1/dm/rooms/701/messages?cursor={cursor}&size=30
 
 - 메시지 seq 내림차순 커서
 - 현재 참여자의 `lastHiddenMessageSeq` 이하 제외
+- 어느 방향이든 차단 관계가 있으면 403 `FORBIDDEN`
 - 삭제 메시지는 행을 유지하되 `textContent`, `imageSeq`, `imageUrl`을 `null`로 반환
 
 ## 7.5 메시지 전송
@@ -914,6 +916,7 @@ PATCH /v1/dm/rooms/701/read
 - 본인이 보내지 않은 미읽음 메시지의 `readDttm` 갱신
 - 해당 방의 미확인 `NEW_DM` 알림 읽음 처리
 
+어느 방향이든 차단 관계가 있으면 403 `FORBIDDEN`이다.
 출력은 실제 읽음 처리된 메시지 수다.
 
 ## 7.7 방 알림 설정
@@ -1228,6 +1231,7 @@ DM 이벤트:
 | 타투 도안 목록 조회 | GET | `/v1/tattoo-designs` | Optional |
 | 타투 상세 조회 | GET | `/v1/tattoos/{tattooSeq}` | Optional |
 | 타투 이미지 조회 | GET | `/v1/tattoos/{tattooSeq}/image` | Optional |
+| AI 타투 도안 생성 | POST | `/v1/tattoos/generate` | Bearer |
 | 형태 기반 도안 검색 | POST | `/v1/designs/search-by-shape` | Public |
 
 ## 10.2 타투 도안 목록
@@ -1524,8 +1528,13 @@ ON 전환 트랜잭션:
 
 1. 차단 관계 생성
 2. 양방향 팔로우 관계 삭제
+3. 두 회원 사이 DM 방의 미읽음 `NEW_DM` 알림 읽음 처리
 
-기존 DM과 메시지는 삭제하지 않지만 차단 중 새 메시지 전송은 거부한다.
+차단 중 두 회원의 DM 방은 양쪽 목록에서 제외되고 방 생성·메시지 조회·전송·읽음 처리는
+403 `FORBIDDEN`이 된다. 방과 메시지 행은 삭제하지 않으므로 차단을 해제하면 기존
+히스토리와 함께 다시 나타난다. 목록에서 사라진 방의 알림과 미읽음 배지만 남지 않도록
+그 방의 미읽음 `NEW_DM` 알림은 같은 트랜잭션에서 읽음 처리하며, 차단 해제로 복구하지
+않는다.
 
 ## 12.8 팔로워·팔로잉·차단 목록
 
@@ -1758,7 +1767,10 @@ GET /v1/search/artists/autocomplete?q=검ㅇ&size=10
     {
       "userSeq": 101,
       "nickname": "검은장미",
-      "role": "ARTIST"
+      "role": "ARTIST",
+      "profileImageSeq": 301,
+      "profileImageUrl": "https://minio.example/profile?X-Amz-Signature=...",
+      "verified": true
     }
   ]
 }
@@ -1766,8 +1778,8 @@ GET /v1/search/artists/autocomplete?q=검ㅇ&size=10
 
 - prefix 전용
 - 한글 완성형을 호환 자모로 분해
-- 숫자·영문은 그대로 보존
-- 영문 대소문자 구분
+- 숫자는 그대로 보존
+- 영문은 소문자로 정규화하여 대소문자 구분 없이 매칭
 - Redis에는 정규화 검색키와 `userSeq`만 저장
 - 응답 직전 PostgreSQL에서 현재 계정 상태 재검증
 - 사용자 자동완성은 ADMIN 제외
@@ -1791,6 +1803,7 @@ Redis Search 단계:
 - 단계가 높은 후보를 먼저 반환한다.
 - 같은 단계 안에서 Redis relevance score를 사용한다.
 - Spring에서 편집거리나 취향으로 다시 정렬하지 않는다.
+- 영문은 소문자로 정규화하여 대소문자 구분 없이 매칭한다.
 - PostgreSQL에서 삭제·탈퇴·차단·인증 상태를 다시 확인한다.
 
 ## 14.4 Subject 자동완성
@@ -2346,7 +2359,10 @@ Presigned URL 문자열은 설명을 위한 예시이며 호출할 때마다 달
     {
       "userSeq": 101,
       "nickname": "검은장미",
-      "role": "ARTIST"
+      "role": "ARTIST",
+      "profileImageSeq": 301,
+      "profileImageUrl": "https://minio.example/profile?X-Amz-Signature=...",
+      "verified": true
     }
   ]
 }
@@ -2460,7 +2476,7 @@ Subject 자동완성:
 
 # 18. 전체 엔드포인트 인덱스
 
-아래 83개 항목은 현재 컨트롤러와 Swagger에 공개되는 v1 HTTP API 전체다.
+아래 89개 항목은 현재 컨트롤러와 Swagger에 공개되는 v1 HTTP API 전체다.
 각 API의 요청·응답·처리 규칙은 앞선 도메인별 절을 따른다.
 
 | 도메인 | Method | Path |
@@ -2526,6 +2542,12 @@ Subject 자동완성:
 | 게시글 | POST | `/v1/posts/{postSeq}/dwell` |
 | 게시글 | POST | `/v1/posts/{postSeq}/reports` |
 | 취향 | POST | `/v1/preferences/survey` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions/{sessionId}/connect` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions/{sessionId}/composites/presign` |
+| AR 시뮬레이션 | POST | `/v1/simulations/ar-sessions/{sessionId}/composites` |
+| AR 시뮬레이션 | GET | `/v1/simulations/ar-sessions/{sessionId}` |
+| AR 시뮬레이션 | DELETE | `/v1/simulations/ar-sessions/{sessionId}` |
 | 검색 | GET | `/v1/search/accounts/autocomplete` |
 | 검색 | GET | `/v1/search/accounts` |
 | 검색 | GET | `/v1/search/artists/autocomplete` |
@@ -2535,6 +2557,7 @@ Subject 자동완성:
 | 타투 | GET | `/v1/tattoo-designs` |
 | 타투 | GET | `/v1/tattoos/{tattooSeq}` |
 | 타투 | GET | `/v1/tattoos/{tattooSeq}/image` |
+| 타투 | POST | `/v1/tattoos/generate` |
 | 사용자 | GET | `/v1/users/me` |
 | 사용자 | PATCH | `/v1/users/me` |
 | 사용자 | PATCH | `/v1/users/me/profile-image` |
@@ -3105,7 +3128,7 @@ Subject 자동완성:
 
 **Response:** `enabled=true`를 반환한다.
 
-**설명:** 차단 관계를 멱등 생성하고 양방향 팔로우 관계를 같은 트랜잭션에서 삭제한다.
+**설명:** 차단 관계를 멱등 생성하고 양방향 팔로우 관계를 같은 트랜잭션에서 삭제한다. 두 회원 사이 DM 방은 차단 중 양쪽 목록에서 제외되므로 그 방의 미읽음 NEW_DM 알림도 같은 트랜잭션에서 읽음 처리한다. 방과 메시지는 삭제하지 않아 차단 해제 시 히스토리와 함께 복구된다.
 
 **성공 예시**
 ```json
@@ -3401,11 +3424,11 @@ Subject 자동완성:
 
 **API 개요:** 공개 게시글 피드를 조회한다. 인증은 선택이다.
 
-**Request:** Query `cursor`는 마지막 postSeq, `size` 기본 20·범위 1~50이다.
+**Request:** Query `cursor`는 응답의 `nextCursor`를 그대로 되돌려주는 불투명 문자열, `size` 기본 20·범위 1~50이다.
 
 **Response:** `PostResponse` 커서 페이지를 반환한다.
 
-**설명:** PUBLISHED 활성 게시글을 postSeq 내림차순으로 반환한다. 로그인 시 차단·관심 없음 항목을 제외한다.
+**설명:** PUBLISHED 활성 게시글을 반환한다. 로그인 상태이면서 `authorSeq`가 없는 전체 피드는 조회자의 스타일·색상 취향 점수와 최신성을 가중 합산한 블렌드 점수 내림차순으로 정렬하며 조회자 본인이 작성한 게시글은 제외하고, 비로그인 조회와 `authorSeq` 필터 목록은 postSeq 내림차순이다. 로그인 시 차단·관심 없음 항목을 제외한다.
 
 **성공 예시**
 ```json
@@ -3841,6 +3864,40 @@ Subject 자동완성:
 {"status":404,"code":"IMAGE_NOT_FOUND","message":"요청한 디자인 이미지를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
+### POST `/v1/tattoos/generate`
+
+**API 개요:** 프롬프트와 최대 2개의 스타일로 PNG 타투 도안 한 장을 생성한다. Bearer 인증이 필요하다.
+
+**Request:** JSON body의 `prompt` 필수·최대 500자, `style` 최대 2개(지원 스타일 코드만 허용),
+`seed` 선택(0~4294967295), `steps` 기본 30(1~100), `guidance` 기본 7.5(0.0~30.0),
+`size` 기본 1024(512·768·1024만 허용).
+```json
+{"prompt":"장미와 뱀이 감긴 블랙워크 도안","style":["minimal","geometric_ornamental"],"seed":42,"steps":30,"guidance":7.5,"size":1024}
+```
+
+**Response:** `image/png` 바이너리 본문. `Content-Disposition`, `X-Request-ID`,
+`X-Processing-Seconds`, `X-Image-Width`, `X-Image-Height`, `X-Generation-Seed`,
+`X-Generation-Styles` 헤더를 전달하고 `Cache-Control: no-store`로 응답한다.
+
+**설명:** AI 생성 서버에 요청을 프록시해 생성된 PNG를 그대로 반환한다. 지원 스타일은
+realism, minimal, geometric_ornamental, lettering, graphic_illustrative, new_school,
+tribal_indigenous, western_traditional, japanese, abstract_experimental 10종이다.
+
+**성공 예시**
+```http
+HTTP/1.1 200 OK
+Content-Type: image/png
+Cache-Control: no-store
+X-Generation-Seed: 42
+
+<PNG 바이너리>
+```
+
+**실패 예시**
+```json
+{"status":400,"code":"VALIDATION_ERROR","message":"지원하지 않는 타투 스타일입니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
 ### GET `/v1/classifications/primary-styles`
 
 **API 개요:** 활성 주 스타일 기준정보를 조회한다. 인증은 필요 없다.
@@ -3980,7 +4037,7 @@ Subject 자동완성:
 
 **Response:** `RoomResponse` 커서 페이지를 반환한다.
 
-**설명:** 상대 정보, 숨김 기준 이후 미읽음 수, 방 알림 설정, 마지막 메시지 정보를 조합한다.
+**설명:** 상대 정보, 숨김 기준 이후 미읽음 수, 방 알림 설정, 마지막 메시지 정보를 조합한다. 어느 방향이든 차단 관계가 있는 상대의 방은 제외하며 차단을 해제하면 다시 나타난다.
 
 **성공 예시**
 ```json
@@ -4025,7 +4082,7 @@ Subject 자동완성:
 
 **Response:** `MessageResponse` 커서 페이지를 반환한다.
 
-**설명:** messageSeq 내림차순이며 마지막 나가기 시 저장한 숨김 기준 이하 메시지는 제외한다. 삭제 메시지 내용은 null이다.
+**설명:** messageSeq 내림차순이며 마지막 나가기 시 저장한 숨김 기준 이하 메시지는 제외한다. 삭제 메시지 내용은 null이다. 어느 방향이든 차단 관계가 있으면 403이다.
 
 **성공 예시**
 ```json
@@ -4034,7 +4091,7 @@ Subject 자동완성:
 
 **실패 예시**
 ```json
-{"status":404,"code":"DM_ROOM_NOT_FOUND","message":"참여 중인 채팅방을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+{"status":403,"code":"FORBIDDEN","message":"요청한 작업을 수행할 권한이 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
 ### PATCH `/v1/dm/rooms/{roomSeq}/read`
@@ -4045,7 +4102,7 @@ Subject 자동완성:
 
 **Response:** 실제 읽음으로 변경된 DM 메시지 행 수 `Integer`를 반환한다.
 
-**설명:** 메시지와 해당 방 알림 UPDATE는 한 트랜잭션이다. 커밋 후 상대에게 MESSAGES_READ 이벤트를 보낸다.
+**설명:** 메시지와 해당 방 알림 UPDATE는 한 트랜잭션이다. 커밋 후 상대에게 MESSAGES_READ 이벤트를 보낸다. 어느 방향이든 차단 관계가 있으면 403이다.
 
 **성공 예시**
 ```json
@@ -4233,13 +4290,14 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·한글/자모/영문/숫자 1~20자, `size` 기본 10·범위 1~20이다.
 
-**Response:** `{userSeq,nickname,role}[]`를 반환하며 결과가 없으면 `[]`다.
+**Response:** `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환하며 결과가 없으면 `[]`다.
+프로필 이미지가 없으면 전역 non_null 직렬화로 인해 이미지 키가 생략된다.
 
 **설명:** Redis ZSET 접두어 후보를 얻은 뒤 DB에서 ACTIVE·비삭제·ADMIN 제외 조건을 재검증한다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER"}]}
+{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER","verified":false}]}
 ```
 
 **실패 예시**
@@ -4253,14 +4311,14 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·한글/자모/영문/숫자 1~20자, `size` 기본 20·범위 1~50이다.
 
-**Response:** Redis가 결정한 순서의 `{userSeq,nickname,role}[]`를 반환한다.
+**Response:** Redis가 결정한 순서의 `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환한다.
 
 **설명:** exact → prefix → fuzzy 거리 1 → fuzzy 거리 2 → contains 단계로 검색하고 DB 상태를 재검증한다.
 정규화 검색어가 두 글자 미만이면 fuzzy 단계는 건너뛴다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER"}]}
+{"data":[{"userSeq":101,"nickname":"BlackRose1","role":"USER","verified":false}]}
 ```
 
 **실패 예시**
@@ -4274,13 +4332,13 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·1~20자, `size` 기본 10·범위 1~20이다.
 
-**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role}[]`를 반환한다.
+**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환한다.
 
 **설명:** 아티스트 전용 Redis 접두어 사전을 사용하고 DB에서 ARTIST·VERIFIED·ACTIVE를 재검증한다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST"}]}
+{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","verified":true}]}
 ```
 
 **실패 예시**
@@ -4294,14 +4352,14 @@ Subject 자동완성:
 
 **Request:** Query `q` 필수·1~20자, `size` 기본 20·범위 1~50이다.
 
-**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role}[]`를 반환한다.
+**Response:** VERIFIED ARTIST의 `{userSeq,nickname,role,profileImageSeq,profileImageUrl,verified}[]`를 반환한다.
 
 **설명:** Redis fuzzy 단계 순서를 보존하고 DB 상태를 재검증한다. 팔로워 수·취향 점수는 정렬에 사용하지 않는다.
 정규화 검색어가 두 글자 미만이면 fuzzy 단계는 건너뛴다.
 
 **성공 예시**
 ```json
-{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST"}]}
+{"data":[{"userSeq":102,"nickname":"InkKim","role":"ARTIST","profileImageSeq":301,"profileImageUrl":"https://minio.example/profile?X-Amz-Signature=...","verified":true}]}
 ```
 
 **실패 예시**
@@ -4374,4 +4432,172 @@ Subject 자동완성:
 **실패 예시**
 ```json
 {"status":409,"code":"STATE_CONFLICT","message":"최초 취향 설문이 이미 반영되었습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+## 19.10 AR 시뮬레이션
+
+QR로 붙는 폰은 로그인 상태가 아니다. PC(Bearer 인증)가 만든 단기 세션의 `sessionId`로
+폰이 접속하고, 그 세션에서만 통하는 `sessionToken`으로 업로드까지 마친다. 폰이 쓰는 두
+API는 `Authorization: Session {sessionToken}` 헤더를 사용하며 Bearer JWT를 요구하지
+않는다. `sessionToken`은 액세스 토큰과 같은 키로 서명하지만 `token_type`이 다르므로
+다른 API를 회원 자격으로 호출할 수 없다.
+
+세션 수명은 기본 10분이고 만료·종료된 세션은 410이다. `connect`는 세션당 최초 1대만
+성공하며 이후 요청은 409다. 세션당 업로드 횟수에도 상한이 있고, 비로그인 진입점인
+`connect`·업로드는 IP 기준의 별도 레이트리밋 버킷을 쓴다.
+
+### POST `/v1/simulations/ar-sessions`
+
+**API 개요:** PC가 QR에 실을 단기 AR 세션을 만든다. Bearer 인증이 필요하다.
+
+**Request:** JSON body. `designSeqs`는 선택이며 최대 50개다. 각 값은 `GET
+/v1/tattoo-designs`가 반환하는 `tattooSeq`와 같고, 설정된 세션당 도안 상한(기본 20개)을
+넘으면 400이다.
+
+```json
+{"designSeqs":[501,502]}
+```
+
+**Response:** `sessionId`, `expiresInSeconds`, `expiresAt`을 반환한다.
+
+**설명:** `sessionId`는 순번이 아니라 추측 불가능한 UUID이며 요청한 로그인 회원에 묶인다.
+삭제됐거나 없는 도안이 하나라도 있으면 404로 끝낸다. 세션과 도안 목록 저장은 한 트랜잭션이다.
+
+**성공 예시**
+```json
+{"data":{"sessionId":"6f1c5c0e-6f0a-4f6e-9f1a-1b2c3d4e5f60","expiresInSeconds":600,"expiresAt":"2026-08-01T10:10:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"TATTOO_NOT_FOUND","message":"타투를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/simulations/ar-sessions/{sessionId}/connect`
+
+**API 개요:** QR을 찍은 비로그인 폰이 `sessionId`만으로 세션에 붙는다. 인증은 필요 없다.
+
+**Request:** body 없음. 경로의 `sessionId`는 UUID 형식이어야 하며 아니면 400이다.
+
+**Response:** `sessionToken`, `expiresInSeconds`, `expiresAt`, `designs`를 반환한다.
+`designs`의 각 항목은 `designSeq`와 도안 이미지의 Presigned GET URL인 `imageUrl`이며,
+PC가 도안을 지정하지 않았으면 빈 배열이다.
+
+**설명:** 세션당 최초 1대만 성공하고 이후 접속 요청은 409다. 만료·종료된 세션은 410이다.
+`sessionToken`은 남은 세션 시간만큼만 유효하고 이 세션의 업로드 API에서만 통한다.
+커밋 이후 PC 개인 큐로 `PHONE_CONNECTED`를 전달한다.
+
+**성공 예시**
+```json
+{"data":{"sessionToken":"session.jwt","expiresInSeconds":580,"expiresAt":"2026-08-01T10:10:00Z","designs":[{"designSeq":501,"imageUrl":"https://minio.example.com/starttoo/design.png?X-Amz-Algorithm=AWS4-HMAC-SHA256"}]}}
+```
+
+**실패 예시**
+```json
+{"status":409,"code":"STATE_CONFLICT","message":"현재 상태에서는 요청을 처리할 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/simulations/ar-sessions/{sessionId}/composites/presign`
+
+**API 개요:** 폰이 합성 결과를 MinIO에 직접 PUT할 단기 URL을 발급받는다.
+`Authorization: Session {sessionToken}` 헤더가 필요하다.
+
+**Request:** JSON body. `contentType`은 `image/jpeg|image/png|image/webp`,
+`originalFilename`은 확장자를 포함한 최대 150자, `fileSize`는 양수 byte다.
+
+```json
+{"contentType":"image/png","originalFilename":"ar-capture.png","fileSize":1024000}
+```
+
+**Response:** `objectKey`, `uploadUrl`, `requiredHeaders`, `expiresInSeconds`를
+반환한다. 회원 presign과 같은 응답 모양이라 클라이언트 업로드 흐름을 그대로 재사용한다.
+
+**설명:** 확장자와 `contentType` 일치, 파일 크기 상한을 회원 presign과 같은 규칙으로
+검증한다. `objectKey`는 세션 소유자 경로인 `users/{ownerSeq}/simulation/` 아래에 만든다.
+합성 결과는 결국 PC 회원의 자산이기 때문이다. 세션당 업로드 상한에 닿으면 409이며
+이 단계에서는 `images` 행을 만들지 않는다.
+
+**성공 예시**
+```json
+{"data":{"objectKey":"users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png","uploadUrl":"https://minio.example.com/starttoo/users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256","requiredHeaders":{"Content-Type":"image/png"},"expiresInSeconds":600}}
+```
+
+**실패 예시**
+```json
+{"status":410,"code":"SESSION_EXPIRED","message":"세션이 만료되었거나 종료되었습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/simulations/ar-sessions/{sessionId}/composites`
+
+**API 개요:** presign으로 올린 객체를 확인하고 세션의 합성 결과로 등록한다.
+`Authorization: Session {sessionToken}` 헤더가 필요하다.
+
+**Request:** JSON body. `objectKey`는 presign 응답으로 받은 값이며 최대 512자다.
+
+```json
+{"objectKey":"users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png"}
+```
+
+**Response:** `compositeSeq`, `imageSeq`, `imageUrl`, `regDttm`을 반환한다.
+
+**설명:** `objectKey`의 소유 경로·UUID·확장자 구조를 확인하고 MinIO stat으로 객체 존재,
+크기, Content-Type을 검증한다. 검증과 `images` 등록을 마친 뒤에야 세션 행을 잠그는 짧은
+쓰기 트랜잭션에서 합성 결과를 남긴다. 세션 잠금을 쥔 채로 저장소를 왕복하지 않기 위한
+순서다. 업로드 상한은 이 트랜잭션에서 한 번 더 확인한다. 커밋 이후 PC 개인 큐로
+`COMPOSITE_CREATED`를 전달한다.
+
+**성공 예시**
+```json
+{"data":{"compositeSeq":9001,"imageSeq":3201,"imageUrl":"https://minio.example.com/starttoo/users/7/simulation/9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256","regDttm":"2026-08-01T10:03:00Z"}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"UPLOAD_OBJECT_NOT_FOUND","message":"업로드된 객체를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### GET `/v1/simulations/ar-sessions/{sessionId}`
+
+**API 개요:** PC가 세션 상태와 지금까지의 합성 결과를 조회한다. Bearer 인증이 필요하다.
+
+**Request:** 경로 변수 `sessionId`만 사용한다. 쿼리 파라미터는 없다.
+
+**Response:** `sessionId`, `status`, `phoneConnected`, `phoneConnectedDttm`,
+`expiresAt`, `expiresInSeconds`, `designs`, `composites`를 반환한다. `status`는
+`CREATED|CONNECTED|CLOSED|EXPIRED`이며 `composites`는 오래된 순이다.
+
+**설명:** 새로고침·재접속 시 화면을 복구하는 조회이자 소켓을 쓰지 않는 클라이언트의 폴링
+경로다. 만료된 세션도 410 대신 `EXPIRED` 상태와 지금까지의 결과를 그대로 반환한다.
+세션 소유자가 아니면 존재 여부를 감추기 위해 404다.
+
+**성공 예시**
+```json
+{"data":{"sessionId":"6f1c5c0e-6f0a-4f6e-9f1a-1b2c3d4e5f60","status":"CONNECTED","phoneConnected":true,"phoneConnectedDttm":"2026-08-01T10:01:00Z","expiresAt":"2026-08-01T10:10:00Z","expiresInSeconds":412,"designs":[{"designSeq":501,"imageUrl":"https://minio.example.com/starttoo/design.png?X-Amz-Algorithm=AWS4-HMAC-SHA256"}],"composites":[]}}
+```
+
+**실패 예시**
+```json
+{"status":404,"code":"RESOURCE_NOT_FOUND","message":"요청한 리소스를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### DELETE `/v1/simulations/ar-sessions/{sessionId}`
+
+**API 개요:** PC가 AR 세션을 종료한다. Bearer 인증이 필요하다.
+
+**Request:** 경로 변수 `sessionId`만 사용하며 body는 없다.
+
+**Response:** `true`를 반환한다.
+
+**설명:** 저장된 `sessionToken` 식별자를 비우므로 JWT 만료 전이라도 폰의 후속 업로드가
+즉시 거부된다. 이미 닫힌 세션에 다시 요청해도 성공으로 끝나며 `SESSION_CLOSED` 이벤트는
+한 번만 나간다. 세션 소유자가 아니면 403이다.
+
+**성공 예시**
+```json
+{"data":true}
+```
+
+**실패 예시**
+```json
+{"status":403,"code":"FORBIDDEN","message":"요청한 작업을 수행할 권한이 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```

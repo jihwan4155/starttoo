@@ -9,6 +9,7 @@ import com.starttoo.backend.post.domain.Post;
 import com.starttoo.backend.post.domain.PostRepository;
 import com.starttoo.backend.post.domain.PostStatus;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
+import com.starttoo.backend.preference.config.PreferenceProperties;
 import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.user.application.UserService;
 import com.starttoo.backend.user.domain.AccountStatus;
@@ -22,6 +23,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Base64;
@@ -41,6 +43,7 @@ public class PostService {
     private final PostTattooClassificationService postTattooClassificationService;
     private final PostWriteService postWriteService;
     private final PreferenceScoreService preferenceScoreService;
+    private final PreferenceProperties preferenceProperties;
     private final UserService userService;
     private final MediaService mediaService;
     private final JdbcTemplate jdbcTemplate;
@@ -74,6 +77,21 @@ public class PostService {
             throw BusinessException.of(ErrorCode.POST_NOT_FOUND);
         }
         return response(post, viewerSeq);
+    }
+
+    @Transactional(readOnly = true)
+    public CursorPageResponse<PostDtos.PostResponse> list(
+            String cursor,
+            int size,
+            Integer authorSeq,
+            Integer viewerSeq
+    ) {
+        // 로그인 조회자의 전체 피드만 취향 점수를 반영한다. 작성자 필터가 있는 목록은
+        // 기존 최신순을 유지하며, 이때 커서는 postSeq 숫자 문자열이다.
+        if (viewerSeq != null && authorSeq == null) {
+            return personalized(cursor, size, viewerSeq);
+        }
+        return list(parseLongCursor(cursor), size, authorSeq, viewerSeq);
     }
 
     @Transactional(readOnly = true)
@@ -118,6 +136,104 @@ public class PostService {
                 safeSize + 1
         );
         return postSeqPage(ids, safeSize, viewerSeq);
+    }
+
+    private CursorPageResponse<PostDtos.PostResponse> personalized(
+            String cursor,
+            int size,
+            Integer viewerSeq
+    ) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        FeedCursor decoded = decodeFeedCursor(cursor);
+        BigDecimal preferenceWeight =
+                BigDecimal.valueOf(preferenceProperties.feedPreferenceWeight());
+        BigDecimal recencyPerHour =
+                BigDecimal.valueOf(preferenceProperties.feedRecencyPerHour());
+        // 블렌드 점수 = 게시물 이미지의 스타일·색상 취향 점수 합 * 가중치
+        //             + 등록 시각(epoch 시간 단위) * 시간당 최신성 가중치.
+        // 등록 시각 기반이라 요청 시점과 무관하게 게시물마다 결정적이며,
+        // 소수 4자리로 반올림해 커서 동등 비교를 안정화한다.
+        List<FeedRow> rows = jdbcTemplate.query("""
+                SELECT post_seq, blend_score
+                  FROM (
+                      SELECT p.post_seq,
+                             ROUND(
+                                 COALESCE(pref.score, 0) * CAST(? AS NUMERIC)
+                                 + EXTRACT(EPOCH FROM p.reg_dttm) / 3600
+                                   * CAST(? AS NUMERIC),
+                                 4
+                             ) AS blend_score
+                        FROM posts p
+                        JOIN users author ON author.user_seq = p.author_seq
+                        LEFT JOIN LATERAL (
+                            SELECT SUM(
+                                       COALESCE(style_pref.score, 0)
+                                       + COALESCE(color_pref.score, 0)
+                                   ) AS score
+                              FROM post_images pi
+                              JOIN tattoos t
+                                ON t.image_seq = pi.image_seq
+                               AND t.is_deleted = FALSE
+                              LEFT JOIN user_primary_style_preferences style_pref
+                                ON style_pref.user_seq = ?
+                               AND style_pref.primary_style_seq = t.primary_style_seq
+                              LEFT JOIN user_color_preferences color_pref
+                                ON color_pref.user_seq = ?
+                               AND color_pref.color_seq = t.color_seq
+                             WHERE pi.post_seq = p.post_seq
+                        ) pref ON TRUE
+                       WHERE p.post_status = 'PUBLISHED'
+                         AND p.is_deleted = FALSE
+                         AND author.account_status = 'ACTIVE'
+                         AND author.role <> 'ADMIN'
+                         AND author.is_deleted = FALSE
+                         AND p.author_seq <> ?
+                         AND NOT EXISTS (
+                             SELECT 1 FROM user_blocks b
+                              WHERE (b.blocker_seq = ? AND b.blocked_seq = p.author_seq)
+                                 OR (b.blocker_seq = p.author_seq AND b.blocked_seq = ?)
+                         )
+                         AND NOT EXISTS (
+                             SELECT 1 FROM post_hidden_preferences h
+                              WHERE h.post_seq = p.post_seq AND h.user_seq = ?
+                         )
+                  ) ranked
+                 WHERE (
+                     CAST(? AS NUMERIC) IS NULL
+                     OR ranked.blend_score < CAST(? AS NUMERIC)
+                     OR (
+                         ranked.blend_score = CAST(? AS NUMERIC)
+                         AND ranked.post_seq < ?
+                     )
+                 )
+                 ORDER BY ranked.blend_score DESC, ranked.post_seq DESC
+                 LIMIT ?
+                """, (rs, rowNum) -> new FeedRow(
+                rs.getLong("post_seq"),
+                rs.getBigDecimal("blend_score")
+        ),
+                preferenceWeight,
+                recencyPerHour,
+                viewerSeq,
+                viewerSeq,
+                viewerSeq,
+                viewerSeq, viewerSeq,
+                viewerSeq,
+                decoded == null ? null : decoded.blendScore(),
+                decoded == null ? null : decoded.blendScore(),
+                decoded == null ? null : decoded.blendScore(),
+                decoded == null ? null : decoded.postSeq(),
+                safeSize + 1
+        );
+        boolean hasNext = rows.size() > safeSize;
+        List<FeedRow> page = hasNext ? rows.subList(0, safeSize) : rows;
+        List<PostDtos.PostResponse> items = responses(loadPosts(
+                page.stream().map(FeedRow::postSeq).toList()
+        ), viewerSeq);
+        String nextCursor = hasNext
+                ? encodeFeedCursor(page.get(page.size() - 1))
+                : null;
+        return CursorPageResponse.of(items, nextCursor, hasNext);
     }
 
     @Transactional(readOnly = true)
@@ -573,6 +689,45 @@ public class PostService {
                 """, Boolean.class, userSeq, postSeq));
     }
 
+    private Long parseLongCursor(String cursor) {
+        if (cursor == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(cursor);
+        } catch (NumberFormatException exception) {
+            throw BusinessException.of(ErrorCode.INVALID_CURSOR);
+        }
+    }
+
+    private FeedCursor decodeFeedCursor(String cursor) {
+        if (cursor == null) {
+            return null;
+        }
+        try {
+            String decoded = new String(
+                    Base64.getUrlDecoder().decode(cursor),
+                    StandardCharsets.UTF_8
+            );
+            String[] values = decoded.split("\\|", -1);
+            if (values.length != 2) {
+                throw BusinessException.of(ErrorCode.INVALID_CURSOR);
+            }
+            return new FeedCursor(
+                    new BigDecimal(values[0]),
+                    Long.parseLong(values[1])
+            );
+        } catch (RuntimeException exception) {
+            throw BusinessException.of(ErrorCode.INVALID_CURSOR);
+        }
+    }
+
+    private String encodeFeedCursor(FeedRow row) {
+        String value = row.blendScore().toPlainString() + "|" + row.postSeq();
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(value.getBytes(StandardCharsets.UTF_8));
+    }
+
     private BookmarkCursor decodeBookmarkCursor(String cursor) {
         if (cursor == null) {
             return null;
@@ -638,6 +793,12 @@ public class PostService {
     }
 
     private record BookmarkRow(Long postSeq, OffsetDateTime bookmarkDttm) {
+    }
+
+    private record FeedRow(Long postSeq, BigDecimal blendScore) {
+    }
+
+    private record FeedCursor(BigDecimal blendScore, Long postSeq) {
     }
 
     private record BookmarkCursor(OffsetDateTime bookmarkDttm, Long postSeq) {

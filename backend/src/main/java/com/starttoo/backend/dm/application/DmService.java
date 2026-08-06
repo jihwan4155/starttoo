@@ -101,6 +101,17 @@ public class DmService {
                       JOIN dm_rooms r ON r.dm_room_seq = p.dm_room_seq
                      WHERE p.user_seq = ?
                        AND p.is_active = TRUE
+                       AND NOT EXISTS (
+                           SELECT 1
+                             FROM user_blocks b
+                            WHERE (
+                                b.blocker_seq = r.user1_seq
+                                AND b.blocked_seq = r.user2_seq
+                            ) OR (
+                                b.blocker_seq = r.user2_seq
+                                AND b.blocked_seq = r.user1_seq
+                            )
+                       )
                 ),
                 room_details AS (
                     SELECT room.dm_room_seq,
@@ -270,7 +281,8 @@ public class DmService {
             Long cursor,
             int size
     ) {
-        room(roomSeq, userSeq);
+        DmRoom room = room(roomSeq, userSeq);
+        ensureNotBlocked(userSeq, room.partnerOf(userSeq));
         DmRoomParticipant participant = participant(roomSeq, userSeq);
         int safeSize = Math.min(Math.max(size, 1), 100);
         List<Long> ids = jdbcTemplate.queryForList("""
@@ -303,6 +315,7 @@ public class DmService {
     @Transactional
     public int markRead(Integer userSeq, Long roomSeq) {
         DmRoom room = room(roomSeq, userSeq);
+        ensureNotBlocked(userSeq, room.partnerOf(userSeq));
         DmRoomParticipant currentParticipant = participant(roomSeq, userSeq);
         return markVisibleMessagesRead(room, userSeq, currentParticipant);
     }

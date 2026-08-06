@@ -11,6 +11,8 @@ public record PreferenceProperties(
         double notInterested,
         double dwellShort,
         double dwellMedium,
-        double dwellLong
+        double dwellLong,
+        double feedPreferenceWeight,
+        double feedRecencyPerHour
 ) {
 }

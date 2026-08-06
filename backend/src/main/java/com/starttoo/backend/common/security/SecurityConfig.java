@@ -49,6 +49,14 @@ public class SecurityConfig {
                                 "/ws/**"
                         ).permitAll()
                         .requestMatchers("/v1/auth/**").permitAll()
+                        // 변경: QR 로 붙는 폰은 로그인이 없다. 인증은 Authorization 헤더의
+                        // `Session {sessionToken}` 을 서비스가 직접 검증한다.
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/v1/simulations/ar-sessions/*/connect",
+                                "/v1/simulations/ar-sessions/*/composites",
+                                "/v1/simulations/ar-sessions/*/composites/presign"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/comments/*/replies").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/artists").permitAll()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import io
 import json
 import logging
@@ -9,7 +10,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import cv2
 import numpy as np
@@ -548,6 +549,7 @@ class TattooClassifierService:
         self._subject_text_features: torch.Tensor | None = None
         self._load_lock = threading.Lock()
         self._inference_gate = inference_gate or asyncio.Semaphore(1)
+        self._before_activate: Callable[[], None] | None = None
 
     @property
     def configured(self) -> bool:
@@ -637,6 +639,26 @@ class TattooClassifierService:
         if self._status != "ready":
             raise ClassifierNotReadyError(self._message)
 
+    def set_before_activate(self, callback: Callable[[], None] | None) -> None:
+        self._before_activate = callback
+
+    def unload(self) -> None:
+        with self._load_lock:
+            self._clear_models()
+            self._status = "not_loaded" if self.configured else "not_configured"
+            self._message = (
+                "ConvNeXtV2와 SigLIP2 분류 모델이 메모리에서 해제되었습니다."
+                if self.configured
+                else self._missing_assets_message()
+            )
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    async def _run_before_activate(self) -> None:
+        if self._before_activate is not None:
+            await asyncio.to_thread(self._before_activate)
+
     async def _acquire_inference_gate(self) -> None:
         try:
             await asyncio.wait_for(
@@ -651,6 +673,7 @@ class TattooClassifierService:
     async def load(self) -> None:
         await self._acquire_inference_gate()
         try:
+            await self._run_before_activate()
             await asyncio.to_thread(self._load_sync)
         finally:
             self._inference_gate.release()
@@ -818,6 +841,16 @@ class TattooClassifierService:
                 self._clear_models()
 
     def _clear_models(self) -> None:
+        self._device = None
+        self._torch_device = None
+        self._labels = None
+        self._subject_labels = []
+        self._subject_labels_ko = []
+        self._subject_template_count = 0
+        self._primary_payload = None
+        self._secondary_payload = None
+        self._color_payload = None
+        self._rendering_payload = None
         self._primary_model = None
         self._secondary_model = None
         self._color_model = None
@@ -833,6 +866,7 @@ class TattooClassifierService:
     ) -> ClassificationResult:
         await self._acquire_inference_gate()
         try:
+            await self._run_before_activate()
             if self._status != "ready":
                 await asyncio.to_thread(self._load_sync)
             self.ensure_ready()
