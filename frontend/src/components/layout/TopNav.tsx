@@ -14,6 +14,7 @@ import useUnreadCounts from "../../hooks/queries/useUnreadCounts";
 import {
 	useMarkAllNotificationsRead,
 } from "../../hooks/mutations/useMarkNotificationsRead";
+import useBackClose from "../../hooks/useBackClose";
 import useNotificationAction from "../../hooks/useNotificationAction";
 import useUserStore from "../../store/useUserStore";
 import useAuthStore from "../../store/useAuthStore";
@@ -335,12 +336,21 @@ const MOBILE_MENU_ITEMS = [
 	{ label: "AI 도안 생성", to: "/ai" },
 	{ label: "타투 시뮬레이션", to: "/simulations" },
 	{ label: "커버업 타투", to: "/coverups" },
-	{ label: "커뮤니티", to: "/posts", dividerBefore: true },
+	{ label: "커뮤니티", to: "/posts", dividerBefore: true, exact: true },
 	{ label: "피드", to: "/posts/search" },
 	{ label: "메시지", to: "/dm" },
 	{ label: "타투이스트", to: "/artists" },
 	{ label: "마이페이지", to: "/mypage" },
 ] as const;
+
+function isMobileMenuItemActive(
+	item: (typeof MOBILE_MENU_ITEMS)[number],
+	pathname: string,
+) {
+	if (item.to === "/") return pathname === "/";
+	if ("exact" in item && item.exact) return pathname === item.to;
+	return pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
 
 function MobileTopNav() {
 	const { pathname } = useLocation();
@@ -352,6 +362,9 @@ function MobileTopNav() {
 	const showToast = useToastStore((s) => s.showToast);
 
 	useEffect(() => setOpen(false), [pathname]);
+
+	// 뒤로가기는 앞 화면으로 나가는 대신 메뉴만 닫는다
+	useBackClose(open, () => setOpen(false));
 
 	useEffect(() => {
 		if (!open) return undefined;
@@ -416,10 +429,7 @@ function MobileTopNav() {
 						className="max-h-[calc(100dvh-44px)] overflow-y-auto rounded-b-[24px] bg-white pb-6 shadow-[0_20px_45px_rgba(0,0,0,0.12)]">
 						<nav className="flex flex-col items-center gap-4 px-6 pb-4 pt-3">
 							{MOBILE_MENU_ITEMS.map((item) => {
-								const active =
-									item.to === "/"
-										? pathname === "/"
-										: pathname === item.to || pathname.startsWith(`${item.to}/`);
+								const active = isMobileMenuItemActive(item, pathname);
 								return (
 									<div key={item.to} className={`flex w-full justify-center ${"dividerBefore" in item && item.dividerBefore ? "border-t border-black/15 pt-4" : ""}`}>
 										<Link
@@ -524,7 +534,7 @@ export default function TopNav() {
 						<Link
 							to="/mypage"
 							aria-label="마이페이지"
-							className="block size-7 shrink-0 overflow-hidden rounded-full border border-solid border-black bg-white">
+							className="block size-7 shrink-0 overflow-hidden rounded-full bg-white">
 							<img
 								src={headerAvatar}
 								alt=""
@@ -536,7 +546,7 @@ export default function TopNav() {
 							type="button"
 							onClick={() => setLoginOpen(true)}
 							aria-label="로그인"
-						className="block size-7 shrink-0 overflow-hidden rounded-full border border-solid border-black bg-white">
+						className="block size-7 shrink-0 overflow-hidden rounded-full bg-white">
 						<img
 							src={headerAvatar}
 							alt=""

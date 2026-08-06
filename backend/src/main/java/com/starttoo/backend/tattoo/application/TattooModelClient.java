@@ -13,8 +13,12 @@ import org.springframework.web.client.ResourceAccessException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
@@ -50,6 +54,12 @@ public class TattooModelClient {
     }
 
     public List<AnalysisResult> analyzeBatch(List<String> imageUrls) {
+        return analyzeBatchItems(imageUrls.stream()
+                .map(imageUrl -> new BatchImage(null, imageUrl, null, null))
+                .toList());
+    }
+
+    public List<AnalysisResult> analyzeBatchItems(List<BatchImage> items) {
         if (!properties.enabled()) {
             Analysis analysis = new Analysis(
                     "OTHER",
@@ -58,21 +68,23 @@ public class TattooModelClient {
                     "BLACK",
                     List.of("SAMPLE")
             );
-            return imageUrls.stream()
-                    .map(ignored -> new AnalysisResult(AnalysisStatus.TATTOO, analysis))
+            return items.stream()
+                    .map(item -> new AnalysisResult(
+                            item.imageSeq(), AnalysisStatus.TATTOO, analysis, null))
                     .toList();
         }
         try {
-            BatchAnalysisResponse response = restClient(imageUrls.size()).post()
+            BatchAnalysisResponse response = restClient(items.size()).post()
                     .uri(properties.tattooBatchAnalysisPath())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(new BatchImageRequest(imageUrls))
+                    .body(new BatchImageRequest(items))
                     .retrieve()
                     .body(BatchAnalysisResponse.class);
             if (response == null || response.results() == null
-                    || response.results().size() != imageUrls.size()) {
+                    || response.results().size() != items.size()) {
                 throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
             }
+            validateBatchContract(items, response.results());
             response.results().stream()
                     .filter(AnalysisResult::tattoo)
                     .map(AnalysisResult::analysis)
@@ -84,7 +96,7 @@ public class TattooModelClient {
             // BusinessException 은 cause 를 연결하지 않으므로 여기서 남기지 않으면 원인이 사라진다.
             log.warn("Tattoo model batch call could not reach {}{}: images={}",
                     properties.baseUrl(), properties.tattooBatchAnalysisPath(),
-                    imageUrls.size(), exception);
+                    items.size(), exception);
             if (hasTimeoutCause(exception)) {
                 throw BusinessException.of(ErrorCode.PROCESSING_TIMEOUT);
             }
@@ -92,7 +104,38 @@ public class TattooModelClient {
         } catch (RestClientException exception) {
             log.warn("Tattoo model batch call failed at {}{}: images={}",
                     properties.baseUrl(), properties.tattooBatchAnalysisPath(),
-                    imageUrls.size(), exception);
+                    items.size(), exception);
+            throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+        }
+    }
+
+    private void validateBatchContract(
+            List<BatchImage> items,
+            List<AnalysisResult> results
+    ) {
+        Map<Long, BatchImage> expectedByImageSeq = new HashMap<>();
+        for (BatchImage item : items) {
+            if (item.imageSeq() != null
+                    && expectedByImageSeq.put(item.imageSeq(), item) != null) {
+                throw BusinessException.of(ErrorCode.INVALID_REQUEST);
+            }
+        }
+        if (expectedByImageSeq.isEmpty()) {
+            return;
+        }
+        Set<Long> returnedImageSeqs = new HashSet<>();
+        for (AnalysisResult result : results) {
+            BatchImage expected = expectedByImageSeq.get(result.imageSeq());
+            if (expected == null || !returnedImageSeqs.add(result.imageSeq())) {
+                throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+            }
+            if (result.tattoo() && expected.designObjectKey() != null
+                    && (result.design() == null
+                    || !expected.designObjectKey().equals(result.design().objectKey()))) {
+                throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
+            }
+        }
+        if (!returnedImageSeqs.equals(expectedByImageSeq.keySet())) {
             throw BusinessException.of(ErrorCode.UPSTREAM_SERVICE_ERROR);
         }
     }
@@ -136,7 +179,15 @@ public class TattooModelClient {
     public record ImageRequest(String imageUrl) {
     }
 
-    public record BatchImageRequest(List<String> imageUrls) {
+    public record BatchImage(
+            Long imageSeq,
+            String imageUrl,
+            String designObjectKey,
+            String designUploadUrl
+    ) {
+    }
+
+    public record BatchImageRequest(List<BatchImage> items) {
     }
 
     public record Detection(boolean isTattoo) {
@@ -157,9 +208,15 @@ public class TattooModelClient {
     }
 
     public record AnalysisResult(
+            Long imageSeq,
             AnalysisStatus status,
-            Analysis analysis
+            Analysis analysis,
+            Design design
     ) {
+        public AnalysisResult(AnalysisStatus status, Analysis analysis) {
+            this(null, status, analysis, null);
+        }
+
         public boolean tattoo() {
             return status == AnalysisStatus.TATTOO && analysis != null;
         }
@@ -170,6 +227,9 @@ public class TattooModelClient {
                     || status == AnalysisStatus.FAILED
                     || status == AnalysisStatus.TATTOO && analysis == null;
         }
+    }
+
+    public record Design(String objectKey) {
     }
 
     public record Analysis(

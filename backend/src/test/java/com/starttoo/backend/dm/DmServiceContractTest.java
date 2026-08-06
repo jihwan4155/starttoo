@@ -185,6 +185,72 @@ class DmServiceContractTest {
     }
 
     @Test
+    void roomsExcludeRoomsWithBlockRelationInEitherDirection() {
+        doAnswer(invocation -> List.of()).when(jdbcTemplate).query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        );
+
+        dmService.rooms(7, null, 30);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(
+                sql.capture(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                args.capture()
+        );
+        assertThat(sql.getValue()).contains(
+                "FROM user_blocks b",
+                "b.blocker_seq = r.user1_seq",
+                "b.blocker_seq = r.user2_seq"
+        );
+        // 차단 필터는 방 행의 두 회원 컬럼만 참조하므로 커서 바인딩 순서는 그대로다.
+        assertThat(args.getValue())
+                .containsExactly(7, 7, 7, null, null, null, null, 31);
+    }
+
+    @Test
+    void messagesRejectBlockedPartnerBeforeQueryingHistory() {
+        when(roomRepository.findById(31L)).thenReturn(Optional.of(room()));
+        when(jdbcTemplate.queryForObject(
+                contains("SELECT EXISTS"),
+                eq(Boolean.class),
+                eq(7), eq(8), eq(8), eq(7)
+        )).thenReturn(true);
+
+        assertThatThrownBy(() -> dmService.messages(7, 31L, null, 30))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.FORBIDDEN);
+
+        verify(jdbcTemplate, never()).queryForList(
+                anyString(),
+                eq(Long.class),
+                any(Object[].class)
+        );
+    }
+
+    @Test
+    void markReadRejectsBlockedPartnerBeforeUpdatingMessages() {
+        when(roomRepository.findById(31L)).thenReturn(Optional.of(room()));
+        when(jdbcTemplate.queryForObject(
+                contains("SELECT EXISTS"),
+                eq(Boolean.class),
+                eq(7), eq(8), eq(8), eq(7)
+        )).thenReturn(true);
+
+        assertThatThrownBy(() -> dmService.markRead(7, 31L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.FORBIDDEN);
+
+        verify(messageRepository, never()).markRoomRead(any(), any(), any(), any());
+        verify(notificationService, never()).readDmRoom(anyInt(), any(), any());
+    }
+
+    @Test
     void markReadPropagatesNotificationUpdateFailureBeforePublishingEvent() {
         when(roomRepository.findById(31L)).thenReturn(Optional.of(room()));
         when(participantRepository.findByIdDmRoomSeqAndIdUserSeq(31L, 7))

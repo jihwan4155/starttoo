@@ -9,6 +9,7 @@ import {
 	MoreIcon,
 	ShareIcon,
 } from "./icons";
+import ArtistBadge from "../common/ArtistBadge";
 import StarttooLoader from "../loader/StarttooLoader";
 import useCreateComment from "../../hooks/mutations/useCreateComment";
 import useDeleteComment from "../../hooks/mutations/useDeleteComment";
@@ -22,7 +23,9 @@ import useCommentReplies from "../../hooks/queries/useCommentReplies";
 import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import useBackClose from "../../hooks/useBackClose";
 import useImageSwipe from "../../hooks/useImageSwipe";
+import usePostDwell from "../../hooks/usePostDwell";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
@@ -34,8 +37,21 @@ import DeleteCommentModal from "./DeleteCommentModal";
 import SharePostModal from "./SharePostModal";
 import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
-import { getPostImageUrls } from "../../utils/mapPost";
+import { getPostImageUrls, isTattooImage } from "../../utils/mapPost";
 import type { Post, PostComment } from "../../types/community";
+
+/*
+ * 사진 넘기기 화살표 버튼 — 모양을 바꾸려면 여기 두 값만 고치면 된다.
+ * 어두운 사진 위에 얹히므로 피드 카드(흰 원)와 달리 검은 원이다.
+ *
+ *   size-7         원 지름 28px (size-6=24 · size-8=32 · size-9=36)
+ *   bg-black/40    평소 불투명도 40% — 숫자를 낮출수록 더 투명해진다
+ *   hover:bg-black/65  커서를 올렸을 때
+ *   ARROW_ICON_SIZE  안쪽 꺾쇠 크기(px)
+ */
+const ARROW_BUTTON_CLASS =
+	"absolute top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/65 disabled:opacity-30";
+const ARROW_ICON_SIZE = 14;
 
 function ExtractIcon() {
 	return (
@@ -164,10 +180,14 @@ function CommentRow({
 						<Link
 							to={profileTo}
 							onClick={onNavigate}
-							className="mr-2 font-semibold hover:underline">
+							className="font-semibold hover:underline">
 							{nickname}
 						</Link>
-						<span className="font-light">{comment.content}</span>
+						{/* 본문과 한 문단으로 흐르므로 인라인으로 끼운다 */}
+						{comment.author.isArtist && (
+							<ArtistBadge size={13} className="mx-1 inline-block align-[-2px]" />
+						)}
+						<span className="ml-2 font-light">{comment.content}</span>
 					</p>
 					<div className="mt-1 flex items-center gap-3 text-[11px] font-light text-black/40">
 						<span>{formatTimeAgo(comment.createdAt)}</span>
@@ -310,6 +330,12 @@ export default function PostDetailModal({
 	const post = detailPost ?? seedPost;
 	const isOpen = !!post;
 
+	// 상세를 열어 둔 시간을 취향 점수에 반영 (닫히면 post가 없어져 그때 전송된다)
+	usePostDwell(post?.id);
+
+	// 뒤로가기는 뒤 페이지로 나가는 대신 이 모달만 닫는다
+	useBackClose(isOpen, onClose);
+
 	const emptyPost: Post = {
 		id: 0,
 		author: { nickname: "", isArtist: false },
@@ -437,6 +463,8 @@ export default function PostDetailModal({
 			: Math.min(imageIndex, imageUrls.length - 1);
 	const postImageUrl = imageUrls[safeIndex] ?? null;
 	const hasMultipleImages = imageUrls.length > 1;
+	// 도안 추출은 타투 사진에만 의미가 있다 — AI가 타투로 판별한 사진에서만 버튼을 낸다
+	const canExtractDesign = !!post && !!postImageUrl && isTattooImage(post, safeIndex);
 
 	const { handlers: swipeHandlers, trackStyle } = useImageSwipe({
 		count: imageUrls.length,
@@ -502,8 +530,8 @@ export default function PostDetailModal({
 								aria-label="이전 사진"
 								disabled={safeIndex === 0}
 								onClick={() => setImageIndex((i) => Math.max(0, i - 1))}
-								className="absolute left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 disabled:opacity-30">
-								<ChevronIcon direction="left" size={16} />
+								className={`${ARROW_BUTTON_CLASS} left-3`}>
+								<ChevronIcon direction="left" size={ARROW_ICON_SIZE} />
 							</button>
 							<button
 								type="button"
@@ -514,8 +542,8 @@ export default function PostDetailModal({
 										Math.min(imageUrls.length - 1, i + 1),
 									)
 								}
-								className="absolute right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 disabled:opacity-30">
-								<ChevronIcon direction="right" size={16} />
+								className={`${ARROW_BUTTON_CLASS} right-3`}>
+								<ChevronIcon direction="right" size={ARROW_ICON_SIZE} />
 							</button>
 							<div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
 								{imageUrls.map((_, index) => (
@@ -535,8 +563,8 @@ export default function PostDetailModal({
 						</>
 					)}
 
-					{/* 호버 시 노출되는 도안 추출 버튼 */}
-					{postImageUrl && (
+					{/* 호버 시 노출되는 도안 추출 버튼 — 타투로 판별된 사진에서만 */}
+					{canExtractDesign && postImageUrl && (
 						<button
 							type="button"
 							aria-label="도안 추출"
@@ -573,12 +601,15 @@ export default function PostDetailModal({
 							/>
 						</Link>
 						<div className="min-w-0 flex-1">
-							<Link
-								to={authorProfileTo}
-								onClick={onClose}
-								className="block truncate text-[14px] font-semibold text-black hover:underline">
-								{authorName}
-							</Link>
+							<div className="flex items-center gap-1.5">
+								<Link
+									to={authorProfileTo}
+									onClick={onClose}
+									className="min-w-0 truncate text-[14px] font-semibold text-black hover:underline">
+									{authorName}
+								</Link>
+								{post.author.isArtist && <ArtistBadge size={15} />}
+							</div>
 							<p className="text-[11px] font-light text-black/40">
 								{formatTimeAgo(post.createdAt)}
 							</p>
@@ -657,10 +688,13 @@ export default function PostDetailModal({
 							<Link
 								to={authorProfileTo}
 								onClick={onClose}
-								className="mr-2 font-semibold hover:underline">
+								className="font-semibold hover:underline">
 								{authorName}
 							</Link>
-							{post.caption}
+							{post.author.isArtist && (
+								<ArtistBadge size={13} className="mx-1 inline-block align-[-2px]" />
+							)}
+							<span className="ml-2">{post.caption}</span>
 						</p>
 
 						{isCommentsPending && (

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Locale;
@@ -39,7 +40,7 @@ public class MediaService {
 
     private static final Set<String> EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Pattern OBJECT_KEY_PATTERN = Pattern.compile(
-            "^users/(\\d+)/(profile|post|dm|collection|extraction)/"
+            "^users/(\\d+)/(profile|post|dm|collection|extraction|simulation)/"
                     + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
                     + "\\.(jpg|png|webp)$"
     );
@@ -137,6 +138,66 @@ public class MediaService {
         return presignedDownload(objectKey).url();
     }
 
+    /**
+     * AI 분류 과정에서 만들어지는 투명 PNG의 업로드 위치를 발급한다. 원본 이미지마다 같은
+     * object key를 사용하므로 MinIO 업로드 후 DB 저장이 실패해도 재시도가 새 고아 객체를
+     * 계속 만들지 않는다.
+     */
+    public PresignedUpload presignTattooDesignUpload(Integer userSeq, Long sourceImageSeq) {
+        ensureBucketOrThrow();
+        String objectKey = tattooDesignObjectKey(userSeq, sourceImageSeq);
+        int expiry = Math.toIntExact(properties.uploadExpiry().toSeconds());
+        try {
+            String url = minioPresignClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Http.Method.PUT)
+                            .bucket(properties.bucket())
+                            .object(objectKey)
+                            .expiry(expiry, TimeUnit.SECONDS)
+                            .build()
+            );
+            return new PresignedUpload(objectKey, url);
+        } catch (Exception exception) {
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    /** AI가 백엔드가 지정한 위치에 정상적인 PNG를 저장했는지 DB 반영 전에 확인한다. */
+    public void verifyTattooDesignUpload(
+            Integer userSeq,
+            Long sourceImageSeq,
+            String objectKey
+    ) {
+        if (!tattooDesignObjectKey(userSeq, sourceImageSeq).equals(objectKey)) {
+            throw BusinessException.of(ErrorCode.INVALID_FILE);
+        }
+        ensureBucketOrThrow();
+        try {
+            StatObjectResponse stat = minioClient.statObject(StatObjectArgs.builder()
+                    .bucket(properties.bucket())
+                    .object(objectKey)
+                    .build());
+            if (stat.size() <= 0) {
+                throw BusinessException.of(ErrorCode.INVALID_FILE);
+            }
+            if (stat.size() > properties.maxImageBytes()) {
+                throw BusinessException.of(ErrorCode.FILE_TOO_LARGE);
+            }
+            if (!"image/png".equals(stat.contentType())) {
+                throw BusinessException.of(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
+            }
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (ErrorResponseException exception) {
+            if (isMissingObject(exception)) {
+                throw BusinessException.of(ErrorCode.UPLOAD_OBJECT_NOT_FOUND);
+            }
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
+        } catch (Exception exception) {
+            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
     public void verifyStoredObject(String objectKey) {
         ensureBucketOrThrow();
         try {
@@ -203,6 +264,15 @@ public class MediaService {
     }
 
     public record PresignedDownload(String url, OffsetDateTime expiresAt) {
+    }
+
+    public record PresignedUpload(String objectKey, String url) {
+    }
+
+    private String tattooDesignObjectKey(Integer userSeq, Long sourceImageSeq) {
+        String seed = "tattoo-design:%d:%d".formatted(userSeq, sourceImageSeq);
+        UUID stableId = UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8));
+        return "users/%d/extraction/%s.png".formatted(userSeq, stableId);
     }
 
     private MediaDtos.ImageResponse response(Image image) {

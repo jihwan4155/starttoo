@@ -59,10 +59,11 @@ public class DmController {
             summary = "내 활성 채팅방 목록",
             description = """
                     현재 참여자의 isActive=true인 방만 숨김 기준 이후의 최신 메시지 시각과
-                    dmRoomSeq 내림차순의 안정적인 커서로 반환한다. 상대 프로필, 마지막 메시지
-                    미리보기, 방을 나가기 전에 숨긴 메시지 이후의 미읽음 수, 현재 방별 알림
-                    설정을 조합한다. 프로필 이미지 URL은 저장된 MinIO object key로 생성한
-                    단기 Presigned GET URL이다.
+                    dmRoomSeq 내림차순의 안정적인 커서로 반환한다. 어느 방향이든 차단 관계가
+                    있는 상대의 방은 목록에서 제외하며 차단을 해제하면 기존 히스토리와 함께
+                    다시 나타난다. 상대 프로필, 마지막 메시지 미리보기, 방을 나가기 전에 숨긴
+                    메시지 이후의 미읽음 수, 현재 방별 알림 설정을 조합한다. 프로필 이미지 URL은
+                    저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
                     """
     )
     public ApiResponse<CursorPageResponse<DmDtos.RoomResponse>> rooms(
@@ -102,7 +103,8 @@ public class DmController {
     @Operation(
             summary = "DM 메시지 과거 조회",
             description = """
-                    방 참여자만 조회할 수 있다. dmMessageSeq 내림차순 커서를 사용하며 현재 사용자가
+                    방 참여자만 조회할 수 있고 어느 방향이든 차단 관계가 있으면 403으로 거부한다.
+                    dmMessageSeq 내림차순 커서를 사용하며 현재 사용자가
                     마지막으로 나갈 때 기록한 lastHiddenMessageSeq 이하의 과거 메시지는 제외한다.
                     삭제 메시지는 행을 유지하되 본문·이미지 seq·이미지 URL을 null로 반환한다.
                     이미지 URL은 DB에 저장된 MinIO object key로 생성한 단기 Presigned GET URL이다.
@@ -125,7 +127,7 @@ public class DmController {
     @Operation(
             summary = "상대방 메시지 일괄 읽음",
             description = """
-                    방 참여자임을 확인한 뒤 본인이 보내지 않았고 아직 읽지 않은 활성 메시지의
+                    방 참여자임과 차단 관계가 없음을 확인한 뒤 본인이 보내지 않았고 아직 읽지 않은 활성 메시지의
                     readDttm을 한 번의 UPDATE로 기록한다. 동시에 현재 회원에게 발송된
                     notificationType=NEW_DM, referenceSeq=roomSeq인 미읽음 알림도 같은
                     readDttm으로 읽음 처리한다. 두 UPDATE는 하나의 트랜잭션이므로 어느 한쪽이

@@ -38,6 +38,7 @@ class OpenApiDocumentationTest {
             "DELETE /v1/dm/rooms/{roomSeq}",
             "DELETE /v1/archive/{tattooSeq}",
             "DELETE /v1/posts/{postSeq}",
+            "DELETE /v1/simulations/ar-sessions/{sessionId}",
             "DELETE /v1/posts/{postSeq}/bookmark",
             "DELETE /v1/posts/{postSeq}/like",
             "DELETE /v1/posts/{postSeq}/not-interested",
@@ -71,6 +72,7 @@ class OpenApiDocumentationTest {
             "GET /v1/search/artists/autocomplete",
             "GET /v1/search/posts",
             "GET /v1/search/subjects/autocomplete",
+            "GET /v1/simulations/ar-sessions/{sessionId}",
             "GET /v1/tattoo-designs",
             "GET /v1/tattoos/{tattooSeq}",
             "GET /v1/tattoos/{tattooSeq}/image",
@@ -108,6 +110,10 @@ class OpenApiDocumentationTest {
             "POST /v1/posts/{postSeq}/dwell",
             "POST /v1/posts/{postSeq}/reports",
             "POST /v1/preferences/survey",
+            "POST /v1/simulations/ar-sessions",
+            "POST /v1/simulations/ar-sessions/{sessionId}/composites",
+            "POST /v1/simulations/ar-sessions/{sessionId}/composites/presign",
+            "POST /v1/simulations/ar-sessions/{sessionId}/connect",
             "POST /v1/tattoos/generate",
             "PUT /v1/archive/{tattooSeq}",
             "PUT /v1/comments/{commentSeq}/like",
@@ -121,7 +127,7 @@ class OpenApiDocumentationTest {
     @Test
     void everyControllerAndEndpointHasDetailedOpenApiDocumentation() {
         List<Class<?>> controllers = controllers();
-        assertThat(controllers).hasSize(17);
+        assertThat(controllers).hasSize(18);
         assertThat(controllers).allSatisfy(controller -> {
             Tag tag = controller.getAnnotation(Tag.class);
             assertThat(tag)

@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
 import StarttooLoader from "../loader/StarttooLoader";
 import useArchive from "../../hooks/queries/useArchive";
+import useBackClose from "../../hooks/useBackClose";
 import { ApiError } from "../../services/api";
 import type { ArchiveItem } from "../../types/archive";
 
@@ -21,6 +22,9 @@ export default function ArchivePickerModal({
 }: ArchivePickerModalProps) {
 	const { data, isPending, isError, error } = useArchive({ size: 30 });
 	const items = data?.pages.flatMap((page) => page.items) ?? [];
+
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
+	useBackClose(isOpen, onClose);
 
 	if (!isOpen) return null;
 

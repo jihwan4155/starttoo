@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import useBackClose from "../../hooks/useBackClose";
 
 type DeleteCommentModalProps = {
 	isOpen: boolean;
@@ -16,6 +17,9 @@ export default function DeleteCommentModal({
 	onConfirm,
 	isPending = false,
 }: DeleteCommentModalProps) {
+	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
+	useBackClose(isOpen, onClose);
+
 	if (!isOpen) return null;
 
 	const preview =

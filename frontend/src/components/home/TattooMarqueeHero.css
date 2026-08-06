@@ -1,0 +1,190 @@
+.tattoo-marquee {
+	--logo-width: clamp(720px, 68vw, 1180px);
+	position: relative;
+	width: 100%;
+	padding-block: clamp(16px, 2vw, 32px);
+	overflow: hidden;
+	background-color: #f9f6f6;
+	background-image: url("../../assets/images/home/banner-background.png");
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: cover;
+	color: #000;
+}
+
+.tattoo-marquee__logo-rail {
+	position: relative;
+	z-index: 1;
+	height: clamp(110px, 13vw, 176px);
+	overflow: visible;
+	background: transparent;
+}
+
+.tattoo-marquee__logo-row {
+	display: flex;
+	width: max-content;
+	height: 100%;
+	align-items: center;
+	gap: 0;
+	padding-inline: 0;
+	will-change: transform;
+	animation: tattoo-marquee-logo-drift 70s linear infinite;
+}
+
+.tattoo-marquee__logo-row img {
+	width: var(--logo-width);
+	height: auto;
+	flex: none;
+}
+
+.tattoo-marquee > .tattoo-marquee__logo-rail:last-child .tattoo-marquee__logo-row {
+	animation-duration: 55s;
+	animation-delay: -28s;
+	animation-direction: reverse;
+}
+
+.tattoo-marquee__viewport {
+	position: relative;
+	z-index: 2;
+	margin-block: -90px;
+	overflow-x: clip;
+	overflow-y: visible;
+	background: transparent;
+}
+
+.tattoo-marquee__track {
+	display: flex;
+	width: max-content;
+	will-change: transform;
+	animation: tattoo-marquee-scroll 34s linear infinite;
+}
+
+.tattoo-marquee__group {
+	--marquee-gap: clamp(80px, 8vw, 140px);
+	display: flex;
+	width: max-content;
+	align-items: center;
+	gap: var(--marquee-gap);
+	margin: 0;
+	padding: 0 var(--marquee-gap) 0 0;
+	list-style: none;
+}
+
+.tattoo-marquee__item {
+	--center-emphasis: 1;
+	display: grid;
+	width: clamp(210px, 22vw, 350px);
+	height: clamp(250px, 27vw, 430px);
+	flex: none;
+	place-items: center;
+	transform-origin: center;
+	animation: tattoo-marquee-float 2.8s ease-in-out infinite alternate;
+}
+
+.tattoo-marquee__item:nth-child(3n + 2) {
+	animation-delay: -0.9s;
+	animation-duration: 3.4s;
+}
+
+.tattoo-marquee__item:nth-child(3n) {
+	animation-delay: -1.8s;
+	animation-duration: 2.35s;
+}
+
+.tattoo-marquee__item img {
+	position: relative;
+	z-index: 2;
+	width: 120%;
+	height: 120%;
+	max-width: none;
+	object-fit: contain;
+	transform: scale(var(--center-emphasis));
+	transform-origin: center;
+	transition: transform 220ms cubic-bezier(0.45, 0, 0.55, 1);
+	will-change: transform;
+	filter: drop-shadow(0 12px 12px rgb(0 0 0 / 8%));
+}
+
+@keyframes tattoo-marquee-scroll {
+	0% {
+		transform: translateX(0);
+	}
+
+	100% {
+		transform: translateX(-50%);
+	}
+}
+
+@keyframes tattoo-marquee-logo-drift {
+	from {
+		transform: translateX(calc(var(--logo-width) * -1));
+	}
+
+	to {
+		transform: translateX(0);
+	}
+}
+
+@keyframes tattoo-marquee-float {
+	0% {
+		transform: translateY(7px) rotate(-1.5deg);
+	}
+
+	55% {
+		transform: translateY(-5px) rotate(0.6deg);
+	}
+
+	100% {
+		transform: translateY(-9px) rotate(1.8deg);
+	}
+}
+
+@media (max-width: 640px) {
+	.tattoo-marquee {
+		--logo-width: 640px;
+		padding-block: 12px;
+	}
+
+	.tattoo-marquee__logo-rail {
+		height: 96px;
+	}
+
+	.tattoo-marquee__logo-row {
+		gap: 0;
+		padding-inline: 0;
+	}
+
+	.tattoo-marquee__logo-row img {
+		width: var(--logo-width);
+	}
+
+	.tattoo-marquee__track {
+		animation-duration: 30s;
+	}
+
+	.tattoo-marquee__group {
+		--marquee-gap: 56px;
+		gap: var(--marquee-gap);
+		padding: 0 var(--marquee-gap) 0 0;
+	}
+
+	.tattoo-marquee__viewport {
+		margin-block: -60px;
+	}
+
+	.tattoo-marquee__item {
+		width: 190px;
+		height: 230px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tattoo-marquee__track,
+	.tattoo-marquee__logo-row {
+		animation-play-state: paused;
+	}
+
+	.tattoo-marquee__item {
+		animation: none;
+	}
+}

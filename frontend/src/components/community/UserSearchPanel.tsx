@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import ArtistBadge from "../common/ArtistBadge";
 import { CloseIcon, SearchIcon } from "./icons";
 import StarttooLoader from "../loader/StarttooLoader";
 import useAccountSearch from "../../hooks/queries/useAccountSearch";
@@ -10,11 +11,11 @@ import { profilePath, resolveAvatar } from "../../utils/profile";
 /**
  * 커뮤니티 우측 유저 검색 패널 — 모든 회원을 닉네임으로 찾는다.
  *
- * GET /search/accounts (한 글자부터)를 쓴다. 응답 AccountResult에는
- * 프로필 이미지가 없어 닉네임 기반 기본 아바타를 띄운다.
+ * GET /search/accounts (한 글자부터)를 쓴다.
  *
- * 인증 뱃지는 붙이지 않는다 — AccountResult에 verificationStatus가 없어서
- * role만으로 판단하면 심사 전 계정에도 뱃지가 붙는다. (isVerifiedArtist 참고)
+ * 응답에 프로필 이미지와 verified가 함께 오므로 실제 사진과 인증 뱃지를 그대로
+ * 보여준다. 뱃지는 role이 아니라 verified만 본다 — role만 보면 심사 전 계정에도
+ * 뱃지가 붙는다.
  */
 export default function UserSearchPanel() {
 	const [value, setValue] = useState("");
@@ -89,13 +90,19 @@ export default function UserSearchPanel() {
 									to={profilePath(account.userSeq)}
 									className="flex items-center gap-3 rounded-[10px] px-1 py-2 transition hover:bg-black/5">
 									<img
-										src={resolveAvatar(null, account.nickname)}
+										src={resolveAvatar(
+											account.profileImageUrl,
+											account.nickname,
+										)}
 										alt=""
 										className="size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
 									/>
 									<span className="min-w-0 flex-1">
-										<span className="block truncate text-[13px] font-semibold text-black">
-											{account.nickname}
+										<span className="flex items-center gap-1.5">
+											<span className="min-w-0 truncate text-[13px] font-semibold text-black">
+												{account.nickname}
+											</span>
+											{account.verified && <ArtistBadge size={13} />}
 										</span>
 										{account.role === "ARTIST" && (
 											<span className="block text-[11px] font-light text-black/40">

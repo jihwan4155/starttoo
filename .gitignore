@@ -2,6 +2,8 @@
 **/.env
 *.env.txt
 starttoo.env.txt
+secrets/
+*firebase*.json
 **/__pycache__/
 *.pyc
 

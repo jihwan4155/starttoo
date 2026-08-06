@@ -102,6 +102,44 @@ class RateLimitFilterTest {
         assertThat(keys.getValue().toString()).contains("coverup-search");
     }
 
+    @Test
+    void arSessionEntryPointsUseTheirOwnIpBucket() throws Exception {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ApiErrorWriter errorWriter = mock(ApiErrorWriter.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(redisTemplate.execute(
+                any(RedisScript.class),
+                anyList(),
+                any()
+        )).thenReturn(1L);
+        RateLimitFilter filter = new RateLimitFilter(
+                redisTemplate,
+                properties(),
+                errorWriter
+        );
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "POST",
+                "/v1/simulations/ar-sessions/6f1c5c0e-6f0a-4f6e-9f1a-1b2c3d4e5f60/connect"
+        );
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, chain);
+
+        // 비로그인 진입점이라 회원 mutation 한도(20)가 아니라 자체 한도(15)를 쓴다.
+        assertThat(response.getHeader("X-RateLimit-Limit")).isEqualTo("15");
+        @SuppressWarnings("rawtypes")
+        org.mockito.ArgumentCaptor<List> keys =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                keys.capture(),
+                any()
+        );
+        assertThat(keys.getValue().toString())
+                .contains("rate-limit:ip:127.0.0.1:ar-session");
+    }
+
     private RateLimitProperties properties() {
         return new RateLimitProperties(
                 60,
@@ -111,6 +149,8 @@ class RateLimitFilterTest {
                 5,
                 Duration.ofMinutes(1),
                 30,
+                Duration.ofMinutes(1),
+                15,
                 Duration.ofMinutes(1)
         );
     }

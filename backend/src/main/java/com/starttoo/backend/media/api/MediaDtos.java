@@ -19,7 +19,9 @@ public final class MediaDtos {
             @Schema(
                     description = "이미지 사용 목적",
                     example = "PROFILE",
-                    allowableValues = {"PROFILE", "POST", "DM", "COLLECTION", "EXTRACTION"}
+                    allowableValues = {
+                            "PROFILE", "POST", "DM", "COLLECTION", "EXTRACTION", "SIMULATION"
+                    }
             )
             @NotNull
             UploadPurpose purpose,
@@ -40,7 +42,9 @@ public final class MediaDtos {
         POST,
         DM,
         COLLECTION,
-        EXTRACTION
+        EXTRACTION,
+        /** AR 시뮬레이션 합성 결과. 비로그인 폰이 세션 소유자 경로로 올린다. */
+        SIMULATION
     }
 
     public record PresignUploadResponse(

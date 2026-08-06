@@ -74,16 +74,52 @@ public class TattooService {
     public void persistPostImageAnalysis(
             Integer userSeq,
             PreparedPostImage image,
-            TattooModelClient.Analysis analysis
+            TattooModelClient.Analysis analysis,
+            String designObjectKey
     ) {
-        if (tattooRepository.findByImageSeqAndDeletedFalse(image.imageSeq()).isPresent()) {
+        Tattoo tattoo = tattooRepository.findByImageSeqAndDeletedFalse(image.imageSeq())
+                .orElseGet(() -> persistPrepared(
+                        userSeq,
+                        new PreparedTattoo(image.imageSeq(), image.objectKey(), analysis),
+                        TattooSourceType.USER_POST
+                ));
+        Image designImage = findOrCreateDesignImage(userSeq, designObjectKey);
+        TattooDesign design = tattooDesignRepository.findById(tattoo.getTattooSeq())
+                .orElse(null);
+        if (design == null) {
+            OffsetDateTime now = OffsetDateTime.now();
+            tattooDesignRepository.save(TattooDesign.builder()
+                    .tattooSeq(tattoo.getTattooSeq())
+                    .imageSeq(designImage.getImageSeq())
+                    .regDttm(now)
+                    .modDttm(now)
+                    .deleted(false)
+                    .indexed(false)
+                    .build());
             return;
         }
-        persistPrepared(
-                userSeq,
-                new PreparedTattoo(image.imageSeq(), image.objectKey(), analysis),
-                TattooSourceType.USER_POST
-        );
+        design.replaceImage(designImage.getImageSeq());
+    }
+
+    private Image findOrCreateDesignImage(Integer userSeq, String designObjectKey) {
+        return imageRepository.findByObjectKeyAndDeletedFalse(designObjectKey)
+                .map(image -> {
+                    if (!image.getRegUsrSeq().equals(userSeq)) {
+                        throw BusinessException.of(ErrorCode.INVALID_FILE);
+                    }
+                    return image;
+                })
+                .orElseGet(() -> {
+                    OffsetDateTime now = OffsetDateTime.now();
+                    return imageRepository.save(Image.builder()
+                            .objectKey(designObjectKey)
+                            .regDttm(now)
+                            .regUsrSeq(userSeq)
+                            .modDttm(now)
+                            .modUsrSeq(userSeq)
+                            .deleted(false)
+                            .build());
+                });
     }
 
     @Transactional

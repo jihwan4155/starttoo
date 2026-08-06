@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import mobileLogo from "../../assets/images/mobile-logo.png";
 import PostCard from "./PostCard";
 import { ChevronIcon } from "./icons";
+import useBackClose from "../../hooks/useBackClose";
 import type { Post } from "../../types/community";
 
 type PostCardSheetProps = {
@@ -16,8 +17,8 @@ type PostCardSheetProps = {
  * 모바일 전용 게시글 카드 화면.
  *
  * 썸네일 그리드에서 곧바로 댓글 창을 띄우면 좁은 화면에서는 사진을 볼 수 없다.
- * 그래서 커뮤니티 피드와 같은 카드 화면을 한 번 거치고, 여기서 사진이나 댓글
- * 아이콘을 눌렀을 때 댓글로 들어가게 한다.
+ * 그래서 커뮤니티 피드와 같은 카드 화면을 한 번 거치고, 여기서 댓글 아이콘을
+ * 눌렀을 때 댓글로 들어가게 한다. 사진은 넘겨 보기 전용이다.
  *
  * z-[75]: 게시글 상세(80) 바로 아래 — 댓글을 닫으면 이 화면으로 돌아온다.
  * (모바일 하단 내비게이션 55보다 위여서 카드가 전체 화면을 덮는다)
@@ -28,6 +29,9 @@ export default function PostCardSheet({
 	onClose,
 }: PostCardSheetProps) {
 	const isOpen = !!post;
+
+	// 뒤로가기는 프로필 페이지를 떠나는 대신 이 화면만 닫는다
+	useBackClose(isOpen, onClose);
 
 	// 열려 있는 동안 뒤 목록이 스크롤되지 않게 막는다 (상세 모달과 같은 방식).
 	useEffect(() => {

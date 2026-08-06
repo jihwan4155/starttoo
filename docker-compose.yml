@@ -52,6 +52,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
+    volumes:
+      # Firebase 서비스 계정 키. 커밋하지 않고 서버에 직접 배치한 디렉터리를 붙인다.
+      # 파일 단위로 마운트하면 파일이 없을 때 Docker 가 그 경로에 빈 디렉터리를
+      # 만들어 버려서, 디렉터리 단위로 잡고 컨테이너 안 경로를 고정한다.
+      - ${FIREBASE_SECRETS_DIR:-./secrets}:/run/secrets:ro
 
   frontend:
     build:
@@ -110,6 +115,7 @@ services:
       start_period: 60s
 
   ai-api:
+    profiles: ["aws-ai-fallback"]
     image: ${COMPOSE_PROJECT_NAME:-s15p11d201}-ai:latest
     container_name: starttoo-ai-api
     restart: unless-stopped
@@ -130,6 +136,7 @@ services:
       APP_LOG_LEVEL: ${AI_APP_LOG_LEVEL:-info}
       API_PREFIX: ${AI_API_PREFIX:-/api/v1}
       CORS_ORIGINS: ${AI_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}
+      DESIGN_UPLOAD_ALLOWED_ORIGINS: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
       TATTOO_EXTRACTOR_ROOT: ${TATTOO_EXTRACTOR_ROOT:-/app/api_server/vendor/inklift_v11_7}
       TATTOO_GENERATOR_ROOT: ${TATTOO_GENERATOR_ROOT:-/app/api_server/vendor/tattoo_generator_sd15}
       TATTOO_CLASSIFIER_ROOT: ${TATTOO_CLASSIFIER_ROOT:-/app/api_server/vendor/tattoo_classifier_v3}
@@ -156,6 +163,63 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
+
+  laptop-ai-host-relay:
+    build: ./relay
+    image: starttoo-ai-relay:local
+    container_name: starttoo-laptop-ai-host-relay
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    network_mode: host
+    command:
+      - -d
+      - -d
+      - TCP-LISTEN:18001,bind=172.19.0.1,reuseaddr,fork
+      - TCP:127.0.0.1:18000
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 64m
+    cpus: 0.25
+
+  laptop-ai-relay:
+    build: ./relay
+    image: starttoo-ai-relay:local
+    container_name: starttoo-laptop-ai-relay
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    command:
+      - -d
+      - -d
+      - TCP-LISTEN:8000,reuseaddr,fork
+      - TCP:172.19.0.1:18001
+    networks:
+      starttoo-net:
+        aliases:
+          - ai-api
+          - laptop-ai
+          - starttoo-laptop-ai-relay
+    depends_on:
+      - laptop-ai-host-relay
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 64m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   redis:
     image: redis/redis-stack-server:latest
@@ -215,8 +279,6 @@ services:
         condition: service_healthy
       ai:
         condition: service_healthy
-      ai-api:
-        condition: service_healthy
     networks:
       - starttoo-net
 
@@ -245,6 +307,13 @@ services:
 networks:
   starttoo-net:
     driver: bridge
+    # UFW 규칙이 재배포마다 바뀌는 br-<network-id> 이름에 묶이지 않도록 고정한다.
+    driver_opts:
+      com.docker.network.bridge.name: starttoo-br
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+          gateway: 172.19.0.1
 
 volumes:
   redis-data:

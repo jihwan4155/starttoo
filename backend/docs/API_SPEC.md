@@ -2,7 +2,7 @@
 
 기본 경로는 `/v1`이며 별도 표기가 없으면 Bearer JWT 인증이 필요하다. 목록 API는
 `items`, `nextCursor`, `hasNext`, `size`를 갖는 커서 응답을 사용한다.
-현재 v1 공개 범위는 관리자·테스트 API를 제외한 83개 엔드포인트다.
+현재 v1 공개 범위는 관리자·테스트 API를 제외한 89개 엔드포인트다.
 
 ## 인증·회원
 
@@ -87,6 +87,31 @@ URL이다. DB에는 URL을 저장하지 않는다.
 엔진 색인은 `tattoo_designs.indexed`로 추적하고, 색인 누락과 삭제 잔존은 주기 정합성
 스캔이 맞춘다. 색인의 식별자는 `tattoo_seq`이므로 값을 바꾸면 안 된다.
 
+## AR 시뮬레이션
+
+| Method | Path | 인증 | 설명 |
+|---|---|---:|---|
+| POST | `/simulations/ar-sessions` | Y | QR에 실을 단기 세션 생성. `designSeqs`로 폰에 띄울 도안 지정 |
+| POST | `/simulations/ar-sessions/{sessionId}/connect` | N | 폰이 sessionId로 접속하고 sessionToken·도안 URL 수령 |
+| POST | `/simulations/ar-sessions/{sessionId}/composites/presign` | S | 합성 결과 업로드용 presigned PUT URL |
+| POST | `/simulations/ar-sessions/{sessionId}/composites` | S | 업로드한 객체 검증 후 합성 결과 등록 |
+| GET | `/simulations/ar-sessions/{sessionId}` | Y | 세션 상태·도안·합성 결과 조회. 재접속 복구와 폴링용 |
+| DELETE | `/simulations/ar-sessions/{sessionId}` | Y | 세션 종료. 폰 토큰을 즉시 무효화 |
+
+인증 열의 `S`는 Bearer JWT가 아니라 `Authorization: Session {sessionToken}`을 뜻한다.
+QR을 찍은 폰은 로그인 상태가 아니므로 PC가 만든 세션이 유일한 신뢰 경로다. `sessionId`는
+추측 불가능한 UUID이고 세션 수명은 기본 10분이며, 만료·종료된 세션의 요청은 410이다.
+`connect`는 세션당 최초 1대만 성공하고 이후 요청은 409다. 세션당 업로드 횟수에도 상한이
+있으며 비로그인 진입점인 `connect`·업로드는 IP 기준 별도 레이트리밋 버킷을 쓴다.
+
+`sessionToken`은 액세스 토큰과 같은 키로 서명하지만 `token_type`이 `AR_SESSION`이라
+리소스 서버 경로에서는 인증되지 않는다. 즉 토큰이 새어도 다른 API를 회원 자격으로
+호출할 수 없다. 세션을 닫으면 저장된 토큰 식별자를 비우므로 JWT 만료 전에도 거부된다.
+
+합성 결과 업로드는 회원 presign과 같은 규칙(`image/png|jpeg|webp`, 파일 크기 상한)을
+쓰고 objectKey도 세션 소유자 경로인 `users/{ownerSeq}/simulation/` 아래에 만든다.
+폰 브라우저가 MinIO로 직접 PUT하므로 MinIO CORS에 서비스 도메인이 허용되어 있어야 한다.
+
 ## 게시물·댓글
 
 | Method | Path | 설명 |
@@ -166,7 +191,7 @@ DB 커밋 후 증분 갱신하며, 매일 PostgreSQL과 대조한다.
 
 | Method | Path | 설명 |
 |---|---|---|
-| POST/GET | `/dm/rooms` | 1대1 방 생성/내 활성 방 |
+| POST/GET | `/dm/rooms` | 1대1 방 생성/내 활성 방. 차단 관계 상대의 방은 목록에서 제외 |
 | POST/GET | `/dm/rooms/{roomSeq}/messages` | 메시지 전송/과거 조회 |
 | PATCH | `/dm/rooms/{roomSeq}/read` | 상대 메시지와 해당 방 NEW_DM 알림 일괄 읽음 |
 | DELETE | `/dm/rooms/{roomSeq}` | 현재까지 메시지를 숨기고 방 목록 비활성 |
@@ -195,12 +220,18 @@ FCM 토큰이 회전하면 이전 기기 연결을 비활성화하고 현재 리
 STOMP WebSocket 핸드셰이크 경로는 `/ws`다. HTTP 핸드셰이크 이후 STOMP
 `CONNECT`의 `Authorization` 헤더에 `Bearer {accessToken}`을 전달한다.
 
-클라이언트가 구독할 수 있는 개인 목적지는 다음 두 개로 제한한다.
+클라이언트가 구독할 수 있는 개인 목적지는 다음 세 개로 제한한다.
 
 | 구독 목적지 | 전달 내용 |
 |---|---|
 | `/user/queue/dm-events` | `MESSAGE_CREATED`, `MESSAGES_READ` |
 | `/user/queue/notifications` | 커밋된 서비스 알림 |
+| `/user/queue/simulation-events` | `PHONE_CONNECTED`, `COMPOSITE_CREATED`, `SESSION_CLOSED` |
+
+AR 시뮬레이션 이벤트의 수신자는 항상 세션을 만든 PC 회원이다. 폰은 로그인이 없어 소켓을
+쓰지 못하고 HTTP 응답으로만 결과를 받는다. 페이로드는 `eventId`, `sessionId`,
+`eventType`과 `COMPOSITE_CREATED`에서만 채워지는 `composite`를 갖는다. 소켓을 쓰지 않는
+클라이언트는 `GET /v1/simulations/ar-sessions/{sessionId}` 폴링으로 같은 상태를 얻는다.
 
 현재 메시지 저장은 `POST /v1/dm/rooms/{roomSeq}/messages`만 사용한다. WebSocket의
 클라이언트 `SEND`는 허용하지 않으므로 REST와 WebSocket이 서로 다른 트랜잭션

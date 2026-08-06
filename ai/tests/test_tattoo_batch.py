@@ -31,6 +31,16 @@ PLAIN_URL = "https://minio.test/plain.png"
 BROKEN_URL = "https://minio.test/broken.png"
 
 
+def _batch_item(image_seq: int, image_url: str) -> dict[str, object]:
+    object_key = f"users/7/extraction/{image_seq}.png"
+    return {
+        "imageSeq": image_seq,
+        "imageUrl": image_url,
+        "designObjectKey": object_key,
+        "designUploadUrl": f"https://minio.test/starttoo/{object_key}",
+    }
+
+
 def check(cond: bool, msg: str) -> None:
     print((OK if cond else FAIL), msg)
     if not cond:
@@ -132,6 +142,7 @@ def _build(busy: bool = False, classifier_broken: bool = False):
         model_load_on_startup=False,
         generator_load_on_startup=False,
         classifier_load_on_startup=False,
+        design_upload_allowed_origins=("https://minio.test",),
     )
 
     # 색을 달리해 URL 별로 실제로 다른 바이트열이 나오게 한다. 같은 바이트열이면
@@ -152,7 +163,14 @@ def _build(busy: bool = False, classifier_broken: bool = False):
         return plain_raw
 
     original_download = tattoos._download_image
+    original_upload = tattoos._upload_design
     tattoos._download_image = fake_download
+    uploads: list[tuple[str, bytes]] = []
+
+    async def fake_upload(upload_url: str, content: bytes) -> None:
+        uploads.append((upload_url, content))
+
+    tattoos._upload_design = fake_upload
 
     classifier = FakeClassifier(broken=classifier_broken)
     app = create_app(
@@ -161,19 +179,23 @@ def _build(busy: bool = False, classifier_broken: bool = False):
         classifier_service=classifier,
         event_log=None,
     )
-    return app, classifier, (tattoos, original_download)
+    return app, classifier, uploads, (tattoos, original_download, original_upload)
 
 
 def main() -> int:
     from fastapi.testclient import TestClient
 
     print("배치 분석 계약")
-    app, classifier, (module, original_download) = _build()
+    app, classifier, uploads, (module, original_download, original_upload) = _build()
     try:
         with TestClient(app) as client:
             response = client.post(
                 "/v1/tattoos/analyze-batch",
-                json={"imageUrls": [TATTOO_URL, PLAIN_URL, BROKEN_URL]},
+                json={"items": [
+                    _batch_item(11, TATTOO_URL),
+                    _batch_item(12, PLAIN_URL),
+                    _batch_item(13, BROKEN_URL),
+                ]},
             )
             check(response.status_code == 200, f"200 응답 (실제 {response.status_code})")
             body = response.json()
@@ -186,6 +208,10 @@ def main() -> int:
             check(
                 statuses == ["TATTOO", "NOT_TATTOO", "FAILED"],
                 f"상태가 순서대로 구분된다 (실제 {statuses})",
+            )
+            check(
+                [item.get("imageSeq") for item in results] == [11, 12, 13],
+                "각 결과가 요청 imageSeq를 그대로 반환한다",
             )
             check(
                 results[2].get("analysis") is None,
@@ -210,28 +236,55 @@ def main() -> int:
             )
             check(analysis.get("subjects") == ["장미"], "subjects 직렬화")
             check(
+                results[0].get("design", {}).get("objectKey")
+                == "users/7/extraction/11.png",
+                "타투 결과가 저장된 도안 objectKey를 반환한다",
+            )
+            check(
+                len(uploads) == 1 and uploads[0][1] == _png_bytes((10, 20, 30)),
+                "분류에 사용한 추출 결과를 타투 이미지에 한해서만 업로드한다",
+            )
+            check(
                 classifier.calls == 1,
                 f"비타투·실패 이미지는 분류를 돌리지 않는다 (실제 {classifier.calls}회)",
             )
 
             documented = client.post(
                 "/api/v1/tattoos/analyze-batch",
-                json={"imageUrls": [PLAIN_URL]},
+                json={"items": [_batch_item(21, PLAIN_URL)]},
             )
             check(
                 documented.status_code == 200,
                 f"/api/v1 경로도 살아 있다 (실제 {documented.status_code})",
             )
+            rejected_external_upload = False
+            try:
+                module._validate_design_upload_destination(
+                    TATTOO_URL,
+                    "https://evil.example/starttoo/users/7/extraction/11.png",
+                    "users/7/extraction/11.png",
+                    ("https://minio.test",),
+                )
+            except Exception:
+                rejected_external_upload = True
+            check(
+                rejected_external_upload,
+                "허용되지 않은 외부 업로드 주소를 거부한다",
+            )
     finally:
         module._download_image = original_download
+        module._upload_design = original_upload
 
     print("추출기 단계 오류는 배치 전체를 503으로 올린다")
-    app_busy, _, (module_busy, original_busy) = _build(busy=True)
+    app_busy, _, _, (module_busy, original_busy, original_busy_upload) = _build(busy=True)
     try:
         with TestClient(app_busy, raise_server_exceptions=False) as client:
             response = client.post(
                 "/v1/tattoos/analyze-batch",
-                json={"imageUrls": [TATTOO_URL, PLAIN_URL]},
+                json={"items": [
+                    _batch_item(31, TATTOO_URL),
+                    _batch_item(32, PLAIN_URL),
+                ]},
             )
             check(
                 response.status_code == 503,
@@ -239,16 +292,23 @@ def main() -> int:
             )
     finally:
         module_busy._download_image = original_busy
+        module_busy._upload_design = original_busy_upload
 
     print("분류기만 죽은 경우 비타투 판정은 살린다")
-    app_broken, broken_classifier, (module_broken, original_broken) = _build(
+    app_broken, broken_classifier, _, (
+        module_broken, original_broken, original_broken_upload
+    ) = _build(
         classifier_broken=True
     )
     try:
         with TestClient(app_broken, raise_server_exceptions=False) as client:
             response = client.post(
                 "/v1/tattoos/analyze-batch",
-                json={"imageUrls": [TATTOO_URL, PLAIN_URL, TATTOO_URL]},
+                json={"items": [
+                    _batch_item(41, TATTOO_URL),
+                    _batch_item(42, PLAIN_URL),
+                    _batch_item(43, TATTOO_URL),
+                ]},
             )
             check(
                 response.status_code == 200,
@@ -266,6 +326,7 @@ def main() -> int:
             )
     finally:
         module_broken._download_image = original_broken
+        module_broken._upload_design = original_broken_upload
 
     print()
     if _fails:

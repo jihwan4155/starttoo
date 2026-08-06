@@ -15,6 +15,13 @@ export type DmPartner = {
 	profileImageSeq: number | null;
 	/** 단기 Presigned GET URL */
 	profileImageUrl: string | null;
+	/**
+	 * role=ARTIST이고 인증까지 끝난 상대인지.
+	 *
+	 * role은 안 내려오지만 이 값이 그 판정을 대신한다 — 서버가 role과
+	 * verificationStatus를 함께 보고 계산해 준다.
+	 */
+	verified: boolean;
 };
 
 /** GET·POST /dm/rooms — 채팅방 (Swagger RoomResponse) */
