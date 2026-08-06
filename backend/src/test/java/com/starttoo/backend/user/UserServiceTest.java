@@ -191,6 +191,25 @@ class UserServiceTest {
     }
 
     @Test
+    void enablingBlockReadsUnreadDmNotificationsOfTheHiddenRoom() {
+        when(userRepository.findByUserSeqAndDeletedFalse(8))
+                .thenReturn(Optional.of(user(8, UserRole.USER)));
+
+        assertThat(userService.setBlock(7, 8, true)).isTrue();
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(
+                sql.capture(),
+                eq(7), eq(8), eq(7), eq(8)
+        );
+        assertThat(sql.getValue()).contains(
+                "UPDATE notifications",
+                "notification_type = 'NEW_DM'",
+                "FROM dm_rooms"
+        );
+    }
+
+    @Test
     void relationListFiltersInactiveDeletedAndAdminUsers() {
         when(userRepository.findByUserSeqAndDeletedFalse(8))
                 .thenReturn(Optional.of(user(8, UserRole.USER)));
