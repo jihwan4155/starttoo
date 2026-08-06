@@ -17,6 +17,8 @@ type DoodleStroke = {
 type UseDoodleCanvasOptions = {
 	/** 펜 색상 (기본 검정) */
 	color?: string;
+	/** false면 ResizeObserver를 끈다 — 모달 등에서 닫힌 동안 */
+	active?: boolean;
 };
 
 /** 두 점의 중간점 — 곡선 보간의 시작·끝점으로 사용 */
@@ -95,6 +97,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: DoodleStroke) {
  */
 export default function useDoodleCanvas({
 	color = "#000000",
+	active = true,
 }: UseDoodleCanvasOptions = {}) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const strokesRef = useRef<DoodleStroke[]>([]);
@@ -150,14 +153,33 @@ export default function useDoodleCanvas({
 		redraw();
 	}, [redraw]);
 
+	/** 캔버스 크기를 맞추고 저장된 획을 다시 그린다 (모달 재오픈 등) */
+	const refresh = useCallback(() => {
+		const canvas = canvasRef.current;
+		const parent = canvas?.parentElement;
+		if (!canvas || !parent) return;
+		const dpr = window.devicePixelRatio || 1;
+		const { width, height } = parent.getBoundingClientRect();
+		if (width === 0 || height === 0) return;
+		const nextWidth = Math.round(width * dpr);
+		const nextHeight = Math.round(height * dpr);
+		canvas.width = nextWidth;
+		canvas.height = nextHeight;
+		canvas.style.width = `${width}px`;
+		canvas.style.height = `${height}px`;
+		getContext()?.setTransform(dpr, 0, 0, dpr, 0, 0);
+		redraw();
+	}, [redraw]);
+
 	useEffect(() => {
+		if (!active) return undefined;
 		const parent = canvasRef.current?.parentElement;
-		if (!parent) return;
-		syncSize();
-		const observer = new ResizeObserver(syncSize);
+		if (!parent) return undefined;
+		refresh();
+		const observer = new ResizeObserver(() => syncSize());
 		observer.observe(parent);
 		return () => observer.disconnect();
-	}, [syncSize]);
+	}, [active, refresh, syncSize]);
 
 	const pointFrom = (e: ReactPointerEvent<HTMLCanvasElement>): Point => {
 		const rect = e.currentTarget.getBoundingClientRect();
@@ -311,6 +333,7 @@ export default function useDoodleCanvas({
 		redo,
 		clear,
 		toFile,
+		refresh,
 		handlers: {
 			onPointerDown: handlePointerDown,
 			onPointerMove: handlePointerMove,
