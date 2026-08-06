@@ -63,12 +63,17 @@ def create_app(
         settings.generator_root,
         inference_gate=inference_gate,
         inference_wait_timeout=inference_wait_timeout,
+        cpu_offload=settings.generator_cpu_offload,
+        unload_after_request=settings.generator_unload_after_request,
     )
     classifier_service = classifier_service or TattooClassifierService(
         settings.classifier_root,
         inference_gate=inference_gate,
         inference_wait_timeout=inference_wait_timeout,
     )
+    if settings.low_vram_mode:
+        generator_service.set_before_activate(classifier_service.unload)
+        classifier_service.set_before_activate(generator_service.unload)
     event_log = event_log or EventLog(RUNTIME_ROOT / "api_server.log")
 
     @asynccontextmanager

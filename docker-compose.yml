@@ -110,6 +110,7 @@ services:
       start_period: 60s
 
   ai-api:
+    profiles: ["aws-ai-fallback"]
     image: ${COMPOSE_PROJECT_NAME:-s15p11d201}-ai:latest
     container_name: starttoo-ai-api
     restart: unless-stopped
@@ -156,6 +157,63 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
+
+  laptop-ai-host-relay:
+    build: ./relay
+    image: starttoo-ai-relay:local
+    container_name: starttoo-laptop-ai-host-relay
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    network_mode: host
+    command:
+      - -d
+      - -d
+      - TCP-LISTEN:18001,bind=172.19.0.1,reuseaddr,fork
+      - TCP:127.0.0.1:18000
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 64m
+    cpus: 0.25
+
+  laptop-ai-relay:
+    build: ./relay
+    image: starttoo-ai-relay:local
+    container_name: starttoo-laptop-ai-relay
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    command:
+      - -d
+      - -d
+      - TCP-LISTEN:8000,reuseaddr,fork
+      - TCP:172.19.0.1:18001
+    networks:
+      starttoo-net:
+        aliases:
+          - ai-api
+          - laptop-ai
+          - starttoo-laptop-ai-relay
+    depends_on:
+      - laptop-ai-host-relay
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 64m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   redis:
     image: redis/redis-stack-server:latest
@@ -215,8 +273,6 @@ services:
         condition: service_healthy
       ai:
         condition: service_healthy
-      ai-api:
-        condition: service_healthy
     networks:
       - starttoo-net
 
@@ -245,6 +301,10 @@ services:
 networks:
   starttoo-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+          gateway: 172.19.0.1
 
 volumes:
   redis-data:

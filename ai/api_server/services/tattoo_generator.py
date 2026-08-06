@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import io
 import logging
 import secrets
@@ -8,7 +9,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 import numpy as np
 from PIL import Image
@@ -194,9 +195,13 @@ class TattooGeneratorService:
         generator_root: Path,
         inference_gate: asyncio.Semaphore | None = None,
         inference_wait_timeout: float = DEFAULT_INFERENCE_WAIT_TIMEOUT_SECONDS,
+        cpu_offload: bool = False,
+        unload_after_request: bool = False,
     ) -> None:
         self.generator_root = generator_root.resolve()
         self.inference_wait_timeout = inference_wait_timeout
+        self.cpu_offload = cpu_offload
+        self.unload_after_request = unload_after_request
         self.base_model_root = (
             self.generator_root / "models" / "stable-diffusion-v1-5"
         )
@@ -215,6 +220,7 @@ class TattooGeneratorService:
         self._torch: object | None = None
         self._load_lock = threading.Lock()
         self._inference_gate = inference_gate or asyncio.Semaphore(1)
+        self._before_activate: Callable[[], None] | None = None
 
     @property
     def configured(self) -> bool:
@@ -310,9 +316,39 @@ class TattooGeneratorService:
         if self._status != "ready":
             raise GeneratorNotReadyError(self._message)
 
+    def set_before_activate(self, callback: Callable[[], None] | None) -> None:
+        self._before_activate = callback
+
+    def unload(self) -> None:
+        with self._load_lock:
+            pipeline = self._pipeline
+            torch_module = self._torch
+            self._pipeline = None
+            self._torch = None
+            self._device = None
+            self._status = "not_loaded" if self.configured else "not_configured"
+            self._message = (
+                "Stable Diffusion 1.5 타투 생성 모델이 메모리에서 해제되었습니다."
+                if self.configured
+                else self._missing_assets_message()
+            )
+        del pipeline
+        gc.collect()
+        if (
+            torch_module is not None
+            and getattr(torch_module, "cuda", None) is not None
+            and torch_module.cuda.is_available()
+        ):
+            torch_module.cuda.empty_cache()
+
+    async def _run_before_activate(self) -> None:
+        if self._before_activate is not None:
+            await asyncio.to_thread(self._before_activate)
+
     async def load(self) -> None:
         await self._acquire_inference_gate()
         try:
+            await self._run_before_activate()
             await asyncio.to_thread(self._load_sync)
         finally:
             self._inference_gate.release()
@@ -364,13 +400,19 @@ class TattooGeneratorService:
                     local_files_only=True,
                 )
                 if device == "cuda":
-                    pipeline.to("cuda")
                     pipeline.enable_attention_slicing()
                     try:
                         pipeline.enable_xformers_memory_efficient_attention()
                     except Exception:
                         logger.info("xFormers is unavailable; using attention slicing")
-                    self._device = f"cuda · {torch.cuda.get_device_name(0)}"
+                    if self.cpu_offload:
+                        pipeline.enable_model_cpu_offload()
+                        self._device = (
+                            f"cuda-offload · {torch.cuda.get_device_name(0)}"
+                        )
+                    else:
+                        pipeline.to("cuda")
+                        self._device = f"cuda · {torch.cuda.get_device_name(0)}"
                 else:
                     pipeline.to("cpu")
                     self._device = "cpu"
@@ -402,6 +444,7 @@ class TattooGeneratorService:
         actual_seed = seed if seed is not None else secrets.randbelow(2**32)
         await self._acquire_inference_gate()
         try:
+            await self._run_before_activate()
             if self._status != "ready":
                 await asyncio.to_thread(self._load_sync)
             self.ensure_ready()
@@ -415,6 +458,8 @@ class TattooGeneratorService:
                 size,
             )
         finally:
+            if self.unload_after_request:
+                await asyncio.to_thread(self.unload)
             self._inference_gate.release()
 
     def _generate_sync(
@@ -436,7 +481,11 @@ class TattooGeneratorService:
         try:
             full_prompt = build_prompt(styles, prompt)
             negative_prompt = build_negative_prompt(styles)
-            generator_device = "cuda" if str(self._device).startswith("cuda") else "cpu"
+            generator_device = (
+                "cpu"
+                if self.cpu_offload
+                else "cuda" if str(self._device).startswith("cuda") else "cpu"
+            )
             generator = self._torch.Generator(
                 device=generator_device
             ).manual_seed(seed)
