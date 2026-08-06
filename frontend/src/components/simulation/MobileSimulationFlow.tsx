@@ -6,6 +6,7 @@ import type { SimulationTab } from "./SimulationTabs";
 import Simulation3DStep from "./Simulation3DStep";
 import MarkerGuideStep from "./MarkerGuideStep";
 import ArCustomizeScreen from "./ArCustomizeScreen";
+import { CloseIcon, MobileHeader, StepTitle } from "./MobileChrome";
 
 type ImageUpload = ReturnType<typeof useImageUpload>;
 
@@ -28,38 +29,8 @@ type MobileSimulationFlowProps = {
 	onClearCapture: () => void;
 };
 
-function BackIcon() {
-	return <svg width="20" height="24" viewBox="0 0 20 24" fill="none" aria-hidden><path d="m15 3-9 9 9 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-
-function HomeIcon() {
-	return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M3 10.8 12 3l9 7.8V21h-6v-6H9v6H3V10.8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
-}
-
 function ImageIcon() {
 	return <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden><rect x="3" y="4" width="22" height="20" rx="4" stroke="currentColor" strokeWidth="2"/><circle cx="19" cy="10" r="2.5" stroke="currentColor" strokeWidth="2"/><path d="m5.5 21 6.2-6.5 4.1 4 2.8-2.7 4 4.2" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>;
-}
-
-function CloseIcon() {
-	return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden><path d="m4 4 12 12M16 4 4 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>;
-}
-
-function MobileHeader({ title, onHome }: { title: string; onHome: () => void }) {
-	return (
-		<header className="fixed inset-x-0 top-0 z-[70] flex h-[50px] items-center justify-center border-b border-[#E8E8E8] bg-white">
-			<button type="button" onClick={onHome} aria-label="홈으로 가기" className="absolute left-4 flex size-8 items-center justify-center text-[#555]"><HomeIcon /></button>
-			<h1 className="text-[19px] font-bold">{title}</h1>
-		</header>
-	);
-}
-
-function StepTitle({ children, onBack, className = "mb-5" }: { children: React.ReactNode; onBack: () => void; className?: string }) {
-	return (
-		<div className={`relative flex min-h-8 items-center justify-center ${className}`}>
-			<button type="button" onClick={onBack} aria-label="이전 단계" className="absolute left-0 flex size-8 items-center justify-center text-[#BDBDBD]"><BackIcon /></button>
-			<h2 className="px-9 text-center text-[18px] font-semibold">{children}</h2>
-		</div>
-	);
 }
 
 function BottomButton({ disabled = false, onClick, children }: { disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
