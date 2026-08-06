@@ -147,11 +147,22 @@ app:
     phone-availability-window: ${RATE_LIMIT_PHONE_AVAILABILITY_WINDOW:1m}
     coverup-search-capacity: ${RATE_LIMIT_COVERUP_SEARCH_CAPACITY:30}
     coverup-search-window: ${RATE_LIMIT_COVERUP_SEARCH_WINDOW:1m}
+    # AR 세션 connect·업로드는 비로그인 진입점이라 IP 기준으로만 묶인다.
+    # 폰 한 대의 정상 사용은 connect 1회 + 캡처 몇 장이므로 넉넉해도 이 정도면 충분하다.
+    ar-session-capacity: ${RATE_LIMIT_AR_SESSION_CAPACITY:30}
+    ar-session-window: ${RATE_LIMIT_AR_SESSION_WINDOW:1m}
   search:
     log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}
     autocomplete-refresh-delay: ${SEARCH_AUTOCOMPLETE_REFRESH_DELAY:600000}
     reconciliation-cron: "${SEARCH_RECONCILIATION_CRON:0 0 4 * * *}"
+  simulation:
+    # QR 을 띄우고 폰을 꺼내 찍는 시간만 감안한다. 만료 후 재접속은 세션을 새로 만든다.
+    session-ttl: ${AR_SESSION_TTL:10m}
+    max-designs: ${AR_SESSION_MAX_DESIGNS:20}
+    max-composites: ${AR_SESSION_MAX_COMPOSITES:30}
+    # 폰이 도안을 띄워둔 채 시간이 지나도 이미지가 깨지지 않게 세션 수명보다 길게 잡는다.
+    design-url-expiry: ${AR_SESSION_DESIGN_URL_EXPIRY:1h}
   preference:
     survey: 5.0
     post-like: 2.0

@@ -107,6 +107,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             );
         }
 
+        if (HttpMethod.POST.matches(request.getMethod())
+                && uri.startsWith("/v1/simulations/ar-sessions/")) {
+            // connect·업로드는 비로그인 진입점이라 클라이언트 키가 IP 뿐이다.
+            // 회원 mutation 한도와 섞지 않고 자체 버킷으로 분리한다.
+            return new Limit(
+                    properties.arSessionCapacity(),
+                    properties.arSessionWindow(),
+                    "ar-session"
+            );
+        }
+
         boolean mutation = !HttpMethod.GET.matches(request.getMethod())
                 && !HttpMethod.HEAD.matches(request.getMethod())
                 && !HttpMethod.OPTIONS.matches(request.getMethod());
