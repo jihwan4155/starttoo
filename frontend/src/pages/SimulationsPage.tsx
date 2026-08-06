@@ -1,4 +1,10 @@
-import { useLayoutEffect, useState, type Dispatch, type SetStateAction } from "react";
+import {
+	useEffect,
+	useLayoutEffect,
+	useState,
+	type Dispatch,
+	type SetStateAction,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SimulationTabs, {
 	type SimulationTab,
@@ -15,6 +21,7 @@ import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import MyDesignsModal from "../components/simulation/MyDesignsModal";
 import { useBodyScan, type BodyScanResult } from "../components/simulation/useBodyScan";
 import { useIsMobile } from "../hooks/useIsMobile";
+import useArSession from "../hooks/useArSession";
 import useSimulationHandoff from "../store/useSimulationHandoff";
 import MobileSimulationFlow from "../components/simulation/MobileSimulationFlow";
 
@@ -139,6 +146,26 @@ export default function SimulationsPage() {
 	};
 	const handleBack = () => setStep((current) => Math.max(1, current - 1));
 
+	// PC AR 세션 — QR 단계(2)에서 발급하고 결과 단계(3)까지 유지한다.
+	// 모바일은 QR 없이 폰에서 바로 촬영하므로 세션이 필요 없다.
+	const arSession = useArSession({
+		enabled: !isMobile && tab === "ar" && arStep >= 2,
+	});
+
+	// 폰에서 캡처가 올라오면 결과 단계로 자동 이동 (PC는 QR을 보고 있을 뿐이다)
+	const latestCompositeSeq = arSession.latestComposite?.compositeSeq ?? null;
+	useEffect(() => {
+		if (latestCompositeSeq == null) return;
+		if (tab !== "ar" || isMobile) return;
+		setArStep((current) => (current === 2 ? 3 : current));
+	}, [latestCompositeSeq, tab, isMobile]);
+
+	// 다시 시작 — 1단계로 되돌리면 세션도 정리된다(enabled=false).
+	const handleArRestart = () => {
+		setArStep(1);
+		arSession.restart();
+	};
+
 	// 모바일 AR 커스텀 단계 — QR 없이 폰에서 직접 카메라+합성+캡처
 	const mobileArLive = isMobile && tab === "ar" && step === 3;
 
@@ -148,11 +175,20 @@ export default function SimulationsPage() {
 		2: "카메라를 연결하세요",
 		3: "실시간으로 확인하고 저장하세요",
 	};
-	const stepDescription =
-		tab === "ar" && isMobile ? mobileArCopy[step] : STEP_COPY[tab][step];
+	// 폰이 붙은 뒤에는 QR 단계지만 할 일이 "PC에서 기다리기"로 바뀐다.
+	const arPhoneReady = !isMobile && tab === "ar" && step === 2 && arSession.phoneConnected;
+	const stepDescription = arPhoneReady
+		? "폰에서 촬영하면 결과가 여기에 나타나요"
+		: tab === "ar" && isMobile
+			? mobileArCopy[step]
+			: STEP_COPY[tab][step];
 
 	// 이미지(3D) 마지막 단계·모바일 AR 라이브에서는 상단을 숨겨 화면에 집중
 	const hideHeader = (tab === "image" && step === maxStep) || mobileArLive;
+
+	// AR 결과 화면에서는 '이전'을 감춘다. 폰에서 캡처를 받아 온 상태라 QR 단계로
+	// 돌아가면 세션이 어긋난다 — 다시 하려면 '처음부터 다시 하기'를 쓴다.
+	const hideBack = step === 1 || (tab === "ar" && step === maxStep);
 
 	const handleMobileBack = () => {
 		if (!mobileModeConfirmed) {
@@ -250,7 +286,7 @@ export default function SimulationsPage() {
 							onClick={handleBack}
 							aria-label="이전"
 							className={`flex items-center justify-self-end gap-1.5 whitespace-nowrap text-[19px] font-semibold text-black/40 transition hover:text-black/60 ${
-								step === 1 ? "invisible" : ""
+								hideBack ? "invisible" : ""
 							}`}>
 							<ChevronLeftIcon />
 							<span className="hidden sm:inline">이전</span>
@@ -273,10 +309,20 @@ export default function SimulationsPage() {
 										</button>
 									</div>
 								) : (
-									<CameraConnectStep />
+									<CameraConnectStep
+										joinUrl={arSession.joinUrl}
+										status={arSession.status}
+										phoneConnected={arSession.phoneConnected}
+										error={arSession.error}
+										onRestart={arSession.restart}
+									/>
 								))}
 							{tab === "ar" && step === 3 && (
-								<ArResultStep onRestart={() => setArStep(1)} />
+								<ArResultStep
+									composites={arSession.composites}
+									phoneConnected={arSession.phoneConnected}
+									onRestart={handleArRestart}
+								/>
 							)}
 
 							<UploadDropzoneBox
@@ -326,7 +372,8 @@ export default function SimulationsPage() {
 					</p>
 				)}
 
-				{tab === "ar" && step === 2 && !isMobile && (
+				{/* QR 안내는 폰이 붙기 전까지만 — 붙은 뒤에는 안내가 상단 문구와 겹친다 */}
+				{tab === "ar" && step === 2 && !isMobile && !arPhoneReady && (
 					<p className="mt-2 shrink-0 text-center text-[14px] font-light leading-5 text-black/50">
 						기본 카메라 앱으로 QR코드를 비추면
 						<br />
