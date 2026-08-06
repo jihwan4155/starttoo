@@ -168,6 +168,9 @@ public class UserController {
             summary = "회원 차단",
             description = """
                     차단 행을 멱등하게 생성하고 양방향 팔로우 관계를 같은 트랜잭션에서 제거한다.
+                    두 회원 사이 DM 방은 차단 중 양쪽 목록에서 제외되므로 그 방의 미읽음 NEW_DM
+                    알림도 같은 트랜잭션에서 읽음 처리한다. 방과 메시지는 삭제하지 않으므로 차단을
+                    해제하면 기존 히스토리와 함께 다시 나타난다.
                     반복 요청은 추가 관계 변경 없이 성공한다.
                     """,
             security = @SecurityRequirement(name = "bearerAuth")

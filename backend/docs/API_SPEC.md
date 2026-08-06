@@ -166,7 +166,7 @@ DB 커밋 후 증분 갱신하며, 매일 PostgreSQL과 대조한다.
 
 | Method | Path | 설명 |
 |---|---|---|
-| POST/GET | `/dm/rooms` | 1대1 방 생성/내 활성 방 |
+| POST/GET | `/dm/rooms` | 1대1 방 생성/내 활성 방. 차단 관계 상대의 방은 목록에서 제외 |
 | POST/GET | `/dm/rooms/{roomSeq}/messages` | 메시지 전송/과거 조회 |
 | PATCH | `/dm/rooms/{roomSeq}/read` | 상대 메시지와 해당 방 NEW_DM 알림 일괄 읽음 |
 | DELETE | `/dm/rooms/{roomSeq}` | 현재까지 메시지를 숨기고 방 목록 비활성 |
