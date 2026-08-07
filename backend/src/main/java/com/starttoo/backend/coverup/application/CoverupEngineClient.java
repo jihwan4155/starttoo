@@ -176,6 +176,12 @@ public class CoverupEngineClient {
                 return BusinessException.of(ErrorCode.INTERNAL_SERVER_ERROR);
             }
             // base64/PNG 디코딩 실패·크기 초과. 프론트가 고칠 수 있는 오류라 그대로 전달한다.
+            //
+            // 사용자 입력 탓이라 서버 로그를 남기지 않았었는데, 엔진이 입력과 무관한
+            // 이유로 400을 내는 경우(예: HTTP 파싱 실패로 나오는 "Invalid HTTP request
+            // received.")까지 흔적 없이 묻혔다. 화면에는 늘 같은 문구만 뜨고 서버에는
+            // 아무것도 안 남아 원인을 찾을 수 없다. 사유를 남긴다.
+            log.warn("Coverup engine rejected the search input: {}", detail);
             return new BusinessException(ErrorCode.INVALID_REQUEST, detail);
         }
         if (status == HttpStatus.UNPROCESSABLE_ENTITY.value()) {
