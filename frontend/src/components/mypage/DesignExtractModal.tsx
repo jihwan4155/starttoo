@@ -4,10 +4,10 @@ import ActionButton from "../common/ActionButton";
 import DesignExtractResultModal from "../community/DesignExtractResultModal";
 import { CloseIcon } from "../community/icons";
 import UploadBox from "../coverup/UploadBox";
-import StarttooLoader from "../loader/StarttooLoader";
 import useBackClose from "../../hooks/useBackClose";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../../constants/upload";
 import usePhotoDesignExtractMutation from "../../hooks/mutations/usePhotoDesignExtract";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type DesignExtractModalProps = {
 	onClose: () => void;
@@ -139,14 +139,7 @@ export default function DesignExtractModal({
 						</ActionButton>
 						{file && (
 							<ActionButton onClick={handleExtract} disabled={isPending}>
-								{isPending ? (
-									<>
-										<StarttooLoader variant="mark" size={18} label={null} />
-										추출 중…
-									</>
-								) : (
-									"추출"
-								)}
+								{isPending ? <LoadingLabel>추출 중…</LoadingLabel> : "추출"}
 							</ActionButton>
 						)}
 					</div>

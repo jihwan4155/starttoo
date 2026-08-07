@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type UnfollowConfirmModalProps = {
 	isOpen: boolean;
@@ -65,7 +66,7 @@ export default function UnfollowConfirmModal({
 							onClick={onConfirm}
 							disabled={isPending}
 							className="h-11 flex-1 rounded-full bg-brand text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50">
-							{isPending ? "처리 중…" : "팔로우 취소"}
+							{isPending ? <LoadingLabel>처리 중…</LoadingLabel> : "팔로우 취소"}
 						</button>
 					</div>
 				</div>

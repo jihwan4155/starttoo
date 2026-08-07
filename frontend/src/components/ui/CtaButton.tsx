@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 type CtaButtonProps = {
-	children: string;
+	/** 문구만 넣던 자리인데, 대기 상태에서 로더를 앞에 붙이려고 노드까지 받는다 */
+	children: ReactNode;
 	to?: string;
 	onClick?: () => void;
 	/** to 없이 버튼으로 쓸 때만 적용된다 */

@@ -1,3 +1,5 @@
+import LoadingLabel from "../loader/LoadingLabel";
+
 type ResultSectionProps = {
 	generatedImages: string[];
 	selectedIndices: number[];
@@ -69,9 +71,9 @@ export default function ResultSection({
 			</div>
 
 			<div className="mt-12 flex flex-wrap items-center justify-center gap-4 max-lg:mt-6">
-				<button type="button" disabled={generating || !canGenerateMore} onClick={onGenerateMore} className="inline-flex h-[52px] min-w-[280px] items-center justify-center rounded-[50px] border border-black bg-white px-6 text-[18px] font-semibold text-black transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:border-[#D9D9D9] disabled:text-[#888] max-lg:h-12 max-lg:w-[76%] max-lg:min-w-0 max-lg:text-[16px] max-lg:font-normal">{generating ? "도안 생성 중..." : "+ 도안 추가 생성"}</button>
+				<button type="button" disabled={generating || !canGenerateMore} onClick={onGenerateMore} className="inline-flex h-[52px] min-w-[280px] items-center justify-center rounded-[50px] border border-black bg-white px-6 text-[18px] font-semibold text-black transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:border-[#D9D9D9] disabled:text-[#888] max-lg:h-12 max-lg:w-[76%] max-lg:min-w-0 max-lg:text-[16px] max-lg:font-normal">{generating ? <LoadingLabel>도안 생성 중…</LoadingLabel> : "+ 도안 추가 생성"}</button>
 				<button type="button" onClick={onSave} disabled={saving || selectedIndices.length === 0} className="inline-flex h-[52px] min-w-[180px] items-center justify-center rounded-[50px] bg-brand px-6 text-[18px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#D9D9D9] disabled:text-[#666666] disabled:hover:brightness-100 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold">
-					{saving ? "저장 중…" : "결과 이미지 저장"}
+					{saving ? <LoadingLabel>저장 중…</LoadingLabel> : "결과 이미지 저장"}
 				</button>
 			</div>
 

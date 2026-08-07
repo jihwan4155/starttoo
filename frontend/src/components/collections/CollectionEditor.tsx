@@ -10,6 +10,7 @@ import CtaButton from "../ui/CtaButton";
 import CollectionArchivePanel from "./CollectionArchivePanel";
 import CollectionPreview from "./CollectionPreview";
 import MannequinCanvas from "./MannequinCanvas";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type CollectionEditorProps = {
 	userId: number;
@@ -92,7 +93,7 @@ export default function CollectionEditor({
 								onClick={() => void handleSave()}
 								disabled={isSaving}
 								className={collectionCtaClassName}>
-								{isSaving ? "저장 중…" : "저장하기"}
+								{isSaving ? <LoadingLabel>저장 중…</LoadingLabel> : "저장하기"}
 							</CtaButton>
 						</div>
 					</div>
@@ -108,7 +109,7 @@ export default function CollectionEditor({
 							onClick={() => void handleSave()}
 							disabled={isSaving}
 							className={collectionCtaClassName}>
-							{isSaving ? "저장 중…" : "저장하기"}
+							{isSaving ? <LoadingLabel>저장 중…</LoadingLabel> : "저장하기"}
 						</CtaButton>
 					</div>
 				</>

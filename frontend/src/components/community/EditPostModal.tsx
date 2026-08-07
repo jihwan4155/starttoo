@@ -7,6 +7,7 @@ import usePost from "../../hooks/queries/usePost";
 import { ApiError } from "../../services/api";
 import { getPostImageUrls } from "../../utils/mapPost";
 import type { Post } from "../../types/community";
+import LoadingLabel from "../loader/LoadingLabel";
 
 const MAX_CAPTION_LENGTH = 100;
 
@@ -135,7 +136,7 @@ export default function EditPostModal({
 							onClick={() => void handleSubmit()}
 							disabled={isPending}
 							className="mt-4 h-[44px] rounded-full bg-brand text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-20 max-lg:h-[60px] max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px]">
-							{isPending ? "저장 중…" : "저장"}
+							{isPending ? <LoadingLabel>저장 중…</LoadingLabel> : "저장"}
 						</button>
 					</div>
 				</div>

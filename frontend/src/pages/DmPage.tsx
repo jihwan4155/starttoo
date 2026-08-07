@@ -22,6 +22,7 @@ import { ApiError } from "../services/api";
 import type { DmMessageResponse } from "../types/dm";
 import { profilePath, resolveAvatar } from "../utils/profile";
 import { formatDmTime } from "../components/dm/dmTime";
+import LoadingLabel from "../components/loader/LoadingLabel";
 
 function BackIcon() {
 	return (
@@ -292,7 +293,7 @@ export default function DmPage() {
 									onClick={() => void fetchMoreRooms()}
 									disabled={isFetchingMoreRooms}
 									className="w-full rounded-full border border-black/10 py-2 text-[12px] font-semibold text-black/55 transition hover:bg-black/5 disabled:opacity-50">
-									{isFetchingMoreRooms ? "불러오는 중…" : "더 보기"}
+									{isFetchingMoreRooms ? <LoadingLabel>불러오는 중…</LoadingLabel> : "더 보기"}
 								</button>
 							</li>
 						)}
@@ -340,7 +341,7 @@ export default function DmPage() {
 									onClick={() => void fetchOlderMessages()}
 									disabled={isFetchingOlder}
 									className="rounded-full border border-black/10 px-4 py-1.5 text-[12px] font-semibold text-black/55 transition hover:bg-black/5 disabled:opacity-50">
-									{isFetchingOlder ? "불러오는 중…" : "이전 메시지 보기"}
+									{isFetchingOlder ? <LoadingLabel>불러오는 중…</LoadingLabel> : "이전 메시지 보기"}
 								</button>
 							</div>
 						)}

@@ -21,6 +21,7 @@ import { resolveAvatar } from "../../utils/profile";
 import { urlToFile } from "../../utils/urlToFile";
 import type { ArchiveItem } from "../../types/archive";
 import type { CropState } from "../../utils/image";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type Step = "select" | "crop" | "write";
 
@@ -290,7 +291,7 @@ export default function CreatePostModal({
 						{step === "select" && images.length === 0 && <button type="button" aria-label="닫기" onClick={handleClose} className="text-black/60"><CloseIcon size={18} /></button>}
 						{step === "select" && images.length > 0 && <button type="button" onClick={() => { setImageIndex(0); setStep("crop"); }} className="text-[14px] font-semibold text-brand">다음</button>}
 						{step === "crop" && <button type="button" onClick={handleCropDone} disabled={isCropping} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>}
-						{step === "write" && <button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "피드 올리기"}</button>}
+						{step === "write" && <button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isSubmitting || isCreatePending ? <LoadingLabel>올리는 중…</LoadingLabel> : "피드 올리기"}</button>}
 					</div>
 				</div>
 
@@ -501,7 +502,7 @@ export default function CreatePostModal({
 						<button type="button" onClick={handleCropDone} disabled={isCropping} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>
 					)}
 					{step === "write" && (
-						<button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "피드 올리기"}</button>
+						<button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isSubmitting || isCreatePending ? <LoadingLabel>올리는 중…</LoadingLabel> : "피드 올리기"}</button>
 					)}
 				</div>
 

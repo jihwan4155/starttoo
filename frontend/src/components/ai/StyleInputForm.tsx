@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import useBackClose from "../../hooks/useBackClose";
+import LoadingLabel from "../loader/LoadingLabel";
 import { GENRE_TAGS, MAX_REFERENCE_IMAGES, type GenreTag } from "./constants";
 
 type StyleInputFormProps = {
@@ -203,7 +204,7 @@ export default function StyleInputForm({
 
 			<section className="mb-12 max-lg:mb-0 max-lg:px-4 max-lg:text-center">
 				<div className="mb-4">
-					<h2 className="text-[20px] font-bold leading-6 text-black max-lg:text-[22px] max-lg:leading-7">참고용 도안 이미지</h2>
+					<h2 className="text-[20px] font-bold leading-6 text-black max-lg:text-[22px] max-lg:leading-7">참고용 이미지</h2>
 					<p className="mt-1 text-[16px] font-light leading-[19px] text-[#666] max-lg:mt-2 max-lg:text-[14px] max-lg:text-[#222]">이미지는 {MAX_REFERENCE_IMAGES}개만 등록할 수 있어요</p>
 				</div>
 
@@ -230,7 +231,7 @@ export default function StyleInputForm({
 
 			<div className="flex justify-center max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40">
 				<button type="button" disabled={!canGenerate || generating} onClick={onGenerate} className={`inline-flex h-[52px] min-w-[220px] items-center justify-center rounded-[50px] px-6 text-[20px] font-semibold text-white transition max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold ${canGenerate && !generating ? "bg-brand hover:brightness-95 active:scale-[0.99]" : "cursor-not-allowed bg-[#FFB4B4]"}`}>
-					{generating ? "도안 생성 중..." : "도안 생성하기"}
+					{generating ? <LoadingLabel>도안 생성 중…</LoadingLabel> : "도안 생성하기"}
 				</button>
 			</div>
 		</div>

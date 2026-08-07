@@ -7,6 +7,7 @@ import useBlockUser from "../../hooks/mutations/useBlockUser";
 import useBackClose from "../../hooks/useBackClose";
 import { ApiError } from "../../services/api";
 import { resolveAvatar } from "../../utils/profile";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type BlockedListModalProps = {
 	isOpen: boolean;
@@ -164,7 +165,7 @@ export default function BlockedListModal({
 							onClick={() => fetchNextPage()}
 							disabled={isFetchingNextPage}
 							className="mt-1 w-full rounded-[12px] py-3 text-[13px] font-semibold text-black/50 transition hover:bg-black/[0.04] disabled:opacity-50">
-							{isFetchingNextPage ? "불러오는 중…" : "더 보기"}
+							{isFetchingNextPage ? <LoadingLabel>불러오는 중…</LoadingLabel> : "더 보기"}
 						</button>
 					)}
 				</div>
