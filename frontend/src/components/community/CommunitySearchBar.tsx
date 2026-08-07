@@ -110,7 +110,15 @@ export default function CommunitySearchBar() {
 				<SearchIcon size={16} className="shrink-0 text-black" />
 				<input
 					value={value}
-					onChange={(e) => setValue(e.target.value)}
+					onChange={(e) => {
+						setValue(e.target.value);
+						// 검색해도 포커스는 입력창에 그대로 남아 있어 onFocus가 다시 오지
+						// 않는다. 그래서 검색 직후 이어서 타이핑하면 추천어 창이 닫힌 채였다.
+						// 입력이 있으면 여기서 직접 펼친다.
+						setFocused(true);
+					}}
+					// 이미 포커스된 입력창을 다시 눌러도 onFocus는 오지 않는다
+					onClick={() => setFocused(true)}
 					onFocus={() => {
 						setFocused(true);
 						setCameraOpen(false);
