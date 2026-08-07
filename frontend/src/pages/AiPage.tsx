@@ -67,8 +67,9 @@ export default function AiPage() {
 		referenceObjectUrls.current.forEach((url) => URL.revokeObjectURL(url));
 	}, []);
 
+	// 스타일은 한 개만 고른다. 고른 것을 다시 누르면 해제, 다른 것을 누르면 교체다.
 	const handleToggleGenre = useCallback((id: string) => {
-		setSelectedGenres((prev) => prev.includes(id) ? prev.filter((genreId) => genreId !== id) : prev.length >= 2 ? prev : [...prev, id]);
+		setSelectedGenres((prev) => (prev.includes(id) ? [] : [id]));
 	}, []);
 
 	const handleAddReferenceImages = useCallback((files: FileList) => {

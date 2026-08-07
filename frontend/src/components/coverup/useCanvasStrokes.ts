@@ -25,6 +25,9 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	// 사진은 비동기로 로드되고 로드가 끝나면 다시 그려야 하므로 state로 둔다
 	const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
 
+	// 모드마다 엔진 튜닝 기준 굵기가 다르다 (shapeSearchConstants 참고)
+	const brush = BRUSH_PX[mode];
+
 	/**
 	 * 화면 캔버스를 다시 그린다.
 	 *
@@ -35,13 +38,13 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	const redraw = useCallback(() => {
 		const ctx = canvasRef.current?.getContext("2d");
 		if (!ctx) return;
-		drawPreview(ctx, { strokes, brush: BRUSH_PX, mode, photo });
-	}, [strokes, mode, photo]);
+		drawPreview(ctx, { strokes, brush, mode, photo });
+	}, [strokes, brush, mode, photo]);
 
 	/** 서버로 보낼 마스크. 그릴 획이 없으면 null */
 	const buildMask = useCallback(
-		() => buildMaskDataUrl(strokes, BRUSH_PX),
-		[strokes],
+		() => buildMaskDataUrl(strokes, brush),
+		[strokes, brush],
 	);
 
 	/** 배경 사진 교체. null이면 회색 배경으로 되돌린다 */
@@ -119,7 +122,7 @@ export default function useCanvasStrokes(mode: SearchMode) {
 			mode === "coverup" &&
 			strokes.some(
 				(stroke) =>
-					isDrawableStroke(stroke) && !isClosedStroke(stroke, BRUSH_PX),
+					isDrawableStroke(stroke) && !isClosedStroke(stroke, brush),
 			),
 		canUndo: strokes.length > 0,
 		undo,

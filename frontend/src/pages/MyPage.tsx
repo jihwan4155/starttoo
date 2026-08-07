@@ -38,6 +38,19 @@ import mergeWithDemoArchiveDesigns from "../utils/mergeArchiveDesigns";
 import { mockPosts } from "../mocks/community";
 import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
+function PlusIcon() {
+	return (
+		<svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden>
+			<path
+				d="M13 4.5v17M4.5 13h17"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
 function isMyPageTab(value: string | null): value is MyPageTab {
 	return (
 		value === "feed" ||
@@ -256,14 +269,27 @@ export default function MyPage() {
 				)}
 
 				<div className="mt-8 lg:mt-8">
-					<MyPageTabs
-						active={tab}
-						onChange={setTab}
-						onOpenExtract={() => requireAuth(() => setExtractOpen(true))}
-					/>
+					<MyPageTabs active={tab} onChange={setTab} />
 				</div>
 
 				<div className="mt-4 lg:mt-8">
+					{/*
+					 * 도안 추출은 탭이 아니라 도안을 만들어 보관함에 채우는 동작이다.
+					 * 탭 줄에 두면 탭처럼 보여서, 결과가 쌓이는 이 목록 위에 두었다.
+					 */}
+					{tab === "designs" && (
+						<div className="mb-3 flex justify-end">
+							<button
+								type="button"
+								aria-label="도안 추출"
+								title="도안 추출"
+								onClick={() => requireAuth(() => setExtractOpen(true))}
+								className="flex size-11 items-center justify-center rounded-full text-brand transition hover:bg-brand/10">
+								<PlusIcon />
+							</button>
+						</div>
+					)}
+
 					{tab === "feed" &&
 						(!isLoggedIn ? (
 							<MyPageEmptyState

@@ -142,7 +142,7 @@ export default function MobileSimulationFlow({
 							<h2 className="text-[22px] font-bold">캡처 완료</h2>
 							<p className="mt-6 text-[17px] leading-6">이미지를 기기에 저장하세요</p>
 							<div className="mt-7 flex flex-col items-center gap-4">
-								<a href={captureUrl} download="starttoo-ar-tattoo.png" className="inline-flex h-12 min-w-[150px] items-center justify-center rounded-full bg-brand px-8 text-[17px] font-semibold text-white">저장하기</a>
+								<a href={captureUrl} download="starttoo-ar-tattoo.png" className="inline-flex h-12 min-w-[150px] items-center justify-center rounded-full bg-brand px-8 text-[17px] font-semibold text-white">결과 이미지 저장</a>
 								<div className="flex w-full gap-3">
 									<button type="button" onClick={onClearCapture} className="h-11 flex-1 rounded-full bg-[#E2E2E2] text-[14px] font-semibold text-[#555]">다시 촬영</button>
 									<button type="button" onClick={goHome} className="h-11 flex-1 rounded-full border border-brand bg-white text-[14px] font-semibold text-brand">홈으로 가기</button>
@@ -192,17 +192,17 @@ export default function MobileSimulationFlow({
 	return (
 		<div className="min-h-[calc(100vh-50px)] bg-surface px-4 pb-24 pt-8">
 			<MobileHeader title={title} onHome={handleHome} />
-			<StepTitle onBack={onBack} className="mb-4">{isBodyStep ? "시착해 볼 신체 사진을 선택하세요" : "원하는 이미지 도안을 올려주세요"}</StepTitle>
-			<input ref={upload.inputRef} type="file" accept="image/*" className="hidden" onChange={upload.handleChange} />
-			<button type="button" onClick={upload.openPicker} className="mx-auto flex size-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-[#D6D6D6] bg-white text-[#CFCFCF]">
+			<StepTitle onBack={onBack} className="mb-4">{isBodyStep ? "시착해 볼 신체 사진을 선택하세요" : "도안 보관함에서 도안을 골라주세요"}</StepTitle>
+			{/* 도안 단계는 기기 파일을 받지 않는다 — 보관함 도안만 쓴다 */}
+			{isBodyStep && <input ref={upload.inputRef} type="file" accept="image/*" className="hidden" onChange={upload.handleChange} />}
+			<button type="button" onClick={isBodyStep ? upload.openPicker : onOpenDesigns} className="mx-auto flex size-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-[#D6D6D6] bg-white text-[#CFCFCF]">
 				{upload.preview ? <img src={upload.preview} alt="선택한 이미지" className="size-full object-cover" /> : isBodyStep ? <span className="text-[40px] font-extralight">＋</span> : <ImageIcon />}
 			</button>
-			<p className="mt-4 text-center text-[14px] font-light text-[#B7B7B7]">JPG, JPEG, PNG, WEBP 형식 지원</p>
+			{isBodyStep && <p className="mt-4 text-center text-[14px] font-light text-[#B7B7B7]">JPG, JPEG, PNG, WEBP 형식 지원</p>}
 
 			{!isBodyStep && (
-				<div className="mt-8 flex gap-2">
-					<button type="button" onClick={designUpload.openPicker} className="h-12 flex-1 rounded-full border border-black bg-white text-[16px] font-semibold">갤러리</button>
-					<button type="button" onClick={onOpenDesigns} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white">도안 보관함</button>
+				<div className="mt-8">
+					<button type="button" onClick={onOpenDesigns} className="h-12 w-full rounded-full bg-brand text-[16px] font-semibold text-white">도안 보관함에서 선택</button>
 				</div>
 			)}
 
