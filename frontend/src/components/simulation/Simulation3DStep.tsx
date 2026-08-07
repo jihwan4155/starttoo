@@ -36,9 +36,9 @@ type Simulation3DStepProps = {
 	onSaved?: () => void;
 };
 
-// 고정값: 굴곡 반영 1.1, 잉크 농도 70% (사용자 조절 UI 제거)
+// 굴곡은 고정, 잉크 농도는 슬라이더로 조절 (기본 70%)
 const FIXED_CURVATURE = 1.1;
-const FIXED_OPACITY = 0.7;
+const DEFAULT_OPACITY_PERCENT = 70;
 
 const INITIAL_TRANSFORM: TattooTransform = {
 	x: 0.5,
@@ -108,6 +108,8 @@ export default function Simulation3DStep({
 	const [designError, setDesignError] = useState<string | null>(null);
 	const [transform, setTransform] = useState<TattooTransform>(INITIAL_TRANSFORM);
 	const [clipAnchor, setClipAnchor] = useState(INITIAL_CLIP_ANCHOR);
+	const [opacityPercent, setOpacityPercent] = useState(DEFAULT_OPACITY_PERCENT);
+	const opacity = opacityPercent / 100;
 
 	const depthPreview = useMemo(
 		() => (depth ? createDepthPreview(depth) : null),
@@ -184,7 +186,7 @@ export default function Simulation3DStep({
 			personMask,
 			transform,
 			clipAnchor,
-			settings: { curvature: FIXED_CURVATURE, opacity: FIXED_OPACITY },
+			settings: { curvature: FIXED_CURVATURE, opacity },
 			showDepth: false,
 			showPersonMask: false,
 			showGuides: false,
@@ -197,6 +199,7 @@ export default function Simulation3DStep({
 		personMask,
 		transform,
 		clipAnchor,
+		opacity,
 	]);
 
 	// 휠로 확대·축소, Shift+휠로 회전한다. 페이지 스크롤을 막으려면
@@ -460,7 +463,7 @@ export default function Simulation3DStep({
 			personMask,
 			transform,
 			clipAnchor,
-			settings: { curvature: FIXED_CURVATURE, opacity: FIXED_OPACITY },
+			settings: { curvature: FIXED_CURVATURE, opacity },
 			showDepth: false,
 			showPersonMask: false,
 			showGuides: false,
@@ -536,11 +539,30 @@ export default function Simulation3DStep({
 			</div>
 
 			{ready && (
-				<div className="flex w-full max-w-[620px] shrink-0 justify-center max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-w-none">
+				<div className="flex w-full max-w-[620px] shrink-0 flex-col gap-3 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-w-none max-lg:bg-surface max-lg:px-4 max-lg:pb-0 max-lg:pt-3">
+					<label className="flex items-center gap-3 rounded-[14px] bg-white px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+						<span className="w-10 shrink-0 text-[13px] font-semibold text-black/70">
+							농도
+						</span>
+						<input
+							type="range"
+							min={20}
+							max={100}
+							value={opacityPercent}
+							onChange={(event) =>
+								setOpacityPercent(Number(event.target.value))
+							}
+							aria-label="타투 농도"
+							className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-black/10 accent-brand"
+						/>
+						<span className="w-12 shrink-0 text-right text-[12px] tabular-nums text-black/50">
+							{opacityPercent}%
+						</span>
+					</label>
 					<button
 						type="button"
 						onClick={downloadResult}
-						className="inline-flex h-[36px] min-w-[150px] items-center justify-center rounded-[50px] bg-brand text-[12px] font-semibold text-white transition hover:brightness-95 max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold">
+						className="inline-flex h-[36px] min-w-[150px] items-center justify-center self-center rounded-[50px] bg-brand text-[12px] font-semibold text-white transition hover:brightness-95 max-lg:h-[60px] max-lg:w-full max-lg:self-stretch max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold">
 						결과 이미지 저장
 					</button>
 				</div>

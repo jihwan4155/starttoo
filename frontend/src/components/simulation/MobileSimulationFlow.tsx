@@ -4,6 +4,7 @@ import type { BodyScanResult } from "./useBodyScan";
 import type { useImageUpload } from "./useImageUpload";
 import type { SimulationTab } from "./SimulationTabs";
 import Simulation3DStep from "./Simulation3DStep";
+import DesignEraseEditor from "./DesignEraseEditor";
 import MarkerGuideStep from "./MarkerGuideStep";
 import ArCustomizeScreen from "./ArCustomizeScreen";
 import { CloseIcon, MobileHeader, StepTitle } from "./MobileChrome";
@@ -17,6 +18,9 @@ type MobileSimulationFlowProps = {
 	arStep: number;
 	bodyPhotoUpload: ImageUpload;
 	designUpload: ImageUpload;
+	/** 도안 원본 URL — 있으면 STEP2에서 지우개 편집기를 연다 */
+	designOriginalUrl: string | null;
+	onDesignEdited: (url: string) => void;
 	bodyScan: BodyScanResult;
 	onSelectMode: (mode: SimulationTab) => void;
 	onConfirmMode: () => void;
@@ -44,6 +48,8 @@ export default function MobileSimulationFlow({
 	arStep,
 	bodyPhotoUpload,
 	designUpload,
+	designOriginalUrl,
+	onDesignEdited,
 	bodyScan,
 	onSelectMode,
 	onConfirmMode,
@@ -158,10 +164,10 @@ export default function MobileSimulationFlow({
 	if (imageStep === 3) {
 		return (
 			<>
-				<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-20 pt-8">
+				<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-36 pt-8">
 					<MobileHeader title={title} onHome={handleHome} />
 					<StepTitle onBack={onBack}>타투를 배치하고 완성된 결과를 확인하세요</StepTitle>
-					<div className="h-[calc(100dvh-250px)] min-h-[420px] w-full">
+					<div className="h-[calc(100dvh-320px)] min-h-[360px] w-full">
 						<Simulation3DStep designUrl={designUpload.preview} scan={bodyScan} onSaved={() => setSavedModalOpen(true)} />
 					</div>
 				</div>
@@ -190,21 +196,79 @@ export default function MobileSimulationFlow({
 	return (
 		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-8">
 			<MobileHeader title={title} onHome={handleHome} />
-			<StepTitle onBack={onBack} className="mb-4">{isBodyStep ? "시착해 볼 신체 사진을 선택하세요" : "도안 보관함에서 도안을 골라주세요"}</StepTitle>
+			<StepTitle onBack={onBack} className="mb-4">
+				{isBodyStep
+					? "시착해 볼 신체 사진을 선택하세요"
+					: "도안 보관함에서 도안을 골라주세요"}
+			</StepTitle>
 			{/* 도안 단계는 기기 파일을 받지 않는다 — 보관함 도안만 쓴다 */}
-			{isBodyStep && <input ref={upload.inputRef} type="file" accept="image/*" className="hidden" onChange={upload.handleChange} />}
-			<button type="button" onClick={isBodyStep ? upload.openPicker : onOpenDesigns} className="mx-auto flex size-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-[#D6D6D6] bg-white text-[#CFCFCF]">
-				{upload.preview ? <img src={upload.preview} alt="선택한 이미지" className="size-full object-cover" /> : isBodyStep ? <span className="text-[40px] font-extralight">＋</span> : <ImageIcon />}
-			</button>
-			{isBodyStep && <p className="mt-4 text-center text-[14px] font-light text-[#B7B7B7]">JPG, JPEG, PNG, WEBP 형식 지원</p>}
+			{isBodyStep && (
+				<input
+					ref={upload.inputRef}
+					type="file"
+					accept="image/*"
+					className="hidden"
+					onChange={upload.handleChange}
+				/>
+			)}
+
+			{isBodyStep ? (
+				<button
+					type="button"
+					onClick={upload.openPicker}
+					className="mx-auto flex size-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-[#D6D6D6] bg-white text-[#CFCFCF]">
+					{upload.preview ? (
+						<img
+							src={upload.preview}
+							alt="선택한 이미지"
+							className="size-full object-cover"
+						/>
+					) : (
+						<span className="text-[40px] font-extralight">＋</span>
+					)}
+				</button>
+			) : designOriginalUrl ? (
+				<div className="mx-auto h-[min(52vh,420px)] w-full max-w-[420px]">
+					<DesignEraseEditor
+						key={designOriginalUrl}
+						originalUrl={designOriginalUrl}
+						onChange={onDesignEdited}
+					/>
+				</div>
+			) : (
+				<button
+					type="button"
+					onClick={onOpenDesigns}
+					className="mx-auto flex size-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-[#D6D6D6] bg-white text-[#CFCFCF]">
+					<ImageIcon />
+				</button>
+			)}
+
+			{isBodyStep && (
+				<p className="mt-4 text-center text-[14px] font-light text-[#B7B7B7]">
+					JPG, JPEG, PNG, WEBP 형식 지원
+				</p>
+			)}
 
 			{!isBodyStep && (
-				<div className="mt-8">
-					<button type="button" onClick={onOpenDesigns} className="h-12 w-full rounded-full bg-brand text-[16px] font-semibold text-white">도안 보관함에서 선택</button>
+				<div className="mt-6 space-y-2">
+					<button
+						type="button"
+						onClick={onOpenDesigns}
+						className="h-12 w-full rounded-full bg-brand text-[16px] font-semibold text-white">
+						도안 보관함에서 선택
+					</button>
+					{designOriginalUrl && (
+						<p className="text-center text-[13px] font-light text-black/45">
+							불필요한 부분은 지우개로 지울 수 있어요
+						</p>
+					)}
 				</div>
 			)}
 
-			<BottomButton disabled={!upload.preview} onClick={onNext}>다음</BottomButton>
+			<BottomButton disabled={!upload.preview} onClick={onNext}>
+				다음
+			</BottomButton>
 			{homeConfirmModal}
 		</div>
 	);

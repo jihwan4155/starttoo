@@ -19,6 +19,7 @@ import UploadDropzoneBox from "../components/simulation/UploadDropzoneBox";
 import UploadDropzoneActions from "../components/simulation/UploadDropzoneActions";
 import { useImageUpload } from "../components/simulation/useImageUpload";
 import Simulation3DStep from "../components/simulation/Simulation3DStep";
+import DesignEraseEditor from "../components/simulation/DesignEraseEditor";
 import MyDesignsModal from "../components/simulation/MyDesignsModal";
 import { useBodyScan, type BodyScanResult } from "../components/simulation/useBodyScan";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -92,6 +93,10 @@ export default function SimulationsPage() {
 
 	const designUpload = useImageUpload();
 	const bodyPhotoUpload = useImageUpload();
+	/** 도안 원본 — 지우개 원상복귀 기준. preview는 편집본일 수 있다. */
+	const [designOriginalUrl, setDesignOriginalUrl] = useState<string | null>(
+		null,
+	);
 
 	// 커버업에서 넘어온 경우: 신체 사진·도안을 채우고 3D 단계로 바로 들어간다.
 	// 스캔까지 받았으면 그 사진에 한해 재계산 없이 그대로 쓴다.
@@ -109,6 +114,7 @@ export default function SimulationsPage() {
 		const bodyPreview = URL.createObjectURL(handoff.bodyPhoto);
 		bodyPhotoUpload.setFromUrl(bodyPreview);
 		designUpload.setFromUrl(handoff.designUrl);
+		setDesignOriginalUrl(handoff.designUrl);
 		if (handoff.scan) setHandedScan({ preview: bodyPreview, scan: handoff.scan });
 		setTab("image");
 		setImageStep(3);
@@ -240,6 +246,8 @@ export default function SimulationsPage() {
 					arStep={arStep}
 					bodyPhotoUpload={bodyPhotoUpload}
 					designUpload={designUpload}
+					designOriginalUrl={designOriginalUrl}
+					onDesignEdited={designUpload.setFromUrl}
 					bodyScan={bodyScan}
 					onSelectMode={setMobileMode}
 					onConfirmMode={() => {
@@ -260,6 +268,7 @@ export default function SimulationsPage() {
 						onClose={() => setMyDesignsOpen(false)}
 						onSelect={(design) => {
 							designUpload.setFromUrl(design.previewUrl);
+							setDesignOriginalUrl(design.previewUrl);
 							setMyDesignsOpen(false);
 						}}
 					/>
@@ -357,18 +366,26 @@ export default function SimulationsPage() {
 								onChange={bodyPhotoUpload.handleChange}
 								onDrop={bodyPhotoUpload.handleDrop}
 							/>
-							{/* 도안은 보관함에서만 고른다 — 박스를 눌러도 보관함이 열린다 */}
-							<UploadDropzoneBox
-								visible={tab === "image" && step === 2}
-								inputRef={designUpload.inputRef}
-								preview={designUpload.preview}
-								onPick={() => setMyDesignsOpen(true)}
-								onChange={designUpload.handleChange}
-								onDrop={designUpload.handleDrop}
-								fileDisabled
-								emptyTitle="클릭해 도안 보관함에서 선택"
-								emptySubtitle=""
-							/>
+							{/* 도안은 보관함에서만 고른다. 고른 뒤에는 지우개로 다듬는다. */}
+							{tab === "image" && step === 2 && designOriginalUrl ? (
+								<DesignEraseEditor
+									key={designOriginalUrl}
+									originalUrl={designOriginalUrl}
+									onChange={designUpload.setFromUrl}
+								/>
+							) : (
+								<UploadDropzoneBox
+									visible={tab === "image" && step === 2}
+									inputRef={designUpload.inputRef}
+									preview={designUpload.preview}
+									onPick={() => setMyDesignsOpen(true)}
+									onChange={designUpload.handleChange}
+									onDrop={designUpload.handleDrop}
+									fileDisabled
+									emptyTitle="클릭해 도안 보관함에서 선택"
+									emptySubtitle=""
+								/>
+							)}
 							{/* 3D 시뮬레이션: 백그라운드 스캔 결과로 도안 배치·저장을 한 화면에서 */}
 							{tab === "image" && step === 3 && (
 								<Simulation3DStep
@@ -419,6 +436,11 @@ export default function SimulationsPage() {
 					<UploadDropzoneActions
 						libraryOnly
 						onPickLibrary={() => setMyDesignsOpen(true)}
+						hint={
+							designOriginalUrl
+								? "불필요한 부분은 지우개로 지우고, 원상복귀로 되돌릴 수 있어요"
+								: undefined
+						}
 					/>
 				)}
 			</div>
@@ -429,6 +451,7 @@ export default function SimulationsPage() {
 					onSelect={(design) => {
 						// 도안 보관함에서 고른 도안을 시뮬레이션 도안으로 사용
 						designUpload.setFromUrl(design.previewUrl);
+						setDesignOriginalUrl(design.previewUrl);
 						setMyDesignsOpen(false);
 					}}
 				/>
