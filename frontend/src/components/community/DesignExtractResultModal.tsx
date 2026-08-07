@@ -9,12 +9,14 @@ import type { DesignExtractResult } from "../../types/designExtract";
 type DesignExtractResultModalProps = {
 	result: DesignExtractResult | null;
 	onClose: () => void;
+	saveButtonLabel?: string;
 };
 
 /** 도안 추출 결과 미리보기 모달 */
 export default function DesignExtractResultModal({
 	result,
 	onClose,
+	saveButtonLabel = "도안 보관함에 추가",
 }: DesignExtractResultModalProps) {
 	const navigate = useNavigate();
 	const { requireAuth } = useRequireAuth();
@@ -35,8 +37,7 @@ export default function DesignExtractResultModal({
 
 	if (!result) return null;
 
-	// 서버에 등록된 타투가 아니면(직접 올린 사진에서 뽑은 도안) 도안 보관함에 넣을 수
-	// 없다. 대신 PNG를 내려받게 한다.
+	// 서버에 등록된 결과만 기존 archive API로 저장할 수 있다.
 	const canSaveToArchive = result.tattooSeq != null;
 
 	const handleAddDesign = () => {
@@ -101,7 +102,7 @@ export default function DesignExtractResultModal({
 							onClick={handleAddDesign}
 							disabled={isSaving && isCurrentDesign}
 							className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">
-							{isSaving && isCurrentDesign ? "저장 중..." : "도안 보관함에 추가"}
+							{isSaving && isCurrentDesign ? "저장 중..." : saveButtonLabel}
 						</button>
 					)}
 				</div>

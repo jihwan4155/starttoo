@@ -77,11 +77,32 @@ public class TattooService {
             TattooModelClient.Analysis analysis,
             String designObjectKey
     ) {
+        persistImageAnalysis(
+                userSeq,
+                image,
+                analysis,
+                designObjectKey,
+                TattooSourceType.USER_POST
+        );
+    }
+
+    /**
+     * 원본 이미지 분석 결과와 AI가 MinIO에 올린 투명 PNG를 하나의 타투 도안으로 저장한다.
+     * 게시물 분류와 마이페이지 직접 추출이 같은 멱등 저장 규칙을 공유한다.
+     */
+    @Transactional
+    public PersistedDesign persistImageAnalysis(
+            Integer userSeq,
+            PreparedPostImage image,
+            TattooModelClient.Analysis analysis,
+            String designObjectKey,
+            TattooSourceType sourceType
+    ) {
         Tattoo tattoo = tattooRepository.findByImageSeqAndDeletedFalse(image.imageSeq())
                 .orElseGet(() -> persistPrepared(
                         userSeq,
                         new PreparedTattoo(image.imageSeq(), image.objectKey(), analysis),
-                        TattooSourceType.USER_POST
+                        sourceType
                 ));
         Image designImage = findOrCreateDesignImage(userSeq, designObjectKey);
         TattooDesign design = tattooDesignRepository.findById(tattoo.getTattooSeq())
@@ -96,9 +117,10 @@ public class TattooService {
                     .deleted(false)
                     .indexed(false)
                     .build());
-            return;
+        } else {
+            design.replaceImage(designImage.getImageSeq());
         }
-        design.replaceImage(designImage.getImageSeq());
+        return new PersistedDesign(tattoo.getTattooSeq(), designImage.getImageSeq());
     }
 
     private Image findOrCreateDesignImage(Integer userSeq, String designObjectKey) {
@@ -210,6 +232,9 @@ public class TattooService {
             String objectKey,
             TattooModelClient.Analysis analysis
     ) {
+    }
+
+    public record PersistedDesign(Long tattooSeq, Long designImageSeq) {
     }
 
     /**
