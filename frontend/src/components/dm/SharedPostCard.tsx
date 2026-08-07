@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import ArtistBadge from "../common/ArtistBadge";
 import usePost from "../../hooks/queries/usePost";
-import { resolveAvatar } from "../../utils/profile";
+import { avatarImageClassName, resolveAvatar } from "../../utils/profile";
 import { getPostImageUrls } from "../../utils/mapPost";
 
 type SharedPostCardProps = {
@@ -53,6 +53,10 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 	}
 
 	const thumbnail = getPostImageUrls(post)[0] ?? post.imageUrl;
+	const authorAvatar = resolveAvatar(
+		post.author.avatarUrl,
+		post.author.nickname,
+	);
 
 	return (
 		<button
@@ -79,9 +83,9 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 					post.caption ? "" : "pb-2.5"
 				}`}>
 				<img
-					src={resolveAvatar(post.author.avatarUrl, post.author.nickname)}
+					src={authorAvatar}
 					alt=""
-					className="size-5 shrink-0 rounded-full bg-black/10 object-cover"
+					className={`size-5 shrink-0 rounded-full ${avatarImageClassName(authorAvatar)}`}
 				/>
 				<span className="min-w-0 truncate text-[12px] font-semibold text-black">
 					{post.author.nickname}

@@ -1,5 +1,5 @@
 import type { NotificationItem } from "../../types/notification";
-import { resolveAvatar } from "../../utils/profile";
+import { avatarImageClassName, resolveAvatar } from "../../utils/profile";
 import {
 	formatNotifTime,
 	getNotificationTypeLabel,
@@ -36,6 +36,7 @@ export default function NotificationListItem({
 }: NotificationListItemProps) {
 	const isDm = item.notificationType === "NEW_DM";
 	const typeLabel = getNotificationTypeLabel(item.notificationType);
+	const dmAvatar = resolveAvatar(undefined, item.title);
 
 	return (
 		<li>
@@ -47,9 +48,9 @@ export default function NotificationListItem({
 				}`}>
 				{isDm ? (
 					<img
-						src={resolveAvatar(undefined, item.title)}
+						src={dmAvatar}
 						alt=""
-						className="mt-0.5 size-10 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+						className={`mt-0.5 size-10 shrink-0 rounded-full ${avatarImageClassName(dmAvatar)}`}
 					/>
 				) : (
 					<span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-black/[0.06]">
