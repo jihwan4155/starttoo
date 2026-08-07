@@ -141,12 +141,10 @@ export default function MobileSimulationFlow({
 							<button type="button" aria-label="닫기" onClick={onClearCapture} className="absolute right-4 top-4 text-[#40505D]"><CloseIcon /></button>
 							<h2 className="text-[22px] font-bold">캡처 완료</h2>
 							<p className="mt-6 text-[17px] leading-6">이미지를 기기에 저장하세요</p>
-							<div className="mt-7 flex flex-col items-center gap-4">
-								<a href={captureUrl} download="starttoo-ar-tattoo.png" className="inline-flex h-12 min-w-[150px] items-center justify-center rounded-full bg-brand px-8 text-[17px] font-semibold text-white">결과 이미지 저장</a>
-								<div className="flex w-full gap-3">
-									<button type="button" onClick={onClearCapture} className="h-11 flex-1 rounded-full bg-[#E2E2E2] text-[14px] font-semibold text-[#555]">다시 촬영</button>
-									<button type="button" onClick={goHome} className="h-11 flex-1 rounded-full border border-brand bg-white text-[14px] font-semibold text-brand">홈으로 가기</button>
-								</div>
+							{/* 다시 촬영은 우측 상단 닫기와 같은 동작이라 뺐다 — 남길 선택은 둘뿐이다 */}
+							<div className="mt-7 flex w-full gap-3">
+								<button type="button" onClick={goHome} className="h-12 flex-1 rounded-full bg-[#E2E2E2] text-[15px] font-semibold text-[#555]">홈으로 가기</button>
+								<a href={captureUrl} download="starttoo-ar-tattoo.png" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-brand text-[15px] font-semibold text-white">결과 이미지 저장</a>
 							</div>
 						</div>
 					</div>
