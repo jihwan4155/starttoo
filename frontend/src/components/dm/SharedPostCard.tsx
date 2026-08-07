@@ -16,6 +16,7 @@ type SharedPostCardProps = {
  * DM 메시지에 피드를 첨부하는 타입이 없어 본문에 주소를 실어 보낸다.
  * 받는 쪽에서 그 주소를 알아보고 GET /posts/{id}로 내용을 채워 카드로 그린다.
  * 카드를 누르면 피드 상세(/posts/:postId)로 간다.
+ * 닫을 때 DM으로 돌아오도록 state.from 을 넘긴다.
  *
  * 삭제된 피드가면 조회가 실패한다. 말풍선 자체는 남겨야 대화가 끊기지 않으므로
  * 카드 자리에 안내만 남기고 이동은 막는다.
@@ -56,7 +57,9 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 	return (
 		<button
 			type="button"
-			onClick={() => navigate(`/posts/${post.id}`)}
+			onClick={() =>
+				navigate(`/posts/${post.id}`, { state: { from: "/dm" } })
+			}
 			aria-label={`${post.author.nickname}의 피드 보기`}
 			className={`${frameClass} hover:brightness-95`}>
 			{thumbnail ? (
