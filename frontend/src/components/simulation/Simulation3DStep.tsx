@@ -541,7 +541,7 @@ export default function Simulation3DStep({
 				<div className="flex w-full max-w-[620px] shrink-0 flex-col gap-2.5 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-w-none max-lg:bg-white/95 max-lg:px-4 max-lg:pt-3 max-lg:pb-[max(12px,env(safe-area-inset-bottom))] max-lg:backdrop-blur-sm">
 					<div className="flex items-center justify-center gap-3 px-1">
 						<span className="whitespace-nowrap text-[11px] font-light text-black/50">
-							농도
+							타투농도
 						</span>
 						<input
 							type="range"
