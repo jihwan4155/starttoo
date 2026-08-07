@@ -50,7 +50,7 @@ export default function CommunitySection() {
 			</div>
 
 			<Link
-				to="/posts"
+				to="/posts/search"
 				className="mt-8 text-[16px] font-light text-black/60 transition hover:text-black">
 				→ 피드 보러가기
 			</Link>
