@@ -39,37 +39,41 @@ export async function updateArtistMe(
 	return mapArtistProfile(data);
 }
 
-/** 나를 찾을 때까지 훑을 최대 페이지 수 — 목록이 커져도 요청이 무한정 늘지 않게 한다 */
-const MY_PROFILE_LOOKUP_MAX_PAGES = 20;
-const MY_PROFILE_LOOKUP_PAGE_SIZE = 50;
+/** 목록에서 찾을 때까지 훑을 최대 페이지 수 — 요청이 무한정 늘지 않게 한다 */
+const ARTIST_PROFILE_LOOKUP_MAX_PAGES = 20;
+const ARTIST_PROFILE_LOOKUP_PAGE_SIZE = 50;
 
 /**
- * 내 숍 프로필 조회 — GET /artists 목록에서 나를 찾는다.
+ * 유저별 숍 프로필 조회 — GET /artists 목록에서 userSeq로 찾는다.
  *
- * 내 숍 정보를 그대로 돌려주는 전용 조회 API가 없다. PATCH /artists/me/profile
- * 응답에는 전 필드가 들어 있지만, 그 PATCH가 전체 덮어쓰기라서 조회에 쓸 수 없다
- * (빈 본문으로 부르면 숍 정보가 전부 지워진다). 그래서 공개 목록에서 찾는다.
- *
- * 이 목록은 verificationStatus=VERIFIED만 담으므로 인증 전에는 나를 찾지 못하고
- * null이 돌아온다. 그때 화면은 GET /users/me가 주는 매장명·인증 상태만 보여준다.
- * 전용 GET(예: GET /artists/me/profile)이 생기면 이 함수만 갈아끼우면 된다.
+ * 전용 단건 조회 API가 없어 공개 목록을 훑는다. 목록은 VERIFIED만 담으므로
+ * 인증 전에는 null이 돌아온다.
  */
-export async function fetchMyArtistProfile(
+export async function fetchArtistProfileByUserId(
 	userId: number,
 ): Promise<ArtistProfileResponse | null> {
 	let cursor: string | undefined;
 
-	for (let page = 0; page < MY_PROFILE_LOOKUP_MAX_PAGES; page += 1) {
+	for (let page = 0; page < ARTIST_PROFILE_LOOKUP_MAX_PAGES; page += 1) {
 		const { data } = await api.get<CursorPage<BeArtistProfile>>("/artists", {
-			params: { size: MY_PROFILE_LOOKUP_PAGE_SIZE, cursor },
+			params: { size: ARTIST_PROFILE_LOOKUP_PAGE_SIZE, cursor },
 		});
-		const mine = (data.items ?? []).find((item) => item.userSeq === userId);
-		if (mine) return mapArtistProfile(mine);
+		const found = (data.items ?? []).find((item) => item.userSeq === userId);
+		if (found) return mapArtistProfile(found);
 		if (!data.hasNext || !data.nextCursor) return null;
 		cursor = data.nextCursor;
 	}
 
 	return null;
+}
+
+/**
+ * 내 숍 프로필 조회 — fetchArtistProfileByUserId에 위임한다.
+ */
+export async function fetchMyArtistProfile(
+	userId: number,
+): Promise<ArtistProfileResponse | null> {
+	return fetchArtistProfileByUserId(userId);
 }
 
 /**

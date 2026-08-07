@@ -149,7 +149,7 @@ export default function SimulationsPage() {
 	};
 	const handleBack = () => setStep((current) => Math.max(1, current - 1));
 
-	// QR로 들어온 폰은 비로그인이라 보관함을 스스로 못 읽는다. PC가 대신 읽어
+	// QR로 들어온 폰은 비로그인이라 도안 보관함을 스스로 못 읽는다. PC가 대신 읽어
 	// 세션에 실어 보내야 폰 화면에 내 도안이 뜬다.
 	const { data: archiveData, isLoading: isArchiveLoading } = useArchive({
 		size: 20,
@@ -165,7 +165,7 @@ export default function SimulationsPage() {
 	// PC AR 세션 — QR 단계(2)에서 발급하고 결과 단계(3)까지 유지한다.
 	// 모바일은 QR 없이 폰에서 바로 촬영하므로 세션이 필요 없다.
 	//
-	// 보관함이 도착하기 전에 만들면 도안 없는 세션이 발급되고, 뒤늦게 도착한
+	// 도안 보관함이 도착하기 전에 만들면 도안 없는 세션이 발급되고, 뒤늦게 도착한
 	// 목록으로 세션을 다시 끊고 만들면서 QR이 갈린다. 다 읽고 나서 발급한다.
 	const arSession = useArSession({
 		enabled: !isMobile && tab === "ar" && arStep >= 2 && !isArchiveLoading,
@@ -357,13 +357,17 @@ export default function SimulationsPage() {
 								onChange={bodyPhotoUpload.handleChange}
 								onDrop={bodyPhotoUpload.handleDrop}
 							/>
+							{/* 도안은 보관함에서만 고른다 — 박스를 눌러도 보관함이 열린다 */}
 							<UploadDropzoneBox
 								visible={tab === "image" && step === 2}
 								inputRef={designUpload.inputRef}
 								preview={designUpload.preview}
-								onPick={designUpload.openPicker}
+								onPick={() => setMyDesignsOpen(true)}
 								onChange={designUpload.handleChange}
 								onDrop={designUpload.handleDrop}
+								fileDisabled
+								emptyTitle="클릭해 도안 보관함에서 선택"
+								emptySubtitle=""
 							/>
 							{/* 3D 시뮬레이션: 백그라운드 스캔 결과로 도안 배치·저장을 한 화면에서 */}
 							{tab === "image" && step === 3 && (
@@ -413,8 +417,7 @@ export default function SimulationsPage() {
 				)}
 				{tab === "image" && step === 2 && (
 					<UploadDropzoneActions
-						showLibraryButton
-						onPick={designUpload.openPicker}
+						libraryOnly
 						onPickLibrary={() => setMyDesignsOpen(true)}
 					/>
 				)}
@@ -424,7 +427,7 @@ export default function SimulationsPage() {
 				<MyDesignsModal
 					onClose={() => setMyDesignsOpen(false)}
 					onSelect={(design) => {
-						// 보관함에서 고른 도안을 시뮬레이션 도안으로 사용
+						// 도안 보관함에서 고른 도안을 시뮬레이션 도안으로 사용
 						designUpload.setFromUrl(design.previewUrl);
 						setMyDesignsOpen(false);
 					}}
@@ -452,7 +455,7 @@ export default function SimulationsPage() {
 							href={captureUrl}
 							download="starttoo-tattoo.png"
 							className="rounded-full bg-brand px-8 py-3 text-[16px] font-semibold text-white transition hover:brightness-95">
-							기기에 저장
+							결과 이미지 저장
 						</a>
 						<button
 							type="button"

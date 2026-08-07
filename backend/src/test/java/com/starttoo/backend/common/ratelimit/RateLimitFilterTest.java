@@ -7,16 +7,21 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -140,6 +145,152 @@ class RateLimitFilterTest {
                 .contains("rate-limit:ip:127.0.0.1:ar-session");
     }
 
+    @Test
+    void dmMutationsUseTheirOwnBucketInsteadOfTheSharedMutationLimit() throws Exception {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ApiErrorWriter errorWriter = mock(ApiErrorWriter.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(redisTemplate.execute(
+                any(RedisScript.class),
+                anyList(),
+                any()
+        )).thenReturn(1L);
+        RateLimitFilter filter = new RateLimitFilter(
+                redisTemplate,
+                properties(),
+                errorWriter
+        );
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("POST", "/v1/dm/rooms/1/messages");
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, chain);
+
+        // 게시·좋아요와 같은 mutation 한도(20)가 아니라 채팅 자체 한도(40)를 쓴다.
+        assertThat(response.getHeader("X-RateLimit-Limit")).isEqualTo("40");
+        @SuppressWarnings("rawtypes")
+        org.mockito.ArgumentCaptor<List> keys =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                keys.capture(),
+                any()
+        );
+        assertThat(keys.getValue().toString())
+                .contains(":dm")
+                .doesNotContain("mutation");
+    }
+
+    @Test
+    void dmReadsStayOnTheSharedReadBucket() throws Exception {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ApiErrorWriter errorWriter = mock(ApiErrorWriter.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(redisTemplate.execute(
+                any(RedisScript.class),
+                anyList(),
+                any()
+        )).thenReturn(1L);
+        RateLimitFilter filter = new RateLimitFilter(
+                redisTemplate,
+                properties(),
+                errorWriter
+        );
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("GET", "/v1/dm/rooms/1/messages");
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getHeader("X-RateLimit-Limit")).isEqualTo("60");
+        @SuppressWarnings("rawtypes")
+        org.mockito.ArgumentCaptor<List> keys =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                keys.capture(),
+                any()
+        );
+        assertThat(keys.getValue().toString()).contains(":read");
+    }
+
+    @Test
+    void exemptAccountSkipsCountingEntirely() throws Exception {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ApiErrorWriter errorWriter = mock(ApiErrorWriter.class);
+        FilterChain chain = mock(FilterChain.class);
+        RateLimitFilter filter = new RateLimitFilter(
+                redisTemplate,
+                properties(),
+                errorWriter
+        );
+        authenticateAs("8");
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("POST", "/v1/posts");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        try {
+            filter.doFilter(request, response, chain);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+
+        // 카운트 자체를 건너뛰므로 Redis 호출도, 잔여 한도 헤더도 없다.
+        verify(redisTemplate, never()).execute(any(RedisScript.class), anyList(), any());
+        verify(chain).doFilter(request, response);
+        assertThat(response.getHeader("X-RateLimit-Limit")).isNull();
+    }
+
+    @Test
+    void nonExemptAccountStillCounts() throws Exception {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ApiErrorWriter errorWriter = mock(ApiErrorWriter.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(redisTemplate.execute(
+                any(RedisScript.class),
+                anyList(),
+                any()
+        )).thenReturn(1L);
+        RateLimitFilter filter = new RateLimitFilter(
+                redisTemplate,
+                properties(),
+                errorWriter
+        );
+        authenticateAs("9");
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("POST", "/v1/posts");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        try {
+            filter.doFilter(request, response, chain);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+
+        assertThat(response.getHeader("X-RateLimit-Limit")).isEqualTo("20");
+        @SuppressWarnings("rawtypes")
+        org.mockito.ArgumentCaptor<List> keys =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                keys.capture(),
+                any()
+        );
+        assertThat(keys.getValue().toString()).contains("rate-limit:user:9:mutation");
+    }
+
+    private void authenticateAs(String userSeq) {
+        Jwt jwt = Jwt.withTokenValue("token")
+                .header("alg", "none")
+                .subject(userSeq)
+                .build();
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+        SecurityContextHolder.setContext(context);
+    }
+
     private RateLimitProperties properties() {
         return new RateLimitProperties(
                 60,
@@ -151,7 +302,10 @@ class RateLimitFilterTest {
                 30,
                 Duration.ofMinutes(1),
                 15,
-                Duration.ofMinutes(1)
+                Duration.ofMinutes(1),
+                40,
+                Duration.ofMinutes(1),
+                Set.of(8L)
         );
     }
 }

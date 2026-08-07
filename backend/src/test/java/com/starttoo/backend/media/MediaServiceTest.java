@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -85,6 +86,50 @@ class MediaServiceTest {
         assertThat(response.uploadUrl()).isEqualTo("https://minio.example/upload");
         assertThat(response.requiredHeaders()).containsEntry("Content-Type", "image/jpeg");
         verify(imageRegistrationService, never()).register(any(), any());
+    }
+
+    @Test
+    void presignBuildsDedicatedAiReferencePath() throws Exception {
+        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+                .thenReturn("https://minio.example/upload");
+
+        MediaDtos.PresignUploadResponse response = mediaService.presign(
+                7,
+                new MediaDtos.PresignUploadRequest(
+                        MediaDtos.UploadPurpose.AI_REFERENCE,
+                        "image/png",
+                        "reference.png",
+                        1024L
+                )
+        );
+
+        assertThat(response.objectKey())
+                .matches("users/7/ai-reference/[0-9a-f-]{36}\\.png");
+    }
+
+    @Test
+    void aiReferenceDownloadRequiresOwnerAndDedicatedPurpose() throws Exception {
+        OffsetDateTime now = OffsetDateTime.now();
+        Image image = Image.builder()
+                .imageSeq(91L)
+                .objectKey("users/7/ai-reference/123e4567-e89b-12d3-a456-426614174000.png")
+                .regDttm(now)
+                .regUsrSeq(7)
+                .modDttm(now)
+                .modUsrSeq(7)
+                .deleted(false)
+                .build();
+        when(imageRepository.findByImageSeqAndDeletedFalse(91L))
+                .thenReturn(Optional.of(image));
+        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+                .thenReturn("https://minio.example/reference");
+
+        assertThat(mediaService.aiReferenceDownloadUrl(7, 91L))
+                .isEqualTo("https://minio.example/reference");
+        assertError(
+                () -> mediaService.aiReferenceDownloadUrl(8, 91L),
+                ErrorCode.FORBIDDEN
+        );
     }
 
     @Test

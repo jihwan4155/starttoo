@@ -30,9 +30,9 @@ type UseArSessionOptions = {
 	/** false면 세션을 만들지 않는다 (AR 2단계에 들어왔을 때만 켠다) */
 	enabled?: boolean;
 	/**
-	 * 폰 보관함에 띄울 도안(tattooSeq) — PC가 자기 보관함을 실어 보낸다.
+	 * 폰 화면에 띄울 도안(tattooSeq) — PC가 자기 도안 보관함을 실어 보낸다.
 	 *
-	 * QR로 들어온 폰은 비로그인이라 보관함을 스스로 못 읽는다. 여기서 넘긴 도안만
+	 * QR로 들어온 폰은 비로그인이라 도안 보관함을 스스로 못 읽는다. 여기서 넘긴 도안만
 	 * /connect 응답에 presigned URL로 담겨 폰 화면에 나온다. 상한을 넘으면
 	 * 앞에서부터 자른다 — 호출부가 최신순으로 넘기는 것을 전제한다.
 	 */
@@ -80,7 +80,7 @@ export default function useArSession({
 	}, []);
 
 	// 도안 목록은 세션을 만드는 그 순간에만 필요하다. effect 의존성에 넣으면
-	// 보관함이 갱신될 때마다 세션을 닫고 다시 발급해 QR이 갈리고, 그 사이 폰이
+	// 도안 보관함이 갱신될 때마다 세션을 닫고 다시 발급해 QR이 갈리고, 그 사이 폰이
 	// 스캔한 QR은 이미 닫힌 세션을 가리킨다. ref로 읽어 재발급을 막는다.
 	// 목록이 준비됐는지는 호출부가 enabled로 알려 준다.
 	const designSeqsRef = useRef(designSeqs);

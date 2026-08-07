@@ -12,7 +12,7 @@
 /** 세션 상태 — 폰 접속 전/후, 만료·종료 */
 export type ArSessionStatus = "CREATED" | "CONNECTED" | "CLOSED" | "EXPIRED";
 
-/** 폰 보관함에 띄울 도안 (PC가 세션 생성 시 고른 것) */
+/** 폰 화면에 띄울 도안 (PC가 세션 생성 시 고른 것) */
 export type ArSessionDesign = {
 	designSeq: number;
 	/** 단기 presigned GET URL */

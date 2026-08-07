@@ -40,7 +40,7 @@ export default function CommunitySection() {
 								className="block shrink-0 transition hover:opacity-90">
 								<img
 									src={post.imageUrl ?? undefined}
-									alt={`${post.author.nickname}의 게시글`}
+									alt={`${post.author.nickname}의 피드`}
 									className="aspect-square h-auto w-full rounded-[10px] bg-[#D9D9D9] object-cover lg:h-[200px] lg:w-[200px]"
 								/>
 							</Link>

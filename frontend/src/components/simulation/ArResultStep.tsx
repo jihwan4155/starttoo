@@ -134,7 +134,7 @@ export default function ArResultStep({
 					onClick={handleSave}
 					disabled={saving}
 					className="h-[52px] w-full rounded-[50px] bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#D9D9D9] disabled:text-[#666]">
-					{saving ? "저장 중…" : "내 컴퓨터에 저장"}
+					{saving ? "저장 중…" : "결과 이미지 저장"}
 				</button>
 				<button
 					type="button"

@@ -93,5 +93,4 @@ export const GENRE_TAGS: GenreTag[] = [
 	},
 ];
 
-export const MAX_GENRE_SELECTION = 2;
 export const MAX_REFERENCE_IMAGES = 1;

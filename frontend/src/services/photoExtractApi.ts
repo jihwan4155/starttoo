@@ -3,7 +3,7 @@ import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 /**
  * 업로드한 사진에서 도안을 뽑는 AI 서버 호출.
  *
- * 게시글의 "도안 추출"(designExtractApi)은 글을 올릴 때 분류 과정에서 이미
+ * 피드의 "도안 추출"(designExtractApi)은 글을 올릴 때 분류 과정에서 이미
  * 만들어 둔 도안 이미지를 조회할 뿐이라 tattooSeq가 필요하다. 방금 올린 사진은
  * 백엔드에 그런 엔드포인트가 없어서, nginx가 /ai-service/로 열어 둔 추출 서버에
  * 사진을 그대로 보내고 PNG를 받는다.

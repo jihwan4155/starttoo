@@ -19,7 +19,7 @@ import { mockPosts } from "../mocks/community";
 import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
 /**
- * 커뮤니티 — 팔로우한 사용자의 게시물 + 내 게시물
+ * 커뮤니티 — 팔로우한 사용자의 피드 + 내 피드
  * (GET /posts/following + GET /posts/me). 팔로잉 피드에는 내 글이 들어오지 않아
  * 두 목록을 합쳐 최신순으로 보여준다.
  */
@@ -114,7 +114,7 @@ export default function CommunityPage() {
 			{/*
 			 * lg 이상에서 피드(왼쪽) + 회원 검색(오른쪽) 2열. 모바일은 피드만.
 			 * justify-between으로 검색을 오른쪽 끝에 붙인다. 카드 폭을 380으로 줄여
-			 * 한 화면에 게시물 하나와 다음 게시물의 작성자 줄까지 들어오게 한다.
+			 * 한 화면에 피드 하나와 다음 피드의 작성자 줄까지 들어오게 한다.
 			 *
 			 * 레이아웃이 이미 사이드 내비 폭만큼 패딩을 주므로 mx-auto만으로 내비를
 			 * 제외한 영역 가운데에 놓인다. translate로 따로 밀지 않는다.
@@ -148,9 +148,9 @@ export default function CommunityPage() {
 
 				{!isPending && !isError && feedPosts.length === 0 && (
 					<p className="py-20 text-center text-[14px] leading-6 text-black/40">
-						보여줄 게시물이 없습니다.
+						보여줄 피드가 없습니다.
 						<br />
-						관심 있는 작가를 팔로우하거나 첫 게시물을 올려보세요.
+						관심 있는 작가를 팔로우하거나 첫 피드를 올려보세요.
 					</p>
 				)}
 
@@ -166,7 +166,7 @@ export default function CommunityPage() {
 							</div>
 						)}
 						{!hasNextPage && !isFetchingNextPage && (
-							<p className="text-[13px] text-black/30">마지막 게시물입니다</p>
+							<p className="text-[13px] text-black/30">마지막 피드입니다</p>
 						)}
 					</div>
 				)}
@@ -183,7 +183,7 @@ export default function CommunityPage() {
 
 			<button
 				type="button"
-				aria-label="게시물 작성"
+				aria-label="피드 작성"
 				onClick={() => requireAuth(() => setWriteOpen(true))}
 				className="fixed bottom-8 right-8 z-40 flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_6px_20px_rgba(255,70,70,0.4)] transition hover:brightness-95 active:scale-95 max-lg:hidden">
 				<PlusIcon />

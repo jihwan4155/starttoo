@@ -59,7 +59,7 @@ export function mapCommentResponse(
 	};
 }
 
-/** 게시글에 표시할 이미지 URL 목록 (displayOrder 순) */
+/** 피드에 표시할 이미지 URL 목록 (displayOrder 순) */
 export function getPostImageUrls(post: Post): string[] {
 	if (post.imageUrls && post.imageUrls.length > 0) return post.imageUrls;
 	return post.imageUrl ? [post.imageUrl] : [];
@@ -69,7 +69,7 @@ export function getPostImageUrls(post: Post): string[] {
  * 해당 순서의 사진이 타투로 판별됐는지.
  *
  * 서버는 타투로 판별된 사진에만 tattooSeq를 채워 준다. 아직 판별이 끝나지 않은
- * 사진도 null이므로, 방금 올린 게시글은 판별이 끝난 뒤 목록을 다시 받아야 true가 된다.
+ * 사진도 null이므로, 방금 올린 피드는 판별이 끝난 뒤 목록을 다시 받아야 true가 된다.
  */
 export function isTattooImage(post: Post, index: number): boolean {
 	return post.imageTattooSeqs?.[index] != null;

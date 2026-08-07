@@ -6,7 +6,7 @@ import { isSearchableQuery } from "../../types/search";
 export const postSearchQueryKey = ["search", "posts"] as const;
 
 /**
- * GET /search/posts — subject 기반 게시물 검색 (커서 무한 스크롤)
+ * GET /search/posts — subject 기반 피드 검색 (커서 무한 스크롤)
  *
  * 커서는 postSeq(숫자) 내림차순인데 응답 nextCursor는 문자열로 내려와 숫자로
  * 되돌려 보낸다. matchedSubject는 오타가 보정된 실제 subject라 화면에서

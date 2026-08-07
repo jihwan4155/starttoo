@@ -1,7 +1,7 @@
 /** 도안 결과 모달에서 사용하는 이미지 URL */
 export type DesignExtractResult = {
 	/**
-	 * 보관함 저장 API에 사용하는 타투 seq.
+	 * 도안 보관함 저장 API에 사용하는 타투 seq.
 	 * 사진을 직접 올려 추출한 결과에는 없다 (서버에 등록된 타투가 아니다).
 	 */
 	tattooSeq?: number;
@@ -13,7 +13,7 @@ export type DesignExtractResult = {
 	downloadUrl: string;
 };
 
-/** 내 도안 보관함에 저장된 도안 */
+/** 도안 보관함에 저장된 도안 */
 export type SavedDesign = {
 	id: number;
 	createdAt: string;
@@ -21,6 +21,6 @@ export type SavedDesign = {
 	downloadUrl: string;
 	/** POST /collections 요청에 사용하는 imageSeq */
 	imageSeq?: number;
-	/** 백엔드 보관함이 아닌 로컬 샘플 도안 */
+	/** 백엔드 도안 보관함이 아닌 로컬 샘플 도안 */
 	isDemo?: boolean;
 };

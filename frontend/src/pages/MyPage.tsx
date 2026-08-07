@@ -8,6 +8,7 @@ import CollectionEditor from "../components/collections/CollectionEditor";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import ArtistBadgeRequestModal from "../components/mypage/ArtistBadgeRequestModal";
 import BlockedListModal from "../components/mypage/BlockedListModal";
+import DesignExtractModal from "../components/mypage/DesignExtractModal";
 import DesignThumbnailGrid from "../components/mypage/DesignThumbnailGrid";
 import FollowListModal from "../components/mypage/FollowListModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
@@ -37,6 +38,19 @@ import mergeWithDemoArchiveDesigns from "../utils/mergeArchiveDesigns";
 import { mockPosts } from "../mocks/community";
 import { QA_MOCK_DATA_ENABLED } from "../config/qa";
 
+function PlusIcon() {
+	return (
+		<svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden>
+			<path
+				d="M13 4.5v17M4.5 13h17"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
 function isMyPageTab(value: string | null): value is MyPageTab {
 	return (
 		value === "feed" ||
@@ -56,7 +70,7 @@ export default function MyPage() {
 	const [isWriteOpen, setWriteOpen] = useState(false);
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	// 모바일에서 썸네일을 눌렀을 때 먼저 뜨는 카드 화면 (댓글은 그 다음 단계).
-	// 게시글 객체가 아니라 ID로 들고 있어서, 삭제되어 목록에서 빠지면 저절로 닫힌다.
+	// 피드 객체가 아니라 ID로 들고 있어서, 삭제되어 목록에서 빠지면 저절로 닫힌다.
 	const [cardPostId, setCardPostId] = useState<number | null>(null);
 	const [activeDesign, setActiveDesign] = useState<SavedDesign | null>(null);
 	// null이면 닫힘 — 어느 탭으로 열지까지 이 값이 들고 있다.
@@ -65,12 +79,16 @@ export default function MyPage() {
 	);
 	const [isBadgeRequestOpen, setBadgeRequestOpen] = useState(false);
 	const [isBlockedListOpen, setBlockedListOpen] = useState(false);
+	const [isExtractOpen, setExtractOpen] = useState(false);
 
 	useEffect(() => {
 		if (isMyPageTab(tabParam)) {
 			setTab(tabParam);
 			setActivePost(null);
 			setCardPostId(null);
+			// 추출 결과의 "도안 보관함 바로가기"가 이 주소로 보낸다. 이미 이 화면이라
+			// 화면은 그대로인데 창만 덮여 있게 되므로 여기서 걷어낸다.
+			setExtractOpen(false);
 		}
 	}, [tabParam]);
 
@@ -172,7 +190,7 @@ export default function MyPage() {
 	const archiveErrorMessage =
 		archiveError instanceof ApiError
 			? archiveError.message
-			: "보관함을 불러오지 못했습니다.";
+			: "도안 보관함을 불러오지 못했습니다.";
 
 	const handleRemoveDesign = (tattooId: number) => {
 		if (!requireAuth() || isDemoArchiveDesign(tattooId)) return;
@@ -181,7 +199,7 @@ export default function MyPage() {
 				window.alert(
 					err instanceof ApiError
 						? err.message
-						: "보관함에서 삭제하지 못했습니다.",
+						: "도안 보관함에서 삭제하지 못했습니다.",
 				);
 			},
 		});
@@ -255,19 +273,36 @@ export default function MyPage() {
 				</div>
 
 				<div className="mt-4 lg:mt-8">
+					{/*
+					 * 도안 추출은 탭이 아니라 도안을 만들어 보관함에 채우는 동작이다.
+					 * 탭 줄에 두면 탭처럼 보여서, 결과가 쌓이는 이 목록 위에 두었다.
+					 */}
+					{tab === "designs" && (
+						<div className="mb-3 flex justify-end">
+							<button
+								type="button"
+								aria-label="도안 추출"
+								title="도안 추출"
+								onClick={() => requireAuth(() => setExtractOpen(true))}
+								className="flex size-11 items-center justify-center rounded-full text-brand transition hover:bg-brand/10">
+								<PlusIcon />
+							</button>
+						</div>
+					)}
+
 					{tab === "feed" &&
 						(!isLoggedIn ? (
 							<MyPageEmptyState
-								message="로그인 후 내 게시글을 확인할 수 있습니다"
-								actionLabel="게시글 작성"
+								message="로그인 후 내 피드를 확인할 수 있습니다"
+								actionLabel="피드 작성"
 								onAction={() => requireAuth(() => setWriteOpen(true))}
 							/>
 						) : isFeedLoading ? (
 							<StarttooLoader variant="block" />
 						) : myPosts.length === 0 ? (
 							<MyPageEmptyState
-								message="게시글이 없습니다"
-								actionLabel="게시글 작성"
+								message="피드가 없습니다"
+								actionLabel="피드 작성"
 								onAction={() => requireAuth(() => setWriteOpen(true))}
 							/>
 						) : (
@@ -298,7 +333,7 @@ export default function MyPage() {
 						) : isBookmarkLoading ? (
 							<StarttooLoader variant="block" />
 						) : bookmarkedPosts.length === 0 ? (
-							<MyPageEmptyState message="북마크한 게시글이 없습니다" />
+							<MyPageEmptyState message="북마크한 피드가 없습니다" />
 						) : (
 							<PostThumbnailGrid
 								posts={bookmarkedPosts}
@@ -335,7 +370,7 @@ export default function MyPage() {
 				isOpen={isWriteOpen}
 				onClose={() => setWriteOpen(false)}
 			/>
-			{/* 도안은 배경이 비어 있어 보관함 썸네일과 같은 흰 바탕에서 봐야 한다 */}
+			{/* 도안은 배경이 비어 있어 도안 보관함 썸네일과 같은 흰 바탕에서 봐야 한다 */}
 			<ImageViewerModal
 				src={activeDesign?.previewUrl ?? ""}
 				alt="저장한 도안"
@@ -358,6 +393,10 @@ export default function MyPage() {
 				isOpen={isBlockedListOpen}
 				onClose={() => setBlockedListOpen(false)}
 			/>
+			{/* 닫으면 언마운트되어 고른 사진과 추출 결과가 함께 정리된다 */}
+			{isExtractOpen && (
+				<DesignExtractModal onClose={() => setExtractOpen(false)} />
+			)}
 		</div>
 	);
 }

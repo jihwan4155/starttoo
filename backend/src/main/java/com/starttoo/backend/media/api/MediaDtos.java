@@ -20,7 +20,8 @@ public final class MediaDtos {
                     description = "이미지 사용 목적",
                     example = "PROFILE",
                     allowableValues = {
-                            "PROFILE", "POST", "DM", "COLLECTION", "EXTRACTION", "SIMULATION"
+                            "PROFILE", "POST", "DM", "COLLECTION", "EXTRACTION", "SIMULATION",
+                            "AI_REFERENCE"
                     }
             )
             @NotNull
@@ -44,7 +45,9 @@ public final class MediaDtos {
         COLLECTION,
         EXTRACTION,
         /** AR 시뮬레이션 합성 결과. 비로그인 폰이 세션 소유자 경로로 올린다. */
-        SIMULATION
+        SIMULATION,
+        /** AI 도안 생성 요청에서만 사용하는 임시 참조 이미지. */
+        AI_REFERENCE
     }
 
     public record PresignUploadResponse(

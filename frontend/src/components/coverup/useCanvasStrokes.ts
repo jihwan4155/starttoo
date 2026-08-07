@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import {
 	buildMaskDataUrl,
 	drawPreview,
+	isClosedStroke,
 	isDrawableStroke,
 } from "./maskPainter";
 import type { Point, Stroke } from "./maskPainter";
@@ -24,6 +25,9 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	// 사진은 비동기로 로드되고 로드가 끝나면 다시 그려야 하므로 state로 둔다
 	const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
 
+	// 모드마다 엔진 튜닝 기준 굵기가 다르다 (shapeSearchConstants 참고)
+	const brush = BRUSH_PX[mode];
+
 	/**
 	 * 화면 캔버스를 다시 그린다.
 	 *
@@ -34,13 +38,13 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	const redraw = useCallback(() => {
 		const ctx = canvasRef.current?.getContext("2d");
 		if (!ctx) return;
-		drawPreview(ctx, { strokes, brush: BRUSH_PX, mode, photo });
-	}, [strokes, mode, photo]);
+		drawPreview(ctx, { strokes, brush, mode, photo });
+	}, [strokes, brush, mode, photo]);
 
 	/** 서버로 보낼 마스크. 그릴 획이 없으면 null */
 	const buildMask = useCallback(
-		() => buildMaskDataUrl(strokes, BRUSH_PX),
-		[strokes],
+		() => buildMaskDataUrl(strokes, brush),
+		[strokes, brush],
 	);
 
 	/** 배경 사진 교체. null이면 회색 배경으로 되돌린다 */
@@ -108,6 +112,18 @@ export default function useCanvasStrokes(mode: SearchMode) {
 		canvasRef,
 		// 점 하나만 찍은 획은 마스크에 아무것도 남기지 않으므로 비어 있는 것으로 본다
 		isEmpty: !strokes.some(isDrawableStroke),
+		/**
+		 * 면 모드에서 고리를 못 이룬 획이 있는지.
+		 *
+		 * 서버는 열린 획의 안쪽을 채우지 못해 획 굵기만큼만 덮는다. 검색은 그대로
+		 * 되지만 사용자가 기대한 넓이가 아니므로 호출부에서 안내를 띄운다.
+		 */
+		hasOpenShape:
+			mode === "coverup" &&
+			strokes.some(
+				(stroke) =>
+					isDrawableStroke(stroke) && !isClosedStroke(stroke, brush),
+			),
 		canUndo: strokes.length > 0,
 		undo,
 		clear,

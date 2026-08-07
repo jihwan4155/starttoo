@@ -71,7 +71,7 @@ export default function CommunitySearchBar({
 	};
 
 	// 입력 중에는 서버 subject 사전에서 추천어를 받는다 (GET /search/subjects/autocomplete).
-	// 게시물 검색이 subject 기반이라, 사전에 있는 말로 검색해야 결과가 나온다.
+	// 피드 검색이 subject 기반이라, 사전에 있는 말로 검색해야 결과가 나온다.
 	const { data: subjectSuggestions = [] } = useSubjectAutocomplete(value);
 	const suggestions = value.trim()
 		? subjectSuggestions.map((subject) => subject.subjectName)
@@ -122,13 +122,21 @@ export default function CommunitySearchBar({
 				<SearchIcon size={16} className="shrink-0 text-black" />
 				<input
 					value={value}
-					onChange={(e) => setValue(e.target.value)}
+					onChange={(e) => {
+						setValue(e.target.value);
+						// 검색해도 포커스는 입력창에 그대로 남아 있어 onFocus가 다시 오지
+						// 않는다. 그래서 검색 직후 이어서 타이핑하면 추천어 창이 닫힌 채였다.
+						// 입력이 있으면 여기서 직접 펼친다.
+						setFocused(true);
+					}}
+					// 이미 포커스된 입력창을 다시 눌러도 onFocus는 오지 않는다
+					onClick={() => setFocused(true)}
 					onFocus={() => {
 						setFocused(true);
 						setCameraOpen(false);
 					}}
 					onBlur={() => setFocused(false)}
-					placeholder="게시물 검색 → 예: 나비, 장미"
+					placeholder="피드 검색 → 예: 나비, 장미"
 					maxLength={50}
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 				/>
@@ -182,7 +190,7 @@ export default function CommunitySearchBar({
 									setArchiveOpen(true);
 								})
 							}>
-							보관함에서 선택
+							도안 보관함에서 선택
 						</ActionButton>
 					</div>
 					<input

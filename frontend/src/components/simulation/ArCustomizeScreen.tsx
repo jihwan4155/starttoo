@@ -28,7 +28,7 @@ const DEFAULT_OPTIONS: ArOptions = {
 const BASE_SCALE = 4.4;
 
 /**
- * 보관함도 세션 도안도 비었을 때 쓰는 샘플 도안.
+ * 도안 보관함도 세션 도안도 비었을 때 쓰는 샘플 도안.
  *
  * AR 엔진은 항상 얹을 도안이 하나는 있어야 해서, 레일을 비워 두는 대신 샘플을 남긴다.
  */
@@ -40,7 +40,7 @@ const SAMPLE_DESIGNS: RailDesign[] = [
 /** 레일에 놓이는 도안 한 칸 */
 type RailDesign = {
 	/**
-	 * 도안 식별자(tattooSeq). 세션 도안과 보관함 도안이 같은 도안을 가리켜도
+	 * 도안 식별자(tattooSeq). 세션 도안과 도안 보관함의 도안이 같은 도안을 가리켜도
 	 * presigned URL이 서로 달라 URL로는 같은 것인지 알 수 없다 — 이 값으로 겹침을
 	 * 판단한다. 직접 올린 이미지·샘플에는 없다.
 	 */
@@ -54,8 +54,8 @@ type ArCustomizeScreenProps = {
 	onCapture: (dataUrl: string) => void;
 	/**
 	 * 레일 맨 앞에 붙일 도안. QR로 들어온 폰은 세션 /connect 응답으로 받은 도안을
-	 * 넘긴다 — 그 폰은 로그인 상태가 아닐 수 있어 보관함을 못 읽기 때문이다.
-	 * 로그인한 폰이라면 같은 도안이 보관함에도 있으므로 seq로 겹치는 것을 걸러낸다.
+	 * 넘긴다 — 그 폰은 로그인 상태가 아닐 수 있어 도안 보관함을 못 읽기 때문이다.
+	 * 로그인한 폰이라면 같은 도안이 도안 보관함에도 있으므로 seq로 겹치는 것을 걸러낸다.
 	 */
 	designs?: RailDesign[];
 };
@@ -106,7 +106,7 @@ export default function ArCustomizeScreen({
 	onCapture,
 	designs,
 }: ArCustomizeScreenProps) {
-	// 내 도안 보관함 — 마이페이지와 같은 서버 보관함(GET /archive).
+	// 도안 보관함 — 마이페이지와 같은 서버 데이터(GET /archive).
 	// 비로그인이면 훅이 요청 자체를 하지 않아 빈 목록이 된다.
 	const { data: archiveData, isFetching: isArchiveFetching } = useArchive({
 		size: 30,
@@ -125,7 +125,7 @@ export default function ArCustomizeScreen({
 	const hasOwnDesigns = Boolean(designs?.length) || archiveDesigns.length > 0;
 	const designList = useMemo(() => {
 		if (!hasOwnDesigns) return SAMPLE_DESIGNS;
-		// 로그인한 폰이 QR로 들어오면 PC가 실어 보낸 세션 도안과 자기 보관함이
+		// 로그인한 폰이 QR로 들어오면 PC가 실어 보낸 세션 도안과 자기 도안 보관함이
 		// 같은 도안을 가리켜 한 칸씩 두 번 나온다. seq로 먼저 온 쪽만 남긴다.
 		const seen = new Set<number>();
 		return [...(designs ?? []), ...archiveDesigns].filter((design) => {
@@ -144,7 +144,7 @@ export default function ArCustomizeScreen({
 	 */
 	const [hintTick, setHintTick] = useState(0);
 
-	// 보관함은 첫 렌더 뒤에 도착한다. 그때까지 골라 둔 샘플이 목록에서 빠지므로
+	// 도안 보관함은 첫 렌더 뒤에 도착한다. 그때까지 골라 둔 샘플이 목록에서 빠지므로
 	// 첫 도안으로 다시 맞춘다.
 	useEffect(() => {
 		if (designList.some((design) => design.url === designUrl)) return;
@@ -186,7 +186,7 @@ export default function ArCustomizeScreen({
 			{/* 도안 레일 */}
 			<div className="mx-auto w-full lg:max-w-[320px]">
 				<p className="mb-2 text-[13px] font-semibold text-black/60">
-					내 타투 보관함
+					도안 보관함
 				</p>
 				<div className="flex gap-2 overflow-x-auto pb-1">
 					{designList.map((design) => (
@@ -212,9 +212,12 @@ export default function ArCustomizeScreen({
 					))}
 
 					{/*
-					  도안 추가 — 기기에서 바로 올리지 않는다. AR에 얹는 도안은 보관함을
-					  거쳐야 어느 도안으로 시뮬레이션했는지가 남고, 다음에 다시 열어도
-					  같은 도안을 고를 수 있다. 여기서는 그 경로만 알려 준다.
+					  도안 추가 — 기기에서 바로 올리지 않는다. AR에 얹는 도안은 도안
+					  보관함을 거쳐야 어느 도안으로 시뮬레이션했는지가 남고, 다음에 다시
+					  열어도 같은 도안을 고를 수 있다. 여기서는 그 경로만 알려 준다.
+
+					  dev에서는 이 칸을 아예 없앴는데, 칸이 사라지면 왜 못 올리는지가
+					  드러나지 않아 안내를 띄우는 쪽으로 남겨 둔다.
 					*/}
 					<button
 						type="button"
@@ -236,8 +239,8 @@ export default function ArCustomizeScreen({
 				{/* 샘플만 있는 이유를 알려 준다 — 레일이 비어 보이는 것보다 낫다 */}
 				{!hasOwnDesigns && !isArchiveFetching && (
 					<p className="mt-1.5 text-[11px] font-light leading-4 text-black/40">
-						보관한 도안이 없어 샘플을 보여드려요. 게시글에서 도안을 보관함에
-						저장하면 여기에서 고를 수 있어요.
+						보관한 도안이 없어 샘플을 보여드려요. 피드에서 도안을 저장하면
+						여기에서 고를 수 있어요.
 					</p>
 				)}
 			</div>

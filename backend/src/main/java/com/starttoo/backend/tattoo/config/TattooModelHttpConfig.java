@@ -6,6 +6,7 @@ import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -29,14 +30,20 @@ public class TattooModelHttpConfig {
     @Bean
     TattooModelRestClientFactory tattooModelRestClientFactory(
             RestClient.Builder builder,
-            AiProperties properties
+            AiProperties properties,
+            @Value("${app.ai.internal-token:}") String internalToken
     ) {
-        return readTimeout -> builder.clone()
-                .requestFactory(ClientHttpRequestFactoryBuilder.detect()
-                        .build(ClientHttpRequestFactorySettings.defaults()
-                                .withConnectTimeout(CONNECT_TIMEOUT)
-                                .withReadTimeout(readTimeout)))
-                .baseUrl(properties.baseUrl())
-                .build();
+        return readTimeout -> {
+            RestClient.Builder configured = builder.clone()
+                    .requestFactory(ClientHttpRequestFactoryBuilder.detect()
+                            .build(ClientHttpRequestFactorySettings.defaults()
+                                    .withConnectTimeout(CONNECT_TIMEOUT)
+                                    .withReadTimeout(readTimeout)))
+                    .baseUrl(properties.baseUrl());
+            if (!internalToken.isBlank()) {
+                configured.defaultHeader("X-Starttoo-AI-Token", internalToken);
+            }
+            return configured.build();
+        };
     }
 }

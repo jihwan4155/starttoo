@@ -6,11 +6,19 @@ import ResultSection from "../components/ai/ResultSection";
 import StyleInputForm from "../components/ai/StyleInputForm";
 import { GENRE_TAGS, MAX_REFERENCE_IMAGES } from "../components/ai/constants";
 import { generateTattoo } from "../services/tattooGenerationApi";
+import { AI_REFERENCE_UPLOAD_PURPOSE } from "../constants/upload";
+import { uploadImage } from "../services/uploadApi";
 
 const MAX_RESULT_SELECTION = 20;
 
 type GeneratedResult = {
 	imageUrl: string;
+};
+
+type ReferenceImage = {
+	file: File;
+	previewUrl: string;
+	imageSeq?: number;
 };
 
 function HomeIcon() {
@@ -25,7 +33,7 @@ export default function AiPage() {
 	const navigate = useNavigate();
 	const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
 	const [prompt, setPrompt] = useState("");
-	const [referenceImages, setReferenceImages] = useState<string[]>([]);
+	const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
 	const [hasGenerated, setHasGenerated] = useState(false);
 	const [inputOpen, setInputOpen] = useState(true);
 	const [resultOpen, setResultOpen] = useState(false);
@@ -40,8 +48,13 @@ export default function AiPage() {
 	const [leaveTarget, setLeaveTarget] = useState<"home" | "input">("home");
 	const [showLimitToast, setShowLimitToast] = useState(false);
 	const generatedObjectUrls = useRef<string[]>([]);
+	const referenceObjectUrls = useRef<string[]>([]);
 
-	const canGenerate = prompt.trim().length > 0;
+	const hasPrompt = prompt.trim().length > 0;
+	const hasLettering = selectedGenres.includes("lettering");
+	const canGenerate = hasLettering
+		? hasPrompt
+		: hasPrompt || referenceImages.length > 0;
 
 	useEffect(() => {
 		if (!showLimitToast) return;
@@ -51,22 +64,33 @@ export default function AiPage() {
 
 	useEffect(() => () => {
 		generatedObjectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+		referenceObjectUrls.current.forEach((url) => URL.revokeObjectURL(url));
 	}, []);
 
+	// 스타일은 한 개만 고른다. 고른 것을 다시 누르면 해제, 다른 것을 누르면 교체다.
 	const handleToggleGenre = useCallback((id: string) => {
-		setSelectedGenres((prev) => prev.includes(id) ? prev.filter((genreId) => genreId !== id) : prev.length >= 2 ? prev : [...prev, id]);
+		setSelectedGenres((prev) => (prev.includes(id) ? [] : [id]));
 	}, []);
 
 	const handleAddReferenceImages = useCallback((files: FileList) => {
 		const remaining = MAX_REFERENCE_IMAGES - referenceImages.length;
-		const newUrls = Array.from(files).slice(0, remaining).map((file) => URL.createObjectURL(file));
-		setReferenceImages((prev) => [...prev, ...newUrls].slice(0, MAX_REFERENCE_IMAGES));
+		const additions = Array.from(files).slice(0, remaining).map((file) => {
+			const previewUrl = URL.createObjectURL(file);
+			referenceObjectUrls.current.push(previewUrl);
+			return { file, previewUrl };
+		});
+		setReferenceImages((prev) => [...prev, ...additions].slice(0, MAX_REFERENCE_IMAGES));
 	}, [referenceImages.length]);
 
 	const handleRemoveReferenceImage = useCallback((index: number) => {
 		setReferenceImages((prev) => {
 			const target = prev[index];
-			if (target) URL.revokeObjectURL(target);
+			if (target) {
+				URL.revokeObjectURL(target.previewUrl);
+				referenceObjectUrls.current = referenceObjectUrls.current.filter(
+					(url) => url !== target.previewUrl,
+				);
+			}
 			return prev.filter((_, i) => i !== index);
 		});
 	}, []);
@@ -87,10 +111,24 @@ export default function AiPage() {
 			const tag = GENRE_TAGS.find((item) => item.id === id);
 			return tag ? [tag.apiStyle] : [];
 		});
-		// 참고 이미지는 UI에만 유지하며 현재 생성 API 요청에는 포함하지 않는다.
+		const reference = referenceImages[0];
+		let referenceImageSeq = reference?.imageSeq;
+		if (reference && referenceImageSeq == null) {
+			referenceImageSeq = await uploadImage(
+				reference.file,
+				AI_REFERENCE_UPLOAD_PURPOSE,
+			);
+			const uploadedSeq = referenceImageSeq;
+			setReferenceImages((prev) => prev.map((item) => (
+				item.previewUrl === reference.previewUrl
+					? { ...item, imageSeq: uploadedSeq }
+					: item
+			)));
+		}
 		const blob = await generateTattoo({
 			prompt: prompt.trim(),
 			style: styles,
+			referenceImageSeq,
 			steps: 25,
 			guidance: 7.5,
 			size: 512,
@@ -98,7 +136,7 @@ export default function AiPage() {
 		const imageUrl = URL.createObjectURL(blob);
 		generatedObjectUrls.current.push(imageUrl);
 		return { imageUrl };
-	}, [prompt, selectedGenres]);
+	}, [prompt, referenceImages, selectedGenres]);
 
 	const handleGenerate = useCallback(async () => {
 		if (!canGenerate || generating) return;
@@ -188,7 +226,7 @@ export default function AiPage() {
 		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 
-	const inputForm = <StyleInputForm selectedGenres={selectedGenres} prompt={prompt} referenceImages={referenceImages} showHero={!hasGenerated} canGenerate={canGenerate} generating={generating} generationError={generationError} onToggleGenre={handleToggleGenre} onPromptChange={setPrompt} onAddReferenceImages={handleAddReferenceImages} onRemoveReferenceImage={handleRemoveReferenceImage} onGenerate={handleGenerate} />;
+	const inputForm = <StyleInputForm selectedGenres={selectedGenres} prompt={prompt} referenceImages={referenceImages.map((item) => item.previewUrl)} showHero={!hasGenerated} canGenerate={canGenerate} generating={generating} generationError={generationError} onToggleGenre={handleToggleGenre} onPromptChange={setPrompt} onAddReferenceImages={handleAddReferenceImages} onRemoveReferenceImage={handleRemoveReferenceImage} onGenerate={handleGenerate} />;
 
 	return (
 		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 py-10 max-lg:px-0 max-lg:py-0">
@@ -210,7 +248,7 @@ export default function AiPage() {
 				</div>
 			</div>
 
-			{showLimitToast && <div className="fixed left-1/2 top-1/2 z-[80] -translate-x-1/2 rounded-full bg-black/70 px-8 py-4 text-center text-[16px] font-semibold text-white max-lg:w-[calc(100%-32px)]">보관함이 꽉 차서 추가 선택할 수 없어요</div>}
+			{showLimitToast && <div className="fixed left-1/2 top-1/2 z-[80] -translate-x-1/2 rounded-full bg-black/70 px-8 py-4 text-center text-[16px] font-semibold text-white max-lg:w-[calc(100%-32px)]">도안 보관함이 꽉 차서 추가 선택할 수 없어요</div>}
 
 			{showLeaveModal && (
 				<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4" role="presentation" onClick={() => setShowLeaveModal(false)}>

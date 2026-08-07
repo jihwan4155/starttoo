@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -82,8 +83,9 @@ public final class TattooDtos {
     }
 
     public record GenerateTattooRequest(
-            @NotBlank @Size(max = 500) String prompt,
+            @Size(max = 500) String prompt,
             @Size(max = 2) List<String> style,
+            @Positive Long referenceImageSeq,
             @PositiveOrZero @Max(4_294_967_295L) Long seed,
             @Min(1) @Max(100) Integer steps,
             @DecimalMin("0.0") @DecimalMax("30.0") Double guidance,
@@ -103,7 +105,7 @@ public final class TattooDtos {
         );
 
         public GenerateTattooRequest {
-            prompt = prompt == null ? null : prompt.trim();
+            prompt = prompt == null ? "" : prompt.trim();
             style = style == null ? List.of() : List.copyOf(style);
             steps = steps == null ? 30 : steps;
             guidance = guidance == null ? 7.5 : guidance;
@@ -114,6 +116,15 @@ public final class TattooDtos {
         @JsonIgnore
         public boolean isSupportedStyle() {
             return style.stream().allMatch(SUPPORTED_STYLES::contains);
+        }
+
+        @AssertTrue(message = "prompt 또는 referenceImageSeq 중 하나는 필요합니다.")
+        @JsonIgnore
+        public boolean hasPromptOrReference() {
+            if (style.contains("lettering")) {
+                return !prompt.isBlank();
+            }
+            return !prompt.isBlank() || referenceImageSeq != null;
         }
 
         @AssertTrue(message = "size는 512, 768, 1024 중 하나여야 합니다.")

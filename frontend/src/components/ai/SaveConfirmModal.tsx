@@ -50,7 +50,7 @@ export default function SaveConfirmModal({ onClose }: SaveConfirmModalProps) {
 						to="/mypage?tab=designs"
 						onClick={onClose}
 						className="inline-flex h-12 min-w-0 items-center justify-center rounded-[50px] border border-black bg-white px-2 text-[14px] font-semibold text-black transition hover:bg-gray-50 sm:h-[52px] sm:min-w-[140px] sm:px-6 sm:text-[18px]">
-						보관함 가기
+						도안 보관함 가기
 					</Link>
 					<Link
 						to="/simulations"

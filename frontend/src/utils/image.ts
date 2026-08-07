@@ -10,7 +10,7 @@ export type CropState = {
 
 export const DEFAULT_CROP: CropState = { zoom: 1, offsetX: 0, offsetY: 0 };
 
-/** 게시물 사진 비율 — 세로:가로 = 4:3 (aspect = 가로/세로) */
+/** 피드 사진 비율 — 세로:가로 = 4:3 (aspect = 가로/세로) */
 export const POST_IMAGE_ASPECT = 3 / 4;
 
 /**
@@ -35,9 +35,12 @@ export function clampCrop(
 ): CropState {
 	const cover = coverScaleRatio(naturalWidth, naturalHeight, aspect);
 	if (!cover) return crop;
-	// (표시 크기 - 뷰포트) / 2 를 뷰포트 가로로 나눈 값 = 중심 기준 최대 이동 비율
-	const maxX = (naturalWidth * cover * crop.zoom - 1) / 2;
-	const maxY = (naturalHeight * cover * crop.zoom - 1 / aspect) / 2;
+	// (표시 크기 - 뷰포트) / 2 를 뷰포트 가로로 나눈 값 = 중심 기준 최대 이동 비율.
+	// zoom이 1보다 작으면 사진이 뷰포트보다 작아 이 값이 음수가 된다. 그대로 쓰면
+	// 아래 clamp의 상·하한이 뒤집혀 사진이 엉뚱한 곳으로 튀므로 0으로 막는다
+	// (움직일 여백이 없으니 가운데 고정이 맞다).
+	const maxX = Math.max(0, (naturalWidth * cover * crop.zoom - 1) / 2);
+	const maxY = Math.max(0, (naturalHeight * cover * crop.zoom - 1 / aspect) / 2);
 	return {
 		...crop,
 		offsetX: Math.min(maxX, Math.max(-maxX, crop.offsetX)),
@@ -102,6 +105,11 @@ export function cropImageToDataUrl(
 				reject(new Error("이미지를 처리할 수 없습니다."));
 				return;
 			}
+			// zoom이 1보다 작으면 잘라낼 영역이 원본 밖으로 나간다. 그 자리는 투명하게
+			// 남는데 JPEG에는 알파가 없어 검게 굳는다. 흰색을 먼저 깔아 여백으로 만든다.
+			// (zoom이 1 이상이면 사진이 캔버스를 덮어 이 칠은 보이지 않는다)
+			ctx.fillStyle = "#fff";
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			ctx.drawImage(
 				img,
 				sx,

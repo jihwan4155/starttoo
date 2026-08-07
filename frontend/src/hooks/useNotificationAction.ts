@@ -46,7 +46,7 @@ export default function useNotificationAction(
 				openRoom(item.referenceSeq);
 				navigate("/dm");
 			}
-			// 게시글·팔로우 알림은 아직 이동할 상세 화면이 없어 읽음 처리까지만 한다.
+			// 피드·팔로우 알림은 아직 이동할 상세 화면이 없어 읽음 처리까지만 한다.
 		},
 		[markAsRead, markDmRead, markRead, navigate, onSystemOpen, openRoom],
 	);

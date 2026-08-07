@@ -20,6 +20,8 @@ type MobileCoverUpFlowProps = {
 	nextDisabled: boolean;
 	isSearching: boolean;
 	searchMessage: string | null;
+	/** 면 모드에서 획이 안 닫혔을 때의 그리기 안내 (오류가 아니라 회색으로 둔다) */
+	openShapeHint: string | null;
 	results: DesignResult[];
 	selectedIndex: number;
 	onSelectResult: (index: number) => void;
@@ -72,6 +74,7 @@ export default function MobileCoverUpFlow({
 	nextDisabled,
 	isSearching,
 	searchMessage,
+	openShapeHint,
 	results,
 	selectedIndex,
 	onSelectResult,
@@ -127,6 +130,7 @@ export default function MobileCoverUpFlow({
 						<button type="button" disabled={!canUndo} onClick={onClear} className="h-11 flex-1 rounded-full border border-black bg-white text-[14px] font-semibold disabled:opacity-40">지우기</button>
 					</div>
 					{searchMessage && <p className="mt-4 text-center text-[13px] text-brand">{searchMessage}</p>}
+					{!searchMessage && openShapeHint && <p className="mt-4 text-center text-[13px] font-light text-black/55">{openShapeHint}</p>}
 					<BottomButton disabled={nextDisabled} onClick={onNext}>{isSearching ? "추천 중…" : "타투 추천받기"}</BottomButton>
 				</>
 			)}
@@ -149,7 +153,7 @@ export default function MobileCoverUpFlow({
 						))}
 					</div>
 					<div className="mt-4 flex gap-3">
-						<button type="button" disabled={isSaving} onClick={onSave} className="h-12 flex-1 rounded-full border border-brand bg-white text-[15px] font-semibold text-brand disabled:opacity-50">{isSaving ? "저장 중…" : "도안 저장"}</button>
+						<button type="button" disabled={isSaving} onClick={onSave} className="h-12 flex-1 rounded-full border border-brand bg-white text-[15px] font-semibold text-brand disabled:opacity-50">{isSaving ? "저장 중…" : "도안보관함에 저장"}</button>
 						<button type="button" onClick={onSimulate} className="h-12 flex-1 rounded-full bg-brand text-[15px] font-semibold text-white">시뮬레이션</button>
 					</div>
 					{saveError && <p className="mt-3 text-center text-[13px] text-brand">{saveError}</p>}
