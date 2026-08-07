@@ -12,10 +12,8 @@ import com.starttoo.backend.common.error.ErrorCode;
 import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.media.domain.ImageRepository;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
-import com.starttoo.backend.tattoo.application.TattooService;
-import com.starttoo.backend.tattoo.domain.Tattoo;
+import com.starttoo.backend.tattoo.domain.TattooDesignRepository;
 import com.starttoo.backend.tattoo.domain.TattooRepository;
-import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import com.starttoo.backend.user.domain.AccountStatus;
 import com.starttoo.backend.user.domain.User;
 import com.starttoo.backend.user.domain.UserRepository;
@@ -65,7 +63,7 @@ class CollectionServiceTest {
     private TattooRepository tattooRepository;
 
     @Mock
-    private TattooService tattooService;
+    private TattooDesignRepository tattooDesignRepository;
 
     @Mock
     private CollectionWriteService collectionWriteService;
@@ -95,17 +93,19 @@ class CollectionServiceTest {
     private CollectionService collectionService;
 
     @Test
-    void nonTattooPreparationFailureDoesNotStartCollectionWrite() {
+    void nonArchiveDesignIsRejectedWithoutCollectionWrite() {
         CollectionDtos.CreateCollectionRequest request = request();
-        when(tattooService.prepare(1, 301L))
-                .thenThrow(BusinessException.of(ErrorCode.NOT_TATTOO_IMAGE));
+        when(tattooDesignRepository.findByImageSeqAndDeletedFalse(301L))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> collectionService.create(1, request))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode())
-                                .isEqualTo(ErrorCode.NOT_TATTOO_IMAGE));
+                                .isEqualTo(ErrorCode.STATE_CONFLICT));
 
-        verify(collectionWriteService, never()).create(any(), any(), any());
+        verify(collectionWriteService, never()).create(
+                any(), any(), any(), any(), any(), any(Boolean.class)
+        );
         verifyNoInteractions(preferenceScoreService);
     }
 
@@ -169,18 +169,15 @@ class CollectionServiceTest {
     }
 
     @Test
-    void deleteSoftDeletesCollectionTattooWithoutReversingScoreAndKeepsImage() {
+    void deleteSoftDeletesCollectionOnlyWithoutReversingScore() {
         TattooCollection collection = collection(601L, 7, 501L);
-        Tattoo tattoo = tattoo(501L, 301L);
         when(collectionRepository.findByCollectionSeqAndUserSeqAndDeletedFalse(601L, 7))
                 .thenReturn(Optional.of(collection));
-        when(tattooRepository.findByTattooSeqAndDeletedFalse(501L))
-                .thenReturn(Optional.of(tattoo));
 
         collectionService.delete(7, 601L);
 
         assertThat(collection.isDeleted()).isTrue();
-        assertThat(tattoo.isDeleted()).isTrue();
+        verifyNoInteractions(tattooRepository);
         verifyNoInteractions(preferenceScoreService);
         verifyNoInteractions(imageRepository);
     }
@@ -328,21 +325,6 @@ class CollectionServiceTest {
                 .scaleRatio(0.8)
                 .rotationDegree(-15)
                 .flipped(false)
-                .regDttm(now)
-                .modDttm(now)
-                .deleted(false)
-                .build();
-    }
-
-    private Tattoo tattoo(Long tattooSeq, Long imageSeq) {
-        OffsetDateTime now = OffsetDateTime.now();
-        return Tattoo.builder()
-                .tattooSeq(tattooSeq)
-                .registrantSeq(7)
-                .imageSeq(imageSeq)
-                .sourceType(TattooSourceType.USER_COLLECTION)
-                .primaryStyleSeq(1)
-                .usedForTraining(false)
                 .regDttm(now)
                 .modDttm(now)
                 .deleted(false)

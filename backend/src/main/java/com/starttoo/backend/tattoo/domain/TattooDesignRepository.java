@@ -9,5 +9,7 @@ import java.util.Optional;
 public interface TattooDesignRepository extends JpaRepository<TattooDesign, Long> {
     Optional<TattooDesign> findByTattooSeqAndDeletedFalse(Long tattooSeq);
 
+    Optional<TattooDesign> findByImageSeqAndDeletedFalse(Long imageSeq);
+
     List<TattooDesign> findAllByTattooSeqInAndDeletedFalse(Collection<Long> tattooSeqs);
 }

@@ -29,6 +29,7 @@ export default function CollectionArchivePanel({
 		if (disabled || userId == null || !window.matchMedia("(max-width: 1023px)").matches) return;
 		addPlacement(userId, {
 			tattooId: design.id,
+			imageSeq: design.imageSeq,
 			imageUrl: design.previewUrl,
 			bodyPart: "torso",
 			view: isMannequinView(editorView) ? editorView : "front",

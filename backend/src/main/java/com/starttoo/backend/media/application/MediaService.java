@@ -261,7 +261,11 @@ public class MediaService {
             );
             return new PresignedDownload(url, expiresAt);
         } catch (Exception exception) {
-            throw BusinessException.of(ErrorCode.SERVICE_UNAVAILABLE);
+            throw new BusinessException(
+                    ErrorCode.SERVICE_UNAVAILABLE,
+                    "이미지 URL을 준비하지 못했습니다.",
+                    exception
+            );
         }
     }
 

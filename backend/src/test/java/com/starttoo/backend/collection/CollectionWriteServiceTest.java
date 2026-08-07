@@ -5,8 +5,6 @@ import com.starttoo.backend.collection.application.CollectionWriteService;
 import com.starttoo.backend.collection.domain.TattooCollection;
 import com.starttoo.backend.collection.domain.TattooCollectionRepository;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
-import com.starttoo.backend.tattoo.application.TattooModelClient;
-import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.tattoo.domain.Tattoo;
 import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import org.junit.jupiter.api.Test;
@@ -16,11 +14,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,9 +26,6 @@ class CollectionWriteServiceTest {
 
     @Mock
     private TattooCollectionRepository collectionRepository;
-
-    @Mock
-    private TattooService tattooService;
 
     @Mock
     private PreferenceScoreService preferenceScoreService;
@@ -46,35 +39,58 @@ class CollectionWriteServiceTest {
                 new CollectionDtos.CreateCollectionRequest(
                         301L, "front", 0.42, 0.35, 0.8, -15.0, false
                 );
-        TattooService.PreparedTattoo prepared = new TattooService.PreparedTattoo(
-                301L,
-                "users/7/collection/original.png",
-                new TattooModelClient.Analysis(
-                        "OTHER",
-                        List.of(),
-                        List.of("LINE"),
-                        "BLACK",
-                        List.of("SAMPLE")
-                )
-        );
-        when(tattooService.persistPrepared(
-                7,
-                prepared,
-                TattooSourceType.USER_COLLECTION
-        )).thenReturn(tattoo());
         when(collectionRepository.save(any(TattooCollection.class)))
                 .thenThrow(new RuntimeException("collection insert failed"));
 
-        assertThatThrownBy(() -> collectionWriteService.create(7, request, prepared))
+        assertThatThrownBy(() -> collectionWriteService.create(
+                7,
+                request,
+                tattoo(),
+                301L,
+                "users/7/design.png",
+                true
+        ))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("collection insert failed");
 
         verify(preferenceScoreService, never()).applyCollection(any(), any(), any(Boolean.class));
-        verify(tattooService).persistPrepared(
-                eq(7),
-                eq(prepared),
-                eq(TattooSourceType.USER_COLLECTION)
+    }
+
+    @Test
+    void reusePlacementSkipsPreferenceWhenRequested() {
+        CollectionDtos.CreateCollectionRequest request =
+                new CollectionDtos.CreateCollectionRequest(
+                        301L, "front", 0.42, 0.35, 0.8, -15.0, false
+                );
+        when(collectionRepository.save(any(TattooCollection.class)))
+                .thenAnswer(invocation -> {
+                    TattooCollection saved = invocation.getArgument(0);
+                    return TattooCollection.builder()
+                            .collectionSeq(601L)
+                            .userSeq(saved.getUserSeq())
+                            .tattooSeq(saved.getTattooSeq())
+                            .bodyView(saved.getBodyView())
+                            .positionX(saved.getPositionX())
+                            .positionY(saved.getPositionY())
+                            .scaleRatio(saved.getScaleRatio())
+                            .rotationDegree(saved.getRotationDegree())
+                            .flipped(saved.isFlipped())
+                            .regDttm(saved.getRegDttm())
+                            .modDttm(saved.getModDttm())
+                            .deleted(saved.isDeleted())
+                            .build();
+                });
+
+        collectionWriteService.create(
+                7,
+                request,
+                tattoo(),
+                301L,
+                "users/7/design.png",
+                false
         );
+
+        verify(preferenceScoreService, never()).applyCollection(any(), any(), any(Boolean.class));
     }
 
     private Tattoo tattoo() {
@@ -82,8 +98,8 @@ class CollectionWriteServiceTest {
         return Tattoo.builder()
                 .tattooSeq(501L)
                 .registrantSeq(7)
-                .imageSeq(301L)
-                .sourceType(TattooSourceType.USER_COLLECTION)
+                .imageSeq(201L)
+                .sourceType(TattooSourceType.USER_POST)
                 .primaryStyleSeq(1)
                 .usedForTraining(false)
                 .regDttm(now)

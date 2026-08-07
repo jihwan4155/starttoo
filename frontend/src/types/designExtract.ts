@@ -19,7 +19,7 @@ export type SavedDesign = {
 	createdAt: string;
 	previewUrl: string;
 	downloadUrl: string;
-	/** POST /collections 요청에 사용하는 imageSeq */
+	/** POST /collections 요청에 사용하는 designImageSeq */
 	imageSeq?: number;
 	/** 백엔드 도안 보관함이 아닌 로컬 샘플 도안 */
 	isDemo?: boolean;

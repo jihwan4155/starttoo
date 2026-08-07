@@ -25,8 +25,9 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 	const { data: post, isPending, isError } = usePost(postId);
 
 	// 말풍선이 max-w-75%라 좁은 화면에서는 240px를 다 못 준다 — max-w-full로 접히게 둔다.
+	// 내 말풍선(브랜드색) 안에서도 카드는 흰 배경으로 두어 피드 미리보기가 또렷하게 보이게 한다.
 	const frameClass = `block w-[240px] max-w-full overflow-hidden rounded-[14px] border text-left transition ${
-		mine ? "border-white/35 bg-white/10" : "border-black/10 bg-white"
+		mine ? "border-white/40 bg-white" : "border-black/10 bg-white"
 	}`;
 
 	if (isPending) {
@@ -43,10 +44,7 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 	if (isError || !post) {
 		return (
 			<div className={`${frameClass} px-3 py-4`}>
-				<p
-					className={`text-[12px] font-light leading-5 ${
-						mine ? "text-white/80" : "text-black/45"
-					}`}>
+				<p className="text-[12px] font-light leading-5 text-black/45">
 					삭제되었거나 볼 수 없는 피드예요.
 				</p>
 			</div>
@@ -82,20 +80,14 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 					alt=""
 					className="size-5 shrink-0 rounded-full bg-black/10 object-cover"
 				/>
-				<span
-					className={`min-w-0 truncate text-[12px] font-semibold ${
-						mine ? "text-white" : "text-black"
-					}`}>
+				<span className="min-w-0 truncate text-[12px] font-semibold text-black">
 					{post.author.nickname}
 				</span>
 				{post.author.isArtist && <ArtistBadge size={13} />}
 			</div>
 
 			{post.caption && (
-				<p
-					className={`line-clamp-2 px-3 pb-2.5 pt-1 text-[12px] font-light leading-4 ${
-						mine ? "text-white/80" : "text-black/60"
-					}`}>
+				<p className="line-clamp-2 px-3 pb-2.5 pt-1 text-[12px] font-light leading-4 text-black/60">
 					{post.caption}
 				</p>
 			)}
