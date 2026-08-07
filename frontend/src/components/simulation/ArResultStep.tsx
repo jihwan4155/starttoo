@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ArComposite } from "../../types/simulation";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type ArResultStepProps = {
 	/** 폰에서 올라온 캡처들 (오래된 순) */
@@ -134,7 +135,7 @@ export default function ArResultStep({
 					onClick={handleSave}
 					disabled={saving}
 					className="h-[52px] w-full rounded-[50px] bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#D9D9D9] disabled:text-[#666]">
-					{saving ? "저장 중…" : "결과 이미지 저장"}
+					{saving ? <LoadingLabel>저장 중…</LoadingLabel> : "결과 이미지 저장"}
 				</button>
 				<button
 					type="button"

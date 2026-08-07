@@ -11,10 +11,10 @@ import com.starttoo.backend.media.application.MediaService;
 import com.starttoo.backend.media.domain.Image;
 import com.starttoo.backend.media.domain.ImageRepository;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
-import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.tattoo.domain.Tattoo;
+import com.starttoo.backend.tattoo.domain.TattooDesign;
+import com.starttoo.backend.tattoo.domain.TattooDesignRepository;
 import com.starttoo.backend.tattoo.domain.TattooRepository;
-import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import com.starttoo.backend.user.domain.AccountStatus;
 import com.starttoo.backend.user.domain.User;
 import com.starttoo.backend.user.domain.UserRepository;
@@ -41,7 +41,7 @@ public class CollectionService {
 
     private final TattooCollectionRepository collectionRepository;
     private final TattooRepository tattooRepository;
-    private final TattooService tattooService;
+    private final TattooDesignRepository tattooDesignRepository;
     private final CollectionWriteService collectionWriteService;
     private final PreferenceScoreService preferenceScoreService;
     private final ImageRepository imageRepository;
@@ -55,14 +55,20 @@ public class CollectionService {
             Integer userSeq,
             CollectionDtos.CreateCollectionRequest request
     ) {
-        TattooService.PreparedTattoo prepared =
-                tattooService.prepare(userSeq, request.imageSeq());
-        CollectionWriteService.CreatedCollection created =
-                collectionWriteService.create(userSeq, request, prepared);
+        ResolvedPlacementTattoo resolved = resolveArchiveDesign(userSeq, request.imageSeq());
+        // 취향 점수는 보관함 담기에서 이미 반영한다. 배치는 재참조만 한다.
+        CollectionWriteService.CreatedCollection created = collectionWriteService.create(
+                userSeq,
+                request,
+                resolved.tattoo(),
+                resolved.displayImageSeq(),
+                resolved.displayObjectKey(),
+                false
+        );
         return response(
                 created.collection(),
-                created.tattoo().getImageSeq(),
-                prepared.objectKey()
+                created.displayImageSeq(),
+                created.displayObjectKey()
         );
     }
 
@@ -87,12 +93,36 @@ public class CollectionService {
     @Transactional
     public void delete(Integer userSeq, Long collectionSeq) {
         TattooCollection collection = findOwned(userSeq, collectionSeq);
-        Tattoo tattoo = tattooRepository
-                .findByTattooSeqAndDeletedFalse(collection.getTattooSeq())
-                .filter(value -> value.getSourceType() == TattooSourceType.USER_COLLECTION)
-                .orElseThrow(() -> BusinessException.of(ErrorCode.TATTOO_NOT_FOUND));
+        // 배치는 공유 타투를 참조하므로 컬렉션 행만 소프트 삭제한다.
         collection.softDelete();
-        tattoo.softDelete();
+    }
+
+    /**
+     * 프론트는 GET /archive의 designImageSeq만 POST /collections에 보낸다.
+     * tattoo_designs에 있고 내 보관함에 담긴 도안만 배치할 수 있다.
+     */
+    private ResolvedPlacementTattoo resolveArchiveDesign(Integer userSeq, Long designImageSeq) {
+        TattooDesign design = tattooDesignRepository.findByImageSeqAndDeletedFalse(designImageSeq)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.STATE_CONFLICT,
+                        "컬렉션에는 도안 보관함에 담긴 도안만 배치할 수 있습니다."
+                ));
+        Tattoo tattoo = tattooRepository
+                .findByTattooSeqAndDeletedFalse(design.getTattooSeq())
+                .orElseThrow(() -> BusinessException.of(ErrorCode.TATTOO_NOT_FOUND));
+        if (!archiveExists(userSeq, tattoo.getTattooSeq())) {
+            throw new BusinessException(
+                    ErrorCode.STATE_CONFLICT,
+                    "컬렉션에는 도안 보관함에 담긴 도안만 배치할 수 있습니다."
+            );
+        }
+        Image designImage = imageRepository.findByImageSeqAndDeletedFalse(designImageSeq)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
+        return new ResolvedPlacementTattoo(
+                tattoo,
+                designImage.getImageSeq(),
+                designImage.getObjectKey()
+        );
     }
 
     private CursorPageResponse<CollectionDtos.CollectionResponse> collectionPage(
@@ -109,8 +139,8 @@ public class CollectionService {
                 SELECT collection.collection_seq,
                        collection.user_seq AS owner_seq,
                        collection.tattoo_seq,
-                       tattoo.image_seq,
-                       image.object_key AS image_object_key,
+                       COALESCE(design_image.image_seq, original_image.image_seq) AS image_seq,
+                       COALESCE(design_image.object_key, original_image.object_key) AS image_object_key,
                        collection.body_view,
                        collection.position_x,
                        collection.position_y,
@@ -121,11 +151,16 @@ public class CollectionService {
                   FROM tattoo_collections collection
                   JOIN tattoos tattoo
                     ON tattoo.tattoo_seq = collection.tattoo_seq
-                   AND tattoo.source_type = 'USER_COLLECTION'
                    AND tattoo.is_deleted = FALSE
-                  JOIN images image
-                    ON image.image_seq = tattoo.image_seq
-                   AND image.is_deleted = FALSE
+                  JOIN images original_image
+                    ON original_image.image_seq = tattoo.image_seq
+                   AND original_image.is_deleted = FALSE
+                  LEFT JOIN tattoo_designs design
+                    ON design.tattoo_seq = tattoo.tattoo_seq
+                   AND design.is_deleted = FALSE
+                  LEFT JOIN images design_image
+                    ON design_image.image_seq = design.image_seq
+                   AND design_image.is_deleted = FALSE
                  WHERE collection.user_seq = :ownerSeq
                    AND collection.is_deleted = FALSE
                    AND (:cursor IS NULL OR collection.collection_seq < :cursor)
@@ -376,6 +411,13 @@ public class CollectionService {
                 collection.isFlipped(),
                 collection.getRegDttm()
         );
+    }
+
+    private record ResolvedPlacementTattoo(
+            Tattoo tattoo,
+            Long displayImageSeq,
+            String displayObjectKey
+    ) {
     }
 
     private record CollectionRow(

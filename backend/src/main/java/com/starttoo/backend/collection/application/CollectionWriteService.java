@@ -4,9 +4,7 @@ import com.starttoo.backend.collection.api.CollectionDtos;
 import com.starttoo.backend.collection.domain.TattooCollection;
 import com.starttoo.backend.collection.domain.TattooCollectionRepository;
 import com.starttoo.backend.preference.application.PreferenceScoreService;
-import com.starttoo.backend.tattoo.application.TattooService;
 import com.starttoo.backend.tattoo.domain.Tattoo;
-import com.starttoo.backend.tattoo.domain.TattooSourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,20 +16,21 @@ import java.time.OffsetDateTime;
 public class CollectionWriteService {
 
     private final TattooCollectionRepository collectionRepository;
-    private final TattooService tattooService;
     private final PreferenceScoreService preferenceScoreService;
 
+    /**
+     * 보관함 도안 타투를 재참조해 배치만 저장한다.
+     * 같은 타투를 여러 위치에 올릴 수 있다.
+     */
     @Transactional
     public CreatedCollection create(
             Integer userSeq,
             CollectionDtos.CreateCollectionRequest request,
-            TattooService.PreparedTattoo prepared
+            Tattoo tattoo,
+            Long displayImageSeq,
+            String displayObjectKey,
+            boolean applyPreference
     ) {
-        Tattoo tattoo = tattooService.persistPrepared(
-                userSeq,
-                prepared,
-                TattooSourceType.USER_COLLECTION
-        );
         OffsetDateTime now = OffsetDateTime.now();
         TattooCollection collection = collectionRepository.save(TattooCollection.builder()
                 .userSeq(userSeq)
@@ -46,10 +45,17 @@ public class CollectionWriteService {
                 .modDttm(now)
                 .deleted(false)
                 .build());
-        preferenceScoreService.applyCollection(userSeq, tattoo.getTattooSeq(), true);
-        return new CreatedCollection(collection, tattoo);
+        if (applyPreference) {
+            preferenceScoreService.applyCollection(userSeq, tattoo.getTattooSeq(), true);
+        }
+        return new CreatedCollection(collection, tattoo, displayImageSeq, displayObjectKey);
     }
 
-    public record CreatedCollection(TattooCollection collection, Tattoo tattoo) {
+    public record CreatedCollection(
+            TattooCollection collection,
+            Tattoo tattoo,
+            Long displayImageSeq,
+            String displayObjectKey
+    ) {
     }
 }

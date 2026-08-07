@@ -10,6 +10,7 @@ import CtaButton from "../ui/CtaButton";
 import CollectionArchivePanel from "./CollectionArchivePanel";
 import CollectionPreview from "./CollectionPreview";
 import MannequinCanvas from "./MannequinCanvas";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type CollectionEditorProps = {
 	userId: number;
@@ -64,7 +65,7 @@ export default function CollectionEditor({
 			if (result.skipped > 0) {
 				window.alert(
 					`${result.skipped}개 배치는 저장하지 못했습니다.\n` +
-						"샘플 도안이거나, 같은 도안을 이미 다른 위치에 배치한 경우입니다.",
+						"로컬 샘플 도안은 서버에 저장할 수 없습니다.",
 				);
 			}
 		} catch (err) {
@@ -92,7 +93,7 @@ export default function CollectionEditor({
 								onClick={() => void handleSave()}
 								disabled={isSaving}
 								className={collectionCtaClassName}>
-								{isSaving ? "저장 중…" : "저장하기"}
+								{isSaving ? <LoadingLabel>저장 중…</LoadingLabel> : "저장하기"}
 							</CtaButton>
 						</div>
 					</div>
@@ -108,7 +109,7 @@ export default function CollectionEditor({
 							onClick={() => void handleSave()}
 							disabled={isSaving}
 							className={collectionCtaClassName}>
-							{isSaving ? "저장 중…" : "저장하기"}
+							{isSaving ? <LoadingLabel>저장 중…</LoadingLabel> : "저장하기"}
 						</CtaButton>
 					</div>
 				</>

@@ -3,6 +3,7 @@ import { ApiError } from "../../services/api";
 import { checkNicknameAvailability } from "../../services/authApi";
 import type { SignupGender } from "../../types/auth";
 import { birthDateMessage, formatBirthDigits } from "../../utils/birthDate";
+import LoadingLabel from "../loader/LoadingLabel";
 
 /** 백엔드 UpdateProfileRequest.nickname 과 같은 제약 */
 const NICKNAME_PATTERN = /^[가-힣A-Za-z0-9]{2,20}$/;
@@ -217,7 +218,7 @@ export default function ProfileFormStep({
 				onClick={handleSubmit}
 				disabled={!nicknameReady || !birthReady || gender === null || submitting}
 				className="mx-auto mt-7 block h-[48px] w-[160px] rounded-full bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#FFB4B4]">
-				{submitting ? "저장하는 중…" : "다음"}
+				{submitting ? <LoadingLabel>저장하는 중…</LoadingLabel> : "다음"}
 			</button>
 		</div>
 	);

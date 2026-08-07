@@ -36,9 +36,8 @@ export async function fetchMyCollections(
 /**
  * POST /collections — 배치 1건 저장
  *
- * imageSeq는 내가 올린 이미지여야 하고, 아직 타투로 등록되지 않은 것이어야 한다
- * (등록된 이미지는 409 DUPLICATE_RESOURCE). 서버가 이 이미지로 USER_COLLECTION
- * 타투를 만들어 배치에 붙이므로, 같은 이미지를 두 번 배치할 수는 없다.
+ * imageSeq는 도안 보관함(GET /archive)의 designImageSeq다.
+ * 서버가 기존 타투를 재참조해 배치만 만들며, 같은 도안을 여러 위치에 올릴 수 있다.
  */
 export async function createCollection(
 	body: CreateCollectionRequest,
@@ -50,7 +49,7 @@ export async function createCollection(
 /**
  * DELETE /collections/{collectionSeq} — 배치 삭제
  *
- * 배치와 함께 그 배치용으로 만들어진 USER_COLLECTION 타투도 소프트 삭제된다.
+ * 배치 행만 소프트 삭제한다. 참조 타투·도안 이미지는 유지된다.
  */
 export async function deleteCollection(
 	collectionSeq: number,
