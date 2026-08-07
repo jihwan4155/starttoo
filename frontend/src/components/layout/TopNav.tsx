@@ -337,7 +337,6 @@ const MOBILE_MENU_ITEMS = [
 	{ label: "AI 도안 생성", to: "/ai" },
 	{ label: "타투 시뮬레이션", to: "/simulations" },
 	{ label: "커버업 타투", to: "/coverups" },
-	{ label: "도안 추출", to: "/extract" },
 	{ label: "커뮤니티", to: "/posts", dividerBefore: true, exact: true },
 	{ label: "피드", to: "/posts/search" },
 	{ label: "메시지", to: "/dm" },
