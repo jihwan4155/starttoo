@@ -23,7 +23,7 @@ export function useArchiveToggle(initialSaved = false) {
 				return res;
 			} catch (err) {
 				setError(
-					err instanceof Error ? err.message : "보관함 처리에 실패했습니다.",
+					err instanceof Error ? err.message : "도안 보관함 처리에 실패했습니다.",
 				);
 				throw err;
 			} finally {

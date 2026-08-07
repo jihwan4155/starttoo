@@ -1,9 +1,9 @@
 type UploadDropzoneActionsProps = {
 	hint?: string;
-	/** Shows an extra filled "내 도안보관함에서 선택" button next to the (real) computer picker. */
+	/** Shows an extra filled "도안 보관함에서 선택" button next to the (real) computer picker. */
 	showLibraryButton?: boolean;
 	onPick: () => void;
-	/** 보관함 버튼 클릭 핸들러 (showLibraryButton일 때만 사용) */
+	/** 도안 보관함 버튼 클릭 핸들러 (showLibraryButton일 때만 사용) */
 	onPickLibrary?: () => void;
 };
 
@@ -31,7 +31,7 @@ export default function UploadDropzoneActions({
 						type="button"
 						onClick={onPickLibrary}
 						className="h-[46px] min-w-[180px] rounded-[50px] bg-brand px-6 text-[16px] font-semibold text-white transition hover:brightness-95">
-						내 도안보관함에서 선택
+						도안 보관함에서 선택
 					</button>
 				)}
 			</div>

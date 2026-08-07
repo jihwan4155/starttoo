@@ -202,7 +202,7 @@ export default function MobileSimulationFlow({
 			{!isBodyStep && (
 				<div className="mt-8 flex gap-2">
 					<button type="button" onClick={designUpload.openPicker} className="h-12 flex-1 rounded-full border border-black bg-white text-[16px] font-semibold">갤러리</button>
-					<button type="button" onClick={onOpenDesigns} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white">내 도안보관함</button>
+					<button type="button" onClick={onOpenDesigns} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white">도안 보관함</button>
 				</div>
 			)}
 

@@ -9,8 +9,8 @@ import usePhotoDesignExtractMutation from "../hooks/mutations/usePhotoDesignExtr
 /**
  * 사진 한 장 → 도안 추출.
  *
- * 게시글 상세의 "도안 추출"과 같은 결과 모달을 쓴다. 다만 그쪽은 글을 올릴 때
- * 분류 과정에서 만들어 둔 도안을 조회하는 것이라 보관함 저장(tattooSeq)이 되고,
+ * 피드 상세의 "도안 추출"과 같은 결과 모달을 쓴다. 다만 그쪽은 글을 올릴 때
+ * 분류 과정에서 만들어 둔 도안을 조회하는 것이라 도안 보관함 저장(tattooSeq)이 되고,
  * 여기서 올린 사진은 서버에 등록된 타투가 아니라 PNG 다운로드만 제공한다.
  */
 export default function DesignExtractPage() {

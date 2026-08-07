@@ -77,9 +77,9 @@ export default function EditPostModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="게시글 수정">
+				aria-label="피드 수정">
 				<div className="relative flex h-[52px] items-center justify-center border-b border-black/10 px-4">
-					<p className="text-[15px] font-semibold text-black">게시글 수정</p>
+					<p className="text-[15px] font-semibold text-black">피드 수정</p>
 					<button
 						type="button"
 						aria-label="닫기"

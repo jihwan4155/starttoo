@@ -19,7 +19,7 @@ type MessageBubbleProps = {
 export default function MessageBubble({ message, mine }: MessageBubbleProps) {
 	const [isViewerOpen, setViewerOpen] = useState(false);
 	const time = formatDmTime(message.regDttm);
-	// 공유된 게시글이면 주소를 그대로 보여 주는 대신 카드로 그린다.
+	// 공유된 피드가면 주소를 그대로 보여 주는 대신 카드로 그린다.
 	const shared = parseSharedPost(message.textContent);
 
 	if (message.deleted) {

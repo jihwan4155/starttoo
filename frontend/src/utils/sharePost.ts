@@ -1,6 +1,6 @@
 import type { Post } from "../types/community";
 
-/** 게시글 상세로 바로 여는 주소 — App.tsx의 /posts/:postId 라우트와 짝이다 */
+/** 피드 상세로 바로 여는 주소 — App.tsx의 /posts/:postId 라우트와 짝이다 */
 export function postPermalink(postId: number): string {
 	return `${window.location.origin}/posts/${postId}`;
 }
@@ -11,7 +11,7 @@ const PREVIEW_LIMIT = 40;
 /**
  * DM으로 보낼 본문.
  *
- * DM 메시지 타입이 TEXT·IMAGE뿐이라 게시글을 첨부할 방법이 없다. 작성자와
+ * DM 메시지 타입이 TEXT·IMAGE뿐이라 피드를 첨부할 방법이 없다. 작성자와
  * 내용 일부로 무엇인지 알려 주고, 실제 열람은 주소로 넘긴다.
  */
 export function shareMessageText(post: Post): string {
@@ -20,14 +20,14 @@ export function shareMessageText(post: Post): string {
 		preview.length > PREVIEW_LIMIT
 			? `${preview.slice(0, PREVIEW_LIMIT)}…`
 			: preview;
-	const head = `${post.author.nickname}님의 게시글`;
+	const head = `${post.author.nickname}님의 피드`;
 	return shortened
 		? `${head}\n"${shortened}"\n${postPermalink(post.id)}`
 		: `${head}\n${postPermalink(post.id)}`;
 }
 
 /**
- * 우리 게시글 주소만 골라낸다 — 호스트가 어디든(로컬·배포·프리뷰) 경로만 본다.
+ * 우리 피드 주소만 골라낸다 — 호스트가 어디든(로컬·배포·프리뷰) 경로만 본다.
  * 주소를 통째로 비교하면 배포에서 보낸 링크가 로컬에서 안 잡힌다.
  */
 const PERMALINK_PATTERN = /https?:\/\/[^\s]*\/posts\/(\d+)(?![\d/])/;
@@ -39,7 +39,7 @@ export type SharedPostLink = {
 };
 
 /**
- * DM 본문에서 공유된 게시글을 읽어낸다.
+ * DM 본문에서 공유된 피드를 읽어낸다.
  *
  * 메시지 타입이 TEXT뿐이라 공유인지 아닌지는 본문으로 판단할 수밖에 없다.
  * 사용자가 직접 주소를 붙여 넣은 경우도 같은 카드로 보여 주는 편이 자연스럽다.

@@ -19,15 +19,15 @@ type SharePostModalProps = {
 };
 
 /**
- * 게시글을 DM으로 보내는 친구 선택 모달.
+ * 피드를 DM으로 보내는 친구 선택 모달.
  *
  * 받는 사람 후보는 내 팔로잉 목록이다. 닉네임 검색 API(GET /search/accounts)를
  * 쓰지 않고 받아온 목록을 그 자리에서 거른다 — 서버 검색 인덱스가 비어 있어
  * 어떤 닉네임을 넣어도 결과가 없기 때문이다. 목록이 50명을 넘으면 그때
  * 서버 검색으로 바꾸는 편이 낫다.
  *
- * DM 메시지 타입은 TEXT·IMAGE뿐이라 게시글을 첨부할 방법이 없다. 그래서
- * 게시글 주소를 본문에 담아 보내고, 받는 쪽은 /posts/:postId 로 열어 본다.
+ * DM 메시지 타입은 TEXT·IMAGE뿐이라 피드를 첨부할 방법이 없다. 그래서
+ * 피드 주소를 본문에 담아 보내고, 받는 쪽은 /posts/:postId 로 열어 본다.
  */
 export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 	const myUserId = useAuthStore((s) => s.user?.userId);
@@ -92,15 +92,15 @@ export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 			}
 			showToast(
 				selected.length === 1
-					? "게시글을 보냈습니다."
-					: `${selected.length}명에게 게시글을 보냈습니다.`,
+					? "피드를 보냈습니다."
+					: `${selected.length}명에게 피드를 보냈습니다.`,
 			);
 			close();
 		} catch (cause) {
 			setError(
 				cause instanceof ApiError
 					? cause.message
-					: "게시글을 보내지 못했습니다.",
+					: "피드를 보내지 못했습니다.",
 			);
 		} finally {
 			setSending(false);
@@ -114,7 +114,7 @@ export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 			<div
 				role="dialog"
 				aria-modal="true"
-				aria-label="게시글 공유"
+				aria-label="피드 공유"
 				onClick={(event) => event.stopPropagation()}
 				className="flex max-h-[80vh] w-full max-w-[420px] flex-col overflow-hidden rounded-[16px] bg-white shadow-xl">
 				<div className="relative shrink-0 border-b border-black/10 px-5 py-4">

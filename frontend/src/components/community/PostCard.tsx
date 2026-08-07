@@ -180,7 +180,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						<>
 							<button
 								type="button"
-								aria-label="게시글 메뉴"
+								aria-label="피드 메뉴"
 								onClick={() => setMenuOpen((prev) => !prev)}
 								className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/5">
 								<MoreIcon size={20} />
@@ -195,7 +195,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
 												수정
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													게시글 내용을 수정합니다
+													피드 내용을 수정합니다
 												</span>
 											</button>
 											<button
@@ -205,7 +205,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 												className="block w-full whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5 disabled:opacity-50">
 												삭제
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 게시글을 삭제합니다
+													이 피드를 삭제합니다
 												</span>
 											</button>
 										</>
@@ -227,7 +227,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5 disabled:opacity-50">
 												숨기기
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 게시글을 숨깁니다
+													이 피드를 숨깁니다
 												</span>
 											</button>
 										</>
@@ -258,14 +258,14 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 							disabled={isHidden}
 							{...swipeHandlers}
 							className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
-							aria-label="게시글 상세 보기">
+							aria-label="피드 상세 보기">
 							{imageUrls.length > 0 ? (
 								<div className="flex" style={trackStyle}>
 									{imageUrls.map((url, index) => (
 										<img
 											key={`${url}-${index}`}
 											src={url}
-											alt={`${post.author.nickname}의 게시글 ${index + 1}`}
+											alt={`${post.author.nickname}의 피드 ${index + 1}`}
 											draggable={false}
 											className={`aspect-[3/4] h-auto w-full shrink-0 object-cover ${
 												hasMultipleImages ? "" : "transition hover:scale-[1.01]"

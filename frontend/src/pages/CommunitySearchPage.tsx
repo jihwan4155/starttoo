@@ -15,9 +15,9 @@ import { filterVisiblePosts } from "../utils/filterPosts";
 import CommunitySearchBar from "../components/community/CommunitySearchBar";
 
 /**
- * 게시물 검색 — GET /search/posts (subject 기반)
+ * 피드 검색 — GET /search/posts (subject 기반)
  *
- * 검색어가 없을 때는 인스타그램 탐색 탭처럼 공개 게시물 그리드를 보여준다.
+ * 검색어가 없을 때는 인스타그램 탐색 탭처럼 공개 피드 그리드를 보여준다.
  * 개인화 추천 API가 아직 없어 GET /posts(전체 공개 피드, 최신순)를 그대로 쓴다.
  * 추천 엔드포인트가 생기면 exploreQuery만 갈아끼우면 된다.
  */
@@ -30,7 +30,7 @@ export default function CommunitySearchPage() {
 	const location = useLocation();
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 
-	// 피드 목록은 공개지만 게시글 상세는 로그인이 필요하다.
+	// 피드 목록은 공개지만 피드 상세는 로그인이 필요하다.
 	// 로그인 후 이 검색 결과(검색어 포함)로 돌아오도록 목적지를 남긴다.
 	const handleOpenPost = (post: Post) => {
 		if (!isLoggedIn) {
@@ -110,7 +110,7 @@ export default function CommunitySearchPage() {
 		error instanceof ApiError
 			? error.message
 			: isExplore
-				? "게시글을 불러오지 못했습니다."
+				? "피드를 불러오지 못했습니다."
 				: "검색 결과를 불러오지 못했습니다.";
 
 	return (
@@ -120,7 +120,7 @@ export default function CommunitySearchPage() {
 
 				{isExplore && (
 					<p className="mb-4 text-[14px] font-light text-black/60">
-						<span className="font-semibold text-black">추천 게시글</span> · 키워드를
+						<span className="font-semibold text-black">추천 피드</span> · 키워드를
 						입력하면 검색할 수 있어요
 					</p>
 				)}
@@ -152,7 +152,7 @@ export default function CommunitySearchPage() {
 
 				{isExplore && !isPending && !isError && results.length === 0 && (
 					<p className="py-20 text-center text-[14px] text-black/40">
-						아직 올라온 게시글이 없어요.
+						아직 올라온 피드가 없어요.
 					</p>
 				)}
 
@@ -190,7 +190,7 @@ export default function CommunitySearchPage() {
 						<button
 							key={post.id}
 							type="button"
-							aria-label={`${post.author.nickname}의 게시글 보기`}
+							aria-label={`${post.author.nickname}의 피드 보기`}
 							onClick={() => handleOpenPost(post)}
 							className="aspect-[3/4] overflow-hidden bg-[#D9D9D9] lg:rounded-[6px]">
 							{post.imageUrl && (

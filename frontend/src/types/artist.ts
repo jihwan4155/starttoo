@@ -22,7 +22,7 @@ export type Artist = {
 /** Swagger ArtistDtos.ArtistPostSummary — 목록 카드의 작업물 미리보기 */
 export type ArtistPostSummaryDto = {
 	postSeq: number;
-	/** 첫 번째 게시물 이미지의 단기 Presigned GET URL */
+	/** 첫 번째 피드 이미지의 단기 Presigned GET URL */
 	imageUrl: string;
 	likeCount: number;
 };
@@ -46,7 +46,7 @@ export type ArtistItem = {
 	shopDetails: string | null;
 	verificationStatus: string;
 	followerCount: number;
-	/** 최신 공개 게시물 최대 6개 */
+	/** 최신 공개 피드 최대 6개 */
 	posts: ArtistPostSummaryDto[];
 	regDttm: string | null;
 };

@@ -34,7 +34,7 @@ export default function ProfilePage() {
 	const userId = Number(rawUserId);
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	// 모바일에서 썸네일을 눌렀을 때 먼저 뜨는 카드 화면 (댓글은 그 다음 단계).
-	// ID로 들고 있어서 게시글이 삭제되어 목록에서 빠지면 저절로 닫힌다.
+	// ID로 들고 있어서 피드가 삭제되어 목록에서 빠지면 저절로 닫힌다.
 	const [cardPostId, setCardPostId] = useState<number | null>(null);
 	const [isUnfollowOpen, setUnfollowOpen] = useState(false);
 	const [tab, setTab] = useState<ProfileTab>("feed");
@@ -221,7 +221,7 @@ export default function ProfilePage() {
 										{showArtistBadge && <ArtistBadge size={18} />}
 									</p>
 									<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px] lg:text-black/60">
-										<span>게시물 {posts.length}</span>
+										<span>피드 {posts.length}</span>
 										<button
 											type="button"
 											onClick={() => setFollowListKind("followers")}
@@ -285,14 +285,14 @@ export default function ProfilePage() {
 										<StarttooLoader
 											variant="block"
 											size={180}
-											label="게시글을 불러오는 중…"
+											label="피드를 불러오는 중…"
 										/>
 									)}
 									{isPostsError && (
-										<MyPageEmptyState message="게시글을 불러오지 못했습니다" />
+										<MyPageEmptyState message="피드를 불러오지 못했습니다" />
 									)}
 									{!isPostsPending && !isPostsError && posts.length === 0 && (
-										<MyPageEmptyState message="게시글이 없습니다" />
+										<MyPageEmptyState message="피드가 없습니다" />
 									)}
 									{!isPostsPending && posts.length > 0 && (
 										<PostThumbnailGrid posts={posts} onOpen={handleOpenPost} />
