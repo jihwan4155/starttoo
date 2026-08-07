@@ -1,7 +1,7 @@
-import defaultProfile from "../assets/images/default-profile.png";
+import defaultProfile from "../assets/images/topnav-default-profile.png";
 import { MOCK_ARTISTS } from "../mocks/artists";
 
-/** 기본 프로필 이미지(회색 실루엣) — 프로필 사진이 없을 때 공통 fallback */
+/** 기본 프로필 이미지 — 프로필 사진이 없을 때 공통 fallback (홈 헤더와 동일) */
 export const DEFAULT_PROFILE_IMAGE = defaultProfile;
 
 /** 닉네임 → 타투이스트 프로필 이미지 (커뮤니티·DM에서 아티스트 아바타를 일관되게 적용) */

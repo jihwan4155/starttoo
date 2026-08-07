@@ -37,6 +37,7 @@ export default function MyPageHeader({
 	onRequestArtistBadge,
 }: MyPageHeaderProps) {
 	const displayAvatar = resolveAvatar(avatarUrl, nickname);
+	const usesDefaultAvatar = !avatarUrl;
 
 	const formatCount = (count?: number) =>
 		isLoading && count == null ? "—" : `${(count ?? 0).toLocaleString()}명`;
@@ -47,7 +48,7 @@ export default function MyPageHeader({
 				<img
 					src={displayAvatar}
 					alt={`${nickname || "내"} 프로필 이미지`}
-					className="size-[58px] shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-[100px]"
+					className={`size-[48px] shrink-0 rounded-full lg:size-[84px] ${usesDefaultAvatar ? "bg-white object-contain" : "bg-[#D9D9D9] object-cover"}`}
 				/>
 				<div className="min-w-0">
 					<p className="flex items-center gap-2 text-[18px] font-bold text-black lg:text-[22px]">

@@ -19,6 +19,7 @@ import useToggleFollow from "../hooks/mutations/useToggleFollow";
 import useUserCollections from "../hooks/queries/useUserCollections";
 import useUserPosts from "../hooks/queries/useUserPosts";
 import useUserProfile from "../hooks/queries/useUserProfile";
+import useArtistProfile from "../hooks/queries/useArtistProfile";
 import { useIsMobile } from "../hooks/useIsMobile";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { ApiError } from "../services/api";
@@ -104,7 +105,12 @@ export default function ProfilePage() {
 		profile?.role,
 		profile?.artist?.verificationStatus,
 	);
+	const {
+		data: artistDetail,
+		isPending: isArtistDetailPending,
+	} = useArtistProfile(userId, Boolean(isArtist));
 	const avatarUrl = resolveAvatar(profile?.profileImageUrl, profile?.nickname);
+	const usesDefaultAvatar = !profile?.profileImageUrl;
 	const profileErrorMessage =
 		profileError instanceof ApiError
 			? profileError.message
@@ -213,7 +219,7 @@ export default function ProfilePage() {
 								<img
 									src={avatarUrl}
 									alt={`${profile.nickname}의 프로필 이미지`}
-									className="size-[58px] shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-[100px]"
+									className={`size-[48px] shrink-0 rounded-full lg:size-[84px] ${usesDefaultAvatar ? "bg-white object-contain" : "bg-[#D9D9D9] object-cover"}`}
 								/>
 								<div className="min-w-0">
 									<p className="flex items-center gap-2 text-[18px] font-bold text-black lg:text-[22px]">
@@ -271,7 +277,11 @@ export default function ProfilePage() {
 						</div>
 
 						{isArtist && (
-							<MyPageShopInfo artist={profile.artist} />
+							<MyPageShopInfo
+								artist={profile.artist}
+								detail={artistDetail ?? null}
+								isLoading={isProfilePending || isArtistDetailPending}
+							/>
 						)}
 
 						<div className="mt-8">

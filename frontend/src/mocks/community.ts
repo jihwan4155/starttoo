@@ -1,4 +1,4 @@
-import defaultProfile from "../assets/images/default-profile.png";
+import defaultProfile from "../assets/images/topnav-default-profile.png";
 import feed1 from "../assets/images/explore/feed1.jpg";
 import feed2 from "../assets/images/explore/feed2.jpg";
 import feed3 from "../assets/images/explore/feed3.jpg";

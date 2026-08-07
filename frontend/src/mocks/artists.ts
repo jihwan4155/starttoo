@@ -1,4 +1,4 @@
-import defaultProfile from "../assets/images/default-profile.png";
+import defaultProfile from "../assets/images/topnav-default-profile.png";
 import type { Artist } from "../types/artist";
 import { MOCK_EXPLORE_POSTS } from "./community";
 
