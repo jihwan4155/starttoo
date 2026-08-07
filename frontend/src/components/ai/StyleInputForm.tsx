@@ -190,12 +190,12 @@ export default function StyleInputForm({
 			<section className="mb-10 max-lg:mb-8 max-lg:px-4">
 				<div className="mb-4 max-lg:text-center">
 					<h2 className="text-[20px] font-bold leading-6 text-black max-lg:text-[22px] max-lg:leading-7">프롬프트</h2>
-					<p className="mt-1 text-[16px] font-light leading-[19px] text-[#666] max-lg:mt-2 max-lg:text-[14px] max-lg:text-[#222]">추가 스타일이나 원하는 도안을 작성해주세요</p>
+					<p className="mt-1 text-[16px] font-light leading-[19px] text-[#666] max-lg:mt-2 max-lg:text-[14px] max-lg:text-[#222]">키워드 위주로 작성해주세요</p>
 				</div>
 				<textarea
 					value={prompt}
 					onChange={(event) => onPromptChange(event.target.value)}
-					placeholder="이곳에 작성해주세요"
+					placeholder="예) 개, 고양이"
 					rows={5}
 					className="w-full resize-none rounded-[10px] border border-[#D9D9D9] px-5 py-4 text-[16px] font-light leading-[22px] text-black outline-none transition placeholder:text-[#CFCFCF] focus:border-brand max-lg:h-[160px] max-lg:bg-white max-lg:px-4 max-lg:text-[14px]"
 				/>
