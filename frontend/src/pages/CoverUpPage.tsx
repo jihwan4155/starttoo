@@ -461,7 +461,7 @@ export default function CoverUpPage() {
 									variant="outline"
 									onClick={handleSave}
 									disabled={saveMutation.isPending || !selectedResult}>
-									{saveMutation.isPending ? "저장 중…" : "도안 저장하기"}
+									{saveMutation.isPending ? "저장 중…" : "도안보관함에 저장"}
 								</ActionButton>
 								<ActionButton
 									onClick={goToSimulation}
