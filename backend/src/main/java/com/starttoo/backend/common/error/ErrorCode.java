@@ -38,6 +38,7 @@ public enum ErrorCode {
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
     DUPLICATE_PHONE_NUMBER(HttpStatus.CONFLICT, "이미 가입된 휴대폰 번호입니다."),
     DUPLICATE_REACTION(HttpStatus.CONFLICT, "이미 적용된 상태입니다."),
+    ARCHIVE_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "보관함이 가득 찼습니다."),
     STATE_CONFLICT(HttpStatus.CONFLICT, "현재 상태에서는 요청을 처리할 수 없습니다."),
     SESSION_EXPIRED(HttpStatus.GONE, "세션이 만료되었거나 종료되었습니다."),
     NOT_TATTOO_IMAGE(HttpStatus.UNPROCESSABLE_ENTITY, "타투 이미지가 아닙니다."),

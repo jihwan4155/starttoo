@@ -6,6 +6,7 @@ import com.starttoo.backend.common.config.FirebaseProperties;
 import com.starttoo.backend.common.config.JwtProperties;
 import com.starttoo.backend.common.config.MinioProperties;
 import com.starttoo.backend.common.config.OAuthProperties;
+import com.starttoo.backend.collection.config.CollectionProperties;
 import com.starttoo.backend.common.ratelimit.RateLimitProperties;
 import com.starttoo.backend.coverup.config.CoverupProperties;
 import com.starttoo.backend.preference.config.PreferenceProperties;
@@ -26,7 +27,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         PreferenceProperties.class,
         CorsProperties.class,
         CoverupProperties.class,
-        SimulationProperties.class
+        SimulationProperties.class,
+        CollectionProperties.class
 })
 @SpringBootApplication
 public class StarttooBackendApplication {
