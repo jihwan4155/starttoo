@@ -3,6 +3,7 @@ import { ApiError, api } from "./api";
 export type GenerateTattooRequest = {
 	prompt: string;
 	style: string[];
+	referenceImageSeq?: number;
 	seed?: number;
 	steps?: number;
 	guidance?: number;

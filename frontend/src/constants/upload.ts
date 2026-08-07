@@ -14,8 +14,10 @@ export type UploadPurpose =
 	| "POST"
 	| "DM"
 	| "COLLECTION"
-	| "EXTRACTION";
+	| "EXTRACTION"
+	| "AI_REFERENCE";
 
 export const PROFILE_UPLOAD_PURPOSE: UploadPurpose = "PROFILE";
 export const POST_UPLOAD_PURPOSE: UploadPurpose = "POST";
 export const DM_UPLOAD_PURPOSE: UploadPurpose = "DM";
+export const AI_REFERENCE_UPLOAD_PURPOSE: UploadPurpose = "AI_REFERENCE";

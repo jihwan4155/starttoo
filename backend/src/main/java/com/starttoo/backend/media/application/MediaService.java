@@ -40,7 +40,7 @@ public class MediaService {
 
     private static final Set<String> EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Pattern OBJECT_KEY_PATTERN = Pattern.compile(
-            "^users/(\\d+)/(profile|post|dm|collection|extraction|simulation)/"
+            "^users/(\\d+)/(profile|post|dm|collection|extraction|simulation|ai-reference)/"
                     + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
                     + "\\.(jpg|png|webp)$"
     );
@@ -70,7 +70,7 @@ public class MediaService {
         ensureBucketOrThrow();
         String objectKey = "users/%d/%s/%s.%s".formatted(
                 userSeq,
-                request.purpose().name().toLowerCase(Locale.ROOT),
+                purposePath(request.purpose()),
                 UUID.randomUUID(),
                 extension
         );
@@ -136,6 +136,23 @@ public class MediaService {
 
     public String downloadUrl(String objectKey) {
         return presignedDownload(objectKey).url();
+    }
+
+    /**
+     * 로그인 사용자가 AI_REFERENCE 용도로 올린 이미지에 한해 AI 서버가 읽을 수 있는
+     * 단기 URL을 발급한다. 클라이언트가 임의의 외부 URL을 AI 서버에 전달하지 못하게 한다.
+     */
+    public String aiReferenceDownloadUrl(Integer userSeq, Long imageSeq) {
+        Image image = imageRepository.findByImageSeqAndDeletedFalse(imageSeq)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.IMAGE_NOT_FOUND));
+        if (!image.getRegUsrSeq().equals(userSeq)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
+        String expectedPrefix = "users/%d/ai-reference/".formatted(userSeq);
+        if (!image.getObjectKey().startsWith(expectedPrefix)) {
+            throw BusinessException.of(ErrorCode.INVALID_FILE);
+        }
+        return downloadUrl(image);
     }
 
     /**
@@ -298,6 +315,13 @@ public class MediaService {
             throw BusinessException.of(ErrorCode.INVALID_FILE);
         }
         return value.equals("jpeg") ? "jpg" : value;
+    }
+
+    private String purposePath(MediaDtos.UploadPurpose purpose) {
+        if (purpose == MediaDtos.UploadPurpose.AI_REFERENCE) {
+            return "ai-reference";
+        }
+        return purpose.name().toLowerCase(Locale.ROOT);
     }
 
     private void validateRequestedSize(Long fileSize) {
