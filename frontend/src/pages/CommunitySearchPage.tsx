@@ -17,9 +17,14 @@ import CommunitySearchBar from "../components/community/CommunitySearchBar";
 /**
  * 게시물 검색 — GET /search/posts (subject 기반)
  *
- * 검색어가 없을 때는 인스타그램 탐색 탭처럼 공개 게시물 그리드를 보여준다.
- * 개인화 추천 API가 아직 없어 GET /posts(전체 공개 피드, 최신순)를 그대로 쓴다.
- * 추천 엔드포인트가 생기면 exploreQuery만 갈아끼우면 된다.
+ * 검색어가 없을 때는 인스타그램 탐색 탭처럼 그리드를 보여준다. 이 그리드가 곧
+ * 추천 피드다 — GET /posts는 로그인한 조회자에게 스타일·색상 취향 점수와 최신성을
+ * 섞은 점수 내림차순으로 주기 때문이다(작성자 필터가 없을 때만. 내 글은 빠진다).
+ * 별도의 추천 엔드포인트는 없으므로 authorSeq를 붙이면 안 된다 — 붙이는 순간
+ * 서버가 최신순 목록으로 갈아탄다.
+ *
+ * 취향 점수가 없는 계정(찜·체류 이력이 없는 새 계정)은 블렌드가 최신성만 남아
+ * 전체 최신순과 같아 보인다. 화면 문제가 아니라 쌓인 데이터가 없는 것이다.
  */
 export default function CommunitySearchPage() {
 	const [searchParams] = useSearchParams();
