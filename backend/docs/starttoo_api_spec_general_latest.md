@@ -1238,6 +1238,7 @@ DM 이벤트:
 | 타투 도안 목록 조회 | GET | `/v1/tattoo-designs` | Optional |
 | 타투 상세 조회 | GET | `/v1/tattoos/{tattooSeq}` | Optional |
 | 타투 이미지 조회 | GET | `/v1/tattoos/{tattooSeq}/image` | Optional |
+| 사진 타투 도안 추출 | POST | `/v1/tattoos/extract` | Bearer |
 | AI 타투 도안 생성 | POST | `/v1/tattoos/generate` | Bearer |
 | 형태 기반 도안 검색 | POST | `/v1/designs/search-by-shape` | Public |
 
@@ -2564,6 +2565,7 @@ Subject 자동완성:
 | 타투 | GET | `/v1/tattoo-designs` |
 | 타투 | GET | `/v1/tattoos/{tattooSeq}` |
 | 타투 | GET | `/v1/tattoos/{tattooSeq}/image` |
+| 타투 | POST | `/v1/tattoos/extract` |
 | 타투 | POST | `/v1/tattoos/generate` |
 | 사용자 | GET | `/v1/users/me` |
 | 사용자 | PATCH | `/v1/users/me` |
@@ -3872,6 +3874,29 @@ Subject 자동완성:
 **실패 예시**
 ```json
 {"status":404,"code":"IMAGE_NOT_FOUND","message":"요청한 디자인 이미지를 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+```
+
+### POST `/v1/tattoos/extract`
+
+**API 개요:** 회원이 업로드한 사진에서 타투 유무를 판정하고 타투가 확인된 경우에만 투명 PNG 도안을 추출한다. Bearer 인증이 필요하다.
+
+**Request:** 먼저 이미지 업로드 API에 `purpose=EXTRACTION`으로 등록한 본인 소유 `imageSeq`를 JSON body로 전달한다.
+```json
+{"imageSeq":301}
+```
+
+**Response:** 추출 결과를 저장하거나 조회할 때 사용하는 `tattooSeq`, 추출 도안의 `designImageSeq`, 단기 `designImageUrl`을 반환한다.
+
+**설명:** AI 일괄 분석의 타투 유무 판정과 도안 추출을 한 번의 처리로 실행한다. 타투가 아니면 추출 이미지와 타투 데이터를 생성하지 않는다. 성공 결과는 `저장하기` 요청에서 `PUT /v1/archive/{tattooSeq}`에 그대로 사용할 수 있다.
+
+**성공 예시**
+```json
+{"data":{"tattooSeq":501,"designImageSeq":302,"designImageUrl":"https://minio.example/design?X-Amz-Signature=..."}}
+```
+
+**실패 예시**
+```json
+{"status":422,"code":"NOT_TATTOO_IMAGE","message":"타투를 검출할 수 없는 이미지입니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
 ### POST `/v1/tattoos/generate`

@@ -1,19 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { extractDesignFromPhoto } from "../../services/photoExtractApi";
-import type { DesignExtractResult } from "../../types/designExtract";
-
-/**
- * 올린 사진 → 도안 PNG.
- *
- * 결과는 objectURL이라 화면에서 다 쓰고 나면 반드시 revoke해야 한다
- * (호출하는 쪽에서 이전 결과를 정리한다).
- */
+/** 올린 사진 → 타투 판정 → 도안 추출 → 저장 가능한 서버 도안 등록. */
 export default function usePhotoDesignExtractMutation() {
 	return useMutation({
-		mutationFn: async (file: File): Promise<DesignExtractResult> => {
-			const blob = await extractDesignFromPhoto(file);
-			const objectUrl = URL.createObjectURL(blob);
-			return { previewUrl: objectUrl, downloadUrl: objectUrl };
-		},
+		mutationFn: extractDesignFromPhoto,
 	});
 }

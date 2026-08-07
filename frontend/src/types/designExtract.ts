@@ -2,7 +2,7 @@
 export type DesignExtractResult = {
 	/**
 	 * 도안 보관함 저장 API에 사용하는 타투 seq.
-	 * 사진을 직접 올려 추출한 결과에는 없다 (서버에 등록된 타투가 아니다).
+	 * 마이페이지 직접 추출 결과도 백엔드에 등록되므로 항상 저장할 수 있다.
 	 */
 	tattooSeq?: number;
 	/** 분류 과정에서 저장된 도안 이미지 seq */

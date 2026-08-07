@@ -41,7 +41,7 @@ public enum ErrorCode {
     ARCHIVE_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "보관함이 가득 찼습니다."),
     STATE_CONFLICT(HttpStatus.CONFLICT, "현재 상태에서는 요청을 처리할 수 없습니다."),
     SESSION_EXPIRED(HttpStatus.GONE, "세션이 만료되었거나 종료되었습니다."),
-    NOT_TATTOO_IMAGE(HttpStatus.UNPROCESSABLE_ENTITY, "타투 이미지가 아닙니다."),
+    NOT_TATTOO_IMAGE(HttpStatus.UNPROCESSABLE_ENTITY, "타투를 검출할 수 없는 이미지입니다."),
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "파일 크기가 허용 범위를 초과했습니다."),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
     UPSTREAM_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 처리에 실패했습니다."),
