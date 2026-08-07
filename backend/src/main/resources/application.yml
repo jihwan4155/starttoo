@@ -151,6 +151,12 @@ app:
     # 폰 한 대의 정상 사용은 connect 1회 + 캡처 몇 장이므로 넉넉해도 이 정도면 충분하다.
     ar-session-capacity: ${RATE_LIMIT_AR_SESSION_CAPACITY:30}
     ar-session-window: ${RATE_LIMIT_AR_SESSION_WINDOW:1m}
+    # 채팅은 짧은 메시지를 연달아 보내는 것이 정상 사용이라 mutation 한도와 따로 센다.
+    # 사람이 손으로 치는 속도로는 분당 60건을 채울 수 없어 정상 대화는 걸리지 않는다.
+    dm-capacity: ${RATE_LIMIT_DM_CAPACITY:60}
+    dm-window: ${RATE_LIMIT_DM_WINDOW:1m}
+    # 한도를 전부 면제할 계정(user_seq). 로그인 요청에만 적용된다.
+    exempt-user-seqs: ${RATE_LIMIT_EXEMPT_USER_SEQS:8}
   search:
     log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}

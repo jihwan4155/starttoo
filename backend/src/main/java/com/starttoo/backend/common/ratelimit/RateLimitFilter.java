@@ -25,6 +25,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -58,6 +59,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        if (exempt()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         Limit limit = resolveLimit(request);
         try {
             long used = 0;
@@ -121,6 +126,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         boolean mutation = !HttpMethod.GET.matches(request.getMethod())
                 && !HttpMethod.HEAD.matches(request.getMethod())
                 && !HttpMethod.OPTIONS.matches(request.getMethod());
+
+        if (mutation && uri.startsWith("/v1/dm")) {
+            // 대화는 짧은 메시지를 연달아 보내는 것이 정상 사용이라 게시·좋아요와 성격이 다르다.
+            // 같은 mutation 버킷을 쓰면 평범한 채팅이 커뮤니티 활동 한도를 잠식한다.
+            return new Limit(
+                    properties.dmCapacity(),
+                    properties.dmWindow(),
+                    "dm"
+            );
+        }
+
         if (mutation) {
             return new Limit(
                     properties.mutationCapacity(),
@@ -133,6 +149,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 properties.defaultWindow(),
                 "read"
         );
+    }
+
+    /**
+     * 부하 시연·데모처럼 한도가 방해가 되는 계정을 설정으로 열어준다.
+     * 로그인 요청에만 적용되며, IP 로만 묶이는 비로그인 진입점에는 영향이 없다.
+     */
+    private boolean exempt() {
+        Set<Long> exemptUserSeqs = properties.exemptUserSeqs();
+        if (exemptUserSeqs == null || exemptUserSeqs.isEmpty()) {
+            return false;
+        }
+        String subject = currentUserSubject();
+        if (subject == null) {
+            return false;
+        }
+        try {
+            return exemptUserSeqs.contains(Long.valueOf(subject));
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 
     private List<String> resolveClientKeys(HttpServletRequest request) {
@@ -148,14 +184,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String resolveClientKey(HttpServletRequest request) {
+        String subject = currentUserSubject();
+        if (subject != null) {
+            return "user:" + subject;
+        }
+        return "ip:" + resolveIp(request);
+    }
+
+    private String currentUserSubject() {
         Authentication authentication =
                 org.springframework.security.core.context.SecurityContextHolder
                         .getContext()
                         .getAuthentication();
         if (authentication instanceof JwtAuthenticationToken jwt && authentication.isAuthenticated()) {
-            return "user:" + jwt.getToken().getSubject();
+            return jwt.getToken().getSubject();
         }
-        return "ip:" + resolveIp(request);
+        return null;
     }
 
     private String resolveIp(HttpServletRequest request) {
