@@ -1,32 +1,6 @@
 import { api } from "./api";
-import demoTattoo from "../assets/images/demo-tattoo.png";
 import { MAX_RESULTS } from "../components/coverup/shapeSearchConstants";
-import { DEMO_MODE } from "../constants/config";
-import type {
-	DesignResult,
-	SearchMode,
-	SearchResponse,
-} from "../types/shapeSearch";
-
-const DEMO_DELAY_MS = 900;
-
-// 미분류 도안은 서버가 styleCode·styleName 키를 아예 생략한다. 그 경우도 재현한다.
-const DEMO_STYLES: Array<Pick<DesignResult, "styleCode" | "styleName">> = [
-	{ styleCode: "geometric_ornamental", styleName: "기하·장식" },
-	{ styleCode: "minimal", styleName: "미니멀" },
-	{ styleCode: "japanese", styleName: "재패니즈" },
-	{},
-];
-
-function demoResults(): DesignResult[] {
-	return Array.from({ length: MAX_RESULTS }, (_, index) => ({
-		tattooSeq: 900_000 + index,
-		imageUrl: demoTattoo,
-		// 서버는 점수 내림차순으로 준다
-		score: Number((0.92 - index * 0.03).toFixed(2)),
-		...DEMO_STYLES[index % DEMO_STYLES.length],
-	}));
-}
+import type { DesignResult, SearchMode, SearchResponse } from "../types/shapeSearch";
 
 /**
  * POST /designs/search-by-shape — 마스크와 닮은 도안을 점수순으로 조회
@@ -37,14 +11,6 @@ export async function searchByShape(
 	maskPngB64: string,
 	mode: SearchMode,
 ): Promise<DesignResult[]> {
-	// 시연·개발용: 검색 엔진(COVERUP_ENABLED 기본 false)이 없으면 서버가 503이다
-	if (DEMO_MODE) {
-		await new Promise((resolve) => {
-			setTimeout(resolve, DEMO_DELAY_MS);
-		});
-		return demoResults();
-	}
-
 	// 백엔드 ApiResponse<T> 봉투는 api.ts 응답 인터셉터가 벗겨서 준다
 	const { data } = await api.post<SearchResponse>("/designs/search-by-shape", {
 		maskPngB64,

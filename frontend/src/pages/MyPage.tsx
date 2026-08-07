@@ -8,6 +8,7 @@ import CollectionEditor from "../components/collections/CollectionEditor";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import ArtistBadgeRequestModal from "../components/mypage/ArtistBadgeRequestModal";
 import BlockedListModal from "../components/mypage/BlockedListModal";
+import DesignExtractModal from "../components/mypage/DesignExtractModal";
 import DesignThumbnailGrid from "../components/mypage/DesignThumbnailGrid";
 import FollowListModal from "../components/mypage/FollowListModal";
 import MyPageEmptyState from "../components/mypage/MyPageEmptyState";
@@ -65,12 +66,16 @@ export default function MyPage() {
 	);
 	const [isBadgeRequestOpen, setBadgeRequestOpen] = useState(false);
 	const [isBlockedListOpen, setBlockedListOpen] = useState(false);
+	const [isExtractOpen, setExtractOpen] = useState(false);
 
 	useEffect(() => {
 		if (isMyPageTab(tabParam)) {
 			setTab(tabParam);
 			setActivePost(null);
 			setCardPostId(null);
+			// 추출 결과의 "도안 보관함 바로가기"가 이 주소로 보낸다. 이미 이 화면이라
+			// 화면은 그대로인데 창만 덮여 있게 되므로 여기서 걷어낸다.
+			setExtractOpen(false);
 		}
 	}, [tabParam]);
 
@@ -251,7 +256,11 @@ export default function MyPage() {
 				)}
 
 				<div className="mt-8 lg:mt-8">
-					<MyPageTabs active={tab} onChange={setTab} />
+					<MyPageTabs
+						active={tab}
+						onChange={setTab}
+						onOpenExtract={() => requireAuth(() => setExtractOpen(true))}
+					/>
 				</div>
 
 				<div className="mt-4 lg:mt-8">
@@ -358,6 +367,10 @@ export default function MyPage() {
 				isOpen={isBlockedListOpen}
 				onClose={() => setBlockedListOpen(false)}
 			/>
+			{/* 닫으면 언마운트되어 고른 사진과 추출 결과가 함께 정리된다 */}
+			{isExtractOpen && (
+				<DesignExtractModal onClose={() => setExtractOpen(false)} />
+			)}
 		</div>
 	);
 }

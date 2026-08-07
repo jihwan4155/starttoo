@@ -312,7 +312,8 @@ export default function CreatePostModal({
 							</div>
 						) : (
 							<>
-								<div className="grid grid-cols-3 gap-3" data-sort-container>
+								{/* 최대 10장이라 5×2로 한 번에 다 보인다 */}
+								<div className="grid grid-cols-5 gap-2" data-sort-container>
 									{images.map((image, index) => (
 										<div
 											// 미리보기 URL이 고유값
