@@ -16,14 +16,18 @@ public class TattooGenerationHttpConfig {
     RestClient tattooGenerationRestClient(
             RestClient.Builder builder,
             AiProperties properties,
-            @Value("${app.ai.generation-timeout:60m}") Duration generationTimeout
+            @Value("${app.ai.generation-timeout:60m}") Duration generationTimeout,
+            @Value("${app.ai.internal-token:}") String internalToken
     ) {
-        return builder.clone()
+        RestClient.Builder configured = builder.clone()
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect()
                         .build(ClientHttpRequestFactorySettings.defaults()
                                 .withConnectTimeout(generationTimeout)
                                 .withReadTimeout(generationTimeout)))
-                .baseUrl(properties.baseUrl())
-                .build();
+                .baseUrl(properties.baseUrl());
+        if (!internalToken.isBlank()) {
+            configured.defaultHeader("X-Starttoo-AI-Token", internalToken);
+        }
+        return configured.build();
     }
 }
