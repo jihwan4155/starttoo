@@ -137,7 +137,11 @@ export default function OnboardingPage() {
 	};
 
 	return (
-		<OnboardingDialog title={TITLES[step]} onClose={finish}>
+		<OnboardingDialog
+			title={TITLES[step]}
+			onClose={finish}
+			// 스타일 설문만 5열 격자라 폭이 더 필요하다.
+			wide={step === "taste"}>
 			{step === "profile" && (
 				<ProfileFormStep
 					assignedNickname={assignedNickname ?? ""}

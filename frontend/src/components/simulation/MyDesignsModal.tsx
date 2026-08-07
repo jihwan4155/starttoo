@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import DialogCard from "../ui/DialogCard";
 import StarttooLoader from "../loader/StarttooLoader";
 import useArchive from "../../hooks/queries/useArchive";
@@ -15,6 +16,7 @@ export default function MyDesignsModal({
 	onClose,
 	onSelect,
 }: MyDesignsModalProps) {
+	const navigate = useNavigate();
 	// 도안 보관함 — 마이페이지와 같은 서버 데이터(GET /archive)를 읽는다.
 	// 이전에는 localStorage(useDesignStore)를 읽었는데, 저장된 previewUrl이
 	// 도안 추출 로컬 서버(127.0.0.1) 주소라 폰 등 다른 기기에서 전부 깨졌다.
@@ -46,6 +48,16 @@ export default function MyDesignsModal({
 						<br />
 						여기에서 선택할 수 있어요.
 					</p>
+					{/* 보관함이 비면 고를 것이 없다 — 채우러 갈 곳으로 바로 보낸다 */}
+					<button
+						type="button"
+						onClick={() => {
+							onClose();
+							navigate("/mypage?tab=designs");
+						}}
+						className="mt-2 h-11 rounded-full bg-brand px-6 text-[14px] font-semibold text-white transition hover:brightness-95">
+						도안 추가하러 가기
+					</button>
 				</div>
 			) : (
 				<div className="grid max-h-[min(360px,60vh)] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 sm:gap-4">

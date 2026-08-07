@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import useNavRefresh from "../../hooks/useNavRefresh";
 import useUnreadCounts from "../../hooks/queries/useUnreadCounts";
@@ -27,8 +27,6 @@ const MAIN_ITEMS: NavItem[] = [
 	{ id: "cover", label: "커버업 타투", to: "/coverups", icon: "cover" },
 ];
 
-// 커뮤니티 그룹: 평소엔 커뮤니티 아이콘만 보이고,
-// 호버하거나 커뮤니티 관련 페이지에 있을 때 하위 아이콘(검색, DM)이 펼쳐진다
 const COMMUNITY_ITEMS: NavItem[] = [
 	{
 		id: "community",
@@ -41,6 +39,13 @@ const COMMUNITY_ITEMS: NavItem[] = [
 	{ id: "dm", label: "메시지", to: "/dm", icon: "dm" },
 	{ id: "artist", label: "타투이스트", to: "/artists", icon: "artist" },
 ];
+
+const COLLAPSED_WIDTH = 64;
+const EXPANDED_WIDTH = 244;
+/** 아이콘을 접힌 너비(64) 기준으로 가운데 두기 위한 좌측 패딩 — 펼쳐도 아이콘 위치 고정 */
+const ICON_INSET = 18;
+const EXPAND_DELAY_MS = 100;
+const COLLAPSE_DELAY_MS = 180;
 
 function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 	const color = active ? "#FF0004" : "#1A1A1A";
@@ -97,7 +102,6 @@ function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 				</svg>
 			);
 		case "community":
-			// 별(스타버스트) 안에 S가 들어간 커뮤니티 아이콘
 			return (
 				<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
 					<path
@@ -141,7 +145,6 @@ function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 				</svg>
 			);
 		case "artist":
-			// 잉크펜(만년필 펜촉) — 타투이스트 모아보기
 			return (
 				<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
 					<g transform="rotate(-45 14 14)">
@@ -167,106 +170,121 @@ function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 }
 
 export default function SideNav() {
-	const [hoveredId, setHoveredId] = useState<string | null>(null);
-	const [communityHovered, setCommunityHovered] = useState(false);
+	const [expanded, setExpanded] = useState(false);
+	const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const { pathname } = useLocation();
-	// 보고 있는 화면의 아이콘을 다시 누르면 새로고침
 	const navRefresh = useNavRefresh();
-	// 미확인 NEW_DM 알림 수 — 방을 읽으면 서버가 함께 읽음 처리해 줄어든다.
 	const { data: unreadCounts } = useUnreadCounts();
 	const unreadDmCount = unreadCounts?.byType.NEW_DM ?? 0;
 
-	// 커뮤니티 관련 페이지에서는 하위 아이콘을 항상 펼쳐둔다
-	const onCommunityPage = COMMUNITY_ITEMS.some((item) =>
-		item.exact
-			? pathname === item.to
-			: pathname === item.to || pathname.startsWith(`${item.to}/`),
-	);
-	const communityExpanded = communityHovered || onCommunityPage;
+	const clearTimers = () => {
+		if (expandTimerRef.current) {
+			clearTimeout(expandTimerRef.current);
+			expandTimerRef.current = null;
+		}
+		if (collapseTimerRef.current) {
+			clearTimeout(collapseTimerRef.current);
+			collapseTimerRef.current = null;
+		}
+	};
 
-	const renderItem = (item: NavItem, small = false) => {
+	useEffect(() => () => clearTimers(), []);
+
+	const handleMouseEnter = () => {
+		if (collapseTimerRef.current) {
+			clearTimeout(collapseTimerRef.current);
+			collapseTimerRef.current = null;
+		}
+		if (expanded) return;
+		expandTimerRef.current = setTimeout(() => {
+			expandTimerRef.current = null;
+			setExpanded(true);
+		}, EXPAND_DELAY_MS);
+	};
+
+	const handleMouseLeave = () => {
+		if (expandTimerRef.current) {
+			clearTimeout(expandTimerRef.current);
+			expandTimerRef.current = null;
+		}
+		collapseTimerRef.current = setTimeout(() => {
+			collapseTimerRef.current = null;
+			setExpanded(false);
+		}, COLLAPSE_DELAY_MS);
+	};
+
+	const renderItem = (item: NavItem) => {
 		const isActive = item.exact
 			? pathname === item.to
 			: pathname === item.to || pathname.startsWith(`${item.to}/`);
-		const showLabel = hoveredId === item.id;
-		// 전체 아이콘은 살짝 작게, 커뮤니티는 살짝 크게, 펼쳐지는 하위 아이콘은 더 작게
-		const boxSize = small ? "size-[38px]" : "size-[46px]";
 		const iconScale =
 			item.id === "community"
 				? "scale-[1.05]"
 				: item.id === "artist"
-					? "scale-[0.88]"
-					: small
-						? "scale-[0.7]"
-						: "scale-[0.85]";
-		// 커뮤니티 그룹이 접혀 있을 때는 안읽은 DM 수를 커뮤니티 아이콘에 표시
-		const badgeCount =
-			unreadDmCount > 0 &&
-			(item.id === "dm" || (item.id === "community" && !communityExpanded))
-				? unreadDmCount
-				: 0;
+					? "scale-[1.08]"
+					: "scale-[0.85]";
+		const badgeCount = item.id === "dm" && unreadDmCount > 0 ? unreadDmCount : 0;
 
 		return (
-			<div
+			<Link
 				key={item.id}
-				className="relative"
-				onMouseEnter={() => setHoveredId(item.id)}
-				onMouseLeave={() => setHoveredId(null)}>
-				<Link
-					to={item.to}
-					aria-label={item.label}
-					aria-current={isActive ? "page" : undefined}
-					onClick={navRefresh(item.to)}
-					className={`relative flex ${boxSize} items-center justify-center rounded-[10px] bg-white transition ${
-						showLabel || isActive
-							? "shadow-[0_0_15px_rgba(255,0,4,0.12),4px_8px_30px_rgba(0,0,0,0.15)]"
-							: ""
-					}`}>
-					<span className={`flex items-center justify-center ${iconScale}`}>
-						<NavIcon type={item.icon} active={showLabel || isActive} />
-					</span>
+				to={item.to}
+				aria-label={item.label}
+				aria-current={isActive ? "page" : undefined}
+				onClick={navRefresh(item.to)}
+				style={{ paddingLeft: ICON_INSET }}
+				className={`group relative flex h-12 w-full shrink-0 items-center rounded-[12px] pr-3 transition-colors hover:bg-black/[0.04] ${
+					isActive ? "bg-black/[0.03]" : ""
+				}`}>
+				<span
+					className={`relative flex size-7 shrink-0 items-center justify-center ${iconScale}`}>
+					<NavIcon type={item.icon} active={isActive} />
 					{badgeCount > 0 && (
-						<span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold leading-none text-white">
-							{badgeCount}
+						<span className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold leading-none text-white">
+							{badgeCount > 99 ? "99+" : badgeCount}
 						</span>
 					)}
-				</Link>
-
-				{showLabel && (
-					<div className="pointer-events-none absolute left-[calc(100%+16px)] top-1/2 z-50 -translate-y-1/2">
-						<div className="relative filter drop-shadow-[0_0_20px_rgba(0,0,0,0.15)]">
-							<span
-								aria-hidden
-								className="absolute top-1/2 left-0 h-0 w-0 -translate-x-[10px] -translate-y-1/2 border-y-[10px] border-r-[12px] border-y-transparent border-r-white"
-							/>
-							<div className="flex h-[52px] min-w-[160px] items-center justify-center rounded-[50px] bg-white px-7">
-								<span className="whitespace-nowrap text-[20px] font-bold leading-6 text-black">
-									{item.label}
-								</span>
-							</div>
-						</div>
-					</div>
-				)}
-			</div>
+				</span>
+				<span
+					aria-hidden={!expanded}
+					className={`ml-4 shrink-0 whitespace-nowrap text-[15px] leading-5 text-black pointer-events-none ${
+						isActive ? "font-bold" : "font-semibold"
+					} ${
+						expanded
+							? "opacity-100 transition-opacity duration-150 delay-100"
+							: "opacity-0 transition-opacity duration-75 delay-0"
+					}`}>
+					{item.label}
+				</span>
+			</Link>
 		);
 	};
 
-	const [communityItem, ...communitySubItems] = COMMUNITY_ITEMS;
-
 	return (
-		<aside className="fixed bottom-0 left-0 top-[52px] z-40 hidden w-16 flex-col items-center gap-3 bg-white pt-6 lg:flex">
-			{MAIN_ITEMS.map((item) => renderItem(item))}
+		<aside
+			onMouseEnter={handleMouseEnter}
+			onMouseLeave={handleMouseLeave}
+			style={{ width: expanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
+			className={`fixed bottom-0 left-0 top-[52px] z-40 hidden flex-col overflow-hidden border-r bg-white pt-4 transition-[width,box-shadow,border-color] duration-300 ease-out lg:flex ${
+				expanded
+					? "border-black/10 shadow-[8px_0_24px_rgba(0,0,0,0.06)]"
+					: "border-transparent"
+			}`}>
+			<nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden pb-6">
+				{MAIN_ITEMS.map((item) => renderItem(item))}
 
-			{/* 커버업 타투와 커뮤니티 사이 구분선 */}
-			<div aria-hidden className="h-px w-9 bg-gray-200" />
+				<div
+					aria-hidden
+					className="my-2 h-px shrink-0 bg-gray-200 transition-[width] duration-300 ease-out"
+					style={{
+						marginLeft: ICON_INSET,
+						width: expanded ? EXPANDED_WIDTH - ICON_INSET * 2 : 36,
+					}}
+				/>
 
-			<div
-				className="flex flex-col items-center gap-2"
-				onMouseEnter={() => setCommunityHovered(true)}
-				onMouseLeave={() => setCommunityHovered(false)}>
-				{renderItem(communityItem)}
-				{communityExpanded && communitySubItems.map((item) => renderItem(item, true))}
-			</div>
+				{COMMUNITY_ITEMS.map((item) => renderItem(item))}
+			</nav>
 		</aside>
 	);
 }

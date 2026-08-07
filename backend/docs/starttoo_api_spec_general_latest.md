@@ -118,6 +118,7 @@
 | 409 | `DUPLICATE_RESOURCE` | UNIQUE 제약 충돌 |
 | 409 | `DUPLICATE_NICKNAME` | 활성 회원 닉네임 중복 |
 | 409 | `DUPLICATE_PHONE_NUMBER` | 이미 가입된 활성 휴대폰 번호 |
+| 409 | `ARCHIVE_LIMIT_EXCEEDED` | 보관함 상한에 도달한 상태에서 새 도안을 담음 |
 | 409 | `STATE_CONFLICT` | 현재 상태에서 수행할 수 없는 명령 |
 | 413 | `FILE_TOO_LARGE` | 허용된 이미지 크기를 초과함 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 지원하지 않는 Content-Type |
@@ -334,9 +335,15 @@ PUT /v1/archive/501
 
 `PUT`:
 
-1. 활성 `tattoos`와 `tattoo_designs` 존재 확인
-2. `user_archive` 멱등 INSERT
-3. 실제 신규 저장일 때만 해당 타투의 중복 제거된 `primaryStyle`, `color`에 보관 가중치 반영
+1. 회원 단위 advisory lock 획득 — 상한 검사와 INSERT 사이에 같은 회원의 다른 요청이
+   끼어들어 상한을 넘기지 못하게 트랜잭션 단위로 직렬화한다
+2. 이미 담긴 도안이면 보관 수가 늘지 않으므로 상한과 무관하게 `enabled=true`로 종료
+3. 보관 수가 상한(`app.collection.archive-max-designs`, 기본 20)에 도달했으면
+   409 `ARCHIVE_LIMIT_EXCEEDED`
+4. 활성 `tattoos`와 `tattoo_designs` 존재 확인 후 `user_archive` INSERT
+5. 실제 신규 저장일 때만 해당 타투의 중복 제거된 `primaryStyle`, `color`에 보관 가중치 반영
+
+상한은 서버에서 강제한다. 프론트에서만 막으면 동시 요청이나 다른 진입점으로 넘길 수 있다.
 
 `DELETE`:
 
@@ -2939,7 +2946,10 @@ Subject 자동완성:
 
 **Response:** 최종 상태 `enabled=true`를 반환한다.
 
-**설명:** 멱등 INSERT이며 실제 신규 보관일 때만 취향 점수를 가산한다.
+**설명:** 멱등 INSERT이며 실제 신규 보관일 때만 취향 점수를 가산한다. 보관 수가 상한(기본 20)에
+도달한 상태에서 새 도안을 담으면 409 `ARCHIVE_LIMIT_EXCEEDED`로 거절한다. 상한 검사와 INSERT는
+회원 단위 advisory lock으로 직렬화해 동시 요청이 상한을 넘기지 못한다. 이미 담긴 도안의 반복
+요청은 보관 수를 늘리지 않으므로 상한에서도 성공한다.
 
 **성공 예시**
 ```json
@@ -2948,7 +2958,7 @@ Subject 자동완성:
 
 **실패 예시**
 ```json
-{"status":404,"code":"TATTOO_NOT_FOUND","message":"보관할 타투 도안을 찾을 수 없습니다.","timestamp":"2026-08-01T10:00:00Z"}
+{"status":409,"code":"ARCHIVE_LIMIT_EXCEEDED","message":"보관함에는 도안을 최대 20개까지 저장할 수 있습니다.","timestamp":"2026-08-01T10:00:00Z"}
 ```
 
 ### DELETE `/v1/archive/{tattooSeq}`

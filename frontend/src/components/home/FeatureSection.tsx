@@ -20,16 +20,16 @@ function FeatureCopy({
 	buttonTo,
 }: Omit<FeatureBlockProps, "id" | "reversed" | "image" | "imageAlt">) {
 	return (
-		<div className="flex w-full max-w-[650px] flex-col items-start lg:w-fit">
-			<p className="text-[16px] font-normal leading-6 text-black lg:whitespace-nowrap lg:text-[24px] lg:leading-7">
+		<div className="home-feature-copy flex w-full max-w-[650px] flex-col items-center lg:w-fit lg:items-start">
+			<p className="w-full text-[16px] font-normal leading-6 text-black lg:w-auto lg:whitespace-nowrap lg:text-[24px] lg:leading-7">
 				{eyebrow}
 			</p>
-			<h2 className="mt-2.5 text-[27px] font-extrabold leading-[34px] tracking-[-0.04em] text-black lg:mt-5 lg:whitespace-nowrap lg:text-[48px] lg:leading-[57px]">
+			<h2 className="mt-2.5 w-full text-[27px] font-extrabold leading-[34px] tracking-[-0.04em] text-black lg:mt-5 lg:w-auto lg:whitespace-nowrap lg:text-[48px] lg:leading-[57px]">
 				{heading[0]}
 				<br />
 				{heading[1]}
 			</h2>
-			<p className="mt-4 text-[15px] font-light leading-6 text-black/70 lg:mt-5 lg:text-[18px] lg:leading-[21px] lg:text-black">
+			<p className="mt-4 w-full text-[15px] font-light leading-6 text-black/70 lg:mt-5 lg:w-auto lg:text-[18px] lg:leading-[21px] lg:text-black">
 				{description}
 			</p>
 			<div className="mt-8 hidden lg:block">

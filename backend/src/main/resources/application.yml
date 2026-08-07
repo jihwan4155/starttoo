@@ -163,6 +163,9 @@ app:
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}
     autocomplete-refresh-delay: ${SEARCH_AUTOCOMPLETE_REFRESH_DELAY:600000}
     reconciliation-cron: "${SEARCH_RECONCILIATION_CRON:0 0 4 * * *}"
+  collection:
+    # 보관함 상한. 프론트가 막아도 레이스·다른 진입점이 있어 PUT /archive 에서 직접 센다.
+    archive-max-designs: ${ARCHIVE_MAX_DESIGNS:20}
   simulation:
     # QR 을 띄우고 폰을 꺼내 찍는 시간만 감안한다. 만료 후 재접속은 세션을 새로 만든다.
     session-ttl: ${AR_SESSION_TTL:10m}

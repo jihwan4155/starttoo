@@ -8,7 +8,7 @@ import LoginPanel from "../components/auth/LoginPanel";
  */
 export default function LoginPage() {
 	return (
-		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center px-6">
+		<div className="flex min-h-[calc(100vh-var(--nav-h))] flex-col items-center justify-center px-6">
 			<h1 className="text-[28px] font-extrabold text-black">로그인</h1>
 
 			<div className="mt-10 w-full max-w-[320px]">

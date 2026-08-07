@@ -1,11 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import useBackClose from "../../hooks/useBackClose";
-import {
-	GENRE_TAGS,
-	MAX_GENRE_SELECTION,
-	MAX_REFERENCE_IMAGES,
-	type GenreTag,
-} from "./constants";
+import { GENRE_TAGS, MAX_REFERENCE_IMAGES, type GenreTag } from "./constants";
 
 type StyleInputFormProps = {
 	selectedGenres: string[];
@@ -97,17 +92,14 @@ export default function StyleInputForm({
 					<h2 className="text-[20px] font-bold leading-6 text-black max-lg:text-[22px] max-lg:leading-7">
 						타투 스타일 <span className="font-normal text-[#666] max-lg:font-bold max-lg:text-black">(장르 태그)</span>
 					</h2>
-					<p className="mt-1 text-[16px] font-light leading-[19px] text-[#666] max-lg:mt-2 max-lg:text-[14px] max-lg:text-[#222]">
-						최대 {MAX_GENRE_SELECTION}개까지 선택 가능합니다
-					</p>
 				</div>
 
 				{/* 모바일은 부모(px-0)에 흡수될 패딩이 없어 음수 마진을 쓰면 뷰포트를 넘친다 */}
 				<div className="relative -mx-2 px-2 max-lg:mx-0 max-lg:px-0">
 					<div className="genre-tag-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 py-2 pb-3 max-lg:gap-2 max-lg:scroll-pl-4 max-lg:px-4">
 						{GENRE_TAGS.map((tag) => {
+							// 스타일은 하나만 고른다. 다른 태그를 누르면 교체되므로 잠기는 칸이 없다.
 							const isSelected = selectedGenres.includes(tag.id);
-							const isDisabled = !isSelected && selectedGenres.length >= MAX_GENRE_SELECTION;
 
 							return (
 								<div key={tag.id} className="relative size-[140px] shrink-0 snap-start max-lg:size-[100px]">
@@ -115,7 +107,6 @@ export default function StyleInputForm({
 										type="button"
 										aria-pressed={isSelected}
 										aria-describedby={hoveredTag?.id === tag.id ? "genre-tag-tooltip" : undefined}
-										disabled={isDisabled}
 										onClick={() => onToggleGenre(tag.id)}
 										onMouseEnter={(event) => showTooltip(tag, event.clientX, event.clientY)}
 										onMouseMove={(event) => {
@@ -126,7 +117,7 @@ export default function StyleInputForm({
 											moveTooltip(event.clientX, event.clientY);
 										}}
 										onMouseLeave={hideTooltip}
-										className={`group relative size-full overflow-hidden rounded-[10px] border-[3px] transition max-lg:rounded-lg max-lg:border-2 ${isSelected ? "border-brand" : "border-[#D7D7D7] lg:border-transparent"} ${isDisabled ? "opacity-40" : "hover:opacity-90"}`}
+										className={`group relative size-full overflow-hidden rounded-[10px] border-[3px] transition hover:opacity-90 max-lg:rounded-lg max-lg:border-2 ${isSelected ? "border-brand" : "border-[#D7D7D7] lg:border-transparent"}`}
 										style={{ backgroundColor: tag.bgColor }}>
 										<img src={tag.image} alt={tag.label} className="size-full object-contain p-1.5 max-lg:p-1" />
 										<div
@@ -199,12 +190,12 @@ export default function StyleInputForm({
 			<section className="mb-10 max-lg:mb-8 max-lg:px-4">
 				<div className="mb-4 max-lg:text-center">
 					<h2 className="text-[20px] font-bold leading-6 text-black max-lg:text-[22px] max-lg:leading-7">프롬프트</h2>
-					<p className="mt-1 text-[16px] font-light leading-[19px] text-[#666] max-lg:mt-2 max-lg:text-[14px] max-lg:text-[#222]">추가 스타일이나 원하는 도안을 작성해주세요</p>
+					<p className="mt-1 text-[16px] font-light leading-[19px] text-[#666] max-lg:mt-2 max-lg:text-[14px] max-lg:text-[#222]">키워드 위주로 작성해주세요</p>
 				</div>
 				<textarea
 					value={prompt}
 					onChange={(event) => onPromptChange(event.target.value)}
-					placeholder="이곳에 작성해주세요"
+					placeholder="예) 개, 고양이"
 					rows={5}
 					className="w-full resize-none rounded-[10px] border border-[#D9D9D9] px-5 py-4 text-[16px] font-light leading-[22px] text-black outline-none transition placeholder:text-[#CFCFCF] focus:border-brand max-lg:h-[160px] max-lg:bg-white max-lg:px-4 max-lg:text-[14px]"
 				/>
