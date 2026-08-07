@@ -118,3 +118,12 @@ img {
 .genre-tag-scroll::-webkit-scrollbar-thumb:hover {
 	background: #ff4646;
 }
+
+/* 홈 기능 소개 카피 — 모바일에서만 가운데 정렬 (lg 이상은 왼쪽) */
+@media (max-width: 1023px) {
+	.home-feature-copy,
+	.home-feature-copy p,
+	.home-feature-copy h2 {
+		text-align: center;
+	}
+}

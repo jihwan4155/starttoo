@@ -248,7 +248,7 @@ export default function AiPage() {
 				</div>
 			</div>
 
-			{showLimitToast && <div className="fixed left-1/2 top-1/2 z-[80] -translate-x-1/2 rounded-full bg-black/70 px-8 py-4 text-center text-[16px] font-semibold text-white max-lg:w-[calc(100%-32px)]">도안 보관함이 꽉 차서 추가 선택할 수 없어요</div>}
+			{showLimitToast && <div className="fixed left-1/2 top-1/2 z-[80] -translate-x-1/2 rounded-full bg-black/70 px-8 py-4 text-center text-[16px] font-semibold text-white max-lg:w-[calc(100%-32px)]">선택 가능 개수(20개)를 초과했어요</div>}
 
 			{showLeaveModal && (
 				<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4" role="presentation" onClick={() => setShowLeaveModal(false)}>
