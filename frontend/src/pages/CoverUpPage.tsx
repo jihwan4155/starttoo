@@ -24,6 +24,7 @@ import { saveToArchive } from "../services/archiveApi";
 import type { SearchMode } from "../types/shapeSearch";
 import { useIsMobile } from "../hooks/useIsMobile";
 import MobileCoverUpFlow from "../components/coverup/MobileCoverUpFlow";
+import LoadingLabel from "../components/loader/LoadingLabel";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -231,7 +232,10 @@ export default function CoverUpPage() {
 	if (isMobile) {
 		return (
 			<MobileCoverUpFlow
-				step={step === 4 ? 3 : step}
+				step={step}
+				mode={mode}
+				onModeChange={switchMode}
+				bodyScan={bodyScan}
 				fileInputRef={fileInputRef}
 				previewUrl={previewUrl}
 				fileError={fileError}
@@ -361,9 +365,11 @@ export default function CoverUpPage() {
 								: "cursor-not-allowed text-black/20"
 						} ${step >= 3 ? "invisible" : ""}`}>
 						<span className="hidden sm:inline">
-							{searchMutation.isPending && step === 2
-								? "찾는 중…"
-								: forwardLabel}
+							{searchMutation.isPending && step === 2 ? (
+								<LoadingLabel>찾는 중…</LoadingLabel>
+							) : (
+								forwardLabel
+							)}
 						</span>
 						<ChevronRightIcon />
 					</button>
@@ -461,7 +467,7 @@ export default function CoverUpPage() {
 									variant="outline"
 									onClick={handleSave}
 									disabled={saveMutation.isPending || !selectedResult}>
-									{saveMutation.isPending ? "저장 중…" : "도안보관함에 저장"}
+									{saveMutation.isPending ? <LoadingLabel>저장 중…</LoadingLabel> : "도안보관함에 저장"}
 								</ActionButton>
 								<ActionButton
 									onClick={goToSimulation}

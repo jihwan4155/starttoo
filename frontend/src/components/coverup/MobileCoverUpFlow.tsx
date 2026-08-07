@@ -1,11 +1,21 @@
 import { useState, type RefObject } from "react";
-import type { DesignResult } from "../../types/shapeSearch";
+import type { DesignResult, SearchMode } from "../../types/shapeSearch";
 import ShapeCanvas from "./ShapeCanvas";
+import { MODE_KEYS, MODES } from "./shapeSearchConstants";
+import LoadingLabel from "../loader/LoadingLabel";
+import Simulation3DStep from "../simulation/Simulation3DStep";
+import type { BodyScanResult } from "../simulation/useBodyScan";
 
 type CanvasProps = React.ComponentProps<typeof ShapeCanvas>;
 
 type MobileCoverUpFlowProps = {
-	step: 1 | 2 | 3;
+	/** 4 = 고른 도안을 내 사진에 얹어 보는 단계 (PC와 같은 STEP 4) */
+	step: 1 | 2 | 3 | 4;
+	/** 그리기 방식 — 면(coverup) / 선(shape) */
+	mode: SearchMode;
+	onModeChange: (mode: SearchMode) => void;
+	/** STEP 4에서 쓰는 신체 분석 결과 */
+	bodyScan: BodyScanResult;
 	fileInputRef: RefObject<HTMLInputElement | null>;
 	previewUrl: string | null;
 	fileError: string | null;
@@ -60,6 +70,9 @@ function BottomButton({ disabled, onClick, children }: { disabled: boolean; onCl
 
 export default function MobileCoverUpFlow({
 	step,
+	mode,
+	onModeChange,
+	bodyScan,
 	fileInputRef,
 	previewUrl,
 	fileError,
@@ -122,6 +135,20 @@ export default function MobileCoverUpFlow({
 						<button type="button" onClick={onBack} aria-label="이전 단계" className="absolute left-0 flex size-8 items-center justify-center text-[#BDBDBD]"><BackIcon /></button>
 						<h2 className="text-center text-[19px] font-semibold">덮을 영역을 그려주세요</h2>
 					</div>
+					{/* 무엇을 그릴지 먼저 고르도록 캔버스 위에 둔다 (PC와 같은 자리) */}
+					<div className="mx-auto mb-3 flex h-[40px] w-full max-w-[240px] items-center rounded-[12px] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+						{MODE_KEYS.map((key) => (
+							<button
+								key={key}
+								type="button"
+								aria-pressed={mode === key}
+								onClick={() => onModeChange(key)}
+								className={`h-full flex-1 rounded-[9px] text-[14px] font-semibold transition ${mode === key ? "bg-surface text-black" : "text-black/40"}`}>
+								{MODES[key].label}
+							</button>
+						))}
+					</div>
+					<p className="mb-3 text-center text-[13px] font-light text-black/50">{MODES[mode].hint}</p>
 					<div className="mx-auto flex h-[430px] w-full max-w-[420px] items-center justify-center overflow-hidden rounded-[12px]">
 						<ShapeCanvas {...canvasProps} />
 					</div>
@@ -131,7 +158,9 @@ export default function MobileCoverUpFlow({
 					</div>
 					{searchMessage && <p className="mt-4 text-center text-[13px] text-brand">{searchMessage}</p>}
 					{!searchMessage && openShapeHint && <p className="mt-4 text-center text-[13px] font-light text-black/55">{openShapeHint}</p>}
-					<BottomButton disabled={nextDisabled} onClick={onNext}>{isSearching ? "추천 중…" : "타투 추천받기"}</BottomButton>
+					<BottomButton disabled={nextDisabled} onClick={onNext}>
+						{isSearching ? <LoadingLabel>추천 중…</LoadingLabel> : "타투 추천받기"}
+					</BottomButton>
 				</>
 			)}
 
@@ -153,10 +182,25 @@ export default function MobileCoverUpFlow({
 						))}
 					</div>
 					<div className="mt-4 flex gap-3">
-						<button type="button" disabled={isSaving} onClick={onSave} className="h-12 flex-1 rounded-full border border-brand bg-white text-[15px] font-semibold text-brand disabled:opacity-50">{isSaving ? "저장 중…" : "도안보관함에 저장"}</button>
+						<button type="button" disabled={isSaving} onClick={onSave} className="inline-flex h-12 flex-1 items-center justify-center rounded-full border border-brand bg-white text-[15px] font-semibold text-brand disabled:opacity-50">
+							{isSaving ? <LoadingLabel>저장 중…</LoadingLabel> : "도안보관함에 저장"}
+						</button>
 						<button type="button" onClick={onSimulate} className="h-12 flex-1 rounded-full bg-brand text-[15px] font-semibold text-white">시뮬레이션</button>
 					</div>
 					{saveError && <p className="mt-3 text-center text-[13px] text-brand">{saveError}</p>}
+				</>
+			)}
+
+			{/* STEP 4 — 고른 도안을 내 사진에 얹어 본다. PC와 같은 화면을 쓴다. */}
+			{step === 4 && (
+				<>
+					<div className="relative mb-4 flex min-h-8 items-center justify-center">
+						<button type="button" onClick={onBack} aria-label="이전 단계" className="absolute left-0 flex size-8 items-center justify-center text-[#BDBDBD]"><BackIcon /></button>
+						<h2 className="text-center text-[19px] font-semibold">타투를 배치해보세요</h2>
+					</div>
+					<div className="h-[calc(100dvh-230px)] min-h-[420px] w-full">
+						<Simulation3DStep designUrl={selected?.imageUrl ?? null} scan={bodyScan} />
+					</div>
 				</>
 			)}
 
