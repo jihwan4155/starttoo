@@ -279,7 +279,7 @@ export default function CoverUpPage() {
 	}
 
 	return (
-		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
+		<div className="h-[calc(100vh-var(--nav-h))] overflow-hidden bg-surface">
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pb-6 pt-6">
 				{/* 기능명세 4-1: 서비스 소개 섹션.
 				    시뮬레이션 단계에서는 캔버스에 높이를 넘겨주려고 접는다 */}
@@ -475,7 +475,7 @@ export default function CoverUpPage() {
 									variant="outline"
 									onClick={handleSave}
 									disabled={saveMutation.isPending || !selectedResult}>
-									{saveMutation.isPending ? "저장 중…" : "도안 저장하기"}
+									{saveMutation.isPending ? "저장 중…" : "도안보관함에 저장"}
 								</ActionButton>
 								<ActionButton
 									onClick={goToSimulation}

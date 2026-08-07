@@ -91,7 +91,7 @@ export default function MobileCoverUpFlow({
 	const handleHome = () => step === 1 ? goHome() : setHomeConfirmOpen(true);
 
 	return (
-		<div className="min-h-[calc(100vh-50px)] bg-surface px-4 pb-24 pt-6">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-6">
 			<Header onHome={handleHome} />
 
 			{step === 1 && (
@@ -153,7 +153,7 @@ export default function MobileCoverUpFlow({
 						))}
 					</div>
 					<div className="mt-4 flex gap-3">
-						<button type="button" disabled={isSaving} onClick={onSave} className="h-12 flex-1 rounded-full border border-brand bg-white text-[15px] font-semibold text-brand disabled:opacity-50">{isSaving ? "저장 중…" : "도안 저장"}</button>
+						<button type="button" disabled={isSaving} onClick={onSave} className="h-12 flex-1 rounded-full border border-brand bg-white text-[15px] font-semibold text-brand disabled:opacity-50">{isSaving ? "저장 중…" : "도안보관함에 저장"}</button>
 						<button type="button" onClick={onSimulate} className="h-12 flex-1 rounded-full bg-brand text-[15px] font-semibold text-white">시뮬레이션</button>
 					</div>
 					{saveError && <p className="mt-3 text-center text-[13px] text-brand">{saveError}</p>}

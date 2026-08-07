@@ -269,7 +269,7 @@ export default function SimulationsPage() {
 	}
 
 	return (
-		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
+		<div className="h-[calc(100vh-var(--nav-h))] overflow-hidden bg-surface">
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pt-6 pb-6">
 				{!hideHeader && (
 					<>
@@ -357,13 +357,17 @@ export default function SimulationsPage() {
 								onChange={bodyPhotoUpload.handleChange}
 								onDrop={bodyPhotoUpload.handleDrop}
 							/>
+							{/* 도안은 보관함에서만 고른다 — 박스를 눌러도 보관함이 열린다 */}
 							<UploadDropzoneBox
 								visible={tab === "image" && step === 2}
 								inputRef={designUpload.inputRef}
 								preview={designUpload.preview}
-								onPick={designUpload.openPicker}
+								onPick={() => setMyDesignsOpen(true)}
 								onChange={designUpload.handleChange}
 								onDrop={designUpload.handleDrop}
+								fileDisabled
+								emptyTitle="클릭해 도안 보관함에서 선택"
+								emptySubtitle=""
 							/>
 							{/* 3D 시뮬레이션: 백그라운드 스캔 결과로 도안 배치·저장을 한 화면에서 */}
 							{tab === "image" && step === 3 && (
@@ -413,8 +417,7 @@ export default function SimulationsPage() {
 				)}
 				{tab === "image" && step === 2 && (
 					<UploadDropzoneActions
-						showLibraryButton
-						onPick={designUpload.openPicker}
+						libraryOnly
 						onPickLibrary={() => setMyDesignsOpen(true)}
 					/>
 				)}
@@ -452,7 +455,7 @@ export default function SimulationsPage() {
 							href={captureUrl}
 							download="starttoo-tattoo.png"
 							className="rounded-full bg-brand px-8 py-3 text-[16px] font-semibold text-white transition hover:brightness-95">
-							기기에 저장
+							결과 이미지 저장
 						</a>
 						<button
 							type="button"

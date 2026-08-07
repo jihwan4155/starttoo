@@ -84,7 +84,7 @@ export default function TattooistPage() {
 			: "타투이스트 목록을 불러오지 못했습니다.";
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
 			<div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-4 lg:gap-6">
 				<div className="hidden max-lg:block [&>div>div]:h-12 [&>div>div]:shadow-none">
 					<ArtistSearchBar />

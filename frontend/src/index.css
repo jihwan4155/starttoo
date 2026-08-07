@@ -47,6 +47,22 @@
 	--font-paperlogy: "Paperlogy", sans-serif;
 }
 
+/*
+ * 상단 헤더(TopNav) 높이. MainLayout이 main에 주는 padding-top과 같은 값이라,
+ * 페이지는 min-h-[calc(100vh-var(--nav-h))]로 화면을 정확히 채울 수 있다.
+ * 예전에는 각 페이지가 60px을 직접 빼고 있었는데 실제 높이와 달라
+ * 내용이 짧은 화면 아래쪽에 8~16px짜리 띠가 남았다.
+ */
+:root {
+	--nav-h: 44px;
+}
+
+@media (min-width: 1024px) {
+	:root {
+		--nav-h: 52px;
+	}
+}
+
 * {
 	box-sizing: border-box;
 }
@@ -61,10 +77,8 @@ body {
 	margin: 0;
 	font-family: var(--font-paperlogy);
 	/*
-	 * 페이지 대부분이 bg-surface를 쓰는데 body만 흰색이면, 페이지 높이가 화면에
-	 * 못 미치는 자리에서 흰 띠가 비친다. 헤더는 44px(lg 52px)인데 페이지들은
-	 * h-[calc(100vh-60px)]로 잡고 있어 아래쪽에 8~16px이 남는 것이 그 경우다.
-	 * 바닥색을 같은 surface로 맞춰 어디가 비어도 색이 튀지 않게 한다.
+	 * 페이지 대부분이 bg-surface를 쓴다. 어딘가 한 줄이 비쳐도 색이 튀지 않도록
+	 * 바닥색을 같은 surface로 맞춰 둔다.
 	 */
 	background: var(--color-surface);
 	color: #000000;

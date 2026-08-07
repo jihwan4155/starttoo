@@ -115,7 +115,9 @@ export default function DesignExtractResultModal({
 								onClick={handleAddDesign}
 								disabled={isSaving && isCurrentDesign}
 								className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">
-								{isSaving && isCurrentDesign ? "저장 중..." : "도안 보관함에 추가"}
+								{isSaving && isCurrentDesign
+									? "저장 중..."
+									: "도안보관함에 저장"}
 							</button>
 						)}
 					</div>

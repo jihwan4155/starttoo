@@ -14,13 +14,19 @@ export const MASK_W = 420;
 export const MASK_H = 520;
 
 /**
- * 붓 굵기. 사용자가 고르지 않고 고정한다.
+ * 붓 굵기. 사용자가 고르지 않고 모드마다 고정한다.
  *
- * <p>참고: 검색 엔진 튜닝 기준값은 shape 6px · coverup 16px 이지만, 두 모드가
- * 같은 굵기로 그려지도록 6px로 통일했다. coverup 모드는 튜닝값보다 얇은 획을
- * 보내게 되므로, 커버업 결과가 기대와 다르면 이 값을 먼저 의심할 것.
+ * <p>검색 엔진 튜닝 기준값이 모드마다 다르다 — shape 6px · coverup 16px. 한동안
+ * 두 모드를 6px로 통일해 뒀는데, 그러면 coverup은 튜닝값보다 얇은 획을 보내게 되어
+ * 서버의 채움(query_mask_from_strokes)이 기대보다 좁은 면을 만든다. 엔진 기준값으로
+ * 되돌린 상태다.
+ *
+ * <p>바꾸려면 MASK_W/MASK_H와 한 세트로 봐야 한다(위 주석 참고).
  */
-export const BRUSH_PX = 6;
+export const BRUSH_PX: Record<SearchMode, number> = {
+	coverup: 16,
+	shape: 6,
+};
 
 /**
  * 화면 라벨은 사용자가 그리는 방식을 그대로 부른다.
