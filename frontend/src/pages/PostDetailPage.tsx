@@ -31,7 +31,7 @@ export default function PostDetailPage() {
 				? error.message
 				: "피드를 찾을 수 없습니다.";
 		return (
-			<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center gap-4 px-6">
+			<div className="flex min-h-[calc(100vh-var(--nav-h))] flex-col items-center justify-center gap-4 px-6">
 				<p className="text-center text-[14px] text-black/60">
 					{isValidId ? message : "잘못된 주소입니다."}
 				</p>
@@ -47,14 +47,14 @@ export default function PostDetailPage() {
 
 	if (isPending || !post) {
 		return (
-			<div className="min-h-[calc(100vh-60px)] py-20">
+			<div className="min-h-[calc(100vh-var(--nav-h))] py-20">
 				<StarttooLoader variant="block" label="피드를 불러오는 중…" />
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface">
 			<PostDetailModal post={post} onClose={close} />
 		</div>
 	);

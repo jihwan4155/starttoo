@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import OnboardingDialog from "../components/onboarding/OnboardingDialog";
 import RoleAskStep from "../components/onboarding/RoleAskStep";
+import DataConsentStep from "../components/signup/DataConsentStep";
 import SignupPhoneStep from "../components/signup/SignupPhoneStep";
 import { ApiError } from "../services/api";
 import { signup, suggestNicknames } from "../services/authApi";
@@ -26,10 +27,13 @@ async function assignNickname(): Promise<string> {
 	return `타투인${Math.floor(Math.random() * 1_000_000)}`;
 }
 
-type Step = "phone" | "role";
+type Step = "phone" | "consent" | "role";
 
 /**
- * 회원가입 플로우 — 전화번호 확인, 그다음 역할 선택.
+ * 회원가입 플로우 — 전화번호 확인, 데이터 처리 동의, 그다음 역할 선택.
+ *
+ * 동의를 역할 선택 앞에 두는 이유는 어떤 역할로 가입하든 도안·프롬프트를 다루는
+ * 것은 같아서다. 필수 항목에 동의해야 역할 화면으로 넘어간다.
  *
  * 역할을 여기서 묻는 이유가 있다. users.role은 가입 요청에서만 정해지고 이후
  * 바꾸는 API가 없다(PATCH /users/me는 닉네임·생년월일·성별만 받는다). 예전에는
@@ -68,6 +72,10 @@ export default function SignupPage() {
 	const handleConfirmed = (confirmed: string) => {
 		setSubmitError(null);
 		setPhoneNumber(confirmed);
+		setStep("consent");
+	};
+
+	const handleConsent = () => {
 		setStep("role");
 	};
 
@@ -111,9 +119,21 @@ export default function SignupPage() {
 		}
 	};
 
+	if (step === "consent") {
+		return (
+			<OnboardingDialog
+				title="데이터 활용 동의"
+				onClose={() => setStep("phone")}>
+				<DataConsentStep disabled={submitting} onAgree={handleConsent} />
+			</OnboardingDialog>
+		);
+	}
+
 	if (step === "role") {
 		return (
-			<OnboardingDialog title="타투이스트 이신가요?" onClose={() => setStep("phone")}>
+			<OnboardingDialog
+				title="타투이스트 이신가요?"
+				onClose={() => setStep("consent")}>
 				<RoleAskStep
 					disabled={submitting}
 					onSelect={(isArtist) => void handleRoleSelect(isArtist)}
@@ -128,7 +148,7 @@ export default function SignupPage() {
 	}
 
 	return (
-		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center px-6 py-10">
+		<div className="flex min-h-[calc(100vh-var(--nav-h))] flex-col items-center justify-center px-6 py-10">
 			<SignupPhoneStep
 				submitting={false}
 				submitError={null}

@@ -135,7 +135,7 @@ export default function OAuthCallbackPage({
 	]);
 
 	return (
-		<div className="flex min-h-[calc(100vh-60px)] flex-col items-center justify-center gap-4 px-6 text-center">
+		<div className="flex min-h-[calc(100vh-var(--nav-h))] flex-col items-center justify-center gap-4 px-6 text-center">
 			{error === null ? (
 				<StarttooLoader variant="block" label="로그인 중…" />
 			) : (

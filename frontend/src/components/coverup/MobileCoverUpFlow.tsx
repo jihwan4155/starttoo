@@ -91,7 +91,7 @@ export default function MobileCoverUpFlow({
 	const handleHome = () => step === 1 ? goHome() : setHomeConfirmOpen(true);
 
 	return (
-		<div className="min-h-[calc(100vh-50px)] bg-surface px-4 pb-24 pt-6">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-6">
 			<Header onHome={handleHome} />
 
 			{step === 1 && (

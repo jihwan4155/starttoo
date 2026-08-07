@@ -70,7 +70,7 @@ export default function NotificationsPage() {
 
 	if (!accessToken) {
 		return (
-			<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
+			<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface pb-16 pt-8">
 				<div className="mx-auto w-full max-w-[440px] px-4 py-20 text-center">
 					<p className="text-[15px] font-semibold text-black/80">
 						로그인이 필요합니다
@@ -89,7 +89,7 @@ export default function NotificationsPage() {
 	}
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface pb-16 pt-8">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface pb-16 pt-8">
 			<SystemNotificationModal
 				item={systemModalItem}
 				isOpen={systemModalItem != null}

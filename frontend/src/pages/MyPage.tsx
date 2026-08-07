@@ -232,7 +232,7 @@ export default function MyPage() {
 	const canRequestArtistBadge = isArtist && !showArtistBadge;
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface px-0 pb-28 pt-5 lg:px-6 lg:pb-16 lg:pt-10">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-0 pb-28 pt-5 lg:px-6 lg:pb-16 lg:pt-10">
 			<div className="mx-auto w-full max-w-[900px]">
 				{isLoggedIn && isMeError && (
 					<p className="mb-4 text-center text-[14px] text-black/60">
