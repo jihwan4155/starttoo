@@ -21,6 +21,7 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-http://ai-api:8000}
       AI_ENABLED: ${AI_ENABLED:-false}
       AI_GENERATION_TIMEOUT: ${AI_GENERATION_TIMEOUT:-60m}
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:-}
       # 커버업 도안 검색 엔진. app.ai 와는 다른 서비스이고 같은 ai 컨테이너에 들어 있다.
       COVERUP_ENABLED: ${COVERUP_ENABLED:-false}
       COVERUP_ENGINE_URL: ${COVERUP_ENGINE_URL:-http://ai:8000}
