@@ -75,7 +75,7 @@ export default function MobileSimulationFlow({
 
 	if (!confirmed) {
 		return (
-			<div className="min-h-[calc(100vh-50px)] bg-surface px-4 pb-24 pt-7">
+			<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-7">
 				<MobileHeader title="타투 시뮬레이션" onHome={handleHome} />
 				<div className="mb-6 text-center">
 					<h2 className="text-[22px] font-bold">어떻게 미리 볼까요?</h2>
@@ -118,7 +118,7 @@ export default function MobileSimulationFlow({
 		const isGuideStep = arStep === 1;
 		return (
 			<>
-				<div className="min-h-[calc(100vh-50px)] bg-surface px-4 pb-24 pt-8">
+				<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-8">
 					<MobileHeader title="타투 시뮬레이션 - 실시간(AR)" onHome={handleHome} />
 					{isGuideStep ? (
 						<>
@@ -158,7 +158,7 @@ export default function MobileSimulationFlow({
 	if (imageStep === 3) {
 		return (
 			<>
-				<div className="min-h-[calc(100vh-50px)] bg-surface px-4 pb-20 pt-8">
+				<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-20 pt-8">
 					<MobileHeader title={title} onHome={handleHome} />
 					<StepTitle onBack={onBack}>타투를 배치하고 완성된 결과를 확인하세요</StepTitle>
 					<div className="h-[calc(100dvh-250px)] min-h-[420px] w-full">
@@ -188,7 +188,7 @@ export default function MobileSimulationFlow({
 	const upload = imageStep === 1 ? bodyPhotoUpload : designUpload;
 	const isBodyStep = imageStep === 1;
 	return (
-		<div className="min-h-[calc(100vh-50px)] bg-surface px-4 pb-24 pt-8">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-8">
 			<MobileHeader title={title} onHome={handleHome} />
 			<StepTitle onBack={onBack} className="mb-4">{isBodyStep ? "시착해 볼 신체 사진을 선택하세요" : "도안 보관함에서 도안을 골라주세요"}</StepTitle>
 			{/* 도안 단계는 기기 파일을 받지 않는다 — 보관함 도안만 쓴다 */}

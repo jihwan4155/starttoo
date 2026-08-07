@@ -17,7 +17,9 @@ export default function CommunitySection() {
 		<section
 			id="community"
 			className="mx-auto flex w-full max-w-[1199px] flex-col items-center px-5 pb-13 pt-12 lg:px-0 lg:pb-24 lg:pt-20">
-			<p className="text-[16px] font-normal leading-6 text-brand lg:text-[24px] lg:leading-7">COMMUNITY</p>
+			<p className="text-center text-[16px] font-normal leading-6 text-brand lg:text-[24px] lg:leading-7">
+				COMMUNITY
+			</p>
 			<h2 className="mt-2.5 text-center text-[27px] font-extrabold leading-[34px] tracking-[-0.04em] text-black lg:mt-3 lg:text-[48px] lg:leading-[57px]">
 				다른 사람들은 어떻게 그렸을까요?
 			</h2>

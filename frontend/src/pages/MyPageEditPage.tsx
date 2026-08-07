@@ -233,7 +233,7 @@ export default function MyPageEditPage() {
 	// 비로그인이면 useMe가 꺼져 있어 isPending이 계속 true다 — 로그인 여부를 먼저 본다.
 	if (!isAuthenticated) {
 		return (
-			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
+			<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 pb-16 pt-10">
 				<p className="py-20 text-center text-[14px] text-black/60">
 					로그인 후 프로필을 수정할 수 있습니다.
 				</p>
@@ -243,7 +243,7 @@ export default function MyPageEditPage() {
 
 	if (isMePending) {
 		return (
-			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
+			<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 pb-16 pt-10">
 				<StarttooLoader variant="block" label="프로필을 불러오는 중…" />
 			</div>
 		);
@@ -251,7 +251,7 @@ export default function MyPageEditPage() {
 
 	if (isMeError || !me) {
 		return (
-			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
+			<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 pb-16 pt-10">
 				<p className="py-20 text-center text-[14px] text-black/60">
 					{meError instanceof ApiError
 						? meError.message
@@ -262,7 +262,7 @@ export default function MyPageEditPage() {
 	}
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-10">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 pb-16 pt-10">
 			<div className="mx-auto w-full max-w-[560px]">
 				<button
 					type="button"

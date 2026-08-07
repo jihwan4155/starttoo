@@ -114,6 +114,7 @@ class OpenApiDocumentationTest {
             "POST /v1/simulations/ar-sessions/{sessionId}/composites",
             "POST /v1/simulations/ar-sessions/{sessionId}/composites/presign",
             "POST /v1/simulations/ar-sessions/{sessionId}/connect",
+            "POST /v1/tattoos/extract",
             "POST /v1/tattoos/generate",
             "PUT /v1/archive/{tattooSeq}",
             "PUT /v1/comments/{commentSeq}/like",

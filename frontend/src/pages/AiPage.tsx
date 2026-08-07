@@ -229,7 +229,7 @@ export default function AiPage() {
 	const inputForm = <StyleInputForm selectedGenres={selectedGenres} prompt={prompt} referenceImages={referenceImages.map((item) => item.previewUrl)} showHero={!hasGenerated} canGenerate={canGenerate} generating={generating} generationError={generationError} onToggleGenre={handleToggleGenre} onPromptChange={setPrompt} onAddReferenceImages={handleAddReferenceImages} onRemoveReferenceImage={handleRemoveReferenceImage} onGenerate={handleGenerate} />;
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface px-6 py-10 max-lg:min-h-[calc(100vh-50px)] max-lg:px-0 max-lg:py-0">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 py-10 max-lg:px-0 max-lg:py-0">
 			<header className="fixed inset-x-0 top-0 z-[70] hidden h-[50px] items-center justify-center border-b border-[#E8E8E8] bg-white max-lg:flex">
 				<button type="button" aria-label="홈으로 이동" onClick={requestHome} className="absolute left-4 flex size-8 items-center justify-center text-[#555]"><HomeIcon /></button>
 				<h1 className="text-[20px] font-bold">AI 도안 생성</h1>
@@ -248,7 +248,7 @@ export default function AiPage() {
 				</div>
 			</div>
 
-			{showLimitToast && <div className="fixed left-1/2 top-1/2 z-[80] -translate-x-1/2 rounded-full bg-black/70 px-8 py-4 text-center text-[16px] font-semibold text-white max-lg:w-[calc(100%-32px)]">도안 보관함이 꽉 차서 추가 선택할 수 없어요</div>}
+			{showLimitToast && <div className="fixed left-1/2 top-1/2 z-[80] -translate-x-1/2 rounded-full bg-black/70 px-8 py-4 text-center text-[16px] font-semibold text-white max-lg:w-[calc(100%-32px)]">선택 가능 개수(20개)를 초과했어요</div>}
 
 			{showLeaveModal && (
 				<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4" role="presentation" onClick={() => setShowLeaveModal(false)}>

@@ -202,7 +202,7 @@ export default function DmPage() {
 
 	if (!accessToken) {
 		return (
-			<div className="flex h-[calc(100dvh-50px)] items-center justify-center border-t border-gray-200 bg-surface lg:h-[calc(100vh-60px)] lg:border-l">
+			<div className="flex h-[calc(100dvh-var(--nav-h))] items-center justify-center border-t border-gray-200 bg-surface lg:h-[calc(100vh-var(--nav-h))] lg:border-l">
 				<p className="text-[14px] font-light text-black/50">
 					로그인 후 메시지를 확인할 수 있습니다.
 				</p>
@@ -211,7 +211,7 @@ export default function DmPage() {
 	}
 
 	return (
-		<div className="flex h-[calc(100dvh-50px)] min-h-0 border-t border-gray-200 bg-white lg:h-[calc(100vh-60px)] lg:border-l">
+		<div className="flex h-[calc(100dvh-var(--nav-h))] min-h-0 border-t border-gray-200 bg-white lg:h-[calc(100vh-var(--nav-h))] lg:border-l">
 			{/* 좌: 채팅방 목록 */}
 			<aside className={`${selectedRoom ? "hidden lg:flex" : "flex"} w-full flex-col border-r border-black/10 lg:max-w-[340px]`}>
 				<div className="flex h-[58px] shrink-0 items-center justify-between border-b border-black/10 px-5 lg:h-auto lg:border-b-0 lg:pb-3 lg:pt-5">

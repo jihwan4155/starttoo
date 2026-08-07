@@ -549,16 +549,28 @@ export default function TopNav() {
 							/>
 						</Link>
 					) : (
+						/*
+						  미로그인은 같은 자리에 아바타를 두면 기본 프로필 이미지와 구분이
+						  안 된다. 글자를 붙인 알약 버튼으로 로그인 전임을 분명히 한다.
+						*/
 						<button
 							type="button"
 							onClick={() => setLoginOpen(true)}
-							aria-label="로그인"
-						className="block size-7 shrink-0 overflow-hidden rounded-full bg-white">
-						<img
-							src={headerAvatar}
-							alt=""
-							className={`size-full ${usesDefaultHeaderAvatar ? "object-contain" : "object-cover"}`}
-							/>
+							className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-black/15 bg-white pl-2 pr-3 text-[13px] font-semibold text-brand transition hover:bg-brand/5">
+							<svg
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								aria-hidden>
+								<circle cx="12" cy="12" r="9.5" />
+								<circle cx="12" cy="10" r="3.2" />
+								{/* 어깨선 — 양 끝이 바깥 원 위에 놓이도록 좌표를 맞췄다 */}
+								<path d="M5.8 19.2a6.6 6.6 0 0 1 12.4 0" />
+							</svg>
+							로그인
 						</button>
 					)}
 				</div>

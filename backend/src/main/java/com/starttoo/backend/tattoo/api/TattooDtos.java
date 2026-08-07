@@ -9,6 +9,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -79,6 +80,22 @@ public final class TattooDtos {
             String downloadUrl,
             @Schema(description = "다운로드 URL 만료 시각")
             OffsetDateTime expiresAt
+    ) {
+    }
+
+    public record ExtractTattooRequest(
+            @Schema(description = "EXTRACTION 용도로 업로드한 원본 이미지 식별자", example = "301")
+            @NotNull @Positive Long imageSeq
+    ) {
+    }
+
+    public record ExtractTattooResponse(
+            @Schema(description = "추출 결과로 생성된 타투 식별자", example = "501")
+            Long tattooSeq,
+            @Schema(description = "추출된 투명 PNG의 이미지 식별자", example = "302")
+            Long designImageSeq,
+            @Schema(description = "추출된 투명 PNG의 단기 Presigned GET URL")
+            String designImageUrl
     ) {
     }
 

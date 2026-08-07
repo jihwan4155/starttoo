@@ -20,7 +20,7 @@ function DoodleFabIcon() {
 	);
 }
 
-/** 홈 우하단 — 낙서장 모달 열기 */
+/** 홈 우하단 — 낙서장 모달 열기 (데스크톱만) */
 export default function DoodleFloatingLauncher() {
 	const [open, setOpen] = useState(false);
 
@@ -30,7 +30,7 @@ export default function DoodleFloatingLauncher() {
 				type="button"
 				aria-label="낙서장 열기"
 				onClick={() => setOpen(true)}
-				className="fixed bottom-6 right-5 z-[55] flex size-12 items-center justify-center rounded-[12px] border-2 border-black bg-white text-black shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition hover:bg-black/[0.03] active:scale-[0.97] sm:bottom-8 sm:right-8 sm:size-14">
+				className="fixed bottom-8 right-8 z-[55] hidden size-14 items-center justify-center rounded-[12px] border-2 border-black bg-white text-black shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition hover:bg-black/[0.03] active:scale-[0.97] lg:flex">
 				<DoodleFabIcon />
 			</button>
 			<DoodleModal isOpen={open} onClose={() => setOpen(false)} />

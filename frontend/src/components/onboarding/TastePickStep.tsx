@@ -71,7 +71,12 @@ export default function TastePickStep({
 				고른 취향에 맞춰 도안을 추천해 드려요.
 			</p>
 
-			<div className="grid grid-cols-3 gap-[2px] rounded-[8px] border border-[#D9D9D9] bg-[#D9D9D9] p-[2px]">
+			{/*
+			  넓은 화면에서는 10개를 5열 두 줄로 놓아 스크롤 없이 한눈에 들어온다.
+			  좁은 화면에서 5열로 두면 칸이 60px 아래로 줄어 그림이 안 보이므로
+			  모바일은 3열을 유지한다.
+			*/}
+			<div className="grid grid-cols-3 gap-[2px] overflow-hidden rounded-[8px] border border-[#D9D9D9] bg-[#D9D9D9] p-[2px] sm:grid-cols-5">
 				{TATTOO_STYLE_CHOICES.map((style) => {
 					const picked = pickedCodes.includes(style.code);
 					return (

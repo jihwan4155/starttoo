@@ -4,6 +4,7 @@ import com.starttoo.backend.common.api.ApiResponse;
 import com.starttoo.backend.common.config.OptionalAuth;
 import com.starttoo.backend.common.security.SecurityUtils;
 import com.starttoo.backend.tattoo.application.TattooGenerationClient;
+import com.starttoo.backend.tattoo.application.TattooExtractionService;
 import com.starttoo.backend.tattoo.application.TattooService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,6 +33,22 @@ public class TattooController {
 
     private final TattooService tattooService;
     private final TattooGenerationClient tattooGenerationClient;
+    private final TattooExtractionService tattooExtractionService;
+
+    @PostMapping("/extract")
+    @Operation(
+            summary = "업로드 사진에서 도안 추출",
+            description = "타투 유무를 먼저 판정하고, 타투가 확인된 사진만 투명 PNG 도안과 저장용 tattooSeq를 생성한다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<TattooDtos.ExtractTattooResponse> extract(
+            @Valid @RequestBody TattooDtos.ExtractTattooRequest request
+    ) {
+        return ApiResponse.of(tattooExtractionService.extract(
+                SecurityUtils.currentUserSeq(),
+                request.imageSeq()
+        ));
+    }
 
     @PostMapping(value = "/generate", produces = MediaType.IMAGE_PNG_VALUE)
     @Operation(

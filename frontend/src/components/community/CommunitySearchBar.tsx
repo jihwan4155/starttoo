@@ -17,8 +17,18 @@ import { ApiError } from "../../services/api";
 import { SEARCH_CATEGORIES } from "../../constants/community";
 import useAuthStore from "../../store/useAuthStore";
 
+type CommunitySearchBarProps = {
+	/**
+	 * 가로를 꽉 채운다. 기본값은 상단 바에 맞춘 520px 상한인데, 검색 화면처럼
+	 * 검색이 주인공인 자리에서는 그 상한이 오히려 어색하게 남는다.
+	 */
+	fullWidth?: boolean;
+};
+
 /** 커뮤니티 상단 검색 바 */
-export default function CommunitySearchBar() {
+export default function CommunitySearchBar({
+	fullWidth = false,
+}: CommunitySearchBarProps) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -100,7 +110,9 @@ export default function CommunitySearchBar() {
 	};
 
 	return (
-		<div ref={containerRef} className="relative w-full max-w-[520px]">
+		<div
+			ref={containerRef}
+			className={`relative w-full ${fullWidth ? "" : "max-w-[520px]"}`}>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();

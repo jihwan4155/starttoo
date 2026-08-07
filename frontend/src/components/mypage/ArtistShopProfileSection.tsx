@@ -91,22 +91,6 @@ export default function ArtistShopProfileSection({
 						className={fieldClassName}
 					/>
 				</div>
-
-				<div>
-					<p className={labelClassName}>도시</p>
-					{/* 타투이스트 목록(GET /artists)의 도시 필터가 shopCity 정확 일치라
-					    매장위치와 따로 받는다. '시'를 뗀 도시명만 저장한다. */}
-					<p className="mt-1 text-[12px] font-light text-black/45">
-						목록 검색에 쓰입니다 · &apos;시&apos;를 제외한 도시명
-					</p>
-					<input
-						value={values.shopCity}
-						onChange={(e) => onChange({ shopCity: e.target.value })}
-						placeholder="구미"
-						maxLength={100}
-						className={fieldClassName}
-					/>
-				</div>
 			</div>
 
 			<p className="mt-6 text-[12px] font-light leading-5 text-black/40">

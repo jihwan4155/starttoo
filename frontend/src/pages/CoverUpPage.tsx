@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import ActionButton from "../components/common/ActionButton";
+import ArchiveFullModal from "../components/common/ArchiveFullModal";
 import ConfirmModal from "../components/common/ConfirmModal";
 import ImageViewerModal from "../components/common/ImageViewerModal";
 import ResultsGrid from "../components/coverup/ResultsGrid";
@@ -19,6 +20,7 @@ import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import { useBodyScan } from "../components/simulation/useBodyScan";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import useShapeSearchMutation from "../hooks/mutations/useShapeSearch";
+import useArchiveCapacity from "../hooks/queries/useArchiveCapacity";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { saveToArchive } from "../services/archiveApi";
 import type { SearchMode } from "../types/shapeSearch";
@@ -79,10 +81,12 @@ export default function CoverUpPage() {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [isViewerOpen, setViewerOpen] = useState(false);
 	const [isSavedOpen, setSavedOpen] = useState(false);
+	const [showArchiveFull, setShowArchiveFull] = useState(false);
 
 	const canvas = useCanvasStrokes(mode);
 	const searchMutation = useShapeSearchMutation();
 	const saveMutation = useMutation({ mutationFn: saveToArchive });
+	const { isFull, hasTattoo } = useArchiveCapacity();
 
 	const results = searchMutation.data ?? [];
 
@@ -196,6 +200,10 @@ export default function CoverUpPage() {
 
 	const handleSave = () => {
 		if (!selectedResult) return;
+		if (isFull && !hasTattoo(selectedResult.tattooSeq)) {
+			setShowArchiveFull(true);
+			return;
+		}
 		// 서버가 돌려주는 saved 값은 ApiResponse 봉투에 싸여 있어 아직 신뢰할 수 없다.
 		// 예외 없이 끝나면 저장된 것으로 본다. (전역 언랩 작업에서 정리)
 		saveMutation.mutate(selectedResult.tattooSeq, {
@@ -231,45 +239,51 @@ export default function CoverUpPage() {
 
 	if (isMobile) {
 		return (
-			<MobileCoverUpFlow
-				step={step}
-				mode={mode}
-				onModeChange={switchMode}
-				bodyScan={bodyScan}
-				fileInputRef={fileInputRef}
-				previewUrl={previewUrl}
-				fileError={fileError}
-				onSelectFile={handleSelectFile}
-				onPickFile={() => fileInputRef.current?.click()}
-				canvasProps={{
-					canvasRef: canvas.canvasRef,
-					redraw: canvas.redraw,
-					handlers: canvas.handlers,
-				}}
-				canUndo={canvas.canUndo}
-				onUndo={canvas.undo}
-				onClear={canvas.clear}
-				onBack={() => step === 1 ? navigate(-1) : handleBack()}
-				onNext={handleForward}
-				nextDisabled={!forwardEnabled}
-				isSearching={searchMutation.isPending}
-				searchMessage={mobileSearchMessage}
-				openShapeHint={openShapeHint}
-				results={results}
-				selectedIndex={selectedIndex}
-				onSelectResult={setSelectedIndex}
-				onSave={handleSave}
-				onSimulate={goToSimulation}
-				isSaving={saveMutation.isPending}
-				saveError={saveMutation.isError ? saveMutation.error.message : null}
-				isSavedOpen={isSavedOpen}
-				onCloseSaved={() => setSavedOpen(false)}
-			/>
+			<>
+				<MobileCoverUpFlow
+					step={step}
+					mode={mode}
+					onModeChange={switchMode}
+					bodyScan={bodyScan}
+					fileInputRef={fileInputRef}
+					previewUrl={previewUrl}
+					fileError={fileError}
+					onSelectFile={handleSelectFile}
+					onPickFile={() => fileInputRef.current?.click()}
+					canvasProps={{
+						canvasRef: canvas.canvasRef,
+						redraw: canvas.redraw,
+						handlers: canvas.handlers,
+					}}
+					canUndo={canvas.canUndo}
+					onUndo={canvas.undo}
+					onClear={canvas.clear}
+					onBack={() => step === 1 ? navigate(-1) : handleBack()}
+					onNext={handleForward}
+					nextDisabled={!forwardEnabled}
+					isSearching={searchMutation.isPending}
+					searchMessage={mobileSearchMessage}
+					openShapeHint={openShapeHint}
+					results={results}
+					selectedIndex={selectedIndex}
+					onSelectResult={setSelectedIndex}
+					onSave={handleSave}
+					onSimulate={goToSimulation}
+					isSaving={saveMutation.isPending}
+					saveError={saveMutation.isError ? saveMutation.error.message : null}
+					isSavedOpen={isSavedOpen}
+					onCloseSaved={() => setSavedOpen(false)}
+				/>
+				<ArchiveFullModal
+					isOpen={showArchiveFull}
+					onClose={() => setShowArchiveFull(false)}
+				/>
+			</>
 		);
 	}
 
 	return (
-		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
+		<div className="h-[calc(100vh-var(--nav-h))] overflow-hidden bg-surface">
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pb-6 pt-6">
 				{/* 기능명세 4-1: 서비스 소개 섹션.
 				    시뮬레이션 단계에서는 캔버스에 높이를 넘겨주려고 접는다 */}
@@ -512,6 +526,11 @@ export default function CoverUpPage() {
 					setSavedOpen(false);
 					goToSimulation();
 				}}
+			/>
+
+			<ArchiveFullModal
+				isOpen={showArchiveFull}
+				onClose={() => setShowArchiveFull(false)}
 			/>
 		</div>
 	);
