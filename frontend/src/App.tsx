@@ -25,6 +25,12 @@ import LoginPage from "./pages/LoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import SignupPage from "./pages/SignupPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import LegalPage from "./pages/LegalPage";
+import {
+	COMMUNITY_GUIDELINES,
+	PRIVACY_POLICY,
+	TERMS_OF_SERVICE,
+} from "./constants/legal";
 import {
 	GOOGLE_CALLBACK_PATH,
 	KAKAO_CALLBACK_PATH,
@@ -71,6 +77,19 @@ export default function App() {
 					<Route path="/signup" element={<SignupPage />} />
 					{/* API: PATCH /users/me · PATCH /artists/me/profile · POST /preferences/survey */}
 					<Route path="/onboarding" element={<OnboardingPage />} />
+					{/* 약관 문서 — 푸터와 가입 동의 화면에서 들어온다. 본문은 constants/legal.ts */}
+					<Route
+						path={TERMS_OF_SERVICE.path}
+						element={<LegalPage doc={TERMS_OF_SERVICE} />}
+					/>
+					<Route
+						path={PRIVACY_POLICY.path}
+						element={<LegalPage doc={PRIVACY_POLICY} />}
+					/>
+					<Route
+						path={COMMUNITY_GUIDELINES.path}
+						element={<LegalPage doc={COMMUNITY_GUIDELINES} />}
+					/>
 					{/* API: GET /artists */}
 					<Route path="/artists" element={<TattooistPage />} />
 					{/* 피드 — 목록은 공개, 게시글 상세 진입만 로그인 필요 (페이지 안에서 처리) */}
