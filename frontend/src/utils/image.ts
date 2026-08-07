@@ -10,7 +10,7 @@ export type CropState = {
 
 export const DEFAULT_CROP: CropState = { zoom: 1, offsetX: 0, offsetY: 0 };
 
-/** 게시물 사진 비율 — 세로:가로 = 4:3 (aspect = 가로/세로) */
+/** 피드 사진 비율 — 세로:가로 = 4:3 (aspect = 가로/세로) */
 export const POST_IMAGE_ASPECT = 3 / 4;
 
 /**

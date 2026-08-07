@@ -11,7 +11,7 @@ import { api } from "./api";
 
 function mapTattooDesignItem(dto: TattooDesignItemDto): ArchiveItem {
 	// subjects가 없는 도안(주제 미태깅)도 응답에 올 수 있다 — 접근 시 TypeError로
-	// 보관함 전체가 "불러오지 못했습니다"로 죽지 않게 옵셔널로 읽는다.
+	// 도안 보관함 전체가 "불러오지 못했습니다"로 죽지 않게 옵셔널로 읽는다.
 	const primaryStyle =
 		dto.subjects?.[0]?.subjectName ??
 		(dto.primaryStyleSeq != null ? String(dto.primaryStyleSeq) : "");
@@ -28,7 +28,7 @@ function mapTattooDesignItem(dto: TattooDesignItemDto): ArchiveItem {
 	};
 }
 
-/** GET /archive — 내 보관함 (커서 페이지네이션) */
+/** GET /archive — 도안 보관함 (커서 페이지네이션) */
 export async function getArchive(
 	query: ArchivePageQuery = {},
 ): Promise<ArchivePage> {
@@ -53,7 +53,7 @@ function toToggleResponse(
 	};
 }
 
-/** PUT /archive/{tattooSeq} — 보관함 저장 */
+/** PUT /archive/{tattooSeq} — 도안 보관함 저장 */
 export async function saveToArchive(
 	tattooId: number,
 ): Promise<ArchiveToggleResponse> {
@@ -61,7 +61,7 @@ export async function saveToArchive(
 	return toToggleResponse(tattooId, data);
 }
 
-/** DELETE /archive/{tattooSeq} — 보관함 삭제 */
+/** DELETE /archive/{tattooSeq} — 도안 보관함 삭제 */
 export async function removeFromArchive(
 	tattooId: number,
 ): Promise<ArchiveToggleResponse> {

@@ -485,9 +485,9 @@ export default function CoverUpPage() {
 				title="저장되었습니다"
 				isOpen={isSavedOpen}
 				onClose={() => setSavedOpen(false)}
-				cancelText="보관함 가기"
+				cancelText="도안 보관함 가기"
 				confirmText="시뮬레이션 보기"
-				// TODO: 보관함(마이페이지) 라우트 생기면 경로 교체
+				// TODO: 도안 보관함(마이페이지) 라우트 생기면 경로 교체
 				onCancel={() => navigate("/")}
 				// 저장 후 바로 넘어가는 경로도 같은 STEP 4로 들어간다
 				onConfirm={() => {

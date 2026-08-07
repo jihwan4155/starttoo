@@ -3,7 +3,7 @@ type HiddenPostOverlayProps = {
 	isPending?: boolean;
 };
 
-/** 숨김(차단)된 게시글 위에 덧씌우는 안내 UI */
+/** 숨김(차단)된 피드 위에 덧씌우는 안내 UI */
 export default function HiddenPostOverlay({
 	onUnhide,
 	isPending = false,
@@ -11,10 +11,10 @@ export default function HiddenPostOverlay({
 	return (
 		<div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[10px] bg-white/85 px-6 text-center backdrop-blur-[2px]">
 			<p className="text-[15px] font-semibold text-black/80">
-				이 게시글을 숨겼습니다
+				이 피드를 숨겼습니다
 			</p>
 			<p className="mt-1.5 max-w-[240px] text-[13px] font-light leading-5 text-black/50">
-				피드에서 이 게시글이 표시되지 않습니다
+				목록에서 이 피드가 표시되지 않습니다
 			</p>
 			<button
 				type="button"

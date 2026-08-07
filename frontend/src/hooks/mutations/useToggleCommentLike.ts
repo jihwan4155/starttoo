@@ -25,7 +25,7 @@ type CommentTarget = {
 /**
  * PUT/DELETE /comments/{commentSeq}/like
  *
- * 게시글 좋아요와 같은 방식 — 하트와 좋아요 수를 즉시 반영하고, 요청은 연타가
+ * 피드 좋아요와 같은 방식 — 하트와 좋아요 수를 즉시 반영하고, 요청은 연타가
  * 멈춘 뒤 최종 상태 하나만 보낸다.
  */
 export default function useToggleCommentLike() {

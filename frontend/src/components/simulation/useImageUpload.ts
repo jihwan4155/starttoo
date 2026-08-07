@@ -12,7 +12,7 @@ export function useImageUpload() {
 		});
 	};
 
-	/** 보관함 등 이미 존재하는 이미지 URL을 프리뷰로 설정 */
+	/** 도안 보관함 등 이미 존재하는 이미지 URL을 프리뷰로 설정 */
 	const setFromUrl = (url: string) => {
 		setPreview((prev) => {
 			// 이전 값이 업로드로 만든 blob URL이면 메모리 해제

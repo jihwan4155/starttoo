@@ -1,4 +1,4 @@
-/** 원격 이미지 URL → File (보관함·게시글 작성용) */
+/** 원격 이미지 URL → File (도안 보관함·피드 작성용) */
 export async function urlToFile(
 	url: string,
 	filename: string,

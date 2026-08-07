@@ -50,7 +50,7 @@ export async function autocompleteSubjects(
 }
 
 /**
- * GET /search/posts — subject 기반 게시물 검색 (두 글자 이상)
+ * GET /search/posts — subject 기반 피드 검색 (두 글자 이상)
  *
  * 오타가 있으면 서버가 가장 가까운 subject로 보정해 matchedSubject로 알려 준다.
  * 커서는 postSeq 내림차순이다.

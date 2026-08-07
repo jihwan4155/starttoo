@@ -392,7 +392,7 @@ export default function PostDetailModal({
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, [isMenuOpen]);
 
-	// 삭제 시 스토어에서 제거되면 모달을 닫아 사라진 게시글이 남지 않게 한다.
+	// 삭제 시 스토어에서 제거되면 모달을 닫아 사라진 피드가 남지 않게 한다.
 	const handleEdit = () => {
 		if (!post) return;
 		setMenuOpen(false);
@@ -503,8 +503,8 @@ export default function PostDetailModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="게시글 상세">
-				{/* 좌: 이미지 캐러셀 — 게시물 비율(세로:가로 4:3)에 맞춘 칸 */}
+				aria-label="피드 상세">
+				{/* 좌: 이미지 캐러셀 — 피드 비율(세로:가로 4:3)에 맞춘 칸 */}
 				<div className="group relative hidden aspect-[3/4] h-full min-w-0 shrink bg-black/90 sm:block">
 					{imageUrls.length > 0 ? (
 						<div className="absolute inset-0 overflow-hidden" {...swipeHandlers}>
@@ -513,7 +513,7 @@ export default function PostDetailModal({
 									<img
 										key={`${url}-${index}`}
 										src={url}
-										alt={`${post.author.nickname}의 게시글 ${index + 1}`}
+										alt={`${post.author.nickname}의 피드 ${index + 1}`}
 										draggable={false}
 										className="h-full w-full shrink-0 object-contain"
 									/>
@@ -630,7 +630,7 @@ export default function PostDetailModal({
 						<div className="relative" ref={menuRef}>
 							<button
 								type="button"
-								aria-label="게시글 메뉴"
+								aria-label="피드 메뉴"
 								onClick={() => setMenuOpen((prev) => !prev)}
 								className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/5">
 								<MoreIcon size={20} />
@@ -645,7 +645,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
 												수정
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													게시글 내용을 수정합니다
+													피드 내용을 수정합니다
 												</span>
 											</button>
 											<button
@@ -654,7 +654,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
 												삭제
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 게시글을 삭제합니다
+													이 피드를 삭제합니다
 												</span>
 											</button>
 										</>
@@ -679,7 +679,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
 												숨기기
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 게시글을 숨깁니다
+													이 피드를 숨깁니다
 												</span>
 											</button>
 										</>
