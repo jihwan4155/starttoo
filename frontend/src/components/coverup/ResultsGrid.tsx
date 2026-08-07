@@ -1,4 +1,5 @@
 import type { DesignResult } from "../../types/shapeSearch";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type ResultsGridProps = {
 	results: DesignResult[];
@@ -61,7 +62,7 @@ export default function ResultsGrid({
 						onClick={onRefresh}
 						disabled={isRefreshing}
 						className="rounded-full bg-brand px-4 py-1 text-[13px] font-semibold text-white transition disabled:opacity-50">
-						{isRefreshing ? "불러오는 중…" : "결과 새로고침"}
+						{isRefreshing ? <LoadingLabel>불러오는 중…</LoadingLabel> : "결과 새로고침"}
 					</button>
 				</div>
 			)}

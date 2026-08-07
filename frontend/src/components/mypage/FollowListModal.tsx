@@ -9,6 +9,7 @@ import useFollowList, {
 import useBackClose from "../../hooks/useBackClose";
 import { ApiError } from "../../services/api";
 import { profilePath, resolveAvatar } from "../../utils/profile";
+import LoadingLabel from "../loader/LoadingLabel";
 
 const TABS: { kind: FollowListKind; label: string }[] = [
 	{ kind: "followers", label: "팔로워" },
@@ -169,7 +170,7 @@ export default function FollowListModal({
 							onClick={() => fetchNextPage()}
 							disabled={isFetchingNextPage}
 							className="mt-1 w-full rounded-[12px] py-3 text-[13px] font-semibold text-black/50 transition hover:bg-black/[0.04] disabled:opacity-50">
-							{isFetchingNextPage ? "불러오는 중…" : "더 보기"}
+							{isFetchingNextPage ? <LoadingLabel>불러오는 중…</LoadingLabel> : "더 보기"}
 						</button>
 					)}
 				</div>
