@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchPrimaryStyles } from "../../services/classificationApi";
 import { TATTOO_STYLE_CHOICES } from "./tattooStyleChoices";
+import LoadingLabel from "../loader/LoadingLabel";
 
 /** 최대 이만큼 고른다 — 취향이 한쪽으로 쏠리지 않게 상한을 둔다 */
 const PICK_MAX = 3;
@@ -130,7 +131,7 @@ export default function TastePickStep({
 				disabled={submitting}
 				className="mx-auto mt-5 block h-[48px] w-[160px] rounded-full bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#FFB4B4]">
 				{submitting
-					? "저장하는 중…"
+					? <LoadingLabel>저장하는 중…</LoadingLabel>
 					: pickedCodes.length === 0
 						? "건너뛰기"
 						: "시작하기"}

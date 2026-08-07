@@ -1,4 +1,5 @@
 import { useState } from "react";
+import LoadingLabel from "../loader/LoadingLabel";
 
 export type ArtistShopValues = {
 	shopName: string | null;
@@ -81,7 +82,7 @@ export default function ArtistShopStep({
 				onClick={handleSubmit}
 				disabled={submitting}
 				className="mx-auto mt-7 block h-[48px] w-[160px] rounded-full bg-brand text-[16px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-[#FFB4B4]">
-				{submitting ? "저장하는 중…" : "다음"}
+				{submitting ? <LoadingLabel>저장하는 중…</LoadingLabel> : "다음"}
 			</button>
 		</div>
 	);

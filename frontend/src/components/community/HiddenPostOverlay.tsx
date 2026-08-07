@@ -1,3 +1,5 @@
+import LoadingLabel from "../loader/LoadingLabel";
+
 type HiddenPostOverlayProps = {
 	onUnhide: () => void;
 	isPending?: boolean;
@@ -21,7 +23,7 @@ export default function HiddenPostOverlay({
 				onClick={onUnhide}
 				disabled={isPending}
 				className="mt-5 rounded-full border border-black/15 bg-white px-5 py-2 text-[13px] font-semibold text-black transition hover:bg-black/[0.03] disabled:opacity-50">
-				{isPending ? "처리 중…" : "숨김 취소"}
+				{isPending ? <LoadingLabel>처리 중…</LoadingLabel> : "숨김 취소"}
 			</button>
 		</div>
 	);

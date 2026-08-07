@@ -25,6 +25,7 @@ import { dataUrlToFile } from "../utils/dataUrlToFile";
 import { cropImageToDataUrl, DEFAULT_CROP } from "../utils/image";
 import { resolveAvatar } from "../utils/profile";
 import { apiGenderToUi, uiGenderToApi } from "../utils/userGender";
+import LoadingLabel from "../components/loader/LoadingLabel";
 
 function CameraIcon() {
 	return (
@@ -412,7 +413,7 @@ export default function MyPageEditPage() {
 						onClick={() => void handleSave()}
 						disabled={isSaving || !birthReady}
 						className="h-[46px] min-w-[110px] rounded-full bg-brand text-[15px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50">
-						{isSaving ? "저장 중…" : "저장"}
+						{isSaving ? <LoadingLabel>저장 중…</LoadingLabel> : "저장"}
 					</button>
 				</div>
 			</div>

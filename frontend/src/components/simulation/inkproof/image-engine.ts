@@ -421,6 +421,59 @@ const smoothStep = (edge0: number, edge1: number, value: number) => {
   return normalized * normalized * (3 - 2 * normalized);
 };
 
+/**
+ * 마스크 바깥 테두리와 연결되지 않은 저신뢰 영역(=고신뢰 인물 픽셀에 완전히
+ * 둘러싸인 섬)을 인물로 승격한다. removeTattooBackground()가 도안 배경을
+ * 지울 때 쓰는 테두리 연결 flood-fill과 동일한 원리를 인물 마스크에 적용해,
+ * 흉터·문신·반사광처럼 국소적으로 오탐된 구멍만 골라 메운다. 다리 사이 틈처럼
+ * 테두리와 실제로 이어진 배경은 그대로 유지된다.
+ */
+const fillEnclosedLowConfidenceHoles = (
+  alpha: Float32Array,
+  width: number,
+  height: number,
+  lowThreshold = 0.5,
+) => {
+  const size = alpha.length;
+  const reachesBorder = new Uint8Array(size);
+  const queue = new Int32Array(size);
+  let head = 0;
+  let tail = 0;
+
+  const enqueueIfLow = (index: number) => {
+    if (reachesBorder[index] || alpha[index] >= lowThreshold) return;
+    reachesBorder[index] = 1;
+    queue[tail++] = index;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueueIfLow(x);
+    enqueueIfLow((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    enqueueIfLow(y * width);
+    enqueueIfLow(y * width + width - 1);
+  }
+
+  while (head < tail) {
+    const index = queue[head++];
+    const x = index % width;
+    const y = (index - x) / width;
+    if (x > 0) enqueueIfLow(index - 1);
+    if (x < width - 1) enqueueIfLow(index + 1);
+    if (y > 0) enqueueIfLow(index - width);
+    if (y < height - 1) enqueueIfLow(index + width);
+  }
+
+  const result = alpha.slice();
+  for (let index = 0; index < size; index += 1) {
+    if (alpha[index] < lowThreshold && !reachesBorder[index]) {
+      result[index] = 1;
+    }
+  }
+  return result;
+};
+
 const buildPersonMask = (
   scores: Float32Array,
   width: number,
@@ -429,16 +482,23 @@ const buildPersonMask = (
   detail: string,
 ): PersonMask => {
   const softened = boxBlur(scores, width, height, 1);
-  const data = new Float32Array(softened.length);
+  const rawAlpha = new Float32Array(softened.length);
+
+  for (let index = 0; index < softened.length; index += 1) {
+    // 변경: 낮은 인물 확률은 완전히 버리고 경계 안쪽만 짧게 페더링한다.
+    rawAlpha[index] = smoothStep(0.42, 0.7, softened[index]);
+  }
+
+  // 변경: 흉터 등으로 뚫린 내부 구멍만 골라 메운다.
+  const data = fillEnclosedLowConfidenceHoles(rawAlpha, width, height, 0.5);
+
   const canvas = createCanvas(width, height);
   const context = getContext(canvas);
   const imageData = context.createImageData(width, height);
   let covered = 0;
 
-  for (let index = 0; index < softened.length; index += 1) {
-    // 변경: 낮은 인물 확률은 완전히 버리고 경계 안쪽만 짧게 페더링한다.
-    const alpha = smoothStep(0.42, 0.7, softened[index]);
-    data[index] = alpha;
+  for (let index = 0; index < data.length; index += 1) {
+    const alpha = data[index];
     if (alpha > 0.12) covered += 1;
     const offset = index * 4;
     imageData.data[offset] = 255;

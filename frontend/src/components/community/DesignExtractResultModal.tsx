@@ -8,6 +8,7 @@ import useSaveToArchive from "../../hooks/mutations/useSaveToArchive";
 import useArchiveCapacity from "../../hooks/queries/useArchiveCapacity";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import type { DesignExtractResult } from "../../types/designExtract";
+import LoadingLabel from "../loader/LoadingLabel";
 
 type DesignExtractResultModalProps = {
 	result: DesignExtractResult | null;
@@ -116,9 +117,11 @@ export default function DesignExtractResultModal({
 								onClick={handleAddDesign}
 								disabled={isSaving && isCurrentDesign}
 								className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">
-								{isSaving && isCurrentDesign
-									? "저장 중..."
-									: saveButtonLabel}
+								{isSaving && isCurrentDesign ? (
+									<LoadingLabel>저장 중…</LoadingLabel>
+								) : (
+									saveButtonLabel
+								)}
 							</button>
 						)}
 					</div>
