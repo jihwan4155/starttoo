@@ -4,6 +4,11 @@ import { clampCrop, DEFAULT_CROP, previewScale } from "../../utils/image";
 import type { CropState } from "../../utils/image";
 
 const MAX_ZOOM = 3;
+/**
+ * 1이면 사진이 프레임을 꽉 채워(cover) 넘치는 부분이 잘린다. 1보다 작게 두면
+ * 사진 전체가 들어오는 대신 남는 자리가 흰 여백이 된다 — 잘려 나가는 게 싫을 때 쓴다.
+ */
+const MIN_ZOOM = 0.5;
 
 type ImageCropperProps = {
 	src: string;
@@ -104,7 +109,7 @@ export default function ImageCropper({
 				onPointerUp={handlePointerUp}
 				onPointerCancel={handlePointerUp}
 				style={{ aspectRatio: aspect }}
-				className={`relative w-full touch-none select-none overflow-hidden rounded-[10px] bg-[#D9D9D9] ${
+				className={`relative w-full touch-none select-none overflow-hidden rounded-[10px] bg-white ${
 					isDragging ? "cursor-grabbing" : "cursor-grab"
 				}`}>
 				<img
@@ -144,7 +149,7 @@ export default function ImageCropper({
 			<div className="mt-4 flex items-center gap-3">
 				<input
 					type="range"
-					min={1}
+					min={MIN_ZOOM}
 					max={MAX_ZOOM}
 					step={0.01}
 					value={crop.zoom}
