@@ -15,7 +15,7 @@ public final class CollectionDtos {
     }
 
     public record CreateCollectionRequest(
-            @Schema(description = "컬렉션에 등록할 본인 소유 이미지 seq", example = "201")
+            @Schema(description = "도안 보관함 항목의 designImageSeq. 해당 도안 타투를 재참조해 배치만 저장한다.", example = "201")
             @NotNull Long imageSeq,
             @Schema(description = "표준 신체 뷰", example = "front")
             @NotBlank @Size(max = 10) String bodyView,

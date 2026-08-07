@@ -64,7 +64,7 @@ export default function CollectionEditor({
 			if (result.skipped > 0) {
 				window.alert(
 					`${result.skipped}개 배치는 저장하지 못했습니다.\n` +
-						"샘플 도안이거나, 같은 도안을 이미 다른 위치에 배치한 경우입니다.",
+						"로컬 샘플 도안은 서버에 저장할 수 없습니다.",
 				);
 			}
 		} catch (err) {

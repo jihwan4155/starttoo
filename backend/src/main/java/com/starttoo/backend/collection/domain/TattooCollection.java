@@ -30,7 +30,7 @@ public class TattooCollection {
     @Column(name = "user_seq", nullable = false)
     private Integer userSeq;
 
-    @Column(name = "tattoo_seq", nullable = false, unique = true)
+    @Column(name = "tattoo_seq", nullable = false)
     private Long tattooSeq;
 
     @Column(name = "body_view", nullable = false, length = 10)

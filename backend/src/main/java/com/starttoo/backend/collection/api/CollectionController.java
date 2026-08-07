@@ -35,13 +35,10 @@ public class CollectionController {
 
     @PostMapping("/collections")
     @Operation(
-            summary = "컬렉션 타투와 배치 정보 등록",
+            summary = "컬렉션 배치 등록",
             description = """
-                    회원 소유 이미지의 object key로 단기 Presigned GET URL을 생성하고 쓰기
-                    트랜잭션 밖에서 타투 판별과 분석을 수행한다. AI 연동이 비활성화된 환경에서는
-                    같은 경계에서 명시적 분석 Stub을 사용한다.
-                    준비가 성공한 뒤 tattoos, subjects, tattooCollections와 주 스타일·색상 취향
-                    점수를 하나의 DB 트랜잭션으로 처리하며 중간 실패 시 모두 롤백한다.
+                    도안 보관함(GET /archive)의 designImageSeq로 기존 타투를 재참조해 배치만 저장한다.
+                    같은 도안을 여러 위치에 올릴 수 있다. 보관함에 없는 이미지는 거절한다.
                     """
     )
     public ApiResponse<CollectionDtos.CollectionResponse> create(
@@ -57,9 +54,8 @@ public class CollectionController {
     @Operation(
             summary = "내 타투 컬렉션 목록",
             description = """
-                    현재 회원의 소프트 삭제되지 않은 USER_COLLECTION 컬렉션을 collectionSeq
-                    내림차순 커서로 조회한다. 원본 imageSeq와 object key로 생성한 단기 Presigned
-                    GET URL, 신체 배치 정보를 함께 반환한다.
+                    현재 회원의 소프트 삭제되지 않은 컬렉션을 collectionSeq 내림차순 커서로 조회한다.
+                    도안 이미지가 있으면 도안 URL을, 없으면 원본 이미지 URL을 반환한다.
                     """
     )
     public ApiResponse<CursorPageResponse<CollectionDtos.CollectionResponse>> list(
@@ -102,9 +98,8 @@ public class CollectionController {
     @Operation(
             summary = "컬렉션 삭제",
             description = """
-                    소유 컬렉션과 이 등록 과정에서 생성된 tattoos 행을 같은 트랜잭션에서 소프트
-                    삭제한다. 이미지 원본 images 행은 삭제하지 않으며 등록 시 반영된 취향 점수도
-                    행동 이력으로 유지해 역보정하지 않는다.
+                    소유 컬렉션 배치만 소프트 삭제한다. 참조 중인 타투·도안·원본 이미지는 유지하며
+                    등록 시 반영된 취향 점수도 행동 이력으로 유지해 역보정하지 않는다.
                     """
     )
     public ApiResponse<Boolean> delete(@PathVariable Long collectionSeq) {

@@ -58,7 +58,7 @@ export type ArchiveDragPayload = {
  */
 /** POST /collections 요청 */
 export type CreateCollectionRequest = {
-	/** 본인 소유이고 아직 타투로 등록되지 않은 이미지 seq */
+	/** 도안 보관함 항목의 designImageSeq */
 	imageSeq: number;
 	/** front · back */
 	bodyView: string;
