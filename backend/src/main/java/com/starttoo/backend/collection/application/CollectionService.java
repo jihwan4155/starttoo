@@ -1,6 +1,7 @@
 package com.starttoo.backend.collection.application;
 
 import com.starttoo.backend.collection.api.CollectionDtos;
+import com.starttoo.backend.collection.config.CollectionProperties;
 import com.starttoo.backend.collection.domain.TattooCollection;
 import com.starttoo.backend.collection.domain.TattooCollectionRepository;
 import com.starttoo.backend.common.api.CursorPageResponse;
@@ -35,6 +36,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CollectionService {
 
+    /** 보관 요청을 회원 단위로 직렬화할 때 쓰는 advisory lock 네임스페이스 ('ARCH'). */
+    private static final int ARCHIVE_LOCK_NAMESPACE = 0x41524348;
+
     private final TattooCollectionRepository collectionRepository;
     private final TattooRepository tattooRepository;
     private final TattooService tattooService;
@@ -45,6 +49,7 @@ public class CollectionService {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MediaService mediaService;
+    private final CollectionProperties collectionProperties;
 
     public CollectionDtos.CollectionResponse create(
             Integer userSeq,
@@ -184,33 +189,45 @@ public class CollectionService {
 
     @Transactional
     public boolean setArchive(Integer userSeq, Long tattooSeq, boolean enabled) {
-        if (enabled) {
-            int inserted = jdbcTemplate.update("""
-                    INSERT INTO user_archive (user_seq, tattoo_seq)
-                    SELECT ?, td.tattoo_seq
-                      FROM tattoo_designs td
-                      JOIN tattoos t ON t.tattoo_seq = td.tattoo_seq
-                     WHERE td.tattoo_seq = ? AND td.is_deleted = FALSE
-                       AND t.is_deleted = FALSE
-                    ON CONFLICT DO NOTHING
-                    """, userSeq, tattooSeq);
-            if (inserted == 0 && !archiveExists(userSeq, tattooSeq)) {
-                throw new BusinessException(
-                        ErrorCode.STATE_CONFLICT,
-                        "보관함에는 tattoo_designs에 등록된 타투만 저장할 수 있습니다."
-                );
-            }
-            if (inserted > 0) {
-                preferenceScoreService.applyCollection(userSeq, tattooSeq, true);
-            }
+        if (!enabled) {
+            jdbcTemplate.update(
+                    "DELETE FROM user_archive WHERE user_seq = ? AND tattoo_seq = ?",
+                    userSeq,
+                    tattooSeq
+            );
+            return false;
+        }
+        // 상한 검사와 INSERT 사이에 같은 회원의 다른 요청이 끼어들면 READ COMMITTED 에서는
+        // 둘 다 상한 미만을 보고 통과해 상한을 넘긴다. 회원 단위로 직렬화해서 막는다.
+        lockArchive(userSeq);
+        // 이미 담긴 도안의 반복 요청은 보관 수를 늘리지 않으므로 상한과 무관하게 성공한다.
+        if (archiveExists(userSeq, tattooSeq)) {
             return true;
         }
-        jdbcTemplate.update(
-                "DELETE FROM user_archive WHERE user_seq = ? AND tattoo_seq = ?",
-                userSeq,
-                tattooSeq
-        );
-        return false;
+        if (archiveFull(userSeq)) {
+            throw new BusinessException(
+                    ErrorCode.ARCHIVE_LIMIT_EXCEEDED,
+                    "보관함에는 도안을 최대 %d개까지 저장할 수 있습니다."
+                            .formatted(collectionProperties.archiveMaxDesigns())
+            );
+        }
+        int inserted = jdbcTemplate.update("""
+                INSERT INTO user_archive (user_seq, tattoo_seq)
+                SELECT ?, td.tattoo_seq
+                  FROM tattoo_designs td
+                  JOIN tattoos t ON t.tattoo_seq = td.tattoo_seq
+                 WHERE td.tattoo_seq = ? AND td.is_deleted = FALSE
+                   AND t.is_deleted = FALSE
+                ON CONFLICT DO NOTHING
+                """, userSeq, tattooSeq);
+        if (inserted == 0) {
+            throw new BusinessException(
+                    ErrorCode.STATE_CONFLICT,
+                    "보관함에는 tattoo_designs에 등록된 타투만 저장할 수 있습니다."
+            );
+        }
+        preferenceScoreService.applyCollection(userSeq, tattooSeq, true);
+        return true;
     }
 
     @Transactional(readOnly = true)
@@ -308,6 +325,21 @@ public class CollectionService {
             String designObjectKey,
             OffsetDateTime archivedDttm
     ) {
+    }
+
+    private void lockArchive(Integer userSeq) {
+        jdbcTemplate.query(
+                "SELECT pg_advisory_xact_lock(?, ?)",
+                resultSet -> null,
+                ARCHIVE_LOCK_NAMESPACE,
+                userSeq
+        );
+    }
+
+    private boolean archiveFull(Integer userSeq) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) >= ? FROM user_archive WHERE user_seq = ?
+                """, Boolean.class, collectionProperties.archiveMaxDesigns(), userSeq));
     }
 
     private boolean archiveExists(Integer userSeq, Long tattooSeq) {

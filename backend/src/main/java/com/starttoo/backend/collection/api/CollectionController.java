@@ -140,6 +140,10 @@ public class CollectionController {
                     활성 tattoos와 tattooDesigns 존재를 확인하고 userArchive를 멱등하게 생성한다.
                     실제로 새 보관 관계가 생성된 경우에만 같은 트랜잭션에서 주 스타일·색상 취향
                     점수를 가산하며, 반복 요청은 점수를 중복 변경하지 않고 성공한다.
+                    보관 수가 상한(app.collection.archive-max-designs, 기본 20)에 도달한 상태에서
+                    새 도안을 담으면 409 ARCHIVE_LIMIT_EXCEEDED로 거절한다. 상한 검사와 생성은
+                    회원 단위 advisory lock으로 직렬화해 동시 요청이 상한을 넘기지 못하게 한다.
+                    이미 담긴 도안의 반복 요청은 보관 수를 늘리지 않으므로 상한에서도 성공한다.
                     """
     )
     public ApiResponse<CollectionDtos.ArchiveStateResponse> archive(@PathVariable Long tattooSeq) {

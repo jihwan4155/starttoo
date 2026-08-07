@@ -152,7 +152,7 @@ QR을 찍은 폰은 로그인 상태가 아니므로 PC가 만든 세션이 유�
 | GET | `/users/{userSeq}/collections` | 공개 회원의 활성 컬렉션 |
 | DELETE | `/collections/{collectionSeq}` | 컬렉션과 연결 타투 소프트 삭제 |
 | GET | `/archive` | `tattooSeq`, `designImageSeq`, `designImageUrl`, `archivedDttm` 보관함 |
-| PUT | `/archive/{tattooSeq}` | 보관 설정 |
+| PUT | `/archive/{tattooSeq}` | 보관 설정 (상한 초과 시 409 `ARCHIVE_LIMIT_EXCEEDED`) |
 | DELETE | `/archive/{tattooSeq}` | 보관 해제 |
 
 컬렉션 배치는 `bodyView`, 0~1의 `positionX/Y`, 양수 `scaleRatio`,
@@ -160,6 +160,9 @@ QR을 찍은 폰은 로그인 상태가 아니므로 PC가 만든 세션이 유�
 컬렉션 등록과 도안 보관의 실제 ON 상태 전환에서만 primary style/color 취향 점수를
 가산한다. 컬렉션 삭제와 보관 해제에서는 과거 점수를 역보정하지 않으며, 동일 PUT을
 반복해도 점수를 중복 반영하지 않는다.
+보관함 상한(`app.collection.archive-max-designs`, 기본 20)은 서버에서 강제한다. 상한
+검사와 INSERT를 회원 단위 advisory lock으로 직렬화해 동시 요청이 상한을 넘기지 못하게
+하며, 이미 담긴 도안의 반복 요청은 보관 수를 늘리지 않으므로 상한에서도 성공한다.
 
 ## 검색
 

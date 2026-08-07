@@ -3,6 +3,7 @@ package com.starttoo.backend.collection;
 import com.starttoo.backend.collection.application.CollectionService;
 import com.starttoo.backend.collection.application.CollectionWriteService;
 import com.starttoo.backend.collection.api.CollectionDtos;
+import com.starttoo.backend.collection.config.CollectionProperties;
 import com.starttoo.backend.collection.domain.TattooCollection;
 import com.starttoo.backend.collection.domain.TattooCollectionRepository;
 import com.starttoo.backend.common.api.CursorPageResponse;
@@ -21,10 +22,12 @@ import com.starttoo.backend.user.domain.UserRepository;
 import com.starttoo.backend.user.domain.UserRole;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -41,6 +44,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
@@ -48,6 +52,11 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CollectionServiceTest {
+
+    private static final int ARCHIVE_MAX_DESIGNS = 20;
+
+    /** CollectionService.ARCHIVE_LOCK_NAMESPACE ('ARCH') 와 같은 값이어야 한다. */
+    private static final int ARCHIVE_LOCK_NAMESPACE = 0x41524348;
 
     @Mock
     private TattooCollectionRepository collectionRepository;
@@ -78,6 +87,9 @@ class CollectionServiceTest {
 
     @Mock
     private MediaService mediaService;
+
+    @Mock
+    private CollectionProperties collectionProperties;
 
     @InjectMocks
     private CollectionService collectionService;
@@ -175,9 +187,9 @@ class CollectionServiceTest {
 
     @Test
     void savingNonDesignTattooReturnsStateConflict() {
+        archived(false);
+        full(false);
         when(jdbcTemplate.update(anyString(), eq(1), eq(501L))).thenReturn(0);
-        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), eq(1), eq(501L)))
-                .thenReturn(false);
 
         assertThatThrownBy(() -> collectionService.setArchive(1, 501L, true))
                 .isInstanceOf(BusinessException.class)
@@ -189,13 +201,80 @@ class CollectionServiceTest {
 
     @Test
     void repeatedSaveDoesNotChangePreferenceScoreAgain() {
-        when(jdbcTemplate.update(anyString(), eq(1), eq(501L))).thenReturn(0);
-        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), eq(1), eq(501L)))
-                .thenReturn(true);
+        archived(true);
 
         collectionService.setArchive(1, 501L, true);
 
+        verify(jdbcTemplate, never()).update(contains("INSERT INTO user_archive"), any(), any());
         verify(preferenceScoreService, never()).applyCollection(any(), any(), any(Boolean.class));
+    }
+
+    @Test
+    void savingBeyondArchiveLimitIsRejectedBeforeInsert() {
+        archived(false);
+        full(true);
+
+        assertThatThrownBy(() -> collectionService.setArchive(1, 501L, true))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ARCHIVE_LIMIT_EXCEEDED);
+
+        verify(jdbcTemplate, never()).update(contains("INSERT INTO user_archive"), any(), any());
+        verify(preferenceScoreService, never()).applyCollection(any(), any(), any(Boolean.class));
+    }
+
+    @Test
+    void archiveCountIsReadOnlyAfterLockingTheUser() {
+        archived(false);
+        full(true);
+
+        assertThatThrownBy(() -> collectionService.setArchive(1, 501L, true))
+                .isInstanceOf(BusinessException.class);
+
+        // 잠그지 않고 세면 동시 요청이 같은 개수를 보고 둘 다 통과해 상한을 넘긴다.
+        InOrder order = inOrder(jdbcTemplate);
+        order.verify(jdbcTemplate).query(
+                contains("pg_advisory_xact_lock"),
+                org.mockito.ArgumentMatchers.<ResultSetExtractor<Object>>any(),
+                eq(ARCHIVE_LOCK_NAMESPACE),
+                eq(1)
+        );
+        order.verify(jdbcTemplate).queryForObject(
+                contains("COUNT(*)"),
+                eq(Boolean.class),
+                eq(ARCHIVE_MAX_DESIGNS),
+                eq(1)
+        );
+    }
+
+    @Test
+    void repeatedSaveAtArchiveLimitStillSucceeds() {
+        archived(true);
+
+        assertThat(collectionService.setArchive(1, 501L, true)).isTrue();
+
+        // 이미 담긴 도안은 보관 수를 늘리지 않으므로 상한을 따지지 않는다.
+        verify(jdbcTemplate, never())
+                .queryForObject(contains("COUNT(*)"), eq(Boolean.class), any(), any());
+    }
+
+    private void archived(boolean value) {
+        when(jdbcTemplate.queryForObject(
+                contains("SELECT EXISTS"),
+                eq(Boolean.class),
+                eq(1),
+                eq(501L)
+        )).thenReturn(value);
+    }
+
+    private void full(boolean value) {
+        when(collectionProperties.archiveMaxDesigns()).thenReturn(ARCHIVE_MAX_DESIGNS);
+        when(jdbcTemplate.queryForObject(
+                contains("COUNT(*)"),
+                eq(Boolean.class),
+                eq(ARCHIVE_MAX_DESIGNS),
+                eq(1)
+        )).thenReturn(value);
     }
 
     @Test
