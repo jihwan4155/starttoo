@@ -5,7 +5,7 @@ type ConfirmModalProps = {
 	title: string;
 	isOpen: boolean;
 	onClose: () => void;
-	/** 왼쪽(보조) 버튼 텍스트. 예: "보관함 가기" */
+	/** 왼쪽(보조) 버튼 텍스트. 예: "도안 보관함 가기" */
 	cancelText: string;
 	/** 오른쪽(주요) 버튼 텍스트. 예: "시뮬레이션 보기" */
 	confirmText: string;

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import useNavRefresh from "../../hooks/useNavRefresh";
 import useUnreadCounts from "../../hooks/queries/useUnreadCounts";
 
 type NavItem = {
@@ -11,6 +12,7 @@ type NavItem = {
 		| "ai"
 		| "sim"
 		| "cover"
+		| "extract"
 		| "community"
 		| "search"
 		| "dm"
@@ -24,6 +26,7 @@ const MAIN_ITEMS: NavItem[] = [
 	{ id: "ai", label: "AI 도안 생성", to: "/ai", icon: "ai" },
 	{ id: "sim", label: "타투 시뮬레이션", to: "/simulations", icon: "sim" },
 	{ id: "cover", label: "커버업 타투", to: "/coverups", icon: "cover" },
+	{ id: "extract", label: "도안 추출", to: "/extract", icon: "extract" },
 ];
 
 // 커뮤니티 그룹: 평소엔 커뮤니티 아이콘만 보이고,
@@ -93,6 +96,32 @@ function NavIcon({ type, active }: { type: NavItem["icon"]; active: boolean }) {
 						fill={color}
 					/>
 					<path d="M4 14h14" stroke="#fff" strokeWidth="2" />
+				</svg>
+			);
+		case "extract":
+			// 사진에서 도안을 뽑아낸다 — 사진 틀 + 밖으로 빠져나가는 화살표
+			return (
+				<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+					<path
+						d="M14 6H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-7"
+						stroke={color}
+						strokeWidth="2"
+						strokeLinecap="round"
+					/>
+					<path
+						d="m5.5 18 3.5-3.5 3 3 2.5-2.5"
+						stroke={color}
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
+					<path
+						d="M17 11l7-7m0 0h-5m5 0v5"
+						stroke={color}
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
 				</svg>
 			);
 		case "community":
@@ -169,6 +198,8 @@ export default function SideNav() {
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const [communityHovered, setCommunityHovered] = useState(false);
 	const { pathname } = useLocation();
+	// 보고 있는 화면의 아이콘을 다시 누르면 새로고침
+	const navRefresh = useNavRefresh();
 	// 미확인 NEW_DM 알림 수 — 방을 읽으면 서버가 함께 읽음 처리해 줄어든다.
 	const { data: unreadCounts } = useUnreadCounts();
 	const unreadDmCount = unreadCounts?.byType.NEW_DM ?? 0;
@@ -213,6 +244,7 @@ export default function SideNav() {
 					to={item.to}
 					aria-label={item.label}
 					aria-current={isActive ? "page" : undefined}
+					onClick={navRefresh(item.to)}
 					className={`relative flex ${boxSize} items-center justify-center rounded-[10px] bg-white transition ${
 						showLabel || isActive
 							? "shadow-[0_0_15px_rgba(255,0,4,0.12),4px_8px_30px_rgba(0,0,0,0.15)]"

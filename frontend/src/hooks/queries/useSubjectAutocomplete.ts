@@ -4,7 +4,7 @@ import { isSearchableQuery } from "../../types/search";
 
 export const subjectAutocompleteQueryKey = ["search", "subjects"] as const;
 
-/** GET /search/subjects/autocomplete — 게시물 검색창의 추천어 (1글자부터) */
+/** GET /search/subjects/autocomplete — 피드 검색창의 추천어 (1글자부터) */
 export default function useSubjectAutocomplete(query: string, size = 8) {
 	const trimmed = query.trim();
 	const isValid = trimmed.length > 0 && isSearchableQuery(trimmed);

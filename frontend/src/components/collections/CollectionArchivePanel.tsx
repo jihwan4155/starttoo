@@ -14,7 +14,7 @@ type CollectionArchivePanelProps = {
 	userId?: number;
 };
 
-/** 보관함 도안 — 마네킹 캔버스로 드래그 */
+/** 도안 보관함의 도안 — 마네킹 캔버스로 드래그 */
 export default function CollectionArchivePanel({
 	designs,
 	isLoading = false,
@@ -74,7 +74,7 @@ export default function CollectionArchivePanel({
 						? "bg-white px-4 py-3 lg:flex lg:max-h-[calc(100vh-80px)] lg:flex-col lg:rounded-[12px] lg:p-4"
 						: "rounded-[8px] border border-black/10 bg-white p-4"
 				}>
-				<h3 className="text-[15px] font-semibold text-black">보관함 도안</h3>
+				<h3 className="text-[15px] font-semibold text-black">도안 보관함</h3>
 				<p className="mt-1 text-[12px] leading-relaxed text-black/45">
 					{disabled
 						? "수정 모드에서 도안을 배치할 수 있습니다"

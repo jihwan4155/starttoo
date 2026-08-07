@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	closeArSession,
 	createArSession,
@@ -23,9 +23,20 @@ function resolveJoinOrigin(): string {
 	return window.location.origin;
 }
 
+/** 서버 상한 — AR_SESSION_MAX_DESIGNS. 넘겨 보내면 INVALID_REQUEST다 */
+const MAX_SESSION_DESIGNS = 20;
+
 type UseArSessionOptions = {
 	/** false면 세션을 만들지 않는다 (AR 2단계에 들어왔을 때만 켠다) */
 	enabled?: boolean;
+	/**
+	 * 폰 화면에 띄울 도안(tattooSeq) — PC가 자기 도안 보관함을 실어 보낸다.
+	 *
+	 * QR로 들어온 폰은 비로그인이라 도안 보관함을 스스로 못 읽는다. 여기서 넘긴 도안만
+	 * /connect 응답에 presigned URL로 담겨 폰 화면에 나온다. 상한을 넘으면
+	 * 앞에서부터 자른다 — 호출부가 최신순으로 넘기는 것을 전제한다.
+	 */
+	designSeqs?: number[];
 };
 
 type UseArSessionResult = {
@@ -51,6 +62,7 @@ type UseArSessionResult = {
  */
 export default function useArSession({
 	enabled = true,
+	designSeqs,
 }: UseArSessionOptions = {}): UseArSessionResult {
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [status, setStatus] = useState<ArSessionStatus | "CREATING">("CREATING");
@@ -67,6 +79,13 @@ export default function useArSession({
 		setNonce((current) => current + 1);
 	}, []);
 
+	// 도안 목록은 세션을 만드는 그 순간에만 필요하다. effect 의존성에 넣으면
+	// 도안 보관함이 갱신될 때마다 세션을 닫고 다시 발급해 QR이 갈리고, 그 사이 폰이
+	// 스캔한 QR은 이미 닫힌 세션을 가리킨다. ref로 읽어 재발급을 막는다.
+	// 목록이 준비됐는지는 호출부가 enabled로 알려 준다.
+	const designSeqsRef = useRef(designSeqs);
+	designSeqsRef.current = designSeqs;
+
 	// 세션 생성 — enabled가 켜질 때와 restart마다 새로 발급한다.
 	// 취소 표식은 이 실행에만 속한 지역 변수로 둔다. ref로 공유하면 다음 실행이
 	// 표식을 되돌려, 이미 버린 세션의 응답이 뒤늦게 상태를 덮어쓰고 그 세션은
@@ -79,7 +98,13 @@ export default function useArSession({
 
 		void (async () => {
 			try {
-				const session = await createArSession();
+				const seqs = (designSeqsRef.current ?? []).slice(
+					0,
+					MAX_SESSION_DESIGNS,
+				);
+				const session = await createArSession(
+					seqs.length ? { designSeqs: seqs } : {},
+				);
 				if (cancelled) {
 					void closeArSession(session.sessionId);
 					return;

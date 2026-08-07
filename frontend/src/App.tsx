@@ -9,6 +9,7 @@ import CommunityPage from "./pages/CommunityPage";
 import CommunitySearchPage from "./pages/CommunitySearchPage";
 import PostDetailPage from "./pages/PostDetailPage";
 import CoverUpPage from "./pages/CoverUpPage";
+import DesignExtractPage from "./pages/DesignExtractPage";
 import DmPage from "./pages/DmPage";
 import HomePage from "./pages/HomePage";
 import AiPage from "./pages/AiPage";
@@ -72,7 +73,7 @@ export default function App() {
 					<Route path="/onboarding" element={<OnboardingPage />} />
 					{/* API: GET /artists */}
 					<Route path="/artists" element={<TattooistPage />} />
-					{/* 피드 — 목록은 공개, 게시글 상세 진입만 로그인 필요 (페이지 안에서 처리) */}
+					{/* 피드 — 목록은 공개, 피드 상세 진입만 로그인 필요 (페이지 안에서 처리) */}
 					{/* API: GET /posts/search */}
 					<Route path="/posts/search" element={<CommunitySearchPage />} />
 					{/* 로그인 필요 페이지 — 미로그인 접근 시 /login으로 보낸다 */}
@@ -83,9 +84,11 @@ export default function App() {
 						<Route path="/simulations" element={<SimulationsPage />} />
 						{/* API: POST /coverups/recommendations */}
 						<Route path="/coverups" element={<CoverUpPage />} />
+						{/* AI: POST {ai}/extract — 올린 사진에서 도안 PNG 추출 */}
+						<Route path="/extract" element={<DesignExtractPage />} />
 						{/* API: GET /posts */}
 						<Route path="/posts" element={<CommunityPage />} />
-						{/* 게시글 단건 주소 — DM으로 공유한 링크가 여기로 들어온다.
+						{/* 피드 단건 주소 — DM으로 공유한 링크가 여기로 들어온다.
 						    정적 세그먼트가 우선이라 위쪽 /posts/search 와 부딪히지 않는다.
 						    API: GET /posts/{postId} */}
 						<Route path="/posts/:postId" element={<PostDetailPage />} />

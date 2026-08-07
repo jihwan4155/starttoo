@@ -2,7 +2,8 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { CloseIcon } from "./icons";
 import useBackClose from "../../hooks/useBackClose";
-import useDesignStore from "../../store/useDesignStore";
+import useSaveToArchive from "../../hooks/mutations/useSaveToArchive";
+import useRequireAuth from "../../hooks/useRequireAuth";
 import type { DesignExtractResult } from "../../types/designExtract";
 
 type DesignExtractResultModalProps = {
@@ -15,19 +16,34 @@ export default function DesignExtractResultModal({
 	result,
 	onClose,
 }: DesignExtractResultModalProps) {
-	// 이미 보관함에 저장된 도안이면 버튼을 "추가됨"으로 표시
-	const isSaved = useDesignStore(
-		(s) =>
-			!!result &&
-			s.savedDesigns.some((d) => d.previewUrl === result.previewUrl),
-	);
-	const addDesign = useDesignStore((s) => s.addDesign);
 	const navigate = useNavigate();
+	const { requireAuth } = useRequireAuth();
+	const {
+		mutate: saveDesign,
+		data: archiveState,
+		variables: savingTattooSeq,
+		isPending: isSaving,
+		error: saveError,
+	} = useSaveToArchive();
+	const tattooSeq = result?.tattooSeq;
+	const isCurrentDesign = tattooSeq != null && savingTattooSeq === tattooSeq;
+	const isSaved = isCurrentDesign && archiveState?.saved === true;
+	const currentSaveError = isCurrentDesign ? saveError : null;
 
 	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
 	useBackClose(!!result, onClose);
 
 	if (!result) return null;
+
+	// 서버에 등록된 타투가 아니면(직접 올린 사진에서 뽑은 도안) 도안 보관함에 넣을 수
+	// 없다. 대신 PNG를 내려받게 한다.
+	const canSaveToArchive = result.tattooSeq != null;
+
+	const handleAddDesign = () => {
+		const seq = result.tattooSeq;
+		if (seq == null) return;
+		requireAuth(() => saveDesign(seq));
+	};
 
 	return createPortal(
 		<div
@@ -60,20 +76,32 @@ export default function DesignExtractResultModal({
 				</div>
 
 				<div className="flex items-center justify-end gap-2 border-t border-black/10 px-5 py-3">
-					{/* TODO: 백엔드 연동 시 POST /designs API로 교체 */}
-					{isSaved ? (
+					{currentSaveError && (
+						<p className="mr-auto text-[12px] text-brand" role="alert">
+							{currentSaveError.message}
+						</p>
+					)}
+					{!canSaveToArchive ? (
+						<a
+							href={result.downloadUrl}
+							download="tattoo-design.png"
+							className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95">
+							PNG 다운로드
+						</a>
+					) : isSaved ? (
 						<button
 							type="button"
 							onClick={() => navigate("/mypage?tab=designs")}
 							className="rounded-full border border-brand px-5 py-2 text-[13px] font-semibold text-brand transition hover:bg-brand/5">
-							내 도안함 바로가기
+							도안 보관함 바로가기
 						</button>
 					) : (
 						<button
 							type="button"
-							onClick={() => addDesign(result)}
-							className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95">
-							내 도안에 추가
+							onClick={handleAddDesign}
+							disabled={isSaving && isCurrentDesign}
+							className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">
+							{isSaving && isCurrentDesign ? "저장 중..." : "도안 보관함에 추가"}
 						</button>
 					)}
 				</div>

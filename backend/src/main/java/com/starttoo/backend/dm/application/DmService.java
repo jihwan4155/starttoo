@@ -274,7 +274,18 @@ public class DmService {
         return response;
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * 이 조회는 "지금 이 방을 보고 있다"는 뜻이므로 읽음까지 함께 처리한다.
+     *
+     * 방을 열 때 한 번만 읽음 처리하면 열어 둔 채로 상대 메시지가 오는 동안
+     * 안읽음이 계속 쌓인다. 그렇다고 클라이언트가 메시지를 받을 때마다 별도로
+     * PATCH /read를 부르면, 읽음 영수증이 메시지 전송과 같은 mutation 한도를
+     * 나눠 쓰게 되어 상대가 빨리 보낼수록 내 전송이 429로 막힌다. 이 조회는
+     * 어차피 새 메시지마다 일어나므로 여기 얹으면 요청이 늘지 않는다.
+     *
+     * 바꿀 게 없으면 UPDATE는 0건이고 상대에게 이벤트도 보내지 않는다.
+     */
+    @Transactional
     public CursorPageResponse<DmDtos.MessageResponse> messages(
             Integer userSeq,
             Long roomSeq,
@@ -284,6 +295,7 @@ public class DmService {
         DmRoom room = room(roomSeq, userSeq);
         ensureNotBlocked(userSeq, room.partnerOf(userSeq));
         DmRoomParticipant participant = participant(roomSeq, userSeq);
+        markVisibleMessagesRead(room, userSeq, participant);
         int safeSize = Math.min(Math.max(size, 1), 100);
         List<Long> ids = jdbcTemplate.queryForList("""
                 SELECT dm_message_seq

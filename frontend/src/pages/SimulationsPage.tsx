@@ -1,6 +1,7 @@
 import {
 	useEffect,
 	useLayoutEffect,
+	useMemo,
 	useState,
 	type Dispatch,
 	type SetStateAction,
@@ -21,7 +22,9 @@ import Simulation3DStep from "../components/simulation/Simulation3DStep";
 import MyDesignsModal from "../components/simulation/MyDesignsModal";
 import { useBodyScan, type BodyScanResult } from "../components/simulation/useBodyScan";
 import { useIsMobile } from "../hooks/useIsMobile";
+import useArchive from "../hooks/queries/useArchive";
 import useArSession from "../hooks/useArSession";
+import { mapArchiveItemToSavedDesign } from "../utils/mapArchive";
 import useSimulationHandoff from "../store/useSimulationHandoff";
 import MobileSimulationFlow from "../components/simulation/MobileSimulationFlow";
 
@@ -146,10 +149,27 @@ export default function SimulationsPage() {
 	};
 	const handleBack = () => setStep((current) => Math.max(1, current - 1));
 
+	// QR로 들어온 폰은 비로그인이라 도안 보관함을 스스로 못 읽는다. PC가 대신 읽어
+	// 세션에 실어 보내야 폰 화면에 내 도안이 뜬다.
+	const { data: archiveData, isLoading: isArchiveLoading } = useArchive({
+		size: 20,
+	});
+	const archiveDesignSeqs = useMemo(
+		() =>
+			archiveData?.pages
+				.flatMap((page) => page.items.map(mapArchiveItemToSavedDesign))
+				.map((design) => design.id) ?? [],
+		[archiveData?.pages],
+	);
+
 	// PC AR 세션 — QR 단계(2)에서 발급하고 결과 단계(3)까지 유지한다.
 	// 모바일은 QR 없이 폰에서 바로 촬영하므로 세션이 필요 없다.
+	//
+	// 도안 보관함이 도착하기 전에 만들면 도안 없는 세션이 발급되고, 뒤늦게 도착한
+	// 목록으로 세션을 다시 끊고 만들면서 QR이 갈린다. 다 읽고 나서 발급한다.
 	const arSession = useArSession({
-		enabled: !isMobile && tab === "ar" && arStep >= 2,
+		enabled: !isMobile && tab === "ar" && arStep >= 2 && !isArchiveLoading,
+		designSeqs: archiveDesignSeqs,
 	});
 
 	// 폰에서 캡처가 올라오면 결과 단계로 자동 이동 (PC는 QR을 보고 있을 뿐이다)
@@ -404,7 +424,7 @@ export default function SimulationsPage() {
 				<MyDesignsModal
 					onClose={() => setMyDesignsOpen(false)}
 					onSelect={(design) => {
-						// 보관함에서 고른 도안을 시뮬레이션 도안으로 사용
+						// 도안 보관함에서 고른 도안을 시뮬레이션 도안으로 사용
 						designUpload.setFromUrl(design.previewUrl);
 						setMyDesignsOpen(false);
 					}}

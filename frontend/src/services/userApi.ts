@@ -135,6 +135,18 @@ export async function fetchFollowing(
 	return fetchRelationPage(`/users/${userId}/following`, params);
 }
 
+/**
+ * GET /users/me/blocks — 내가 차단한 회원 목록
+ *
+ * 차단하면 상대 프로필로 다시 들어갈 수 없어 그쪽에서는 해제할 방법이 없다.
+ * 해제는 이 목록에서만 할 수 있다.
+ */
+export async function fetchBlockedUsers(
+	params: FollowListParams = {},
+): Promise<CursorPage<RelationUser>> {
+	return fetchRelationPage("/users/me/blocks", params);
+}
+
 /** GET /users/me/recent-searches */
 export async function fetchRecentSearches(): Promise<string[]> {
 	const { data } = await api.get<string[]>("/users/me/recent-searches");

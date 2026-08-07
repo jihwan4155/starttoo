@@ -10,7 +10,7 @@ type CreatePostVariables = {
 	caption: string;
 };
 
-/** POST /posts — 이미지 presigned 업로드 후 게시글 생성 */
+/** POST /posts — 이미지 presigned 업로드 후 피드 생성 */
 export default function useCreatePost() {
 	const queryClient = useQueryClient();
 

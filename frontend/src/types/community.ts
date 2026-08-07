@@ -18,7 +18,7 @@ export type PostComment = {
 	replies?: PostComment[];
 };
 
-/** UI용 게시물 모델 */
+/** UI용 피드 모델 */
 export type Post = {
 	id: number;
 	author: PostAuthor;

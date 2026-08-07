@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { DesignExtractResult, SavedDesign } from "../types/designExtract";
 
 /**
- * 내 도안 보관함 상태 (도안 추출 결과 저장 ↔ 마이페이지 동기화)
+ * 도안 보관함 상태 (도안 추출 결과 저장 ↔ 마이페이지 동기화)
  * persist로 localStorage에 저장되어 새로고침해도 유지된다.
  * TODO: 백엔드 연동 시 POST/GET/DELETE /designs API로 교체
  */

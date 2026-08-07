@@ -251,7 +251,7 @@ export default function MannequinCanvas({ userId }: MannequinCanvasProps) {
 
 			<p className="mt-3 text-center text-[12px] text-black/40">
 				{placements.length === 0
-					? "오른쪽 보관함에서 도안을 끌어다 놓으세요"
+					? "오른쪽 도안 보관함에서 끌어다 놓으세요"
 					: `${placements.length}개 배치됨 · 도안 클릭 후 박스 핸들로 조절`}
 			</p>
 		</div>

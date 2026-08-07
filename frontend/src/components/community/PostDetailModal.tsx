@@ -37,7 +37,7 @@ import DeleteCommentModal from "./DeleteCommentModal";
 import SharePostModal from "./SharePostModal";
 import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
-import { getPostImageUrls, isTattooImage } from "../../utils/mapPost";
+import { getPostImageUrls } from "../../utils/mapPost";
 import type { Post, PostComment } from "../../types/community";
 
 /*
@@ -392,7 +392,7 @@ export default function PostDetailModal({
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, [isMenuOpen]);
 
-	// 삭제 시 스토어에서 제거되면 모달을 닫아 사라진 게시글이 남지 않게 한다.
+	// 삭제 시 스토어에서 제거되면 모달을 닫아 사라진 피드가 남지 않게 한다.
 	const handleEdit = () => {
 		if (!post) return;
 		setMenuOpen(false);
@@ -438,13 +438,13 @@ export default function PostDetailModal({
 			},
 		);
 	};
-	// 도안 추출: 성공 시 결과 모달 표시. TODO: 내 보관함 저장 연동
+	// 분류 과정에서 저장한 도안 조회: 성공 시 결과 모달 표시
 	const {
-		mutate: extractDesign,
-		data: extractResult,
-		isPending: isExtracting,
-		error: extractError,
-		reset: resetExtract,
+		mutate: loadStoredDesign,
+		data: storedDesignResult,
+		isPending: isDesignLoading,
+		error: designLoadError,
+		reset: resetStoredDesign,
 	} = useDesignExtractMutation();
 
 	// GET /posts/{postId}/comments (auth 없이 조회 가능)
@@ -463,8 +463,9 @@ export default function PostDetailModal({
 			: Math.min(imageIndex, imageUrls.length - 1);
 	const postImageUrl = imageUrls[safeIndex] ?? null;
 	const hasMultipleImages = imageUrls.length > 1;
-	// 도안 추출은 타투 사진에만 의미가 있다 — AI가 타투로 판별한 사진에서만 버튼을 낸다
-	const canExtractDesign = !!post && !!postImageUrl && isTattooImage(post, safeIndex);
+	const currentTattooSeq = post?.imageTattooSeqs?.[safeIndex] ?? null;
+	// tattooSeq가 있으면 분류 과정에서 타투로 판별되어 저장된 이미지다.
+	const canExtractDesign = !!postImageUrl && currentTattooSeq != null;
 
 	const { handlers: swipeHandlers, trackStyle } = useImageSwipe({
 		count: imageUrls.length,
@@ -502,8 +503,8 @@ export default function PostDetailModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="게시글 상세">
-				{/* 좌: 이미지 캐러셀 — 게시물 비율(세로:가로 4:3)에 맞춘 칸 */}
+				aria-label="피드 상세">
+				{/* 좌: 이미지 캐러셀 — 피드 비율(세로:가로 4:3)에 맞춘 칸 */}
 				<div className="group relative hidden aspect-[3/4] h-full min-w-0 shrink bg-black/90 sm:block">
 					{imageUrls.length > 0 ? (
 						<div className="absolute inset-0 overflow-hidden" {...swipeHandlers}>
@@ -512,7 +513,7 @@ export default function PostDetailModal({
 									<img
 										key={`${url}-${index}`}
 										src={url}
-										alt={`${post.author.nickname}의 게시글 ${index + 1}`}
+										alt={`${post.author.nickname}의 피드 ${index + 1}`}
 										draggable={false}
 										className="h-full w-full shrink-0 object-contain"
 									/>
@@ -564,25 +565,37 @@ export default function PostDetailModal({
 					)}
 
 					{/* 호버 시 노출되는 도안 추출 버튼 — 타투로 판별된 사진에서만 */}
-					{canExtractDesign && postImageUrl && (
+					{canExtractDesign && currentTattooSeq != null && (
 						<button
 							type="button"
 							aria-label="도안 추출"
-							disabled={isExtracting}
-							onClick={() => extractDesign(postImageUrl)}
+							disabled={isDesignLoading}
+							onClick={() => loadStoredDesign(currentTattooSeq)}
 							className={`absolute right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 group-hover:opacity-100 ${
 								hasMultipleImages ? "bottom-10" : "bottom-4"
 							}`}>
-							<ExtractIcon />
-							{isExtracting ? "추출 중..." : "도안 추출"}
+							{isDesignLoading ? (
+								<>
+									<span
+										aria-hidden="true"
+										className="size-3.5 animate-spin rounded-full border-2 border-black/20 border-t-black"
+									/>
+									도안 추출 중...
+								</>
+							) : (
+								<>
+									<ExtractIcon />
+									도안 추출
+								</>
+							)}
 						</button>
 					)}
-					{extractError && (
+					{designLoadError && (
 						<p
 							className={`absolute right-4 rounded-lg bg-black/60 px-3 py-1.5 text-[12px] font-light text-white ${
 								hasMultipleImages ? "bottom-24" : "bottom-16"
 							}`}>
-							{extractError.message}
+							{designLoadError.message}
 						</p>
 					)}
 				</div>
@@ -617,7 +630,7 @@ export default function PostDetailModal({
 						<div className="relative" ref={menuRef}>
 							<button
 								type="button"
-								aria-label="게시글 메뉴"
+								aria-label="피드 메뉴"
 								onClick={() => setMenuOpen((prev) => !prev)}
 								className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/5">
 								<MoreIcon size={20} />
@@ -632,7 +645,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
 												수정
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													게시글 내용을 수정합니다
+													피드 내용을 수정합니다
 												</span>
 											</button>
 											<button
@@ -641,7 +654,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
 												삭제
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 게시글을 삭제합니다
+													이 피드를 삭제합니다
 												</span>
 											</button>
 										</>
@@ -666,7 +679,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
 												숨기기
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 게시글을 숨깁니다
+													이 피드를 숨깁니다
 												</span>
 											</button>
 										</>
@@ -845,8 +858,8 @@ export default function PostDetailModal({
 			</div>
 
 			<DesignExtractResultModal
-				result={extractResult ?? null}
-				onClose={resetExtract}
+				result={storedDesignResult ?? null}
+				onClose={resetStoredDesign}
 			/>
 			<ReportPostModal
 				postId={post.id}

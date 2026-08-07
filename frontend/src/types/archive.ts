@@ -16,7 +16,7 @@ export type TattooDesignItemDto = {
 	archivedDttm: string;
 };
 
-/** 보관함 항목 (화면·드래그용) */
+/** 도안 보관함 항목 (화면·드래그용) */
 export type ArchiveItem = {
 	tattooId: number;
 	/** POST /collections의 imageSeq로 쓰는 도안 이미지 seq */

@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import ArtistBadge from "../common/ArtistBadge";
+import MyPageMoreMenu from "./MyPageMoreMenu";
 import type { FollowListKind } from "../../hooks/queries/useFollowList";
 import { resolveAvatar } from "../../utils/profile";
 
 type MyPageHeaderProps = {
 	nickname: string;
 	avatarUrl: string | null;
-	/** 불러온 내 게시글 수 — 아직 세지 못했으면 undefined */
+	/** 불러온 내 피드 수 — 아직 세지 못했으면 undefined */
 	postCount?: number;
 	followerCount?: number;
 	followingCount?: number;
@@ -23,6 +24,8 @@ type MyPageHeaderProps = {
 	 * 이미 인증된 타투이스트에게는 넘기지 않아 버튼이 나오지 않는다.
 	 */
 	onRequestArtistBadge?: () => void;
+	/** 더보기(…) → 차단 목록 — 넘기지 않으면 메뉴를 렌더하지 않는다 */
+	onOpenBlockedList?: () => void;
 };
 
 export default function MyPageHeader({
@@ -35,6 +38,7 @@ export default function MyPageHeader({
 	isVerifiedArtist = false,
 	onOpenFollowList,
 	onRequestArtistBadge,
+	onOpenBlockedList,
 }: MyPageHeaderProps) {
 	const displayAvatar = resolveAvatar(avatarUrl, nickname);
 	const usesDefaultAvatar = !avatarUrl;
@@ -58,9 +62,9 @@ export default function MyPageHeader({
 						{isVerifiedArtist && <ArtistBadge size={18} />}
 					</p>
 					<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px]">
-						{/* 게시물은 목록이 따로 없어 상대 프로필과 마찬가지로 클릭 대상이 아니다 */}
+						{/* 피드는 목록이 따로 없어 상대 프로필과 마찬가지로 클릭 대상이 아니다 */}
 						<span>
-							게시물 {postCount == null ? "—" : postCount.toLocaleString()}
+							피드 {postCount == null ? "—" : postCount.toLocaleString()}
 						</span>
 						<button
 							type="button"
@@ -79,6 +83,12 @@ export default function MyPageHeader({
 			</div>
 
 			<div className="flex flex-col items-end gap-3">
+				{/* 좁은 화면에서는 프로필 수정(연필) 왼쪽에, 넓은 화면에서는 그 위에 놓인다 */}
+				{onOpenBlockedList && (
+					<div className="absolute right-11 top-3 lg:static">
+						<MyPageMoreMenu onOpenBlockedList={onOpenBlockedList} />
+					</div>
+				)}
 				<Link
 					to="/mypage/edit"
 					aria-label="프로필 수정"

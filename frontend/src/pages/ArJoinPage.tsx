@@ -181,6 +181,7 @@ export default function ArJoinPage() {
 					<ArCustomizeScreen
 						onCapture={handleCapture}
 						designs={designs.map((design) => ({
+							seq: design.designSeq,
 							name: `도안 ${design.designSeq}`,
 							url: design.imageUrl,
 						}))}

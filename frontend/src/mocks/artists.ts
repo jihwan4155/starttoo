@@ -2,7 +2,7 @@ import defaultProfile from "../assets/images/topnav-default-profile.png";
 import type { Artist } from "../types/artist";
 import { MOCK_EXPLORE_POSTS } from "./community";
 
-/** 탐색 게시글에서 해당 닉네임 작성자의 이미지들을 모아 작업물 미리보기로 사용 */
+/** 탐색 피드에서 해당 닉네임 작성자의 이미지들을 모아 작업물 미리보기로 사용 */
 const worksOf = (nickname: string): string[] =>
 	MOCK_EXPLORE_POSTS.filter((post) => post.author.nickname === nickname)
 		.map((post) => post.imageUrl)
