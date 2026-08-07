@@ -269,7 +269,7 @@ export default function SimulationsPage() {
 	}
 
 	return (
-		<div className="h-[calc(100vh-60px)] overflow-hidden bg-surface">
+		<div className="h-[calc(100vh-var(--nav-h))] overflow-hidden bg-surface">
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pt-6 pb-6">
 				{!hideHeader && (
 					<>

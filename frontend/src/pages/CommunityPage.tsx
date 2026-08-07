@@ -110,7 +110,7 @@ export default function CommunityPage() {
 			: "피드를 불러오지 못했습니다.";
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
 			{/*
 			 * lg 이상에서 피드(왼쪽) + 회원 검색(오른쪽) 2열. 모바일은 피드만.
 			 * justify-between으로 검색을 오른쪽 끝에 붙인다. 카드 폭을 380으로 줄여

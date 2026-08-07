@@ -171,7 +171,7 @@ export default function ProfilePage() {
 
 	if (!Number.isFinite(userId) || userId <= 0) {
 		return (
-			<div className="min-h-[calc(100vh-60px)] bg-surface px-6 pb-16 pt-6">
+			<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 pb-16 pt-6">
 				<MyPageEmptyState message="잘못된 프로필 주소입니다" />
 			</div>
 		);
@@ -189,7 +189,7 @@ export default function ProfilePage() {
 	}
 
 	return (
-		<div className="min-h-[calc(100vh-60px)] bg-surface px-0 pb-28 pt-5 lg:px-6 lg:pb-16 lg:pt-6">
+		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-0 pb-28 pt-5 lg:px-6 lg:pb-16 lg:pt-6">
 			<div className="mx-auto w-full max-w-[900px]">
 				<button
 					type="button"
