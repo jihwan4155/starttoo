@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ArLiveStage, { type ArEngineOptions } from "./ar-live/ArLiveStage";
 import useArchive from "../../hooks/queries/useArchive";
 import { mapArchiveItemToSavedDesign } from "../../utils/mapArchive";
@@ -137,39 +137,28 @@ export default function ArCustomizeScreen({
 	}, [hasOwnDesigns, designs, archiveDesigns]);
 
 	const [designUrl, setDesignUrl] = useState(designList[0].url);
-	const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 	const [options, setOptions] = useState<ArOptions>(DEFAULT_OPTIONS);
-	const uploadedUrlRef = useRef<string | null>(null);
+	/**
+	 * ＋를 누른 횟수. 0이면 안내가 숨어 있고, 누를 때마다 값이 달라져 자동으로
+	 * 사라지는 타이머가 처음부터 다시 돈다.
+	 */
+	const [hintTick, setHintTick] = useState(0);
 
 	// 보관함은 첫 렌더 뒤에 도착한다. 그때까지 골라 둔 샘플이 목록에서 빠지므로
-	// 첫 도안으로 다시 맞춘다. 직접 올린 도안을 고른 상태는 건드리지 않는다.
+	// 첫 도안으로 다시 맞춘다.
 	useEffect(() => {
-		if (uploadedUrl && designUrl === uploadedUrl) return;
 		if (designList.some((design) => design.url === designUrl)) return;
 		setDesignUrl(designList[0].url);
-	}, [designList, designUrl, uploadedUrl]);
+	}, [designList, designUrl]);
+
+	useEffect(() => {
+		if (hintTick === 0) return undefined;
+		const timer = window.setTimeout(() => setHintTick(0), 3500);
+		return () => window.clearTimeout(timer);
+	}, [hintTick]);
 
 	const setOption = (key: keyof ArOptions) => (value: number) =>
 		setOptions((current) => ({ ...current, [key]: value }));
-
-	// 기기에서 도안 이미지를 골라 바로 시뮬레이션에 사용
-	const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (!file) return;
-		if (uploadedUrlRef.current) URL.revokeObjectURL(uploadedUrlRef.current);
-		const url = URL.createObjectURL(file);
-		uploadedUrlRef.current = url;
-		setUploadedUrl(url);
-		setDesignUrl(url);
-		event.target.value = "";
-	};
-
-	useEffect(
-		() => () => {
-			if (uploadedUrlRef.current) URL.revokeObjectURL(uploadedUrlRef.current);
-		},
-		[]
-	);
 
 	// UI 단위(%) → 엔진 네이티브 값
 	const engineOptions = useMemo<ArEngineOptions>(
@@ -222,36 +211,27 @@ export default function ArCustomizeScreen({
 						</button>
 					))}
 
-					{uploadedUrl && (
-						<button
-							type="button"
-							onClick={() => setDesignUrl(uploadedUrl)}
-							aria-pressed={designUrl === uploadedUrl}
-							title="내 도안"
-							className={`grid size-16 shrink-0 place-items-center overflow-hidden rounded-[10px] border-2 bg-white ${
-								designUrl === uploadedUrl
-									? "border-brand"
-									: "border-transparent"
-							}`}>
-							<img
-								src={uploadedUrl}
-								alt="내 도안"
-								className="size-12 object-contain"
-							/>
-						</button>
-					)}
-
-					{/* 도안 추가 — 기기에서 이미지 선택 */}
-					<label className="grid size-16 shrink-0 cursor-pointer place-items-center rounded-[10px] border border-dashed border-black/20 text-[22px] text-black/40 transition hover:border-black/40 hover:text-black/60">
+					{/*
+					  도안 추가 — 기기에서 바로 올리지 않는다. AR에 얹는 도안은 보관함을
+					  거쳐야 어느 도안으로 시뮬레이션했는지가 남고, 다음에 다시 열어도
+					  같은 도안을 고를 수 있다. 여기서는 그 경로만 알려 준다.
+					*/}
+					<button
+						type="button"
+						onClick={() => setHintTick((tick) => tick + 1)}
+						title="도안 추가"
+						className="grid size-16 shrink-0 place-items-center rounded-[10px] border border-dashed border-black/20 text-[22px] text-black/40 transition hover:border-black/40 hover:text-black/60">
 						＋
-						<input
-							type="file"
-							accept="image/*"
-							onChange={handleUpload}
-							className="hidden"
-						/>
-					</label>
+					</button>
 				</div>
+
+				{hintTick > 0 && (
+					<p
+						role="status"
+						className="mt-1.5 text-[11px] font-light leading-4 text-brand">
+						도안 보관함에 도안을 추가한 후 이용해 주세요.
+					</p>
+				)}
 
 				{/* 샘플만 있는 이유를 알려 준다 — 레일이 비어 보이는 것보다 낫다 */}
 				{!hasOwnDesigns && !isArchiveFetching && (
