@@ -19,6 +19,7 @@ import useToggleFollow from "../hooks/mutations/useToggleFollow";
 import useUserCollections from "../hooks/queries/useUserCollections";
 import useUserPosts from "../hooks/queries/useUserPosts";
 import useUserProfile from "../hooks/queries/useUserProfile";
+import useArtistProfile from "../hooks/queries/useArtistProfile";
 import { useIsMobile } from "../hooks/useIsMobile";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { ApiError } from "../services/api";
@@ -34,7 +35,7 @@ export default function ProfilePage() {
 	const userId = Number(rawUserId);
 	const [activePost, setActivePost] = useState<Post | null>(null);
 	// 모바일에서 썸네일을 눌렀을 때 먼저 뜨는 카드 화면 (댓글은 그 다음 단계).
-	// ID로 들고 있어서 게시글이 삭제되어 목록에서 빠지면 저절로 닫힌다.
+	// ID로 들고 있어서 피드가 삭제되어 목록에서 빠지면 저절로 닫힌다.
 	const [cardPostId, setCardPostId] = useState<number | null>(null);
 	const [isUnfollowOpen, setUnfollowOpen] = useState(false);
 	const [tab, setTab] = useState<ProfileTab>("feed");
@@ -104,7 +105,12 @@ export default function ProfilePage() {
 		profile?.role,
 		profile?.artist?.verificationStatus,
 	);
+	const {
+		data: artistDetail,
+		isPending: isArtistDetailPending,
+	} = useArtistProfile(userId, Boolean(isArtist));
 	const avatarUrl = resolveAvatar(profile?.profileImageUrl, profile?.nickname);
+	const usesDefaultAvatar = !profile?.profileImageUrl;
 	const profileErrorMessage =
 		profileError instanceof ApiError
 			? profileError.message
@@ -213,7 +219,7 @@ export default function ProfilePage() {
 								<img
 									src={avatarUrl}
 									alt={`${profile.nickname}의 프로필 이미지`}
-									className="size-[58px] shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-[100px]"
+									className={`size-[48px] shrink-0 rounded-full lg:size-[84px] ${usesDefaultAvatar ? "bg-white object-contain" : "bg-[#D9D9D9] object-cover"}`}
 								/>
 								<div className="min-w-0">
 									<p className="flex items-center gap-2 text-[18px] font-bold text-black lg:text-[22px]">
@@ -221,7 +227,7 @@ export default function ProfilePage() {
 										{showArtistBadge && <ArtistBadge size={18} />}
 									</p>
 									<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px] lg:text-black/60">
-										<span>게시물 {posts.length}</span>
+										<span>피드 {posts.length}</span>
 										<button
 											type="button"
 											onClick={() => setFollowListKind("followers")}
@@ -271,7 +277,11 @@ export default function ProfilePage() {
 						</div>
 
 						{isArtist && (
-							<MyPageShopInfo artist={profile.artist} />
+							<MyPageShopInfo
+								artist={profile.artist}
+								detail={artistDetail ?? null}
+								isLoading={isProfilePending || isArtistDetailPending}
+							/>
 						)}
 
 						<div className="mt-8">
@@ -285,14 +295,14 @@ export default function ProfilePage() {
 										<StarttooLoader
 											variant="block"
 											size={180}
-											label="게시글을 불러오는 중…"
+											label="피드를 불러오는 중…"
 										/>
 									)}
 									{isPostsError && (
-										<MyPageEmptyState message="게시글을 불러오지 못했습니다" />
+										<MyPageEmptyState message="피드를 불러오지 못했습니다" />
 									)}
 									{!isPostsPending && !isPostsError && posts.length === 0 && (
-										<MyPageEmptyState message="게시글이 없습니다" />
+										<MyPageEmptyState message="피드가 없습니다" />
 									)}
 									{!isPostsPending && posts.length > 0 && (
 										<PostThumbnailGrid posts={posts} onOpen={handleOpenPost} />

@@ -3,24 +3,25 @@ import logoBelt from "../../assets/images/home/logo-belt.svg";
 import "./TattooMarqueeHero.css";
 
 const MARQUEE_ITEMS = [
-	["machine", "타투 머신"],
-	["disinfectant", "소독제"],
-	["needle", "타투 니들"],
-	["cartridge", "카트리지"],
-	["ink", "타투 잉크"],
-	["power-supply", "파워 서플라이"],
-	["stencil-paper", "스텐실 용지"],
-	["pen-2", "타투 펜"],
-	["task-lamp", "작업등"],
-	["spray-bottle", "스프레이 보틀"],
-	["wet-wipes", "물티슈"],
-	["worn-glove", "작업 장갑"],
-	["mask", "마스크"],
-	["surgical-scissors", "수술 가위"],
-	["dressing-film", "드레싱 필름"],
+	["apple", "사과"],
+	["banana", "바나나"],
+	["chamoe", "참외"],
+	["cherry", "체리"],
+	["dragonfruit", "용과"],
+	["fig", "무화과"],
+	["grape", "포도"],
+	["kiwi", "키위"],
+	["lemon", "레몬"],
+	["mangosteen", "망고스틴"],
+	["melon", "멜론"],
+	["peach", "복숭아"],
+	["pineapple", "파인애플"],
+	["pomegranate", "석류"],
+	["tomato", "토마토"],
+	["watermelon", "수박"],
 ] as const;
 
-const MARQUEE_IMAGE_BASE = "/images/tattoo-tools";
+const MARQUEE_IMAGE_BASE = "/images/tattoo-fruits";
 
 const LOGO_REPEATS = Array.from({ length: 10 });
 
@@ -211,7 +212,7 @@ export default function TattooMarqueeHero() {
 	}, []);
 
 	return (
-		<section ref={sectionRef} className="tattoo-marquee" aria-label="STARTTOO POP 타투 도구 배너">
+		<section ref={sectionRef} className="tattoo-marquee" aria-label="STARTTOO POP 타투 과일 배너">
 			<LogoRail />
 			<div ref={viewportRef} className="tattoo-marquee__viewport">
 				<div ref={trackRef} className="tattoo-marquee__track">

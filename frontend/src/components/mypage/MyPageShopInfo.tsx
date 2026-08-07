@@ -1,6 +1,5 @@
 import type { ArtistProfileResponse } from "../../types/artist";
 import type { UserArtistSummary } from "../../types/user";
-import { formatApprovalStatus } from "../../utils/artistStatus";
 
 type MyPageShopInfoProps = {
 	/** GET /users/me · /users/{id} 의 artistProfile — 숍 이름·인증 상태만 들어 있다 */
@@ -8,8 +7,8 @@ type MyPageShopInfoProps = {
 	/**
 	 * 숍 상세 — 도시·주소·전화·영업 안내까지 들어 있다.
 	 *
-	 * 내 마이페이지에서 GET /artists 조회로 채워진다. 인증 전이거나 남의
-	 * 프로필이면 읽을 방법이 없어 비어 있고, 그때는 매장명·인증 상태만 보여준다.
+	 * GET /artists 목록에서 해당 유저를 찾아 채운다. 인증 전이면 목록에 없어
+	 * 비어 있고, 그때는 매장명만 summary에서 가져와 나머지 칸은 미등록으로 둔다.
 	 */
 	detail?: ArtistProfileResponse | null;
 	isLoading?: boolean;
@@ -63,8 +62,7 @@ function formatShopAddress(detail: ArtistProfileResponse): string | null {
 /**
  * 타투이스트 숍 정보 (읽기 전용)
  *
- * detail이 있으면 매장명·영업시간·전화번호·매장주소를 모두 보여준다.
- * 없으면(인증 전이거나 남의 프로필) 읽을 수 있는 매장명·인증 상태만 보여준다.
+ * 내 마이페이지·상대 프로필 모두 매장명·영업시간·전화번호·매장주소를 보여준다.
  */
 export default function MyPageShopInfo({
 	artist,
@@ -72,7 +70,7 @@ export default function MyPageShopInfo({
 	isLoading = false,
 }: MyPageShopInfoProps) {
 	return (
-		<div className="mx-4 mt-3 overflow-hidden rounded-[12px] border border-black/[0.06] bg-white py-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:mx-0 lg:mt-8 lg:rounded-[16px] lg:py-4">
+		<div className="mx-4 mt-3 overflow-hidden rounded-[12px] border border-black/[0.06] bg-white px-4 py-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:mx-0 lg:mt-8 lg:rounded-[16px] lg:px-5 lg:py-4">
 			{isLoading ? (
 				<div className="flex flex-col">
 					{Array.from({ length: 4 }, (_, i) => (
@@ -82,18 +80,12 @@ export default function MyPageShopInfo({
 			) : (
 				<dl>
 					<InfoRow label="매장명" value={detail?.shopName ?? artist?.shopName} />
-					{detail ? (
-						<>
-							<InfoRow label="영업시간" value={detail.shopDetails} />
-							<InfoRow label="전화번호" value={detail.shopPhone} />
-							<InfoRow label="매장주소" value={formatShopAddress(detail)} />
-						</>
-					) : (
-						<InfoRow
-							label="인증 상태"
-							value={formatApprovalStatus(artist?.verificationStatus)}
-						/>
-					)}
+					<InfoRow label="영업시간" value={detail?.shopDetails} />
+					<InfoRow label="전화번호" value={detail?.shopPhone} />
+					<InfoRow
+						label="매장주소"
+						value={detail ? formatShopAddress(detail) : null}
+					/>
 				</dl>
 			)}
 		</div>

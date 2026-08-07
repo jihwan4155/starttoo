@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-/** userId별 숨김 게시글 ID */
+/** userId별 숨김 피드 ID */
 export type HiddenIdsByUser = Record<number, Record<number, boolean>>;
 
 const EMPTY_HIDDEN_IDS: Record<number, boolean> = {};

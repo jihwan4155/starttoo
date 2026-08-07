@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/images/logo.png";
 import mobileLogo from "../../assets/images/mobile-logo.png";
-import topNavDefaultProfile from "../../assets/images/topnav-default-profile.png";
 import ArtistSearchBar from "../artist/ArtistSearchBar";
 import LoginModal from "../auth/LoginModal";
 import WithdrawAccountModal from "../auth/WithdrawAccountModal";
@@ -23,7 +22,7 @@ import useNotificationStore from "../../store/useNotificationStore";
 import useDmStore from "../../store/useDmStore";
 import useToastStore from "../../store/useToastStore";
 import type { NotificationItem } from "../../types/notification";
-import { resolveAvatar } from "../../utils/profile";
+import { DEFAULT_PROFILE_IMAGE, resolveAvatar } from "../../utils/profile";
 
 function BellIcon() {
 	return (
@@ -506,7 +505,7 @@ export default function TopNav() {
 	const showSearch = pathname.startsWith("/posts/search");
 	const showArtistSearch = pathname.startsWith("/artists");
 	const avatarUrl = useUserStore((s) => s.avatarUrl);
-	const headerAvatar = avatarUrl || topNavDefaultProfile;
+	const headerAvatar = avatarUrl || DEFAULT_PROFILE_IMAGE;
 	const usesDefaultHeaderAvatar = !avatarUrl;
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
 	// 설정 메뉴와 아바타가 같은 모달을 열기 때문에 상태를 여기서 들고 있는다.

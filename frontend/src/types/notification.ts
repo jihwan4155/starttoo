@@ -21,7 +21,7 @@ export type NotificationItem = {
 	actorSeq: number | null;
 	notificationType: NotificationType;
 	/**
-	 * 알림 종류별 대상 식별자. NEW_DM은 DM 방 seq, 게시글 알림은 게시글 seq다.
+	 * 알림 종류별 대상 식별자. NEW_DM은 DM 방 seq, 피드 알림은 피드 seq다.
 	 * 대상이 없는 알림(SYSTEM 등)은 null.
 	 */
 	referenceSeq: number | null;

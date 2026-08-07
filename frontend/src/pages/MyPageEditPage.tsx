@@ -227,6 +227,7 @@ export default function MyPageEditPage() {
 
 	const isSaving = isSavingProfile || isSavingImage || isSavingArtist;
 	const displayAvatar = resolveAvatar(avatarInput, nicknameInput);
+	const usesDefaultAvatar = !avatarInput;
 
 	// 비로그인이면 useMe가 꺼져 있어 isPending이 계속 true다 — 로그인 여부를 먼저 본다.
 	if (!isAuthenticated) {
@@ -266,17 +267,16 @@ export default function MyPageEditPage() {
 					type="button"
 					onClick={() => avatarInputRef.current?.click()}
 					aria-label="프로필 이미지 변경"
-					className="relative block size-[100px] overflow-hidden rounded-full bg-[#D9D9D9]">
+					className={`relative block size-[84px] overflow-hidden rounded-full ${usesDefaultAvatar ? "bg-white" : "bg-[#D9D9D9]"}`}>
 					<img
 						src={displayAvatar}
 						alt=""
-						className="size-full object-cover"
+						className={`size-full ${usesDefaultAvatar ? "object-contain" : "object-cover"}`}
 					/>
-					<span className="absolute inset-x-0 bottom-0 flex h-8 items-center justify-center bg-black/50">
+					<span className="absolute inset-x-0 bottom-0 flex h-7 items-center justify-center bg-black/50">
 						<CameraIcon />
 					</span>
-				</button>
-				<input
+				</button>				<input
 					ref={avatarInputRef}
 					type="file"
 					accept="image/*"

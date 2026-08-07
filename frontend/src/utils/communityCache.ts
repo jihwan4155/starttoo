@@ -22,7 +22,7 @@ type CommentsData = {
 	hasNext: boolean;
 };
 
-/** 무한 스크롤 피드·단건 캐시의 게시글을 updater로 동시에 갱신 */
+/** 무한 스크롤 피드·단건 캐시의 피드를 updater로 동시에 갱신 */
 export function updatePostInCache(
 	queryClient: QueryClient,
 	postId: number,
@@ -48,7 +48,7 @@ export function updatePostInCache(
 	);
 }
 
-/** 무한 스크롤 피드·단건 캐시의 게시글 필드를 동시에 갱신 */
+/** 무한 스크롤 피드·단건 캐시의 피드 필드를 동시에 갱신 */
 export function patchPostInCache(
 	queryClient: QueryClient,
 	postId: number,
@@ -71,7 +71,7 @@ export function bumpPostLikeInCache(
 	}));
 }
 
-/** 삭제·숨김 후 피드 캐시에서 게시글 제거 */
+/** 삭제·숨김 후 피드 캐시에서 피드 제거 */
 export function removePostFromCache(
 	queryClient: QueryClient,
 	postId: number,
@@ -105,7 +105,7 @@ export function removePostFromCache(
 	);
 }
 
-/** 북마크 해제 후 북마크 목록 캐시에서 게시글 제거 */
+/** 북마크 해제 후 북마크 목록 캐시에서 피드 제거 */
 export function removePostFromBookmarkCache(
 	queryClient: QueryClient,
 	postId: number,

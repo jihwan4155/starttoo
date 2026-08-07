@@ -7,7 +7,7 @@ import { resolveAvatar } from "../../utils/profile";
 type MyPageHeaderProps = {
 	nickname: string;
 	avatarUrl: string | null;
-	/** 불러온 내 게시글 수 — 아직 세지 못했으면 undefined */
+	/** 불러온 내 피드 수 — 아직 세지 못했으면 undefined */
 	postCount?: number;
 	followerCount?: number;
 	followingCount?: number;
@@ -41,6 +41,7 @@ export default function MyPageHeader({
 	onOpenBlockedList,
 }: MyPageHeaderProps) {
 	const displayAvatar = resolveAvatar(avatarUrl, nickname);
+	const usesDefaultAvatar = !avatarUrl;
 
 	const formatCount = (count?: number) =>
 		isLoading && count == null ? "—" : `${(count ?? 0).toLocaleString()}명`;
@@ -51,7 +52,7 @@ export default function MyPageHeader({
 				<img
 					src={displayAvatar}
 					alt={`${nickname || "내"} 프로필 이미지`}
-					className="size-[58px] shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-[100px]"
+					className={`size-[48px] shrink-0 rounded-full lg:size-[84px] ${usesDefaultAvatar ? "bg-white object-contain" : "bg-[#D9D9D9] object-cover"}`}
 				/>
 				<div className="min-w-0">
 					<p className="flex items-center gap-2 text-[18px] font-bold text-black lg:text-[22px]">
@@ -61,9 +62,9 @@ export default function MyPageHeader({
 						{isVerifiedArtist && <ArtistBadge size={18} />}
 					</p>
 					<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px]">
-						{/* 게시물은 목록이 따로 없어 상대 프로필과 마찬가지로 클릭 대상이 아니다 */}
+						{/* 피드는 목록이 따로 없어 상대 프로필과 마찬가지로 클릭 대상이 아니다 */}
 						<span>
-							게시물 {postCount == null ? "—" : postCount.toLocaleString()}
+							피드 {postCount == null ? "—" : postCount.toLocaleString()}
 						</span>
 						<button
 							type="button"

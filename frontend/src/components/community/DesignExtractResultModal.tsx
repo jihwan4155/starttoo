@@ -35,7 +35,7 @@ export default function DesignExtractResultModal({
 
 	if (!result) return null;
 
-	// 서버에 등록된 타투가 아니면(직접 올린 사진에서 뽑은 도안) 보관함에 넣을 수
+	// 서버에 등록된 타투가 아니면(직접 올린 사진에서 뽑은 도안) 도안 보관함에 넣을 수
 	// 없다. 대신 PNG를 내려받게 한다.
 	const canSaveToArchive = result.tattooSeq != null;
 
@@ -93,7 +93,7 @@ export default function DesignExtractResultModal({
 							type="button"
 							onClick={() => navigate("/mypage?tab=designs")}
 							className="rounded-full border border-brand px-5 py-2 text-[13px] font-semibold text-brand transition hover:bg-brand/5">
-							내 도안함 바로가기
+							도안 보관함 바로가기
 						</button>
 					) : (
 						<button
@@ -101,7 +101,7 @@ export default function DesignExtractResultModal({
 							onClick={handleAddDesign}
 							disabled={isSaving && isCurrentDesign}
 							className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">
-							{isSaving && isCurrentDesign ? "저장 중..." : "내 도안에 추가"}
+							{isSaving && isCurrentDesign ? "저장 중..." : "도안 보관함에 추가"}
 						</button>
 					)}
 				</div>

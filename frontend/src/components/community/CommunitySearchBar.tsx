@@ -61,7 +61,7 @@ export default function CommunitySearchBar() {
 	};
 
 	// 입력 중에는 서버 subject 사전에서 추천어를 받는다 (GET /search/subjects/autocomplete).
-	// 게시물 검색이 subject 기반이라, 사전에 있는 말로 검색해야 결과가 나온다.
+	// 피드 검색이 subject 기반이라, 사전에 있는 말로 검색해야 결과가 나온다.
 	const { data: subjectSuggestions = [] } = useSubjectAutocomplete(value);
 	const suggestions = value.trim()
 		? subjectSuggestions.map((subject) => subject.subjectName)
@@ -124,7 +124,7 @@ export default function CommunitySearchBar() {
 						setCameraOpen(false);
 					}}
 					onBlur={() => setFocused(false)}
-					placeholder="게시물 검색 → 예: 나비, 장미"
+					placeholder="피드 검색 → 예: 나비, 장미"
 					maxLength={50}
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 				/>
@@ -178,7 +178,7 @@ export default function CommunitySearchBar() {
 									setArchiveOpen(true);
 								})
 							}>
-							보관함에서 선택
+							도안 보관함에서 선택
 						</ActionButton>
 					</div>
 					<input

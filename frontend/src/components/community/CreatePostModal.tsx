@@ -103,7 +103,7 @@ type CreatePostModalProps = {
 	onClose: () => void;
 };
 
-/** 새 게시물 만들기 — 이미지 선택 → 자르기 → 문구 작성 3단계 */
+/** 새 피드 만들기 — 이미지 선택 → 자르기 → 문구 작성 3단계 */
 export default function CreatePostModal({
 	isOpen,
 	onClose,
@@ -166,7 +166,7 @@ export default function CreatePostModal({
 	};
 
 	const handleClose = () => {
-		// 미리보기 URL 해제 (게시물에는 압축된 base64가 저장되므로 항상 해제)
+		// 미리보기 URL 해제 (피드에는 압축된 base64가 저장되므로 항상 해제)
 		images.forEach((image) => URL.revokeObjectURL(image.url));
 		reset();
 		onClose();
@@ -195,7 +195,7 @@ export default function CreatePostModal({
 			window.alert(
 				err instanceof Error
 					? err.message
-					: "보관함 이미지를 불러오지 못했습니다.",
+					: "도안 보관함 이미지를 불러오지 못했습니다.",
 			);
 		}
 	};
@@ -259,7 +259,7 @@ export default function CreatePostModal({
 					? err.message
 					: err instanceof Error
 						? err.message
-						: "게시물 업로드에 실패했습니다.",
+						: "피드 업로드에 실패했습니다.",
 			);
 			setSubmitting(false);
 		}
@@ -276,21 +276,21 @@ export default function CreatePostModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="새 게시물 만들기">
+				aria-label="새 피드 만들기">
 				{/* 헤더 */}
 				<div className="relative flex h-[52px] shrink-0 items-center justify-center border-b border-black/10 bg-white px-4 max-lg:fixed max-lg:inset-x-0 max-lg:top-0 max-lg:z-20">
 					<button type="button" onClick={handleHome} aria-label="홈으로 가기" className="absolute left-4 hidden size-8 items-center justify-center text-[#555] max-lg:flex"><HomeIcon /></button>
 					<p className="text-[15px] font-semibold text-black">
-						{step === "select" && "새 게시물 만들기"}
+						{step === "select" && "새 피드 만들기"}
 						{step === "crop" && "자르기"}
-						{step === "write" && "새 게시물 만들기"}
+						{step === "write" && "새 피드 만들기"}
 					</p>
 					{step !== "select" && <button type="button" onClick={() => setStep(step === "write" ? "crop" : "select")} className="absolute left-4 flex items-center gap-0.5 text-[13px] text-black/60 max-lg:hidden"><ChevronIcon direction="left" />이전</button>}
 					<div className="absolute right-4 max-lg:hidden">
 						{step === "select" && images.length === 0 && <button type="button" aria-label="닫기" onClick={handleClose} className="text-black/60"><CloseIcon size={18} /></button>}
 						{step === "select" && images.length > 0 && <button type="button" onClick={() => { setImageIndex(0); setStep("crop"); }} className="text-[14px] font-semibold text-brand">다음</button>}
 						{step === "crop" && <button type="button" onClick={handleCropDone} disabled={isCropping} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>}
-						{step === "write" && <button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "게시물 올리기"}</button>}
+						{step === "write" && <button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "피드 올리기"}</button>}
 					</div>
 				</div>
 
@@ -385,10 +385,10 @@ export default function CreatePostModal({
 								onClick={() => fileInputRef.current?.click()}>
 								컴퓨터에서 선택
 							</ActionButton>
-							{/* TODO: 보관함 연동되면 보관함 선택 모달로 교체 */}
+							{/* TODO: 도안 보관함 연동되면 도안 보관함 선택 모달로 교체 */}
 							<ActionButton
 								onClick={() => requireAuth(() => setArchiveOpen(true))}>
-								보관함에서 선택
+								도안 보관함에서 선택
 							</ActionButton>
 						</div>
 						<p className="mt-3 text-center text-[12px] font-light text-black/40">
@@ -501,7 +501,7 @@ export default function CreatePostModal({
 						<button type="button" onClick={handleCropDone} disabled={isCropping} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>
 					)}
 					{step === "write" && (
-						<button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "게시물 올리기"}</button>
+						<button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isSubmitting || isCreatePending ? "올리는 중..." : "피드 올리기"}</button>
 					)}
 				</div>
 

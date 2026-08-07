@@ -13,12 +13,12 @@ type ArchivePickerModalProps = {
 	title?: string;
 };
 
-/** 보관함 이미지 선택 모달 */
+/** 도안 보관함 이미지 선택 모달 */
 export default function ArchivePickerModal({
 	isOpen,
 	onClose,
 	onSelect,
-	title = "보관함에서 선택",
+	title = "도안 보관함에서 선택",
 }: ArchivePickerModalProps) {
 	const { data, isPending, isError, error } = useArchive({ size: 30 });
 	const items = data?.pages.flatMap((page) => page.items) ?? [];
@@ -31,7 +31,7 @@ export default function ArchivePickerModal({
 	const errorMessage =
 		error instanceof ApiError
 			? error.message
-			: "보관함을 불러오지 못했습니다.";
+			: "도안 보관함을 불러오지 못했습니다.";
 
 	return createPortal(
 		<div
@@ -60,7 +60,7 @@ export default function ArchivePickerModal({
 						<StarttooLoader
 							variant="block"
 							size={170}
-							label="보관함을 불러오는 중…"
+							label="도안 보관함을 불러오는 중…"
 						/>
 					)}
 					{isError && (
@@ -70,7 +70,7 @@ export default function ArchivePickerModal({
 					)}
 					{!isPending && !isError && items.length === 0 && (
 						<p className="py-10 text-center text-[13px] text-black/40">
-							보관함에 저장된 도안이 없습니다.
+							도안 보관함에 저장된 도안이 없습니다.
 						</p>
 					)}
 					{items.length > 0 && (
