@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
 import { MoreIcon, SearchIcon, ShareIcon } from "../components/community/icons";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
@@ -78,6 +78,7 @@ export default function DmPage() {
 	const { data: me } = useMe();
 	const myUserSeq = me?.userId ?? null;
 
+	const [searchParams, setSearchParams] = useSearchParams();
 	const [input, setInput] = useState("");
 	const [search, setSearch] = useState("");
 	const [searchError, setSearchError] = useState<string | null>(null);
@@ -149,6 +150,40 @@ export default function DmPage() {
 
 	// DM 페이지를 벗어나면 선택 해제 (이후 수신 메시지는 알림으로 표시)
 	useEffect(() => () => leaveDm(), [leaveDm]);
+
+	/*
+	 * 보고 있던 방을 주소(?room=)에 실어 둔다.
+	 *
+	 * activeRoomSeq는 "지금 이 방을 보고 있는지"라 페이지를 벗어날 때 비워야 한다
+	 * (안 그러면 그 방 메시지가 알림으로 안 뜬다). 그래서 공유된 게시물을 열었다
+	 * 돌아오면 선택이 사라져 목록부터 다시 시작했다. 주소에 남겨 두면 히스토리
+	 * 항목이 그 방을 기억하므로, 뒤로가기·상세 닫기 어느 쪽으로 돌아와도 보던
+	 * 대화가 그대로 열린다. 지우는 쪽은 아래 closeRoom이 직접 한다.
+	 */
+	useEffect(() => {
+		if (activeRoomSeq == null) return;
+		if (searchParams.get("room") === String(activeRoomSeq)) return;
+		const next = new URLSearchParams(searchParams);
+		next.set("room", String(activeRoomSeq));
+		setSearchParams(next, { replace: true });
+	}, [activeRoomSeq, searchParams, setSearchParams]);
+
+	// 주소에 남아 있던 방을 한 번만 되살린다 (알림으로 들어온 선택이 있으면 그쪽이 우선)
+	useEffect(() => {
+		if (activeRoomSeq != null) return;
+		const seq = Number(searchParams.get("room"));
+		if (Number.isInteger(seq) && seq > 0) openRoom(seq);
+		// 마운트 시 1회 — 이후 방 전환은 handleOpenRoom·closeRoom이 맡는다
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	/** 대화창을 닫고 목록으로 — 주소에 남은 방도 함께 지운다 */
+	const closeRoom = () => {
+		leaveDm();
+		const next = new URLSearchParams(searchParams);
+		next.delete("room");
+		setSearchParams(next, { replace: true });
+	};
 
 	/*
 	 * 읽음 처리는 기본적으로 서버가 메시지 조회에서 함께 한다. 열어 둔 방은 새
@@ -427,7 +462,7 @@ export default function DmPage() {
 			{selectedRoom ? (
 				<section className="flex min-w-0 flex-1 flex-col bg-white">
 					<div className="flex h-[58px] shrink-0 items-center gap-2 border-b border-black/10 px-3 lg:h-auto lg:gap-3 lg:px-6 lg:py-3">
-						<button type="button" aria-label="대화 목록으로 돌아가기" onClick={leaveDm} className="flex size-9 shrink-0 items-center justify-center text-black/65 lg:hidden"><BackIcon /></button>
+						<button type="button" aria-label="대화 목록으로 돌아가기" onClick={closeRoom} className="flex size-9 shrink-0 items-center justify-center text-black/65 lg:hidden"><BackIcon /></button>
 						<Link
 							to={profilePath(selectedRoom.partner.userSeq)}
 							aria-label={`${selectedRoom.partner.nickname} 프로필`}>
@@ -450,7 +485,7 @@ export default function DmPage() {
 								{selectedRoom.partner.verified && <ArtistBadge size={15} />}
 							</p>
 						</div>
-						<DmRoomMenu room={selectedRoom} onLeft={leaveDm}>
+						<DmRoomMenu room={selectedRoom} onLeft={closeRoom}>
 							<MoreIcon size={20} />
 						</DmRoomMenu>
 					</div>

@@ -47,7 +47,8 @@ export default function PostDetailPage() {
 					type="button"
 					onClick={close}
 					className="rounded-full border border-black/20 px-5 py-2 text-[13px] font-semibold transition hover:bg-black/5">
-					{from === "/dm" ? "DM으로 가기" : "커뮤니티로 가기"}
+					{/* from은 방 번호까지 달고 온다(예: /dm?room=2) — 경로만 본다 */}
+					{from?.startsWith("/dm") ? "DM으로 가기" : "커뮤니티로 가기"}
 				</button>
 			</div>
 		);
