@@ -260,7 +260,7 @@ export default function CreatePostModal({
 					? err.message
 					: err instanceof Error
 						? err.message
-						: "피드 업로드에 실패했습니다.",
+						: "게시물 업로드에 실패했습니다.",
 			);
 			setSubmitting(false);
 		}
@@ -277,21 +277,21 @@ export default function CreatePostModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="새 피드 만들기">
+				aria-label="새 게시물 만들기">
 				{/* 헤더 */}
 				<div className="relative flex h-[52px] shrink-0 items-center justify-center border-b border-black/10 bg-white px-4 max-lg:fixed max-lg:inset-x-0 max-lg:top-0 max-lg:z-20">
 					<button type="button" onClick={handleHome} aria-label="홈으로 가기" className="absolute left-4 hidden size-8 items-center justify-center text-[#555] max-lg:flex"><HomeIcon /></button>
 					<p className="text-[15px] font-semibold text-black">
-						{step === "select" && "새 피드 만들기"}
+						{step === "select" && "새 게시물 만들기"}
 						{step === "crop" && "자르기"}
-						{step === "write" && "새 피드 만들기"}
+						{step === "write" && "새 게시물 만들기"}
 					</p>
 					{step !== "select" && <button type="button" onClick={() => setStep(step === "write" ? "crop" : "select")} className="absolute left-4 flex items-center gap-0.5 text-[13px] text-black/60 max-lg:hidden"><ChevronIcon direction="left" />이전</button>}
 					<div className="absolute right-4 max-lg:hidden">
 						{step === "select" && images.length === 0 && <button type="button" aria-label="닫기" onClick={handleClose} className="text-black/60"><CloseIcon size={18} /></button>}
 						{step === "select" && images.length > 0 && <button type="button" onClick={() => { setImageIndex(0); setStep("crop"); }} className="text-[14px] font-semibold text-brand">다음</button>}
 						{step === "crop" && <button type="button" onClick={handleCropDone} disabled={isCropping} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>}
-						{step === "write" && <button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isSubmitting || isCreatePending ? <LoadingLabel>올리는 중…</LoadingLabel> : "피드 올리기"}</button>}
+						{step === "write" && <button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="text-[14px] font-semibold text-brand disabled:opacity-50">{isSubmitting || isCreatePending ? <LoadingLabel>올리는 중…</LoadingLabel> : "게시물 올리기"}</button>}
 					</div>
 				</div>
 
@@ -502,7 +502,7 @@ export default function CreatePostModal({
 						<button type="button" onClick={handleCropDone} disabled={isCropping} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isCropping ? "적용 중..." : "다음"}</button>
 					)}
 					{step === "write" && (
-						<button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isSubmitting || isCreatePending ? <LoadingLabel>올리는 중…</LoadingLabel> : "피드 올리기"}</button>
+						<button type="button" onClick={handleSubmit} disabled={isSubmitting || isCreatePending} className="h-12 flex-1 rounded-full bg-brand text-[16px] font-semibold text-white disabled:opacity-50">{isSubmitting || isCreatePending ? <LoadingLabel>올리는 중…</LoadingLabel> : "게시물 올리기"}</button>
 					)}
 				</div>
 

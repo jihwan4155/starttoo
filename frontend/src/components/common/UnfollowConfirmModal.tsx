@@ -48,7 +48,7 @@ export default function UnfollowConfirmModal({
 						정말 팔로우를 취소하시겠습니까?
 					</p>
 					<p className="mt-2 text-center text-[13px] font-light leading-5 text-black/50">
-						팔로우를 취소하면 이 사용자의 피드가
+						팔로우를 취소하면 이 사용자의 게시물이
 						<br />
 						더 이상 표시되지 않습니다.
 					</p>

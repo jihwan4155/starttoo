@@ -62,7 +62,7 @@ export default function DeletePostModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="피드 삭제 확인">
+				aria-label="게시물 삭제 확인">
 				<div className="h-14 bg-gradient-to-r from-brand/12 via-brand/5 to-transparent" />
 
 				<div className="px-6 pb-6 pt-2">
@@ -71,10 +71,10 @@ export default function DeletePostModal({
 					</div>
 
 					<p className="mt-4 text-center text-[18px] font-bold text-black">
-						피드를 삭제할까요?
+						게시물을 삭제할까요?
 					</p>
 					<p className="mt-2 text-center text-[13px] font-light leading-5 text-black/50">
-						삭제한 피드는 복구할 수 없습니다.
+						삭제한 게시물은 복구할 수 없습니다.
 					</p>
 
 					<div className="mt-4 overflow-hidden rounded-[12px] border border-black/[0.06] bg-black/[0.02]">

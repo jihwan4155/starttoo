@@ -64,7 +64,7 @@ export default function MyPageHeader({
 					<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-light text-black/55 lg:mt-2 lg:text-[15px]">
 						{/* 피드는 목록이 따로 없어 상대 프로필과 마찬가지로 클릭 대상이 아니다 */}
 						<span>
-							피드 {postCount == null ? "—" : postCount.toLocaleString()}
+							게시물 {postCount == null ? "—" : postCount.toLocaleString()}
 						</span>
 						<button
 							type="button"
