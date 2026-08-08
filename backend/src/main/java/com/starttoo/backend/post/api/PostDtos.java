@@ -65,11 +65,56 @@ public final class PostDtos {
             int likeCount,
             int commentCount,
             List<PostImageResponse> images,
+            @Schema(description = "게시물 검색에서 subject가 일치한 이미지 seq. 일반 피드 응답에서는 null", nullable = true)
+            @JsonInclude(JsonInclude.Include.NON_NULL)
+            Long matchedImageSeq,
             boolean likedByMe,
             boolean bookmarkedByMe,
             OffsetDateTime regDttm,
             OffsetDateTime modDttm
     ) {
+        public PostResponse(
+                Long postSeq,
+                UserSummary author,
+                String content,
+                int likeCount,
+                int commentCount,
+                List<PostImageResponse> images,
+                boolean likedByMe,
+                boolean bookmarkedByMe,
+                OffsetDateTime regDttm,
+                OffsetDateTime modDttm
+        ) {
+            this(
+                    postSeq,
+                    author,
+                    content,
+                    likeCount,
+                    commentCount,
+                    images,
+                    null,
+                    likedByMe,
+                    bookmarkedByMe,
+                    regDttm,
+                    modDttm
+            );
+        }
+
+        public PostResponse withMatchedImageSeq(Long imageSeq) {
+            return new PostResponse(
+                    postSeq,
+                    author,
+                    content,
+                    likeCount,
+                    commentCount,
+                    images,
+                    imageSeq,
+                    likedByMe,
+                    bookmarkedByMe,
+                    regDttm,
+                    modDttm
+            );
+        }
     }
 
     public record StateResponse(boolean enabled) {

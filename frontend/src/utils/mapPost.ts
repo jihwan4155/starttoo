@@ -11,6 +11,10 @@ export function mapPostResponse(dto: PostResponse): Post {
 		(a, b) => a.displayOrder - b.displayOrder,
 	);
 	const imageUrls = sortedImages.map((image) => image.imageUrl);
+	const searchMatchedImageIndex =
+		dto.matchedImageSeq == null
+			? -1
+			: sortedImages.findIndex((image) => image.imageSeq === dto.matchedImageSeq);
 
 	return {
 		id: dto.postSeq,
@@ -27,6 +31,7 @@ export function mapPostResponse(dto: PostResponse): Post {
 		imageUrls,
 		postImageIds: sortedImages.map((image) => image.postImageSeq),
 		imageTattooSeqs: sortedImages.map((image) => image.tattooSeq ?? null),
+		...(searchMatchedImageIndex >= 0 ? { searchMatchedImageIndex } : {}),
 		caption: dto.content ?? "",
 		likeCount: dto.likeCount,
 		commentCount: dto.commentCount,

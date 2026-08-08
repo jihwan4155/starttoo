@@ -302,11 +302,14 @@ function CommentRow({
 type PostDetailModalProps = {
 	post: Post | null;
 	onClose: () => void;
+	/** 검색 결과 카드가 가리킨 사진부터 캐러셀을 연다. */
+	initialImageIndex?: number;
 };
 
 export default function PostDetailModal({
 	post: seedPost,
 	onClose,
+	initialImageIndex = 0,
 }: PostDetailModalProps) {
 	const [commentInput, setCommentInput] = useState("");
 	const [commentError, setCommentError] = useState<string | null>(null);
@@ -321,7 +324,9 @@ export default function PostDetailModal({
 	const [isEditOpen, setEditOpen] = useState(false);
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
 	const [isShareOpen, setShareOpen] = useState(false);
-	const [imageIndex, setImageIndex] = useState(0);
+	const [imageIndex, setImageIndex] = useState(() =>
+		Math.max(0, initialImageIndex),
+	);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
 	const setLiked = useCommunityStore((s) => s.setLiked);

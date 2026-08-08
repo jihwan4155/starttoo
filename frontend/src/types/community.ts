@@ -31,6 +31,8 @@ export type Post = {
 	 * 값이 있으면 AI가 타투로 판별한 사진, null이면 타투가 아니거나 아직 판별 전이다.
 	 */
 	imageTattooSeqs?: (number | null)[];
+	/** 검색 결과에서 subject가 실제로 일치한 사진의 imageUrls 인덱스 */
+	searchMatchedImageIndex?: number;
 	caption: string;
 	likeCount: number;
 	commentCount: number;
@@ -74,6 +76,8 @@ export type PostResponse = {
 	likeCount: number;
 	commentCount: number;
 	images: PostImageDto[];
+	/** /search/posts 응답에서만 내려오는 subject 일치 이미지 seq */
+	matchedImageSeq?: number | null;
 	likedByMe: boolean;
 	bookmarkedByMe: boolean;
 	regDttm: string;

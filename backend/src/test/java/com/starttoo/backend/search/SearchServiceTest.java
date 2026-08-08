@@ -220,6 +220,7 @@ class SearchServiceTest {
                 any(SqlParameterSource.class),
                 eq(Long.class)
         )).thenReturn(List.of(31L, 21L, 11L));
+        mockMatchedImageRows(Map.of(31L, 315L, 21L, 215L));
         List<PostDtos.PostResponse> posts = List.of(post(31L), post(21L));
         when(postService.responsesBySeqs(List.of(31L, 21L), 7)).thenReturn(posts);
 
@@ -230,7 +231,9 @@ class SearchServiceTest {
         assertThat(response.matchedSubject())
                 .isEqualTo(new SearchDtos.SubjectResult(10, "장미"));
         assertThat(response.matchType()).isEqualTo("FUZZY_1");
-        assertThat(response.items()).containsExactlyElementsOf(posts);
+        assertThat(response.items())
+                .extracting(PostDtos.PostResponse::matchedImageSeq)
+                .containsExactly(315L, 215L);
         assertThat(response.nextCursor()).isEqualTo("21");
         assertThat(response.hasNext()).isTrue();
         assertThat(response.size()).isEqualTo(2);
@@ -284,6 +287,23 @@ class SearchServiceTest {
             return null;
         }).when(namedParameterJdbcTemplate).query(
                 contains("FROM subjects"),
+                any(SqlParameterSource.class),
+                any(RowCallbackHandler.class)
+        );
+    }
+
+    private void mockMatchedImageRows(Map<Long, Long> matchedImages) throws Exception {
+        doAnswer(invocation -> {
+            RowCallbackHandler handler = invocation.getArgument(2);
+            for (Map.Entry<Long, Long> matchedImage : matchedImages.entrySet()) {
+                ResultSet resultSet = mock(ResultSet.class);
+                when(resultSet.getLong("post_seq")).thenReturn(matchedImage.getKey());
+                when(resultSet.getLong("image_seq")).thenReturn(matchedImage.getValue());
+                handler.processRow(resultSet);
+            }
+            return null;
+        }).when(namedParameterJdbcTemplate).query(
+                contains("SELECT DISTINCT ON (post_image.post_seq)"),
                 any(SqlParameterSource.class),
                 any(RowCallbackHandler.class)
         );
