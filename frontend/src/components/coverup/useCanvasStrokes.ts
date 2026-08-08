@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
 	buildMaskDataUrl,
@@ -7,7 +7,7 @@ import {
 	isDrawableStroke,
 } from "./maskPainter";
 import type { Point, Stroke } from "./maskPainter";
-import { BRUSH_PX, MASK_H, MASK_W } from "./shapeSearchConstants";
+import { BRUSH_PX, clampBrush, MASK_H, MASK_W } from "./shapeSearchConstants";
 import type { SearchMode } from "../../types/shapeSearch";
 
 /**
@@ -25,8 +25,20 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	// 사진은 비동기로 로드되고 로드가 끝나면 다시 그려야 하므로 state로 둔다
 	const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
 
-	// 모드마다 엔진 튜닝 기준 굵기가 다르다 (shapeSearchConstants 참고)
-	const brush = BRUSH_PX[mode];
+	/*
+	 * 붓 굵기 — 사용자가 슬라이더로 조절한다.
+	 *
+	 * 시작값은 모드별 엔진 튜닝 기준 굵기다(shapeSearchConstants 참고). 모드를 바꾸면
+	 * 이전 모드에서 맞춰 둔 굵기가 그대로 남지 않도록 그 모드의 기준값으로 되돌린다.
+	 */
+	const [brush, setBrushState] = useState(BRUSH_PX[mode]);
+	useEffect(() => {
+		setBrushState(BRUSH_PX[mode]);
+	}, [mode]);
+
+	const setBrush = useCallback((px: number) => {
+		setBrushState(clampBrush(px));
+	}, []);
 
 	/**
 	 * 화면 캔버스를 다시 그린다.
@@ -68,7 +80,11 @@ export default function useCanvasStrokes(mode: SearchMode) {
 
 	/**
 	 * 포인터 좌표를 마스크 좌표계(MASK_W×MASK_H)로 환산한다.
-	 * CSS로 축소돼 있어도 이 비율 보정 덕분에 마스크는 항상 원본 해상도로 남는다.
+	 * CSS로 늘거나 줄어도 이 보정 덕분에 마스크는 항상 원본 해상도로 남는다.
+	 *
+	 * <p>캔버스는 object-contain으로 그려진다(ShapeCanvas 참고). 상자가 비율과
+	 * 어긋나면 그림이 상자 가운데에 여백을 두고 들어가므로, 상자가 아니라 그림이
+	 * 실제로 차지한 영역을 기준으로 환산해야 손끝과 선이 어긋나지 않는다.
 	 *
 	 * <p>★ 반드시 이벤트 핸들러 본문에서 즉시 호출해야 한다. setStrokes 업데이터
 	 * 안에서 부르면 React가 그 함수를 렌더 시점에 실행하는데, 그때는 이벤트가 이미
@@ -78,9 +94,12 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	const pointFrom = (event: ReactPointerEvent<HTMLCanvasElement>): Point => {
 		const rect = canvasRef.current?.getBoundingClientRect();
 		if (!rect || rect.width === 0 || rect.height === 0) return { x: 0, y: 0 };
+		const scale = Math.min(rect.width / MASK_W, rect.height / MASK_H);
+		const drawnLeft = rect.left + (rect.width - MASK_W * scale) / 2;
+		const drawnTop = rect.top + (rect.height - MASK_H * scale) / 2;
 		return {
-			x: ((event.clientX - rect.left) / rect.width) * MASK_W,
-			y: ((event.clientY - rect.top) / rect.height) * MASK_H,
+			x: (event.clientX - drawnLeft) / scale,
+			y: (event.clientY - drawnTop) / scale,
 		};
 	};
 
@@ -110,6 +129,8 @@ export default function useCanvasStrokes(mode: SearchMode) {
 
 	return {
 		canvasRef,
+		brush,
+		setBrush,
 		// 점 하나만 찍은 획은 마스크에 아무것도 남기지 않으므로 비어 있는 것으로 본다
 		isEmpty: !strokes.some(isDrawableStroke),
 		/**

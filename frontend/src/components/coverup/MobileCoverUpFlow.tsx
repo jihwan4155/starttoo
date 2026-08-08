@@ -1,7 +1,8 @@
 import { useState, type RefObject } from "react";
 import type { DesignResult, SearchMode } from "../../types/shapeSearch";
+import BrushSizeSlider from "./BrushSizeSlider";
 import ShapeCanvas from "./ShapeCanvas";
-import { MODE_KEYS, MODES } from "./shapeSearchConstants";
+import { MODES } from "./shapeSearchConstants";
 import LoadingLabel from "../loader/LoadingLabel";
 import Simulation3DStep from "../simulation/Simulation3DStep";
 import type { BodyScanResult } from "../simulation/useBodyScan";
@@ -12,9 +13,12 @@ type MobileCoverUpFlowProps = {
 	title: string;
 	/** 4 = 고른 도안을 내 사진에 얹어 보는 단계 (PC와 같은 STEP 4) */
 	step: 1 | 2 | 3 | 4;
-	/** 그리기 방식 — 면(coverup) / 선(shape) */
+	/** 그리기 방식 — 면(coverup) / 선(shape). 지금 화면에는 선만 노출한다 */
 	mode: SearchMode;
 	onModeChange: (mode: SearchMode) => void;
+	/** 펜 굵기(px) */
+	brush: number;
+	onBrushChange: (px: number) => void;
 	/** STEP 4에서 쓰는 신체 분석 결과 */
 	bodyScan: BodyScanResult;
 	fileInputRef: RefObject<HTMLInputElement | null>;
@@ -58,7 +62,7 @@ function HomeIcon() {
 
 function Header({ onHome, title }: { onHome: () => void; title: string }) {
 	return (
-		<header className="fixed inset-x-0 top-0 z-[70] flex h-[50px] items-center justify-center border-b border-[#E8E8E8] bg-white">
+		<header className="fixed inset-x-0 top-0 z-[70] flex h-[44px] items-center justify-center border-b border-[#E8E8E8] bg-white">
 			<button type="button" onClick={onHome} aria-label="홈으로 가기" className="absolute left-4 flex size-8 items-center justify-center text-[#555]"><HomeIcon /></button>
 			<h1 className="text-[19px] font-bold">{title}</h1>
 		</header>
@@ -73,7 +77,8 @@ export default function MobileCoverUpFlow({
 	title,
 	step,
 	mode,
-	onModeChange,
+	brush,
+	onBrushChange,
 	bodyScan,
 	fileInputRef,
 	previewUrl,
@@ -106,7 +111,19 @@ export default function MobileCoverUpFlow({
 	const handleHome = () => step === 1 ? goHome() : setHomeConfirmOpen(true);
 
 	return (
-		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-6">
+		/*
+		 * 그리기 단계만 화면 높이에 딱 맞춘다.
+		 *
+		 * 캔버스는 touch-none이라 손가락이 캔버스 위에 있으면 스크롤 대신 선이 그어진다.
+		 * 화면보다 긴 페이지에서는 아래 버튼을 보려고 미는 동작이 전부 낙서가 되므로,
+		 * 이 단계는 스크롤 자체가 필요 없도록 캔버스가 남는 높이만 차지하게 한다.
+		 */
+		<div
+			className={`bg-surface px-4 pt-6 ${
+				step === 2
+					? "flex h-[calc(100dvh-var(--nav-h))] flex-col overflow-hidden pb-[68px]"
+					: "min-h-[calc(100vh-var(--nav-h))] pb-24"
+			}`}>
 			<Header onHome={handleHome} title={title} />
 
 			{step === 1 && (
@@ -133,33 +150,24 @@ export default function MobileCoverUpFlow({
 
 			{step === 2 && (
 				<>
-					<div className="relative mb-5 flex min-h-8 items-center justify-center">
+					<div className="relative mb-4 flex min-h-8 shrink-0 items-center justify-center">
 						<button type="button" onClick={onBack} aria-label="이전 단계" className="absolute left-0 flex size-8 items-center justify-center text-[#BDBDBD]"><BackIcon /></button>
 						<h2 className="text-center text-[19px] font-semibold">덮을 영역을 그려주세요</h2>
 					</div>
-					{/* 무엇을 그릴지 먼저 고르도록 캔버스 위에 둔다 (PC와 같은 자리) */}
-					<div className="mx-auto mb-3 flex h-[40px] w-full max-w-[240px] items-center rounded-[12px] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
-						{MODE_KEYS.map((key) => (
-							<button
-								key={key}
-								type="button"
-								aria-pressed={mode === key}
-								onClick={() => onModeChange(key)}
-								className={`h-full flex-1 rounded-[9px] text-[14px] font-semibold transition ${mode === key ? "bg-surface text-black" : "text-black/40"}`}>
-								{MODES[key].label}
-							</button>
-						))}
+					{/* 펜 굵기를 먼저 정하도록 캔버스 위에 둔다 (PC와 같은 자리) */}
+					<div className="mb-2 shrink-0">
+						<BrushSizeSlider value={brush} onChange={onBrushChange} />
 					</div>
-					<p className="mb-3 text-center text-[13px] font-light text-black/50">{MODES[mode].hint}</p>
-					<div className="mx-auto flex h-[430px] w-full max-w-[420px] items-center justify-center overflow-hidden rounded-[12px]">
+					<p className="mb-2 shrink-0 text-center text-[13px] font-light text-black/50">{MODES[mode].hint}</p>
+					<div className="mx-auto flex min-h-0 w-full max-w-[420px] flex-1 items-center justify-center overflow-hidden rounded-[12px]">
 						<ShapeCanvas {...canvasProps} />
 					</div>
-					<div className="mx-auto mt-4 flex w-full max-w-[420px] gap-3">
+					<div className="mx-auto mt-3 flex w-full max-w-[420px] shrink-0 gap-3">
 						<button type="button" disabled={!canUndo} onClick={onUndo} className="h-11 flex-1 rounded-full border border-black bg-white text-[14px] font-semibold disabled:opacity-40">되돌리기</button>
 						<button type="button" disabled={!canUndo} onClick={onClear} className="h-11 flex-1 rounded-full border border-black bg-white text-[14px] font-semibold disabled:opacity-40">지우기</button>
 					</div>
-					{searchMessage && <p className="mt-4 text-center text-[13px] text-brand">{searchMessage}</p>}
-					{!searchMessage && openShapeHint && <p className="mt-4 text-center text-[13px] font-light text-black/55">{openShapeHint}</p>}
+					{searchMessage && <p className="mt-2 shrink-0 text-center text-[13px] text-brand">{searchMessage}</p>}
+					{!searchMessage && openShapeHint && <p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/55">{openShapeHint}</p>}
 					<BottomButton disabled={nextDisabled} onClick={onNext}>
 						{isSearching ? <LoadingLabel>추천 중…</LoadingLabel> : "타투 추천받기"}
 					</BottomButton>

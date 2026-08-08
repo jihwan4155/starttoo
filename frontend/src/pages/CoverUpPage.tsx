@@ -5,6 +5,7 @@ import ActionButton from "../components/common/ActionButton";
 import ArchiveFullModal from "../components/common/ArchiveFullModal";
 import ConfirmModal from "../components/common/ConfirmModal";
 import ImageViewerModal from "../components/common/ImageViewerModal";
+import BrushSizeSlider from "../components/coverup/BrushSizeSlider";
 import ResultsGrid from "../components/coverup/ResultsGrid";
 import ShapeCanvas from "../components/coverup/ShapeCanvas";
 import StepHeader from "../components/coverup/StepHeader";
@@ -13,7 +14,6 @@ import useCanvasStrokes from "../components/coverup/useCanvasStrokes";
 import { describeSearchError } from "../components/coverup/shapeSearchError";
 import {
 	DEFAULT_MODE,
-	MODE_KEYS,
 	MODES,
 } from "../components/coverup/shapeSearchConstants";
 import Simulation3DStep from "../components/simulation/Simulation3DStep";
@@ -188,7 +188,13 @@ export default function CoverUpPage() {
 		setShowEmptyStrokeHint(false);
 	};
 
-	/** 모드를 바꾸면 기존 결과를 비운다 (붓 굵기는 모드와 무관하게 고정) */
+	/**
+	 * 모드를 바꾸면 기존 결과를 비운다. 붓 굵기는 useCanvasStrokes가 그 모드의
+	 * 기준값으로 되돌린다.
+	 *
+	 * <p>지금은 모드 토글 UI가 없어 호출되지 않지만, 면 모드를 되살릴 때 그대로
+	 * 쓰도록 남겨 둔다(shapeSearchConstants의 DEFAULT_MODE 주석 참고).
+	 */
 	const switchMode = (next: SearchMode) => {
 		if (next === mode) return;
 		setMode(next);
@@ -292,6 +298,8 @@ export default function CoverUpPage() {
 					step={step}
 					mode={mode}
 					onModeChange={switchMode}
+					brush={canvas.brush}
+					onBrushChange={canvas.setBrush}
 					bodyScan={bodyScan}
 					fileInputRef={fileInputRef}
 					previewUrl={previewUrl}
@@ -336,34 +344,17 @@ export default function CoverUpPage() {
 				{/* 기능명세 4-1: 서비스 소개 섹션.
 				    시뮬레이션 단계에서는 캔버스에 높이를 넘겨주려고 접는다 */}
 				{step !== 4 && (
-					<>
-						{!isDoodleSearch && (
-							<p className="shrink-0 text-center text-[13px] font-light text-black/60">
-								흉터도, 오래된 타투도 새롭게
-							</p>
-						)}
-						<h1 className={`${isDoodleSearch ? "" : "mt-1"} shrink-0 text-center text-[26px] font-extrabold text-black`}>
-							{isDoodleSearch ? "타투 도안 추천" : "커버업 타투 도안 추천"}
-						</h1>
-					</>
+					<h1 className="shrink-0 text-center text-[26px] font-extrabold text-black">
+						{isDoodleSearch ? "타투 도안 추천" : "커버업 타투 도안 추천"}
+					</h1>
 				)}
 
 				<StepHeader description={STEP_DESCRIPTION[step]} />
 
-				{/* 모드 토글 — 그리기 전에 무엇을 그릴지 먼저 고르도록 캔버스 위에 둔다 */}
+				{/* 펜 굵기 — 예전 모드 토글이 있던 자리. 그리기 전에 먼저 정하도록 캔버스 위에 둔다 */}
 				{step === 2 && (
-					<div className="mx-auto mt-3 flex h-[40px] w-full max-w-[240px] shrink-0 items-center rounded-[12px] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
-						{MODE_KEYS.map((key) => (
-							<button
-								key={key}
-								type="button"
-								onClick={() => switchMode(key)}
-								className={`h-full flex-1 rounded-[9px] text-[14px] font-semibold transition ${
-									mode === key ? "bg-surface text-black" : "text-black/40"
-								}`}>
-								{MODES[key].label}
-							</button>
-						))}
+					<div className="mt-3 shrink-0">
+						<BrushSizeSlider value={canvas.brush} onChange={canvas.setBrush} />
 					</div>
 				)}
 
@@ -445,11 +436,12 @@ export default function CoverUpPage() {
 						<>
 							<div className="flex justify-center">
 								<ActionButton onClick={() => fileInputRef.current?.click()}>
-									컴퓨터에서 선택
+									기기에서 선택
 								</ActionButton>
 							</div>
-							<p className="mt-2 text-center text-[13px] font-light text-black/50">
-								{fileError ?? "내 사진을 사용하면 실제 피부에 어떻게 보일지 확인할 수 있어요"}
+							{/* 안내가 아니라 오류만 남긴다. 자리는 비워 둬 버튼이 흔들리지 않게 한다 */}
+							<p className="mt-2 text-center text-[13px] text-brand">
+								{fileError ?? " "}
 							</p>
 						</>
 					)}

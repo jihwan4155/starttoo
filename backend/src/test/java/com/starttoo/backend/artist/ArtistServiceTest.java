@@ -59,17 +59,17 @@ class ArtistServiceTest {
         when(jdbcTemplate.query(
                 anyString(),
                 any(org.springframework.jdbc.core.RowMapper.class),
-                any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
         ))
                 .thenReturn(List.of());
 
-        artistService.list(null, 20, null);
+        artistService.list(null, 20, null, null);
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate).query(
                 sql.capture(),
                 any(org.springframework.jdbc.core.RowMapper.class),
-                any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
         );
         assertThat(sql.getValue()).contains("u.role = 'ARTIST'");
     }

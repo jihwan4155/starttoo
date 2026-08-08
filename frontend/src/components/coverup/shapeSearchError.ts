@@ -17,19 +17,6 @@ export type SearchErrorInfo = {
  * <p>503은 앱이 죽은 게 아니다. 검색 엔진이 부팅 직후 워밍업 중이거나 동시 요청이
  * 몰릴 때 정상적으로 발생하고, 서버 설정으로 검색이 꺼져 있을 때도 503이다.
  */
-/**
- * 서버가 실어 준 실패 사유. 없으면 null.
- *
- * <p>api.ts는 응답에 message가 없으면 "요청에 실패했습니다. (400)" 같은 문장을
- * 대신 채워 넣는다. 그건 사유가 아니라 자리 채우기라 걸러낸다.
- */
-function serverDetail(error: ApiError): string | null {
-	const message = error.message.trim();
-	if (!message) return null;
-	if (message.startsWith("요청에 실패했습니다")) return null;
-	return message;
-}
-
 export function describeSearchError(error: unknown): SearchErrorInfo {
 	if (!(error instanceof ApiError)) {
 		return {
@@ -48,19 +35,14 @@ export function describeSearchError(error: unknown): SearchErrorInfo {
 	}
 
 	switch (error.status) {
-		case 400: {
-			// 서버는 검색 엔진이 준 사유(“PNG 디코딩 실패”, “base64 디코딩 실패” 등)를
-			// message에 그대로 실어 준다. 이걸 버리면 화면에는 늘 같은 문장만 남아
-			// 무엇이 잘못됐는지 알 길이 없다. 사람 말 뒤에 사유를 붙여 함께 보여준다.
-			const detail = serverDetail(error);
+		case 400:
+			// 서버가 실어 준 사유("PNG 디코딩 실패" 등)는 사용자가 손댈 수 있는 말이
+			// 아니라 화면에 붙이지 않는다. 다시 그리면 되는 상황이므로 그것만 알린다.
 			return {
-				message: detail
-					? `이미지를 처리할 수 없어요. 다시 그려주세요. (${detail})`
-					: "이미지를 처리할 수 없어요. 다시 그려주세요.",
+				message: "이미지를 처리할 수 없어요. 다시 그려주세요.",
 				retryable: false,
 				needsLogin: false,
 			};
-		}
 		case 401:
 			return {
 				message: "로그인이 만료됐어요. 다시 로그인한 뒤 시도해주세요.",

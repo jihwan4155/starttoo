@@ -4,6 +4,7 @@ import {
 	formatNotifTime,
 	getNotificationTypeLabel,
 } from "../../utils/notification";
+import { dmPreviewText } from "../../utils/sharePost";
 
 type NotificationListItemProps = {
 	item: NotificationItem;
@@ -82,7 +83,8 @@ export default function NotificationListItem({
 								? "truncate text-[12px] font-light"
 								: "text-[13px] font-light leading-5"
 						}`}>
-						{item.body}
+						{/* DM 알림 본문은 메시지 원문이라 공유 주소가 그대로 비친다 */}
+						{isDm ? dmPreviewText(item.body) : item.body}
 					</span>
 				</span>
 			</button>

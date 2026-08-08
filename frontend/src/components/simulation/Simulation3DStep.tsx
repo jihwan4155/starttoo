@@ -28,6 +28,16 @@ type PointerSession = {
 	lastTransform: TattooTransform;
 	startDistance: number;
 	startAngle: number;
+	/**
+	 * 이 세션이 시작되기 직전 상태.
+	 *
+	 * <p>첫 손가락은 닿는 즉시 도안을 그 자리로 옮긴다. 두 손가락을 거의 동시에
+	 * 올리는 핀치에서도 먼저 닿은 쪽이 그 이동을 일으키므로, 아직 끌지 않은
+	 * 상태에서 두 번째 손가락이 오면 여기 담아 둔 값으로 되돌린 뒤 제스처로 넘어간다.
+	 */
+	restore: { transform: TattooTransform; clipAnchor: { x: number; y: number } } | null;
+	/** 이 세션에서 실제로 끌었는지 (손가락이 닿기만 한 것과 구분) */
+	moved: boolean;
 };
 
 type Simulation3DStepProps = {
@@ -59,6 +69,8 @@ const EMPTY_POINTER_SESSION: PointerSession = {
 	lastTransform: INITIAL_TRANSFORM,
 	startDistance: 0,
 	startAngle: 0,
+	restore: null,
+	moved: false,
 };
 
 /** 사진 중앙이 배경인 경우 가장 가까운 신체 좌표를 초기 배치점으로 쓴다. */
@@ -268,6 +280,16 @@ export default function Simulation3DStep({
 		if (activePointersRef.current.size > 2) return;
 
 		if (activePointersRef.current.size === 2) {
+			const previous = pointerRef.current;
+			// 첫 손가락이 닿자마자 옮겨 놓은 도안은 제자리로 돌린다. 두 손가락이
+			// 올라온 이상 옮기려던 것이 아니라 확대·회전하려던 손이다.
+			const restore =
+				previous.mode === "drag" && !previous.moved ? previous.restore : null;
+			if (restore) {
+				setTransform(restore.transform);
+				setClipAnchor(restore.clipAnchor);
+			}
+			const baseTransform = restore ? restore.transform : transform;
 			const [first, second] = Array.from(activePointersRef.current.values());
 			const midpoint = {
 				x: (first.x + second.x) / 2,
@@ -276,10 +298,12 @@ export default function Simulation3DStep({
 			pointerRef.current = {
 				mode: "gesture",
 				startPoint: midpoint,
-				startTransform: transform,
-				lastTransform: transform,
+				startTransform: baseTransform,
+				lastTransform: baseTransform,
 				startDistance: Math.max(1, distance(first, second)),
 				startAngle: Math.atan2(second.y - first.y, second.x - first.x),
+				restore: null,
+				moved: false,
 			};
 			return;
 		}
@@ -287,22 +311,24 @@ export default function Simulation3DStep({
 			x: point.x / canvas.width,
 			y: point.y / canvas.height,
 		};
-		// 배경 클릭은 무시하고 신체 클릭만 도안 이동을 시작한다.
+		/*
+		 * 배경 클릭은 도안 이동을 시작하지 않는다. 다만 손가락은 등록해 둔 채로
+		 * 둔다 — 여기서 지워 버리면 배경을 짚은 손가락이 없는 셈이 되어, 두 손가락
+		 * 핀치가 늘 "한 손가락 두 번"으로 인식돼 확대·회전이 아예 걸리지 않는다.
+		 */
 		if (!isPointInsidePerson(personMask, normalizedPoint.x, normalizedPoint.y)) {
-			activePointersRef.current.delete(event.pointerId);
-			if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-				event.currentTarget.releasePointerCapture(event.pointerId);
-			}
+			pointerRef.current = EMPTY_POINTER_SESSION;
 			return;
 		}
 
-		// 확대·회전은 휠로 처리하고 포인터는 이동만 담당한다.
+		// 확대·회전은 휠·두 손가락으로 처리하고 한 포인터는 이동만 담당한다.
 		const mode: InteractionMode = "drag";
 		const sessionTransform = {
 			...transform,
 			x: normalizedPoint.x,
 			y: normalizedPoint.y,
 		};
+		const previousState = { transform, clipAnchor };
 		// 드래그 중에도 절단 기준은 최초 클릭한 신체 좌표로 고정한다.
 		setClipAnchor(normalizedPoint);
 		setTransform(sessionTransform);
@@ -319,6 +345,8 @@ export default function Simulation3DStep({
 			lastTransform: sessionTransform,
 			startDistance: distance(point, center),
 			startAngle: Math.atan2(point.y - center.y, point.x - center.x),
+			restore: previousState,
+			moved: false,
 		};
 	};
 
@@ -347,21 +375,34 @@ export default function Simulation3DStep({
 				Math.sin(nextAngle - session.startAngle),
 				Math.cos(nextAngle - session.startAngle),
 			);
-			const nextTransform = {
+			// 크기·회전은 손가락 사이 거리·각도만 보므로 항상 반영한다. 이동만
+			// 신체 위에 머무는지 따져, 두 손가락 중간점이 배경으로 나가더라도
+			// 확대·회전이 멈추지 않게 한다.
+			const resized = {
 				...start,
-				x: Math.min(1, Math.max(0, start.x + (midpoint.x - session.startPoint.x) / canvas.width)),
-				y: Math.min(1, Math.max(0, start.y + (midpoint.y - session.startPoint.y) / canvas.height)),
 				width: Math.min(1.2, Math.max(0.045, start.width * (nextDistance / session.startDistance))),
 				rotation: start.rotation + angleDelta,
 			};
-			if (
-				!isPointInsidePerson(personMask, nextTransform.x, nextTransform.y) ||
-				!isPersonPathContinuous(
+			const moved = {
+				...resized,
+				x: Math.min(1, Math.max(0, start.x + (midpoint.x - session.startPoint.x) / canvas.width)),
+				y: Math.min(1, Math.max(0, start.y + (midpoint.y - session.startPoint.y) / canvas.height)),
+			};
+			const canMove =
+				isPointInsidePerson(personMask, moved.x, moved.y) &&
+				isPersonPathContinuous(
 					personMask,
 					{ x: session.lastTransform.x, y: session.lastTransform.y },
-					{ x: nextTransform.x, y: nextTransform.y },
-				)
-			) return;
+					{ x: moved.x, y: moved.y },
+				);
+			const nextTransform = canMove
+				? moved
+				: {
+						...resized,
+						x: session.lastTransform.x,
+						y: session.lastTransform.y,
+					};
+			session.moved = true;
 			session.lastTransform = nextTransform;
 			setClipAnchor({ x: nextTransform.x, y: nextTransform.y });
 			setTransform(nextTransform);
@@ -400,6 +441,7 @@ export default function Simulation3DStep({
 			) {
 				return;
 			}
+			session.moved = true;
 			session.lastTransform = nextTransform;
 			setTransform(nextTransform);
 		}
@@ -495,6 +537,15 @@ export default function Simulation3DStep({
 	return (
 		<div className="flex size-full min-h-0 flex-col items-center gap-3">
 			<div className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-[12px] bg-black/[0.03]">
+				{/*
+				  캔버스 크기는 h-full + w-auto로 준다. 캔버스는 고유 비율(원본 사진
+				  비율)을 가진 대체 요소라 높이만 정해 주면 너비가 따라오고, 작은 사진을
+				  올려도 박스 높이를 꽉 채운다. max-*만 걸면 원본 픽셀 크기보다 커지지
+				  못해 큰 박스 한가운데 우표만 한 사진이 남는다. 가로가 긴 사진은
+				  max-w-full이 먼저 걸려 너비 쪽이 박스 끝에 닿는데, 이때 높이는 깎이지
+				  않아 그림이 눌린다 — object-contain이 그 경우 비율을 지켜 준다.
+				  (pointFromEvent가 같은 contain 규칙으로 좌표를 되돌린다)
+				*/}
 				<canvas
 					ref={canvasRef}
 					tabIndex={0}
@@ -504,7 +555,7 @@ export default function Simulation3DStep({
 					onPointerUp={endPointerSession}
 					onPointerCancel={endPointerSession}
 					onKeyDown={handleCanvasKeyDown}
-					className={`max-h-full max-w-full touch-none rounded-[12px] shadow-md outline-none ${
+					className={`h-full w-auto max-h-full max-w-full object-contain touch-none rounded-[12px] shadow-md outline-none ${
 						bodyImage ? "block cursor-grab" : "hidden"
 					}`}
 				/>
@@ -564,7 +615,7 @@ export default function Simulation3DStep({
 						type="button"
 						onClick={downloadResult}
 						className="inline-flex h-[36px] min-w-[150px] items-center justify-center self-center rounded-[50px] bg-brand text-[12px] font-semibold text-white transition hover:brightness-95 max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold">
-						결과 이미지 저장
+						기기에 저장
 					</button>
 				</div>
 			)}

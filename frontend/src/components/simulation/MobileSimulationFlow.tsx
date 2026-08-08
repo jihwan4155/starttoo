@@ -150,7 +150,7 @@ export default function MobileSimulationFlow({
 							{/* 다시 촬영은 우측 상단 닫기와 같은 동작이라 뺐다 — 남길 선택은 둘뿐이다 */}
 							<div className="mt-7 flex w-full gap-3">
 								<button type="button" onClick={goHome} className="h-12 flex-1 rounded-full bg-[#E2E2E2] text-[15px] font-semibold text-[#555]">홈으로 가기</button>
-								<a href={captureUrl} download="starttoo-ar-tattoo.png" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-brand text-[15px] font-semibold text-white">결과 이미지 저장</a>
+								<a href={captureUrl} download="starttoo-ar-tattoo.png" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-brand text-[15px] font-semibold text-white">기기에 저장</a>
 							</div>
 						</div>
 					</div>
@@ -174,7 +174,7 @@ export default function MobileSimulationFlow({
 
 				{savedModalOpen && (
 					<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4" role="presentation" onClick={() => setSavedModalOpen(false)}>
-						<div className="relative w-full max-w-[344px] rounded-[12px] bg-white px-7 pb-7 pt-10 text-center" role="dialog" aria-modal="true" aria-label="결과 이미지 저장 완료" onClick={(event) => event.stopPropagation()}>
+						<div className="relative w-full max-w-[344px] rounded-[12px] bg-white px-7 pb-7 pt-10 text-center" role="dialog" aria-modal="true" aria-label="기기 저장 완료" onClick={(event) => event.stopPropagation()}>
 							<button type="button" aria-label="닫기" onClick={() => setSavedModalOpen(false)} className="absolute right-4 top-4 text-[#40505D]"><CloseIcon /></button>
 							<div className="mx-auto flex size-12 items-center justify-center rounded-full bg-brand/10 text-[26px] text-brand">✓</div>
 							<h2 className="mt-4 text-[20px] font-bold">이미지가 저장되었습니다</h2>

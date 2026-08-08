@@ -29,23 +29,31 @@ public class SearchController {
     private final SearchService searchService;
 
     @GetMapping("/accounts/autocomplete")
+    @OptionalAuth
     @Operation(
             summary = "회원 닉네임 자동완성",
             description = """
                     한글 완성형을 호환 자모로 분해하고 영문은 소문자로 정규화한 검색키로
                     Redis ZSET 사전을 사전식 범위 조회한다. 사전에는 정규화 닉네임과 userSeq만
                     유지하며, 결과 userSeq를 PostgreSQL에서 다시 조회해 ACTIVE·비삭제·ADMIN 제외
-                    조건을 재검증한다. 정확 일치, 짧은 닉네임, 사전순으로 정렬한다.
+                    조건을 재검증한다. 로그인 회원에게는 차단 관계의 회원을 제외한다.
+                    정확 일치, 짧은 닉네임, 사전순으로 정렬한다.
                     """
     )
     public ApiResponse<List<SearchDtos.AccountResult>> accounts(
             @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,20}$") String q,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(20) int size
+            @RequestParam(defaultValue = "10") @Min(1) @Max(20) int size,
+            Authentication authentication
     ) {
-        return ApiResponse.of(searchService.autocompleteAccounts(q, size));
+        return ApiResponse.of(searchService.autocompleteAccounts(
+                q,
+                size,
+                optionalUserSeq(authentication)
+        ));
     }
 
     @GetMapping("/accounts")
+    @OptionalAuth
     @Operation(
             summary = "회원 닉네임 검색",
             description = """
@@ -53,49 +61,70 @@ public class SearchController {
                     fuzzy 거리 2, contains 순서의 독립 단계로 검색한다. 단계 사이에는 점수를
                     비교하지 않고 같은 단계 안에서 Redis relevanceScore를 사용한다. Spring은
                     Redis가 반환한 순서를 다시 계산하지 않으며 PostgreSQL에서 ACTIVE·비삭제·
-                    ADMIN 제외 조건과 화면 표시용 nickname·role만 재조회한다. 검색어는
-                    한 글자부터 허용하며, 정규화 검색어가 두 글자 미만이면 오타 보정(fuzzy)
-                    단계는 건너뛴다.
+                    ADMIN 제외 조건과 화면 표시용 nickname·role만 재조회한다. 로그인 회원에게는
+                    차단 관계의 회원을 제외한다. 검색어는 한 글자부터 허용하며, 정규화 검색어가
+                    두 글자 미만이면 오타 보정(fuzzy) 단계는 건너뛴다.
                     """
     )
     public ApiResponse<List<SearchDtos.AccountResult>> searchAccounts(
             @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,20}$") String q,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
+            Authentication authentication
     ) {
-        return ApiResponse.of(searchService.searchAccounts(q, size, false));
+        return ApiResponse.of(searchService.searchAccounts(
+                q,
+                size,
+                false,
+                optionalUserSeq(authentication)
+        ));
     }
 
     @GetMapping("/artists/autocomplete")
+    @OptionalAuth
     @Operation(
             summary = "인증 아티스트 닉네임 자동완성",
             description = """
                     계정 자동완성과 같은 자모 접두어 ZSET 구조를 사용하지만, users.role=ARTIST이며
                     artists.verificationStatus=VERIFIED인 회원만 인덱싱한다. 조회 후에도
-                    PostgreSQL의 현재 계정 상태를 다시 확인한다.
+                    PostgreSQL의 현재 계정 상태를 다시 확인하며, 로그인 회원에게는 차단 관계의
+                    아티스트를 제외한다.
                     """
     )
     public ApiResponse<List<SearchDtos.AccountResult>> artists(
             @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,20}$") String q,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(20) int size
+            @RequestParam(defaultValue = "10") @Min(1) @Max(20) int size,
+            Authentication authentication
     ) {
-        return ApiResponse.of(searchService.autocompleteArtists(q, size));
+        return ApiResponse.of(searchService.autocompleteArtists(
+                q,
+                size,
+                optionalUserSeq(authentication)
+        ));
     }
 
     @GetMapping("/artists")
+    @OptionalAuth
     @Operation(
             summary = "인증 아티스트 닉네임 검색",
             description = """
                     Redis Search의 아티스트 전용 인덱스에서 exact, prefix, fuzzy 1,
                     fuzzy 2, contains 순으로 후보와 점수를 반환한다. Spring은 순서를 보존하고
-                    PostgreSQL에서 ARTIST·VERIFIED·ACTIVE 상태를 다시 확인한다. 팔로워 수와
-                    사용자 취향은 검색 결과 정렬에 사용하지 않는다.
+                    PostgreSQL에서 ARTIST·VERIFIED·ACTIVE 상태를 다시 확인하며, 로그인
+                    회원에게는 차단 관계의 아티스트를 제외한다. 팔로워 수와 사용자 취향은
+                    검색 결과 정렬에 사용하지 않는다.
                     """
     )
     public ApiResponse<List<SearchDtos.AccountResult>> searchArtists(
             @RequestParam @Pattern(regexp = "^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,20}$") String q,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
+            Authentication authentication
     ) {
-        return ApiResponse.of(searchService.searchAccounts(q, size, true));
+        return ApiResponse.of(searchService.searchAccounts(
+                q,
+                size,
+                true,
+                optionalUserSeq(authentication)
+        ));
     }
 
     @GetMapping("/subjects/autocomplete")
@@ -135,9 +164,14 @@ public class SearchController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
             Authentication authentication
     ) {
-        Integer userSeq = authentication instanceof JwtAuthenticationToken jwt
-                ? Integer.valueOf(jwt.getToken().getSubject())
-                : null;
+        Integer userSeq = optionalUserSeq(authentication);
         return ApiResponse.of(searchService.searchPosts(userSeq, q, cursor, size));
+    }
+
+    private Integer optionalUserSeq(Authentication authentication) {
+        if (authentication instanceof JwtAuthenticationToken jwt) {
+            return Integer.valueOf(jwt.getToken().getSubject());
+        }
+        return null;
     }
 }

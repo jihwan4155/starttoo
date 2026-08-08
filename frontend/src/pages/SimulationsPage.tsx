@@ -289,10 +289,7 @@ export default function SimulationsPage() {
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pt-6 pb-6">
 				{!hideHeader && (
 					<>
-						<p className="shrink-0 text-center text-[13px] font-light text-black/60">
-							상상만 하던 타투, 이제 눈으로 확인해보세요
-						</p>
-						<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
+						<h1 className="shrink-0 text-center text-[26px] font-extrabold text-black">
 							타투 시뮬레이션
 						</h1>
 
@@ -418,12 +415,6 @@ export default function SimulationsPage() {
 					</div>
 				)}
 
-				{tab === "ar" && step === 1 && (
-					<p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/50">
-						마커를 진하게 그릴수록 AR 인식률이 높아져요!
-					</p>
-				)}
-
 				{/* QR 안내는 폰이 붙기 전까지만 — 붙은 뒤에는 안내가 상단 문구와 겹친다 */}
 				{tab === "ar" && step === 2 && !isMobile && !arPhoneReady && (
 					<p className="mt-2 shrink-0 text-center text-[14px] font-light leading-5 text-black/50">
@@ -434,10 +425,7 @@ export default function SimulationsPage() {
 				)}
 
 				{tab === "image" && step === 1 && (
-					<UploadDropzoneActions
-						onPick={bodyPhotoUpload.openPicker}
-						hint="내 사진을 사용하면 실제로 내 피부에 어떻게 보일지 확인할 수 있어요"
-					/>
+					<UploadDropzoneActions onPick={bodyPhotoUpload.openPicker} />
 				)}
 				{tab === "image" && step === 2 && (
 					<UploadDropzoneActions
@@ -485,7 +473,7 @@ export default function SimulationsPage() {
 							href={captureUrl}
 							download="starttoo-tattoo.png"
 							className="rounded-full bg-brand px-8 py-3 text-[16px] font-semibold text-white transition hover:brightness-95">
-							결과 이미지 저장
+							기기에 저장
 						</a>
 						<button
 							type="button"

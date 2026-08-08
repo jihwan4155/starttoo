@@ -3,6 +3,7 @@ package com.starttoo.backend.artist.api;
 import com.starttoo.backend.artist.application.ArtistService;
 import com.starttoo.backend.common.api.ApiResponse;
 import com.starttoo.backend.common.api.CursorPageResponse;
+import com.starttoo.backend.common.config.OptionalAuth;
 import com.starttoo.backend.common.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -12,6 +13,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -31,12 +34,14 @@ public class ArtistController {
     private final ArtistService artistService;
 
     @GetMapping
+    @OptionalAuth
     @Operation(
             summary = "인증 아티스트 목록",
             description = """
                     VERIFIED 아티스트이면서 ACTIVE 회원인 프로필만 조회한다. 팔로워 수 내림차순,
                     userSeq 내림차순의 복합 커서를 사용하여 동률에서도 순서가 고정된다.
                     city가 있으면 저장된 shopCity와 정확히 일치하는 항목만 반환한다.
+                    로그인 회원에게는 차단 관계의 아티스트를 제외한다.
                     각 아티스트에는 최신 PUBLISHED 게시물 최대 6개를 postSeq 내림차순으로
                     포함한다. 게시물 항목은 postSeq, 첫 이미지의 단기 Presigned GET URL,
                     likeCount만 제공한다.
@@ -45,9 +50,15 @@ public class ArtistController {
     public ApiResponse<CursorPageResponse<ArtistDtos.ArtistListItem>> list(
             @RequestParam(required = false) @Size(max = 100) String cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
-            @RequestParam(required = false) @Size(max = 100) String city
+            @RequestParam(required = false) @Size(max = 100) String city,
+            Authentication authentication
     ) {
-        return ApiResponse.of(artistService.list(cursor, size, city));
+        return ApiResponse.of(artistService.list(
+                cursor,
+                size,
+                city,
+                optionalUserSeq(authentication)
+        ));
     }
 
     @PatchMapping("/me/profile")
@@ -79,6 +90,13 @@ public class ArtistController {
     )
     public ApiResponse<ArtistDtos.ArtistProfile> verify() {
         return ApiResponse.of(artistService.verify(SecurityUtils.currentUserSeq()));
+    }
+
+    private Integer optionalUserSeq(Authentication authentication) {
+        if (authentication instanceof JwtAuthenticationToken jwt) {
+            return Integer.valueOf(jwt.getToken().getSubject());
+        }
+        return null;
     }
 
 }

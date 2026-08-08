@@ -27,12 +27,23 @@ type DragSession = {
 	originY: number;
 	originScale: number;
 	originRotation: number;
+	/**
+	 * 도안 중심의 화면(clientX/Y) 좌표.
+	 *
+	 * <p>크기·회전은 중심에서 포인터까지의 거리·각도로 잰다. 캔버스 안 비율 좌표에
+	 * 캔버스 폭만 곱한 값은 화면 좌표가 아니라(캔버스가 페이지 어디에 있는지가 빠져
+	 * 있다) 거리가 엉뚱하게 나온다. 캔버스가 포인터보다 오른쪽·아래에 놓이는 배치에서는
+	 * 바깥으로 끌수록 중심에서 멀어지는 대신 가까워져, 확대가 축소로 뒤집힌다.
+	 */
+	centerX: number;
+	centerY: number;
+	/** 회전 시작 시점의 중심 기준 포인터 각도(도) */
+	startAngle: number;
 };
 
 const MIN_SCALE = 0.06;
 const MAX_SCALE = 0.55;
 const CLICK_THRESHOLD_PX = 5;
-const ROTATE_SENSITIVITY = 1.15;
 const SCALE_SENSITIVITY = 1.75;
 
 /** 마네킹 위 도안 — 클릭 선택 + 드래그 이동·크기·회전·반전·삭제 */
@@ -52,6 +63,8 @@ function PlacedTattoo({
 	const updatePlacement = useCollectionStore((s) => s.updatePlacement);
 	const removePlacement = useCollectionStore((s) => s.removePlacement);
 
+	// 도안 중심의 화면 좌표를 재려면 실제로 그려진 상자가 필요하다
+	const rootRef = useRef<HTMLDivElement>(null);
 	const dragRef = useRef<DragSession | null>(null);
 	const didDragRef = useRef(false);
 	const draftPatchRef = useRef<PlacementPatch>({});
@@ -84,6 +97,11 @@ function PlacedTattoo({
 		event.stopPropagation();
 
 		draftPatchRef.current = {};
+		// 상자는 중심을 기준으로 translate(-50%,-50%)돼 있어 rect 중앙이 곧 도안 중심이다
+		// (회전해도 중심은 그대로다).
+		const rect = rootRef.current?.getBoundingClientRect();
+		const centerX = rect ? rect.left + rect.width / 2 : event.clientX;
+		const centerY = rect ? rect.top + rect.height / 2 : event.clientY;
 		dragRef.current = {
 			mode,
 			pointerId: event.pointerId,
@@ -93,6 +111,9 @@ function PlacedTattoo({
 			originY: placement.y,
 			originScale: placement.scale,
 			originRotation: placement.rotation,
+			centerX,
+			centerY,
+			startAngle: angleDeg(centerX, centerY, event.clientX, event.clientY),
 		};
 		didDragRef.current = false;
 		event.currentTarget.setPointerCapture(event.pointerId);
@@ -128,15 +149,13 @@ function PlacedTattoo({
 		}
 
 		if (drag.mode === "scale") {
-			const originPxX = canvasWidth * drag.originX;
-			const originPxY = canvasHeight * drag.originY;
 			const startDist = Math.hypot(
-				drag.startX - originPxX,
-				drag.startY - originPxY,
+				drag.startX - drag.centerX,
+				drag.startY - drag.centerY,
 			);
 			const currentDist = Math.hypot(
-				event.clientX - originPxX,
-				event.clientY - originPxY,
+				event.clientX - drag.centerX,
+				event.clientY - drag.centerY,
 			);
 			if (startDist < 1) return;
 			const rawRatio = currentDist / startDist;
@@ -147,11 +166,12 @@ function PlacedTattoo({
 			return;
 		}
 
-		const deltaX = event.clientX - drag.startX;
+		// 회전은 포인터를 따라간다 — 중심에서 본 포인터 각도가 움직인 만큼 돌린다.
+		const angleDelta =
+			angleDeg(drag.centerX, drag.centerY, event.clientX, event.clientY) -
+			drag.startAngle;
 		applyDraft({
-			rotation: normalizeAngle(
-				drag.originRotation + deltaX * ROTATE_SENSITIVITY,
-			),
+			rotation: normalizeAngle(drag.originRotation + angleDelta),
 		});
 	};
 
@@ -224,6 +244,7 @@ function PlacedTattoo({
 
 	return (
 		<div
+			ref={rootRef}
 			className={`absolute touch-none select-none ${isSelected ? "z-20" : "z-10"}`}
 			style={{
 				left: `${placement.x * 100}%`,
@@ -343,6 +364,16 @@ function clamp01(value: number) {
 
 function clampScale(value: number) {
 	return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+}
+
+/** 중심에서 본 포인터 각도(도). CSS rotate와 같은 방향(시계) 기준이다. */
+function angleDeg(
+	centerX: number,
+	centerY: number,
+	pointX: number,
+	pointY: number,
+) {
+	return (Math.atan2(pointY - centerY, pointX - centerX) * 180) / Math.PI;
 }
 
 function normalizeAngle(value: number) {

@@ -167,7 +167,7 @@ class SearchServiceTest {
         );
 
         List<SearchDtos.AccountResult> results =
-                searchService.searchAccounts("Artist", 20, true);
+                searchService.searchAccounts("Artist", 20, true, null);
 
         assertThat(results).containsExactly(
                 new SearchDtos.AccountResult(

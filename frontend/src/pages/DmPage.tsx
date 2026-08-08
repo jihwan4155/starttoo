@@ -1,19 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
-import { MoreIcon, ShareIcon } from "../components/community/icons";
+import { MoreIcon, SearchIcon, ShareIcon } from "../components/community/icons";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import DmRoomMenu from "../components/dm/DmRoomMenu";
 import MessageBubble from "../components/dm/MessageBubble";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import { formatDmDateLabel } from "../components/dm/dmTime";
 import {
+	useCreateDmRoom,
 	useMarkDmRoomRead,
 	useSendDmMessage,
 } from "../hooks/mutations/useDmMutations";
 import useDmMessages from "../hooks/queries/useDmMessages";
 import useDmRooms from "../hooks/queries/useDmRooms";
+import useFollowList from "../hooks/queries/useFollowList";
 import useMe from "../hooks/queries/useMe";
 import useAuthStore from "../store/useAuthStore";
 import useDmStore from "../store/useDmStore";
@@ -21,6 +23,7 @@ import useUserStore from "../store/useUserStore";
 import { ApiError } from "../services/api";
 import type { DmMessageResponse } from "../types/dm";
 import { profilePath, resolveAvatar } from "../utils/profile";
+import { dmPreviewText } from "../utils/sharePost";
 import { formatDmTime } from "../components/dm/dmTime";
 import LoadingLabel from "../components/loader/LoadingLabel";
 
@@ -75,11 +78,16 @@ export default function DmPage() {
 	const { data: me } = useMe();
 	const myUserSeq = me?.userId ?? null;
 
+	const [searchParams, setSearchParams] = useSearchParams();
 	const [input, setInput] = useState("");
+	const [search, setSearch] = useState("");
+	const [searchError, setSearchError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [image, setImage] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
+	// 스크롤 영역이 아니라 그 안의 내용 높이를 감시한다 (아래 ResizeObserver)
+	const messagesRef = useRef<HTMLDivElement>(null);
 	const imageInputRef = useRef<HTMLInputElement>(null);
 
 	const {
@@ -117,9 +125,67 @@ export default function DmPage() {
 
 	const { mutate: markRead } = useMarkDmRoomRead();
 	const { mutateAsync: sendMessage, isPending: isSending } = useSendDmMessage();
+	const { mutate: createRoom, isPending: isCreatingRoom } = useCreateDmRoom();
+
+	/*
+	 * 대화 상대 찾기 — 후보는 내가 팔로우한 사람이다.
+	 *
+	 * 닉네임 검색 API(GET /search/accounts) 대신 팔로잉 목록을 받아 그 자리에서
+	 * 거른다. 공유 모달(SharePostModal)이 쓰는 방식과 같다. 검색어를 입력할 때만
+	 * 목록을 받아 DM 화면을 열기만 한 사람에게는 요청이 나가지 않는다.
+	 */
+	const keyword = search.trim();
+	const { data: followingData, isPending: isFollowingPending } = useFollowList({
+		userId: myUserSeq ?? 0,
+		kind: "following",
+		enabled: keyword.length > 0 && myUserSeq != null,
+		size: 50,
+	});
+
+	const searchResults = useMemo(() => {
+		if (!keyword) return [];
+		const lowered = keyword.toLowerCase();
+		return (followingData?.pages.flatMap((page) => page.items) ?? []).filter(
+			(user) => user.nickname.toLowerCase().includes(lowered),
+		);
+	}, [followingData?.pages, keyword]);
 
 	// DM 페이지를 벗어나면 선택 해제 (이후 수신 메시지는 알림으로 표시)
 	useEffect(() => () => leaveDm(), [leaveDm]);
+
+	/*
+	 * 보고 있던 방을 주소(?room=)에 실어 둔다.
+	 *
+	 * activeRoomSeq는 "지금 이 방을 보고 있는지"라 페이지를 벗어날 때 비워야 한다
+	 * (안 그러면 그 방 메시지가 알림으로 안 뜬다). 그래서 공유된 게시물을 열었다
+	 * 돌아오면 선택이 사라져 목록부터 다시 시작했다. 주소에 남겨 두면 히스토리
+	 * 항목이 그 방을 기억하므로, 뒤로가기·상세 닫기 어느 쪽으로 돌아와도 보던
+	 * 대화가 그대로 열린다. 지우는 쪽은 아래 closeRoom이 직접 한다.
+	 */
+	useEffect(() => {
+		if (activeRoomSeq == null) return;
+		if (searchParams.get("room") === String(activeRoomSeq)) return;
+		const next = new URLSearchParams(searchParams);
+		next.set("room", String(activeRoomSeq));
+		setSearchParams(next, { replace: true });
+	}, [activeRoomSeq, searchParams, setSearchParams]);
+
+	// 주소에 남아 있던 방을 한 번만 되살린다 (알림으로 들어온 선택이 있으면 그쪽이 우선)
+	useEffect(() => {
+		if (activeRoomSeq != null) return;
+		const seq = Number(searchParams.get("room"));
+		if (Number.isInteger(seq) && seq > 0) openRoom(seq);
+		// 마운트 시 1회 — 이후 방 전환은 handleOpenRoom·closeRoom이 맡는다
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	/** 대화창을 닫고 목록으로 — 주소에 남은 방도 함께 지운다 */
+	const closeRoom = () => {
+		leaveDm();
+		const next = new URLSearchParams(searchParams);
+		next.delete("room");
+		setSearchParams(next, { replace: true });
+	};
 
 	/*
 	 * 읽음 처리는 기본적으로 서버가 메시지 조회에서 함께 한다. 열어 둔 방은 새
@@ -136,12 +202,50 @@ export default function DmPage() {
 		markRead(activeRoomSeq);
 	}, [activeRoomSeq, activeUnreadCount, markRead]);
 
-	// 방 전환·새 메시지 시 맨 아래로. 과거 메시지를 더 불러온 경우는 제외한다.
-	useEffect(() => {
-		if (isFetchingOlder) return;
+	const scrollToBottom = useCallback(() => {
 		const el = scrollRef.current;
 		if (el) el.scrollTop = el.scrollHeight;
-	}, [activeRoomSeq, messages.length, isFetchingOlder]);
+	}, []);
+
+	/*
+	 * 방 전환·새 메시지 시 맨 아래로. 과거 메시지를 더 불러온 경우는 제외한다.
+	 *
+	 * 마지막 메시지 번호까지 의존성에 넣는다. 길이만 보면 무한쿼리가 페이지를 통째로
+	 * 갈아 끼울 때(전송 후 invalidate, 실시간 수신) 길이가 그대로인 채 내용만 바뀌는
+	 * 경우를 놓친다. 다음 프레임에 한 번 더 내리는 것은 방금 붙은 말풍선의 높이가
+	 * 반영된 뒤를 노린 것이다.
+	 */
+	const lastMessageSeq =
+		messages.length > 0 ? messages[messages.length - 1].dmMessageSeq : null;
+	useEffect(() => {
+		if (isFetchingOlder) return;
+		scrollToBottom();
+		const frame = requestAnimationFrame(scrollToBottom);
+		return () => cancelAnimationFrame(frame);
+	}, [
+		activeRoomSeq,
+		messages.length,
+		lastMessageSeq,
+		isFetchingOlder,
+		scrollToBottom,
+	]);
+
+	/*
+	 * 이미지·공유 카드는 늦게 로드되면서 높이가 커진다. 위로 올려 읽는 중이 아니라면
+	 * 그때마다 다시 맨 아래에 붙여, 마지막 말풍선이 화면 밖으로 밀려나지 않게 한다.
+	 */
+	useEffect(() => {
+		const el = scrollRef.current;
+		const content = messagesRef.current;
+		if (!el || !content || typeof ResizeObserver === "undefined") return;
+		const observer = new ResizeObserver(() => {
+			const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+			if (distanceFromBottom > 120) return;
+			el.scrollTop = el.scrollHeight;
+		});
+		observer.observe(content);
+		return () => observer.disconnect();
+	}, [activeRoomSeq]);
 
 	const clearImage = () => {
 		setImage(null);
@@ -156,6 +260,27 @@ export default function DmPage() {
 		setInput("");
 		setSendError(null);
 		clearImage();
+	};
+
+	/**
+	 * 검색 결과에서 고른 사람과의 방을 연다.
+	 *
+	 * 이미 대화하던 사이면 서버가 그 방을 그대로 돌려주므로 방이 새로 생기지 않는다.
+	 */
+	const handleStartDm = (partnerSeq: number) => {
+		if (isCreatingRoom) return;
+		setSearchError(null);
+		createRoom(partnerSeq, {
+			onSuccess: (room) => {
+				setSearch("");
+				handleOpenRoom(room.dmRoomSeq);
+			},
+			onError: (err) => {
+				setSearchError(
+					err instanceof ApiError ? err.message : "대화를 시작하지 못했습니다.",
+				);
+			},
+		});
 	};
 
 	const handlePickImage = (e: ChangeEvent<HTMLInputElement>) => {
@@ -189,6 +314,13 @@ export default function DmPage() {
 			});
 			setInput("");
 			clearImage();
+			/*
+			 * 모바일 키보드가 떠 있는 동안 브라우저가 입력창을 보이게 하려고 문서를
+			 * 통째로 밀어 올린다. 그 스크롤이 남아 있으면 키보드가 닫힌 뒤 입력창 아래에
+			 * 빈 자리가 생긴다. 문서는 제자리로, 대화 목록만 맨 아래로 되돌린다.
+			 */
+			window.scrollTo(0, 0);
+			requestAnimationFrame(scrollToBottom);
 		} catch (err) {
 			setSendError(
 				err instanceof ApiError
@@ -223,7 +355,79 @@ export default function DmPage() {
 					</span>
 				</div>
 
-				{isRoomsPending ? (
+				{/* 팔로우한 사람을 찾아 바로 대화를 시작한다 */}
+				<div className="shrink-0 px-5 pb-3 pt-3 lg:pt-0">
+					<div className="flex h-10 items-center gap-2 rounded-full bg-black/[0.04] px-3.5">
+						<SearchIcon size={15} className="shrink-0 text-black/35" />
+						<input
+							value={search}
+							onChange={(event) => {
+								setSearch(event.target.value);
+								setSearchError(null);
+							}}
+							placeholder="팔로우한 사람 검색"
+							maxLength={20}
+							aria-label="대화 상대 검색"
+							/* 메시지 입력창과 같은 이유로 모바일은 16px (iOS 자동 확대 방지) */
+							className="min-w-0 flex-1 bg-transparent text-[16px] font-light text-black outline-none placeholder:text-black/35 lg:text-[13px]"
+						/>
+						{search && (
+							<button
+								type="button"
+								onClick={() => {
+									setSearch("");
+									setSearchError(null);
+								}}
+								aria-label="검색어 지우기"
+								className="flex size-5 shrink-0 items-center justify-center rounded-full bg-black/15 text-[11px] font-bold leading-none text-white transition hover:bg-black/30">
+								×
+							</button>
+						)}
+					</div>
+					{searchError && (
+						<p role="alert" className="mt-2 text-[12px] text-brand">
+							{searchError}
+						</p>
+					)}
+				</div>
+
+				{keyword ? (
+					isFollowingPending ? (
+						<StarttooLoader variant="block" size={150} label={null} />
+					) : searchResults.length === 0 ? (
+						<p className="px-5 py-10 text-center text-[13px] font-light leading-5 text-black/40">
+							검색 결과가 없습니다.
+							<br />
+							팔로우한 사람에게만 먼저 말을 걸 수 있어요.
+						</p>
+					) : (
+						<ul className="min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+							{searchResults.map((user) => (
+								<li
+									key={user.userId}
+									className="border-b border-black/[0.06] lg:border-b-0">
+									<button
+										type="button"
+										disabled={isCreatingRoom}
+										onClick={() => handleStartDm(user.userId)}
+										className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-black/[0.03] disabled:opacity-50 lg:py-3">
+										<img
+											src={resolveAvatar(user.profileImageUrl, user.nickname)}
+											alt=""
+											className="size-12 shrink-0 rounded-full bg-white object-cover lg:size-11"
+										/>
+										<span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-black lg:text-[14px]">
+											{user.nickname}
+										</span>
+										<span className="shrink-0 text-[12px] font-semibold text-brand">
+											메시지
+										</span>
+									</button>
+								</li>
+							))}
+						</ul>
+					)
+				) : isRoomsPending ? (
 					<StarttooLoader variant="block" size={150} label={null} />
 				) : isRoomsError ? (
 					<p className="px-5 py-10 text-center text-[13px] text-black/60">
@@ -269,7 +473,8 @@ export default function DmPage() {
 														? "font-semibold text-black"
 														: "font-light text-black/45"
 												}`}>
-												{room.lastMessagePreview ?? "대화를 시작해보세요"}
+												{dmPreviewText(room.lastMessagePreview) ??
+													"대화를 시작해보세요"}
 											</span>
 										</span>
 										<span className="flex shrink-0 flex-col items-end gap-1">
@@ -303,9 +508,9 @@ export default function DmPage() {
 
 			{/* 우: 대화창 */}
 			{selectedRoom ? (
-				<section className="flex min-w-0 flex-1 flex-col bg-white">
+				<section className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
 					<div className="flex h-[58px] shrink-0 items-center gap-2 border-b border-black/10 px-3 lg:h-auto lg:gap-3 lg:px-6 lg:py-3">
-						<button type="button" aria-label="대화 목록으로 돌아가기" onClick={leaveDm} className="flex size-9 shrink-0 items-center justify-center text-black/65 lg:hidden"><BackIcon /></button>
+						<button type="button" aria-label="대화 목록으로 돌아가기" onClick={closeRoom} className="flex size-9 shrink-0 items-center justify-center text-black/65 lg:hidden"><BackIcon /></button>
 						<Link
 							to={profilePath(selectedRoom.partner.userSeq)}
 							aria-label={`${selectedRoom.partner.nickname} 프로필`}>
@@ -328,54 +533,59 @@ export default function DmPage() {
 								{selectedRoom.partner.verified && <ArtistBadge size={15} />}
 							</p>
 						</div>
-						<DmRoomMenu room={selectedRoom} onLeft={leaveDm}>
+						<DmRoomMenu room={selectedRoom} onLeft={closeRoom}>
 							<MoreIcon size={20} />
 						</DmRoomMenu>
 					</div>
 
 					<div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6">
-						{hasOlderMessages && (
-							<div className="mb-3 flex justify-center">
-								<button
-									type="button"
-									onClick={() => void fetchOlderMessages()}
-									disabled={isFetchingOlder}
-									className="rounded-full border border-black/10 px-4 py-1.5 text-[12px] font-semibold text-black/55 transition hover:bg-black/5 disabled:opacity-50">
-									{isFetchingOlder ? <LoadingLabel>불러오는 중…</LoadingLabel> : "이전 메시지 보기"}
-								</button>
-							</div>
-						)}
+						{/* 높이 변화를 감시하려고 한 겹 감싼다 (위 ResizeObserver) */}
+						<div ref={messagesRef}>
+							{hasOlderMessages && (
+								<div className="mb-3 flex justify-center">
+									<button
+										type="button"
+										onClick={() => void fetchOlderMessages()}
+										disabled={isFetchingOlder}
+										className="rounded-full border border-black/10 px-4 py-1.5 text-[12px] font-semibold text-black/55 transition hover:bg-black/5 disabled:opacity-50">
+										{isFetchingOlder ? <LoadingLabel>불러오는 중…</LoadingLabel> : "이전 메시지 보기"}
+									</button>
+								</div>
+							)}
 
-						{isMessagesPending ? (
-							<StarttooLoader variant="block" size={170} label={null} />
-						) : isMessagesError ? (
-							<p className="py-10 text-center text-[13px] text-black/60">
-								{messagesError instanceof ApiError
-									? messagesError.message
-									: "메시지를 불러오지 못했습니다."}
-							</p>
-						) : messages.length === 0 ? (
-							<p className="py-10 text-center text-[13px] font-light text-black/40">
-								첫 메시지를 보내보세요.
-							</p>
-						) : (
-							messages.map((message, index) => (
-								<MessageGroup
-									key={message.dmMessageSeq}
-									message={message}
-									previous={messages[index - 1]}
-									mine={message.senderSeq === myUserSeq}
-								/>
-							))
-						)}
+							{isMessagesPending ? (
+								<StarttooLoader variant="block" size={170} label={null} />
+							) : isMessagesError ? (
+								<p className="py-10 text-center text-[13px] text-black/60">
+									{messagesError instanceof ApiError
+										? messagesError.message
+										: "메시지를 불러오지 못했습니다."}
+								</p>
+							) : messages.length === 0 ? (
+								<p className="py-10 text-center text-[13px] font-light text-black/40">
+									첫 메시지를 보내보세요.
+								</p>
+							) : (
+								messages.map((message, index) => (
+									<MessageGroup
+										key={message.dmMessageSeq}
+										message={message}
+										previous={messages[index - 1]}
+										mine={message.senderSeq === myUserSeq}
+									/>
+								))
+							)}
+						</div>
 					</div>
 
 					{sendError && (
-						<p className="px-5 pb-1 text-[12px] text-red-600">{sendError}</p>
+						<p className="shrink-0 px-5 pb-1 text-[12px] text-red-600">
+							{sendError}
+						</p>
 					)}
 
 					{imagePreview && (
-						<div className="flex items-center gap-3 px-5 pb-2">
+						<div className="flex shrink-0 items-center gap-3 px-5 pb-2">
 							<div className="relative">
 								<img
 									src={imagePreview}
@@ -422,7 +632,9 @@ export default function DmPage() {
 							onChange={(e) => setInput(e.target.value)}
 							placeholder="메시지 입력..."
 							maxLength={4000}
-							className="h-11 min-w-0 flex-1 rounded-full border border-black/15 bg-white px-4 text-[14px] font-light text-black outline-none placeholder:text-black/35 focus:border-brand/50 lg:h-10 lg:text-[13px]"
+							/* 모바일은 16px 미만이면 iOS Safari가 입력창을 누를 때 화면을 확대한다.
+							   확대된 채로 남으면 오른쪽(전송 버튼)이 잘리고 페이지가 길어져 보인다. */
+							className="h-11 min-w-0 flex-1 rounded-full border border-black/15 bg-white px-4 text-[16px] font-light text-black outline-none placeholder:text-black/35 focus:border-brand/50 lg:h-10 lg:text-[13px]"
 						/>
 						<button
 							type="submit"
