@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.security.core.Authentication;
@@ -73,18 +74,26 @@ public class PostController {
                     기존과 같이 postSeq 내림차순이다. cursor는 응답의
                     nextCursor를 그대로 되돌려주는 불투명 문자열이다. 이미지 URL은 단기
                     Presigned GET URL이다.
+
+                    primaryStyle을 전달하면 취향 점수를 적용하지 않고 해당 primary 스타일의
+                    이미지가 포함된 게시물만 최신순으로 반환한다. 이때 matchedImageSeq에는
+                    실제 필터에 일치한 이미지가 들어간다. 개인화 전체 피드의 matchedImageSeq에는
+                    게시물 이미지 중 조회자의 스타일·색상 취향 점수가 가장 높은 이미지가 들어간다.
                     """
     )
     public ApiResponse<CursorPageResponse<PostDtos.PostResponse>> list(
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
             @RequestParam(required = false) Integer authorSeq,
+            @RequestParam(required = false)
+            @Pattern(regexp = "^[A-Za-z0-9_]{1,50}$") String primaryStyle,
             Authentication authentication
     ) {
         return ApiResponse.of(postService.list(
                 cursor,
                 size,
                 authorSeq,
+                primaryStyle,
                 optionalUserSeq(authentication)
         ));
     }

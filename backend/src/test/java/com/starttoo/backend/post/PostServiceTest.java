@@ -142,11 +142,44 @@ class PostServiceTest {
         assertThat(sql.getValue()).contains(
                 "user_primary_style_preferences",
                 "user_color_preferences",
+                "ARRAY_AGG",
+                "matched_image_seq",
+                "image_pref.score DESC",
                 "EXTRACT(EPOCH FROM p.reg_dttm)",
                 "p.author_seq <> ?",
                 "user_blocks",
                 "post_hidden_preferences",
                 "ORDER BY ranked.blend_score DESC, ranked.post_seq DESC"
+        );
+        assertThat(page.items()).isEmpty();
+    }
+
+    @Test
+    void primaryStyleFilterUsesMatchingImageWithoutPersonalization() {
+        when(jdbcTemplate.query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        )).thenReturn(List.of());
+
+        CursorPageResponse<PostDtos.PostResponse> page =
+                postService.list(null, 20, null, "minimal", 7);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(
+                sql.capture(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        );
+        assertThat(sql.getValue()).contains(
+                "DISTINCT ON (p.post_seq)",
+                "JOIN primary_styles style",
+                "style.style_code = ?",
+                "pi.image_seq AS matched_image_seq",
+                "ORDER BY p.post_seq DESC, pi.display_order"
+        ).doesNotContain(
+                "user_primary_style_preferences",
+                "user_color_preferences"
         );
         assertThat(page.items()).isEmpty();
     }

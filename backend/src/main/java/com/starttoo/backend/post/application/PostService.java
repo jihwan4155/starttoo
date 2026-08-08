@@ -86,6 +86,26 @@ public class PostService {
             Integer authorSeq,
             Integer viewerSeq
     ) {
+        return list(cursor, size, authorSeq, null, viewerSeq);
+    }
+
+    @Transactional(readOnly = true)
+    public CursorPageResponse<PostDtos.PostResponse> list(
+            String cursor,
+            int size,
+            Integer authorSeq,
+            String primaryStyle,
+            Integer viewerSeq
+    ) {
+        if (primaryStyle != null && !primaryStyle.isBlank()) {
+            return byPrimaryStyle(
+                    parseLongCursor(cursor),
+                    size,
+                    authorSeq,
+                    primaryStyle,
+                    viewerSeq
+            );
+        }
         // 로그인 조회자의 전체 피드만 취향 점수를 반영한다. 작성자 필터가 있는 목록은
         // 기존 최신순을 유지하며, 이때 커서는 postSeq 숫자 문자열이다.
         if (viewerSeq != null && authorSeq == null) {
@@ -138,6 +158,75 @@ public class PostService {
         return postSeqPage(ids, safeSize, viewerSeq);
     }
 
+    private CursorPageResponse<PostDtos.PostResponse> byPrimaryStyle(
+            Long cursor,
+            int size,
+            Integer authorSeq,
+            String primaryStyle,
+            Integer viewerSeq
+    ) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        List<CategoryFeedRow> rows = jdbcTemplate.query("""
+                SELECT DISTINCT ON (p.post_seq)
+                       p.post_seq,
+                       pi.image_seq AS matched_image_seq
+                  FROM posts p
+                  JOIN users author ON author.user_seq = p.author_seq
+                  JOIN post_images pi ON pi.post_seq = p.post_seq
+                  JOIN tattoos t
+                    ON t.image_seq = pi.image_seq
+                   AND t.is_deleted = FALSE
+                  JOIN primary_styles style
+                    ON style.primary_style_seq = t.primary_style_seq
+                 WHERE p.post_status = 'PUBLISHED'
+                   AND p.is_deleted = FALSE
+                   AND author.account_status = 'ACTIVE'
+                   AND author.role <> 'ADMIN'
+                   AND author.is_deleted = FALSE
+                   AND style.style_code = ?
+                   AND (CAST(? AS BIGINT) IS NULL OR p.post_seq < ?)
+                   AND (CAST(? AS INTEGER) IS NULL OR p.author_seq = ?)
+                   AND (
+                       CAST(? AS INTEGER) IS NULL OR NOT EXISTS (
+                           SELECT 1 FROM user_blocks b
+                            WHERE (b.blocker_seq = ? AND b.blocked_seq = p.author_seq)
+                               OR (b.blocker_seq = p.author_seq AND b.blocked_seq = ?)
+                       )
+                   )
+                   AND (
+                       CAST(? AS INTEGER) IS NULL OR NOT EXISTS (
+                           SELECT 1 FROM post_hidden_preferences h
+                            WHERE h.post_seq = p.post_seq AND h.user_seq = ?
+                       )
+                   )
+                 ORDER BY p.post_seq DESC, pi.display_order, pi.post_image_seq
+                 LIMIT ?
+                """, (rs, rowNum) -> new CategoryFeedRow(
+                rs.getLong("post_seq"),
+                rs.getLong("matched_image_seq")
+        ),
+                primaryStyle,
+                cursor, cursor,
+                authorSeq, authorSeq,
+                viewerSeq, viewerSeq, viewerSeq,
+                viewerSeq, viewerSeq,
+                safeSize + 1
+        );
+        boolean hasNext = rows.size() > safeSize;
+        List<CategoryFeedRow> page = hasNext ? rows.subList(0, safeSize) : rows;
+        Map<Long, Long> matchedImages = new HashMap<>();
+        page.forEach(row -> matchedImages.put(row.postSeq(), row.matchedImageSeq()));
+        List<PostDtos.PostResponse> items = responses(loadPosts(
+                page.stream().map(CategoryFeedRow::postSeq).toList()
+        ), viewerSeq).stream()
+                .map(post -> post.withMatchedImageSeq(matchedImages.get(post.postSeq())))
+                .toList();
+        String nextCursor = hasNext
+                ? page.get(page.size() - 1).postSeq().toString()
+                : null;
+        return CursorPageResponse.of(items, nextCursor, hasNext);
+    }
+
     private CursorPageResponse<PostDtos.PostResponse> personalized(
             String cursor,
             int size,
@@ -154,7 +243,7 @@ public class PostService {
         // 등록 시각 기반이라 요청 시점과 무관하게 게시물마다 결정적이며,
         // 소수 4자리로 반올림해 커서 동등 비교를 안정화한다.
         List<FeedRow> rows = jdbcTemplate.query("""
-                SELECT post_seq, blend_score
+                SELECT post_seq, blend_score, matched_image_seq
                   FROM (
                       SELECT p.post_seq,
                              ROUND(
@@ -162,25 +251,35 @@ public class PostService {
                                  + EXTRACT(EPOCH FROM p.reg_dttm) / 3600
                                    * CAST(? AS NUMERIC),
                                  4
-                             ) AS blend_score
+                             ) AS blend_score,
+                             pref.matched_image_seq
                         FROM posts p
                         JOIN users author ON author.user_seq = p.author_seq
                         LEFT JOIN LATERAL (
-                            SELECT SUM(
-                                       COALESCE(style_pref.score, 0)
-                                       + COALESCE(color_pref.score, 0)
-                                   ) AS score
-                              FROM post_images pi
-                              JOIN tattoos t
-                                ON t.image_seq = pi.image_seq
-                               AND t.is_deleted = FALSE
-                              LEFT JOIN user_primary_style_preferences style_pref
-                                ON style_pref.user_seq = ?
-                               AND style_pref.primary_style_seq = t.primary_style_seq
-                              LEFT JOIN user_color_preferences color_pref
-                                ON color_pref.user_seq = ?
-                               AND color_pref.color_seq = t.color_seq
-                             WHERE pi.post_seq = p.post_seq
+                            SELECT SUM(image_pref.score) AS score,
+                                   (ARRAY_AGG(
+                                       image_pref.image_seq
+                                       ORDER BY image_pref.score DESC,
+                                                image_pref.display_order,
+                                                image_pref.image_seq
+                                   ))[1] AS matched_image_seq
+                              FROM (
+                                  SELECT pi.image_seq,
+                                         pi.display_order,
+                                         COALESCE(style_pref.score, 0)
+                                         + COALESCE(color_pref.score, 0) AS score
+                                    FROM post_images pi
+                                    JOIN tattoos t
+                                      ON t.image_seq = pi.image_seq
+                                     AND t.is_deleted = FALSE
+                                    LEFT JOIN user_primary_style_preferences style_pref
+                                      ON style_pref.user_seq = ?
+                                     AND style_pref.primary_style_seq = t.primary_style_seq
+                                    LEFT JOIN user_color_preferences color_pref
+                                      ON color_pref.user_seq = ?
+                                     AND color_pref.color_seq = t.color_seq
+                                   WHERE pi.post_seq = p.post_seq
+                              ) image_pref
                         ) pref ON TRUE
                        WHERE p.post_status = 'PUBLISHED'
                          AND p.is_deleted = FALSE
@@ -210,7 +309,8 @@ public class PostService {
                  LIMIT ?
                 """, (rs, rowNum) -> new FeedRow(
                 rs.getLong("post_seq"),
-                rs.getBigDecimal("blend_score")
+                rs.getBigDecimal("blend_score"),
+                rs.getObject("matched_image_seq", Long.class)
         ),
                 preferenceWeight,
                 recencyPerHour,
@@ -227,9 +327,13 @@ public class PostService {
         );
         boolean hasNext = rows.size() > safeSize;
         List<FeedRow> page = hasNext ? rows.subList(0, safeSize) : rows;
+        Map<Long, Long> matchedImages = new HashMap<>();
+        page.forEach(row -> matchedImages.put(row.postSeq(), row.matchedImageSeq()));
         List<PostDtos.PostResponse> items = responses(loadPosts(
                 page.stream().map(FeedRow::postSeq).toList()
-        ), viewerSeq);
+        ), viewerSeq).stream()
+                .map(post -> post.withMatchedImageSeq(matchedImages.get(post.postSeq())))
+                .toList();
         String nextCursor = hasNext
                 ? encodeFeedCursor(page.get(page.size() - 1))
                 : null;
@@ -795,7 +899,10 @@ public class PostService {
     private record BookmarkRow(Long postSeq, OffsetDateTime bookmarkDttm) {
     }
 
-    private record FeedRow(Long postSeq, BigDecimal blendScore) {
+    private record CategoryFeedRow(Long postSeq, Long matchedImageSeq) {
+    }
+
+    private record FeedRow(Long postSeq, BigDecimal blendScore, Long matchedImageSeq) {
     }
 
     private record FeedCursor(BigDecimal blendScore, Long postSeq) {
