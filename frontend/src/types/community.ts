@@ -76,7 +76,7 @@ export type PostResponse = {
 	likeCount: number;
 	commentCount: number;
 	images: PostImageDto[];
-	/** /search/posts 응답에서만 내려오는 subject 일치 이미지 seq */
+	/** 검색·카테고리 필터 또는 개인화 피드에서 대표로 표시할 이미지 seq */
 	matchedImageSeq?: number | null;
 	likedByMe: boolean;
 	bookmarkedByMe: boolean;
@@ -88,6 +88,7 @@ export type FetchPostsParams = {
 	cursor?: string | number;
 	size?: number;
 	authorSeq?: number;
+	primaryStyle?: string;
 };
 
 export type CreatePostRequest = {
@@ -131,11 +132,7 @@ export type HiddenResponse = {
 };
 
 export type ReportReasonCode =
-	| "SPAM"
-	| "INAPPROPRIATE"
-	| "HARASSMENT"
-	| "COPYRIGHT"
-	| "OTHER";
+	"SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "COPYRIGHT" | "OTHER";
 
 export type ReportRequest = {
 	reasonCode: ReportReasonCode;
