@@ -2,18 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
-import { MoreIcon, ShareIcon } from "../components/community/icons";
+import { MoreIcon, SearchIcon, ShareIcon } from "../components/community/icons";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "../constants/upload";
 import DmRoomMenu from "../components/dm/DmRoomMenu";
 import MessageBubble from "../components/dm/MessageBubble";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import { formatDmDateLabel } from "../components/dm/dmTime";
 import {
+	useCreateDmRoom,
 	useMarkDmRoomRead,
 	useSendDmMessage,
 } from "../hooks/mutations/useDmMutations";
 import useDmMessages from "../hooks/queries/useDmMessages";
 import useDmRooms from "../hooks/queries/useDmRooms";
+import useFollowList from "../hooks/queries/useFollowList";
 import useMe from "../hooks/queries/useMe";
 import useAuthStore from "../store/useAuthStore";
 import useDmStore from "../store/useDmStore";
@@ -76,6 +78,8 @@ export default function DmPage() {
 	const myUserSeq = me?.userId ?? null;
 
 	const [input, setInput] = useState("");
+	const [search, setSearch] = useState("");
+	const [searchError, setSearchError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [image, setImage] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -117,6 +121,30 @@ export default function DmPage() {
 
 	const { mutate: markRead } = useMarkDmRoomRead();
 	const { mutateAsync: sendMessage, isPending: isSending } = useSendDmMessage();
+	const { mutate: createRoom, isPending: isCreatingRoom } = useCreateDmRoom();
+
+	/*
+	 * 대화 상대 찾기 — 후보는 내가 팔로우한 사람이다.
+	 *
+	 * 닉네임 검색 API(GET /search/accounts) 대신 팔로잉 목록을 받아 그 자리에서
+	 * 거른다. 공유 모달(SharePostModal)이 쓰는 방식과 같다. 검색어를 입력할 때만
+	 * 목록을 받아 DM 화면을 열기만 한 사람에게는 요청이 나가지 않는다.
+	 */
+	const keyword = search.trim();
+	const { data: followingData, isPending: isFollowingPending } = useFollowList({
+		userId: myUserSeq ?? 0,
+		kind: "following",
+		enabled: keyword.length > 0 && myUserSeq != null,
+		size: 50,
+	});
+
+	const searchResults = useMemo(() => {
+		if (!keyword) return [];
+		const lowered = keyword.toLowerCase();
+		return (followingData?.pages.flatMap((page) => page.items) ?? []).filter(
+			(user) => user.nickname.toLowerCase().includes(lowered),
+		);
+	}, [followingData?.pages, keyword]);
 
 	// DM 페이지를 벗어나면 선택 해제 (이후 수신 메시지는 알림으로 표시)
 	useEffect(() => () => leaveDm(), [leaveDm]);
@@ -156,6 +184,27 @@ export default function DmPage() {
 		setInput("");
 		setSendError(null);
 		clearImage();
+	};
+
+	/**
+	 * 검색 결과에서 고른 사람과의 방을 연다.
+	 *
+	 * 이미 대화하던 사이면 서버가 그 방을 그대로 돌려주므로 방이 새로 생기지 않는다.
+	 */
+	const handleStartDm = (partnerSeq: number) => {
+		if (isCreatingRoom) return;
+		setSearchError(null);
+		createRoom(partnerSeq, {
+			onSuccess: (room) => {
+				setSearch("");
+				handleOpenRoom(room.dmRoomSeq);
+			},
+			onError: (err) => {
+				setSearchError(
+					err instanceof ApiError ? err.message : "대화를 시작하지 못했습니다.",
+				);
+			},
+		});
 	};
 
 	const handlePickImage = (e: ChangeEvent<HTMLInputElement>) => {
@@ -223,7 +272,78 @@ export default function DmPage() {
 					</span>
 				</div>
 
-				{isRoomsPending ? (
+				{/* 팔로우한 사람을 찾아 바로 대화를 시작한다 */}
+				<div className="shrink-0 px-5 pb-3 pt-3 lg:pt-0">
+					<div className="flex h-10 items-center gap-2 rounded-full bg-black/[0.04] px-3.5">
+						<SearchIcon size={15} className="shrink-0 text-black/35" />
+						<input
+							value={search}
+							onChange={(event) => {
+								setSearch(event.target.value);
+								setSearchError(null);
+							}}
+							placeholder="팔로우한 사람 검색"
+							maxLength={20}
+							aria-label="대화 상대 검색"
+							className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
+						/>
+						{search && (
+							<button
+								type="button"
+								onClick={() => {
+									setSearch("");
+									setSearchError(null);
+								}}
+								aria-label="검색어 지우기"
+								className="flex size-5 shrink-0 items-center justify-center rounded-full bg-black/15 text-[11px] font-bold leading-none text-white transition hover:bg-black/30">
+								×
+							</button>
+						)}
+					</div>
+					{searchError && (
+						<p role="alert" className="mt-2 text-[12px] text-brand">
+							{searchError}
+						</p>
+					)}
+				</div>
+
+				{keyword ? (
+					isFollowingPending ? (
+						<StarttooLoader variant="block" size={150} label={null} />
+					) : searchResults.length === 0 ? (
+						<p className="px-5 py-10 text-center text-[13px] font-light leading-5 text-black/40">
+							검색 결과가 없습니다.
+							<br />
+							팔로우한 사람에게만 먼저 말을 걸 수 있어요.
+						</p>
+					) : (
+						<ul className="min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+							{searchResults.map((user) => (
+								<li
+									key={user.userId}
+									className="border-b border-black/[0.06] lg:border-b-0">
+									<button
+										type="button"
+										disabled={isCreatingRoom}
+										onClick={() => handleStartDm(user.userId)}
+										className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-black/[0.03] disabled:opacity-50 lg:py-3">
+										<img
+											src={resolveAvatar(user.profileImageUrl, user.nickname)}
+											alt=""
+											className="size-12 shrink-0 rounded-full bg-white object-cover lg:size-11"
+										/>
+										<span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-black lg:text-[14px]">
+											{user.nickname}
+										</span>
+										<span className="shrink-0 text-[12px] font-semibold text-brand">
+											메시지
+										</span>
+									</button>
+								</li>
+							))}
+						</ul>
+					)
+				) : isRoomsPending ? (
 					<StarttooLoader variant="block" size={150} label={null} />
 				) : isRoomsError ? (
 					<p className="px-5 py-10 text-center text-[13px] text-black/60">
