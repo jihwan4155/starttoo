@@ -230,7 +230,7 @@ export default function AiPage() {
 
 	return (
 		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-6 py-10 max-lg:px-0 max-lg:py-0">
-			<header className="fixed inset-x-0 top-0 z-[70] hidden h-[50px] items-center justify-center border-b border-[#E8E8E8] bg-white max-lg:flex">
+			<header className="fixed inset-x-0 top-0 z-[70] hidden h-[44px] items-center justify-center border-b border-[#E8E8E8] bg-white max-lg:flex">
 				<button type="button" aria-label="홈으로 이동" onClick={requestHome} className="absolute left-4 flex size-8 items-center justify-center text-[#555]"><HomeIcon /></button>
 				<h1 className="text-[20px] font-bold">AI 도안 생성</h1>
 			</header>

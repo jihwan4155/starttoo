@@ -19,7 +19,7 @@ export function CloseIcon() {
 
 export function MobileHeader({ title, onHome }: { title: string; onHome?: () => void }) {
 	return (
-		<header className="fixed inset-x-0 top-0 z-[70] flex h-[50px] items-center justify-center border-b border-[#E8E8E8] bg-white">
+		<header className="fixed inset-x-0 top-0 z-[70] flex h-[44px] items-center justify-center border-b border-[#E8E8E8] bg-white">
 			{onHome && (
 				<button type="button" onClick={onHome} aria-label="홈으로 가기" className="absolute left-4 flex size-8 items-center justify-center text-[#555]"><HomeIcon /></button>
 			)}
