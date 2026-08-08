@@ -25,8 +25,13 @@ type ActionConfirmModalProps = {
  * replace로 화면을 옮기는데, 이 창이 항목을 하나 얹어 두면 그 항목만 대체되어
  * 뒤로가기로 차단한 프로필에 다시 들어가게 된다.
  *
- * z는 다른 오버레이(z-50)보다 한 단계 위다 — 차단 목록처럼 이미 떠 있는 창
- * 위에서 확인을 받는 자리가 있다.
+ * z는 이 프로젝트에서 가장 위다. 이 창은 "이미 떠 있는 무엇 위에서든" 확인을 받는
+ * 자리라, 어떤 오버레이보다 위여야 한다. 예전에는 z-[60]이었는데 그때는 z-50 위에
+ * 뜨는 경우만 상정했다. 실제로는 낙서 추천 결과(z-[80])나 도안 추출 결과(z-[120],
+ * useRequireAuth를 직접 쓴다) 위에서도 열려서, 로그인 안내가 그 뒤에 깔려 보였다.
+ *
+ * 현재 프로젝트의 최상단 계층은 z-[120](삭제·신고 같은 확인 계층)이다. 여기에 층을
+ * 하나 더 추가할 때는 이 값보다 낮게 두어야 한다.
  */
 export default function ActionConfirmModal({
 	isOpen,
@@ -43,7 +48,7 @@ export default function ActionConfirmModal({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-6 backdrop-blur-[2px]"
+			className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 p-6 backdrop-blur-[2px]"
 			onClick={onClose}
 			role="presentation">
 			<div

@@ -42,9 +42,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
 	if (!isOpen) return null;
 
+	// z는 로그인 안내(ActionConfirmModal)와 같은 최상단이다. 안내에서 "로그인"을 누르면
+	// 이 창으로 바뀌는데, 낙서 추천 결과(z-[80])나 도안 추출 결과(z-[120]) 위에서
+	// 열리는 흐름이 있어 낮게 두면 안내만 고쳐도 이 창이 다시 뒤로 깔린다.
+	// 둘은 동시에 뜨지 않으므로(안내를 닫고 이 창을 연다) 같은 값이어도 겹치지 않는다.
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-6 sm:items-center"
+			className="fixed inset-0 z-[130] flex items-end justify-center bg-black/40 p-6 sm:items-center"
 			onClick={onClose}
 			role="presentation">
 			<div
