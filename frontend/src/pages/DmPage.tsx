@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import ArtistBadge from "../components/common/ArtistBadge";
@@ -86,6 +86,8 @@ export default function DmPage() {
 	const [image, setImage] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
+	// 스크롤 영역이 아니라 그 안의 내용 높이를 감시한다 (아래 ResizeObserver)
+	const messagesRef = useRef<HTMLDivElement>(null);
 	const imageInputRef = useRef<HTMLInputElement>(null);
 
 	const {
@@ -200,12 +202,50 @@ export default function DmPage() {
 		markRead(activeRoomSeq);
 	}, [activeRoomSeq, activeUnreadCount, markRead]);
 
-	// 방 전환·새 메시지 시 맨 아래로. 과거 메시지를 더 불러온 경우는 제외한다.
-	useEffect(() => {
-		if (isFetchingOlder) return;
+	const scrollToBottom = useCallback(() => {
 		const el = scrollRef.current;
 		if (el) el.scrollTop = el.scrollHeight;
-	}, [activeRoomSeq, messages.length, isFetchingOlder]);
+	}, []);
+
+	/*
+	 * 방 전환·새 메시지 시 맨 아래로. 과거 메시지를 더 불러온 경우는 제외한다.
+	 *
+	 * 마지막 메시지 번호까지 의존성에 넣는다. 길이만 보면 무한쿼리가 페이지를 통째로
+	 * 갈아 끼울 때(전송 후 invalidate, 실시간 수신) 길이가 그대로인 채 내용만 바뀌는
+	 * 경우를 놓친다. 다음 프레임에 한 번 더 내리는 것은 방금 붙은 말풍선의 높이가
+	 * 반영된 뒤를 노린 것이다.
+	 */
+	const lastMessageSeq =
+		messages.length > 0 ? messages[messages.length - 1].dmMessageSeq : null;
+	useEffect(() => {
+		if (isFetchingOlder) return;
+		scrollToBottom();
+		const frame = requestAnimationFrame(scrollToBottom);
+		return () => cancelAnimationFrame(frame);
+	}, [
+		activeRoomSeq,
+		messages.length,
+		lastMessageSeq,
+		isFetchingOlder,
+		scrollToBottom,
+	]);
+
+	/*
+	 * 이미지·공유 카드는 늦게 로드되면서 높이가 커진다. 위로 올려 읽는 중이 아니라면
+	 * 그때마다 다시 맨 아래에 붙여, 마지막 말풍선이 화면 밖으로 밀려나지 않게 한다.
+	 */
+	useEffect(() => {
+		const el = scrollRef.current;
+		const content = messagesRef.current;
+		if (!el || !content || typeof ResizeObserver === "undefined") return;
+		const observer = new ResizeObserver(() => {
+			const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+			if (distanceFromBottom > 120) return;
+			el.scrollTop = el.scrollHeight;
+		});
+		observer.observe(content);
+		return () => observer.disconnect();
+	}, [activeRoomSeq]);
 
 	const clearImage = () => {
 		setImage(null);
@@ -274,6 +314,13 @@ export default function DmPage() {
 			});
 			setInput("");
 			clearImage();
+			/*
+			 * 모바일 키보드가 떠 있는 동안 브라우저가 입력창을 보이게 하려고 문서를
+			 * 통째로 밀어 올린다. 그 스크롤이 남아 있으면 키보드가 닫힌 뒤 입력창 아래에
+			 * 빈 자리가 생긴다. 문서는 제자리로, 대화 목록만 맨 아래로 되돌린다.
+			 */
+			window.scrollTo(0, 0);
+			requestAnimationFrame(scrollToBottom);
 		} catch (err) {
 			setSendError(
 				err instanceof ApiError
@@ -321,7 +368,8 @@ export default function DmPage() {
 							placeholder="팔로우한 사람 검색"
 							maxLength={20}
 							aria-label="대화 상대 검색"
-							className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
+							/* 메시지 입력창과 같은 이유로 모바일은 16px (iOS 자동 확대 방지) */
+							className="min-w-0 flex-1 bg-transparent text-[16px] font-light text-black outline-none placeholder:text-black/35 lg:text-[13px]"
 						/>
 						{search && (
 							<button
@@ -460,7 +508,7 @@ export default function DmPage() {
 
 			{/* 우: 대화창 */}
 			{selectedRoom ? (
-				<section className="flex min-w-0 flex-1 flex-col bg-white">
+				<section className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
 					<div className="flex h-[58px] shrink-0 items-center gap-2 border-b border-black/10 px-3 lg:h-auto lg:gap-3 lg:px-6 lg:py-3">
 						<button type="button" aria-label="대화 목록으로 돌아가기" onClick={closeRoom} className="flex size-9 shrink-0 items-center justify-center text-black/65 lg:hidden"><BackIcon /></button>
 						<Link
@@ -491,48 +539,53 @@ export default function DmPage() {
 					</div>
 
 					<div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6">
-						{hasOlderMessages && (
-							<div className="mb-3 flex justify-center">
-								<button
-									type="button"
-									onClick={() => void fetchOlderMessages()}
-									disabled={isFetchingOlder}
-									className="rounded-full border border-black/10 px-4 py-1.5 text-[12px] font-semibold text-black/55 transition hover:bg-black/5 disabled:opacity-50">
-									{isFetchingOlder ? <LoadingLabel>불러오는 중…</LoadingLabel> : "이전 메시지 보기"}
-								</button>
-							</div>
-						)}
+						{/* 높이 변화를 감시하려고 한 겹 감싼다 (위 ResizeObserver) */}
+						<div ref={messagesRef}>
+							{hasOlderMessages && (
+								<div className="mb-3 flex justify-center">
+									<button
+										type="button"
+										onClick={() => void fetchOlderMessages()}
+										disabled={isFetchingOlder}
+										className="rounded-full border border-black/10 px-4 py-1.5 text-[12px] font-semibold text-black/55 transition hover:bg-black/5 disabled:opacity-50">
+										{isFetchingOlder ? <LoadingLabel>불러오는 중…</LoadingLabel> : "이전 메시지 보기"}
+									</button>
+								</div>
+							)}
 
-						{isMessagesPending ? (
-							<StarttooLoader variant="block" size={170} label={null} />
-						) : isMessagesError ? (
-							<p className="py-10 text-center text-[13px] text-black/60">
-								{messagesError instanceof ApiError
-									? messagesError.message
-									: "메시지를 불러오지 못했습니다."}
-							</p>
-						) : messages.length === 0 ? (
-							<p className="py-10 text-center text-[13px] font-light text-black/40">
-								첫 메시지를 보내보세요.
-							</p>
-						) : (
-							messages.map((message, index) => (
-								<MessageGroup
-									key={message.dmMessageSeq}
-									message={message}
-									previous={messages[index - 1]}
-									mine={message.senderSeq === myUserSeq}
-								/>
-							))
-						)}
+							{isMessagesPending ? (
+								<StarttooLoader variant="block" size={170} label={null} />
+							) : isMessagesError ? (
+								<p className="py-10 text-center text-[13px] text-black/60">
+									{messagesError instanceof ApiError
+										? messagesError.message
+										: "메시지를 불러오지 못했습니다."}
+								</p>
+							) : messages.length === 0 ? (
+								<p className="py-10 text-center text-[13px] font-light text-black/40">
+									첫 메시지를 보내보세요.
+								</p>
+							) : (
+								messages.map((message, index) => (
+									<MessageGroup
+										key={message.dmMessageSeq}
+										message={message}
+										previous={messages[index - 1]}
+										mine={message.senderSeq === myUserSeq}
+									/>
+								))
+							)}
+						</div>
 					</div>
 
 					{sendError && (
-						<p className="px-5 pb-1 text-[12px] text-red-600">{sendError}</p>
+						<p className="shrink-0 px-5 pb-1 text-[12px] text-red-600">
+							{sendError}
+						</p>
 					)}
 
 					{imagePreview && (
-						<div className="flex items-center gap-3 px-5 pb-2">
+						<div className="flex shrink-0 items-center gap-3 px-5 pb-2">
 							<div className="relative">
 								<img
 									src={imagePreview}
@@ -579,7 +632,9 @@ export default function DmPage() {
 							onChange={(e) => setInput(e.target.value)}
 							placeholder="메시지 입력..."
 							maxLength={4000}
-							className="h-11 min-w-0 flex-1 rounded-full border border-black/15 bg-white px-4 text-[14px] font-light text-black outline-none placeholder:text-black/35 focus:border-brand/50 lg:h-10 lg:text-[13px]"
+							/* 모바일은 16px 미만이면 iOS Safari가 입력창을 누를 때 화면을 확대한다.
+							   확대된 채로 남으면 오른쪽(전송 버튼)이 잘리고 페이지가 길어져 보인다. */
+							className="h-11 min-w-0 flex-1 rounded-full border border-black/15 bg-white px-4 text-[16px] font-light text-black outline-none placeholder:text-black/35 focus:border-brand/50 lg:h-10 lg:text-[13px]"
 						/>
 						<button
 							type="submit"
