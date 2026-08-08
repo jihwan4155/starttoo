@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import ArtistBadge from "../common/ArtistBadge";
+import ActionConfirmModal from "../common/ActionConfirmModal";
 import StarttooLoader from "../loader/StarttooLoader";
 import useBlockedUsers from "../../hooks/queries/useBlockedUsers";
 import useBlockUser from "../../hooks/mutations/useBlockUser";
@@ -34,6 +35,11 @@ export default function BlockedListModal({
 		isFetchingNextPage,
 	} = useBlockedUsers({ enabled: isOpen });
 	const { mutate: setBlock, isPending: isUnblocking, variables } = useBlockUser();
+	// null이면 확인 창이 닫힘 — 어느 회원을 해제할지까지 이 값이 들고 있다.
+	const [pendingUnblock, setPendingUnblock] = useState<{
+		userId: number;
+		nickname: string;
+	} | null>(null);
 
 	const users = useMemo(
 		() => data?.pages.flatMap((page) => page.items) ?? [],
@@ -44,7 +50,10 @@ export default function BlockedListModal({
 	useEffect(() => {
 		if (!isOpen) return;
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
+			if (e.key !== "Escape") return;
+			// 확인 창이 떠 있으면 그것부터 닫는다 — 목록까지 같이 사라지지 않게
+			if (pendingUnblock) setPendingUnblock(null);
+			else onClose();
 		};
 		const previousOverflow = document.body.style.overflow;
 		document.body.style.overflow = "hidden";
@@ -53,7 +62,12 @@ export default function BlockedListModal({
 			document.body.style.overflow = previousOverflow;
 			window.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [isOpen, onClose]);
+	}, [isOpen, onClose, pendingUnblock]);
+
+	// 목록을 닫으면 확인 창도 같이 접는다 — 다시 열었을 때 남아 있으면 안 된다
+	useEffect(() => {
+		if (!isOpen) setPendingUnblock(null);
+	}, [isOpen]);
 
 	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
 	useBackClose(isOpen, onClose);
@@ -65,17 +79,15 @@ export default function BlockedListModal({
 			? error.message
 			: "차단 목록을 불러오지 못했습니다.";
 
-	const handleUnblock = (userId: number, nickname: string) => {
-		// 해제해도 끊긴 팔로우는 돌아오지 않아 되돌리기 어려운 동작이다.
-		const confirmed = window.confirm(
-			`${nickname}님의 차단을 해제하시겠습니까?\n` +
-				"차단하면서 끊긴 팔로우는 복구되지 않습니다.",
-		);
-		if (!confirmed) return;
+	// 해제해도 끊긴 팔로우는 돌아오지 않아 되돌리기 어려운 동작이다 — 확인을 받는다.
+	const handleConfirmUnblock = () => {
+		if (!pendingUnblock) return;
 		setBlock(
-			{ userId, blocked: false },
+			{ userId: pendingUnblock.userId, blocked: false },
 			{
+				onSuccess: () => setPendingUnblock(null),
 				onError: (err) => {
+					setPendingUnblock(null);
 					window.alert(
 						err instanceof ApiError
 							? err.message
@@ -146,7 +158,12 @@ export default function BlockedListModal({
 										</span>
 										<button
 											type="button"
-											onClick={() => handleUnblock(user.userId, user.nickname)}
+											onClick={() =>
+												setPendingUnblock({
+													userId: user.userId,
+													nickname: user.nickname,
+												})
+											}
 											disabled={isUnblocking && variables?.userId === user.userId}
 											className="shrink-0 rounded-full border border-black/20 px-3.5 py-1.5 text-[12px] font-semibold text-black/70 transition hover:border-black/35 hover:bg-black/5 hover:text-black disabled:opacity-50">
 											{isUnblocking && variables?.userId === user.userId
@@ -169,6 +186,21 @@ export default function BlockedListModal({
 						</button>
 					)}
 				</div>
+
+				{/* 목록 안쪽에 두어야 확인 창 클릭이 배경으로 새어 목록까지 닫지 않는다
+				    (포털이라도 이벤트는 React 트리를 타고 올라간다) */}
+				<ActionConfirmModal
+					isOpen={pendingUnblock !== null}
+					title={`${pendingUnblock?.nickname ?? ""}님의 차단을 해제하시겠습니까?`}
+					description="차단하면서 끊긴 팔로우는 복구되지 않습니다."
+					confirmText="차단 해제"
+					pendingText="해제하는 중…"
+					onClose={() => {
+						if (!isUnblocking) setPendingUnblock(null);
+					}}
+					onConfirm={handleConfirmUnblock}
+					isPending={isUnblocking}
+				/>
 			</div>
 		</div>,
 		document.body,
