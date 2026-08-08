@@ -615,7 +615,7 @@ export default function Simulation3DStep({
 						type="button"
 						onClick={downloadResult}
 						className="inline-flex h-[36px] min-w-[150px] items-center justify-center self-center rounded-[50px] bg-brand text-[12px] font-semibold text-white transition hover:brightness-95 max-lg:h-[60px] max-lg:w-full max-lg:rounded-b-none max-lg:rounded-t-[10px] max-lg:text-[20px] max-lg:font-bold">
-						결과 이미지 저장
+						기기에 저장
 					</button>
 				</div>
 			)}

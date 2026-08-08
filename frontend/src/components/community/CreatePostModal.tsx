@@ -384,7 +384,7 @@ export default function CreatePostModal({
 							<ActionButton
 								variant="outline"
 								onClick={() => fileInputRef.current?.click()}>
-								컴퓨터에서 선택
+								기기에서 선택
 							</ActionButton>
 							{/* TODO: 도안 보관함 연동되면 도안 보관함 선택 모달로 교체 */}
 							<ActionButton

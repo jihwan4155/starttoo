@@ -148,7 +148,7 @@ export default function DesignExtractModal({
 
 							<div className="mt-5 flex items-center justify-center">
 								<ActionButton onClick={() => fileInputRef.current?.click()}>
-									컴퓨터에서 선택
+									기기에서 선택
 								</ActionButton>
 							</div>
 

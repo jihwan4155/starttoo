@@ -436,7 +436,7 @@ export default function CoverUpPage() {
 						<>
 							<div className="flex justify-center">
 								<ActionButton onClick={() => fileInputRef.current?.click()}>
-									컴퓨터에서 선택
+									기기에서 선택
 								</ActionButton>
 							</div>
 							{/* 안내가 아니라 오류만 남긴다. 자리는 비워 둬 버튼이 흔들리지 않게 한다 */}

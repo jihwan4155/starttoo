@@ -184,7 +184,7 @@ export default function CommunitySearchBar({
 						<ActionButton
 							variant="outline"
 							onClick={() => fileInputRef.current?.click()}>
-							컴퓨터에서 선택
+							기기에서 선택
 						</ActionButton>
 						<ActionButton
 							onClick={() =>

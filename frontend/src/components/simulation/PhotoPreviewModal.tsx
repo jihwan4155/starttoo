@@ -18,7 +18,7 @@ export default function PhotoPreviewModal({
 			<button
 				type="button"
 				className="mt-4 h-[52px] w-full rounded-[50px] bg-brand text-[16px] font-semibold text-white transition hover:brightness-95">
-				결과 이미지 저장
+				기기에 저장
 			</button>
 		</DialogCard>
 	);
