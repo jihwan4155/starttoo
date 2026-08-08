@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
 	buildMaskDataUrl,
@@ -7,7 +7,7 @@ import {
 	isDrawableStroke,
 } from "./maskPainter";
 import type { Point, Stroke } from "./maskPainter";
-import { BRUSH_PX, MASK_H, MASK_W } from "./shapeSearchConstants";
+import { BRUSH_PX, clampBrush, MASK_H, MASK_W } from "./shapeSearchConstants";
 import type { SearchMode } from "../../types/shapeSearch";
 
 /**
@@ -25,8 +25,20 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	// 사진은 비동기로 로드되고 로드가 끝나면 다시 그려야 하므로 state로 둔다
 	const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
 
-	// 모드마다 엔진 튜닝 기준 굵기가 다르다 (shapeSearchConstants 참고)
-	const brush = BRUSH_PX[mode];
+	/*
+	 * 붓 굵기 — 사용자가 슬라이더로 조절한다.
+	 *
+	 * 시작값은 모드별 엔진 튜닝 기준 굵기다(shapeSearchConstants 참고). 모드를 바꾸면
+	 * 이전 모드에서 맞춰 둔 굵기가 그대로 남지 않도록 그 모드의 기준값으로 되돌린다.
+	 */
+	const [brush, setBrushState] = useState(BRUSH_PX[mode]);
+	useEffect(() => {
+		setBrushState(BRUSH_PX[mode]);
+	}, [mode]);
+
+	const setBrush = useCallback((px: number) => {
+		setBrushState(clampBrush(px));
+	}, []);
 
 	/**
 	 * 화면 캔버스를 다시 그린다.
@@ -117,6 +129,8 @@ export default function useCanvasStrokes(mode: SearchMode) {
 
 	return {
 		canvasRef,
+		brush,
+		setBrush,
 		// 점 하나만 찍은 획은 마스크에 아무것도 남기지 않으므로 비어 있는 것으로 본다
 		isEmpty: !strokes.some(isDrawableStroke),
 		/**
