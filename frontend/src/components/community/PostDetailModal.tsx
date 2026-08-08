@@ -30,6 +30,8 @@ import usePostDwell from "../../hooks/usePostDwell";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import useCommunityStore from "../../store/useCommunityStore";
+import useArchiveCapacity from "../../hooks/queries/useArchiveCapacity";
+import ArchiveFullModal from "../common/ArchiveFullModal";
 import DesignExtractResultModal from "./DesignExtractResultModal";
 import ReportPostModal from "./ReportPostModal";
 import EditPostModal from "./EditPostModal";
@@ -324,6 +326,7 @@ export default function PostDetailModal({
 	const [isEditOpen, setEditOpen] = useState(false);
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
 	const [isShareOpen, setShareOpen] = useState(false);
+	const [showArchiveFull, setShowArchiveFull] = useState(false);
 	const [imageIndex, setImageIndex] = useState(() =>
 		Math.max(0, initialImageIndex),
 	);
@@ -452,6 +455,19 @@ export default function PostDetailModal({
 		error: designLoadError,
 		reset: resetStoredDesign,
 	} = useDesignExtractMutation();
+	const { isFull: isArchiveFull, hasTattoo } = useArchiveCapacity();
+
+	/*
+	 * 추출은 결국 보관함에 담으려는 동작이라, 가득 찬 상태면 추출까지 가지 않고
+	 * 버튼을 누른 시점에 바로 알린다. 이미 담아 둔 도안은 다시 볼 수 있어야 하니 예외.
+	 */
+	const handleExtractDesign = (tattooSeq: number) => {
+		if (isArchiveFull && !hasTattoo(tattooSeq)) {
+			setShowArchiveFull(true);
+			return;
+		}
+		loadStoredDesign(tattooSeq);
+	};
 
 	// GET /posts/{postId}/comments (auth 없이 조회 가능)
 	const {
@@ -509,7 +525,7 @@ export default function PostDetailModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="피드 상세">
+				aria-label="게시물 상세">
 				{/* 좌: 이미지 캐러셀 — 피드 비율(세로:가로 4:3)에 맞춘 칸 */}
 				<div className="group relative hidden aspect-[3/4] h-full min-w-0 shrink bg-black/90 sm:block">
 					{imageUrls.length > 0 ? (
@@ -519,7 +535,7 @@ export default function PostDetailModal({
 									<img
 										key={`${url}-${index}`}
 										src={url}
-										alt={`${post.author.nickname}의 피드 ${index + 1}`}
+										alt={`${post.author.nickname}의 게시물 ${index + 1}`}
 										draggable={false}
 										className="h-full w-full shrink-0 object-contain"
 									/>
@@ -576,7 +592,7 @@ export default function PostDetailModal({
 							type="button"
 							aria-label="도안 추출"
 							disabled={isDesignLoading}
-							onClick={() => loadStoredDesign(currentTattooSeq)}
+							onClick={() => handleExtractDesign(currentTattooSeq)}
 							className={`absolute right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 group-hover:opacity-100 ${
 								hasMultipleImages ? "bottom-10" : "bottom-4"
 							}`}>
@@ -636,7 +652,7 @@ export default function PostDetailModal({
 						<div className="relative" ref={menuRef}>
 							<button
 								type="button"
-								aria-label="피드 메뉴"
+								aria-label="게시물 메뉴"
 								onClick={() => setMenuOpen((prev) => !prev)}
 								className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/5">
 								<MoreIcon size={20} />
@@ -651,7 +667,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
 												수정
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													피드 내용을 수정합니다
+													게시물 내용을 수정합니다
 												</span>
 											</button>
 											<button
@@ -660,7 +676,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
 												삭제
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 피드를 삭제합니다
+													이 게시물을 삭제합니다
 												</span>
 											</button>
 										</>
@@ -685,7 +701,7 @@ export default function PostDetailModal({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5">
 												숨기기
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 피드를 숨깁니다
+													이 게시물을 숨깁니다
 												</span>
 											</button>
 										</>
@@ -866,6 +882,10 @@ export default function PostDetailModal({
 			<DesignExtractResultModal
 				result={storedDesignResult ?? null}
 				onClose={resetStoredDesign}
+			/>
+			<ArchiveFullModal
+				isOpen={showArchiveFull}
+				onClose={() => setShowArchiveFull(false)}
 			/>
 			<ReportPostModal
 				postId={post.id}
