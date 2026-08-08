@@ -106,7 +106,19 @@ export default function MobileCoverUpFlow({
 	const handleHome = () => step === 1 ? goHome() : setHomeConfirmOpen(true);
 
 	return (
-		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface px-4 pb-24 pt-6">
+		/*
+		 * 그리기 단계만 화면 높이에 딱 맞춘다.
+		 *
+		 * 캔버스는 touch-none이라 손가락이 캔버스 위에 있으면 스크롤 대신 선이 그어진다.
+		 * 화면보다 긴 페이지에서는 아래 버튼을 보려고 미는 동작이 전부 낙서가 되므로,
+		 * 이 단계는 스크롤 자체가 필요 없도록 캔버스가 남는 높이만 차지하게 한다.
+		 */
+		<div
+			className={`bg-surface px-4 pt-6 ${
+				step === 2
+					? "flex h-[calc(100dvh-var(--nav-h))] flex-col overflow-hidden pb-[68px]"
+					: "min-h-[calc(100vh-var(--nav-h))] pb-24"
+			}`}>
 			<Header onHome={handleHome} title={title} />
 
 			{step === 1 && (
@@ -133,12 +145,12 @@ export default function MobileCoverUpFlow({
 
 			{step === 2 && (
 				<>
-					<div className="relative mb-5 flex min-h-8 items-center justify-center">
+					<div className="relative mb-4 flex min-h-8 shrink-0 items-center justify-center">
 						<button type="button" onClick={onBack} aria-label="이전 단계" className="absolute left-0 flex size-8 items-center justify-center text-[#BDBDBD]"><BackIcon /></button>
 						<h2 className="text-center text-[19px] font-semibold">덮을 영역을 그려주세요</h2>
 					</div>
 					{/* 무엇을 그릴지 먼저 고르도록 캔버스 위에 둔다 (PC와 같은 자리) */}
-					<div className="mx-auto mb-3 flex h-[40px] w-full max-w-[240px] items-center rounded-[12px] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+					<div className="mx-auto mb-2 flex h-[40px] w-full max-w-[240px] shrink-0 items-center rounded-[12px] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
 						{MODE_KEYS.map((key) => (
 							<button
 								key={key}
@@ -150,16 +162,16 @@ export default function MobileCoverUpFlow({
 							</button>
 						))}
 					</div>
-					<p className="mb-3 text-center text-[13px] font-light text-black/50">{MODES[mode].hint}</p>
-					<div className="mx-auto flex h-[430px] w-full max-w-[420px] items-center justify-center overflow-hidden rounded-[12px]">
+					<p className="mb-2 shrink-0 text-center text-[13px] font-light text-black/50">{MODES[mode].hint}</p>
+					<div className="mx-auto flex min-h-0 w-full max-w-[420px] flex-1 items-center justify-center overflow-hidden rounded-[12px]">
 						<ShapeCanvas {...canvasProps} />
 					</div>
-					<div className="mx-auto mt-4 flex w-full max-w-[420px] gap-3">
+					<div className="mx-auto mt-3 flex w-full max-w-[420px] shrink-0 gap-3">
 						<button type="button" disabled={!canUndo} onClick={onUndo} className="h-11 flex-1 rounded-full border border-black bg-white text-[14px] font-semibold disabled:opacity-40">되돌리기</button>
 						<button type="button" disabled={!canUndo} onClick={onClear} className="h-11 flex-1 rounded-full border border-black bg-white text-[14px] font-semibold disabled:opacity-40">지우기</button>
 					</div>
-					{searchMessage && <p className="mt-4 text-center text-[13px] text-brand">{searchMessage}</p>}
-					{!searchMessage && openShapeHint && <p className="mt-4 text-center text-[13px] font-light text-black/55">{openShapeHint}</p>}
+					{searchMessage && <p className="mt-2 shrink-0 text-center text-[13px] text-brand">{searchMessage}</p>}
+					{!searchMessage && openShapeHint && <p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/55">{openShapeHint}</p>}
 					<BottomButton disabled={nextDisabled} onClick={onNext}>
 						{isSearching ? <LoadingLabel>추천 중…</LoadingLabel> : "타투 추천받기"}
 					</BottomButton>

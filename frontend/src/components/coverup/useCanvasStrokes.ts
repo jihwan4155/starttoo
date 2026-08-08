@@ -68,7 +68,11 @@ export default function useCanvasStrokes(mode: SearchMode) {
 
 	/**
 	 * 포인터 좌표를 마스크 좌표계(MASK_W×MASK_H)로 환산한다.
-	 * CSS로 축소돼 있어도 이 비율 보정 덕분에 마스크는 항상 원본 해상도로 남는다.
+	 * CSS로 늘거나 줄어도 이 보정 덕분에 마스크는 항상 원본 해상도로 남는다.
+	 *
+	 * <p>캔버스는 object-contain으로 그려진다(ShapeCanvas 참고). 상자가 비율과
+	 * 어긋나면 그림이 상자 가운데에 여백을 두고 들어가므로, 상자가 아니라 그림이
+	 * 실제로 차지한 영역을 기준으로 환산해야 손끝과 선이 어긋나지 않는다.
 	 *
 	 * <p>★ 반드시 이벤트 핸들러 본문에서 즉시 호출해야 한다. setStrokes 업데이터
 	 * 안에서 부르면 React가 그 함수를 렌더 시점에 실행하는데, 그때는 이벤트가 이미
@@ -78,9 +82,12 @@ export default function useCanvasStrokes(mode: SearchMode) {
 	const pointFrom = (event: ReactPointerEvent<HTMLCanvasElement>): Point => {
 		const rect = canvasRef.current?.getBoundingClientRect();
 		if (!rect || rect.width === 0 || rect.height === 0) return { x: 0, y: 0 };
+		const scale = Math.min(rect.width / MASK_W, rect.height / MASK_H);
+		const drawnLeft = rect.left + (rect.width - MASK_W * scale) / 2;
+		const drawnTop = rect.top + (rect.height - MASK_H * scale) / 2;
 		return {
-			x: ((event.clientX - rect.left) / rect.width) * MASK_W,
-			y: ((event.clientY - rect.top) / rect.height) * MASK_H,
+			x: (event.clientX - drawnLeft) / scale,
+			y: (event.clientY - drawnTop) / scale,
 		};
 	};
 
