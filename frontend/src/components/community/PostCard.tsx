@@ -9,15 +9,19 @@ import {
 	ShareIcon,
 } from "./icons";
 import ArtistBadge from "../common/ArtistBadge";
+import DesignExtractResultModal from "./DesignExtractResultModal";
 import ReportPostModal from "./ReportPostModal";
 import EditPostModal from "./EditPostModal";
 import DeletePostModal from "./DeletePostModal";
 import SharePostModal from "./SharePostModal";
 import HiddenPostOverlay from "./HiddenPostOverlay";
+import ArchiveFullModal from "../common/ArchiveFullModal";
 import useDeletePost from "../../hooks/mutations/useDeletePost";
+import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
 import useHidePost from "../../hooks/mutations/useHidePost";
 import useTogglePostBookmark from "../../hooks/mutations/useTogglePostBookmark";
 import useTogglePostLike from "../../hooks/mutations/useTogglePostLike";
+import useArchiveCapacity from "../../hooks/queries/useArchiveCapacity";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import { avatarImageClassName } from "../../utils/profile";
 import useImageSwipe from "../../hooks/useImageSwipe";
@@ -42,18 +46,51 @@ const ARROW_BUTTON_CLASS =
 	"absolute top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/55 text-black shadow-[0_2px_6px_rgba(0,0,0,0.10)] backdrop-blur-sm transition hover:bg-white/80 disabled:pointer-events-none disabled:opacity-0";
 const ARROW_ICON_SIZE = 13;
 
+function ExtractIcon() {
+	return (
+		<svg
+			width="14"
+			height="14"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden>
+			<path d="M12 3 13.5 8.5 19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z" />
+			<path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
+		</svg>
+	);
+}
+
 type PostCardProps = {
 	post: Post;
-	/** 사진이나 댓글 버튼을 눌렀을 때 */
-	onOpen: (post: Post) => void;
+	/**
+	 * 사진·댓글 공통 핸들러 (PostCardSheet용).
+	 * onOpenPhoto / onOpenComments가 있으면 그쪽을 우선한다.
+	 */
+	onOpen?: (post: Post) => void;
+	/** 사진 클릭 — 커뮤니티처럼 이미 상세를 보는 중이면 생략 가능 */
+	onOpenPhoto?: (post: Post) => void;
+	/** 댓글 아이콘 클릭 */
+	onOpenComments?: (post: Post) => void;
 };
 
-export default function PostCard({ post, onOpen }: PostCardProps) {
+export default function PostCard({
+	post,
+	onOpen,
+	onOpenPhoto,
+	onOpenComments,
+}: PostCardProps) {
+	const openPhoto = onOpenPhoto ?? onOpen;
+	const openComments = onOpenComments ?? onOpen;
 	const [isMenuOpen, setMenuOpen] = useState(false);
 	const [isReportOpen, setReportOpen] = useState(false);
 	const [isEditOpen, setEditOpen] = useState(false);
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
 	const [isShareOpen, setShareOpen] = useState(false);
+	const [showArchiveFull, setShowArchiveFull] = useState(false);
 	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
@@ -66,6 +103,14 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	const { mutate: deletePostMutate, isPending: isDeletePending } =
 		useDeletePost();
 	const { mutate: hidePostMutate, isPending: isHidePending } = useHidePost();
+	const {
+		mutate: loadStoredDesign,
+		data: storedDesignResult,
+		isPending: isDesignLoading,
+		error: designLoadError,
+		reset: resetStoredDesign,
+	} = useDesignExtractMutation();
+	const { isFull: isArchiveFull, hasTattoo } = useArchiveCapacity();
 
 	const { isLiked, isBookmarked } = usePostEngagement(post);
 
@@ -148,6 +193,9 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 	const safeIndex =
 		imageUrls.length === 0 ? 0 : Math.min(imageIndex, imageUrls.length - 1);
 	const hasMultipleImages = imageUrls.length > 1;
+	const currentTattooSeq = post.imageTattooSeqs?.[safeIndex] ?? null;
+	const canExtractDesign =
+		!isHidden && imageUrls[safeIndex] != null && currentTattooSeq != null;
 	const { handlers: swipeHandlers, trackStyle } = useImageSwipe({
 		count: imageUrls.length,
 		index: safeIndex,
@@ -247,37 +295,60 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 							? "pointer-events-none select-none blur-[3px] opacity-40"
 							: undefined
 					}>
-					<div className="relative">
+					<div className="group relative">
 						{/*
-						  사진을 누르면 상세로 들어간다. 넘기려다 잘못 열리는 일은
+						  사진을 누르면 상세/댓글로 들어간다. 넘기려다 잘못 열리는 일은
 						  useImageSwipe가 막는다 — 드래그로 끝난 입력은 onClickCapture에서
 						  클릭을 취소하므로, 탭일 때만 여기까지 온다.
+						  openPhoto가 없으면(커뮤니티 피드) 사진 클릭으로 댓글 창을 열지 않는다.
 						*/}
-						<button
-							type="button"
-							onClick={() => !isHidden && onOpen(post)}
-							disabled={isHidden}
-							{...swipeHandlers}
-							className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
-							aria-label="게시물 상세 보기">
-							{imageUrls.length > 0 ? (
-								<div className="flex" style={trackStyle}>
-									{imageUrls.map((url, index) => (
-										<img
-											key={`${url}-${index}`}
-											src={url}
-											alt={`${post.author.nickname}의 게시물 ${index + 1}`}
-											draggable={false}
-											className={`aspect-[3/4] h-auto w-full shrink-0 object-cover ${
-												hasMultipleImages ? "" : "transition hover:scale-[1.01]"
-											}`}
-										/>
-									))}
-								</div>
-							) : (
-								<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
-							)}
-						</button>
+						{openPhoto ? (
+							<button
+								type="button"
+								onClick={() => !isHidden && openPhoto(post)}
+								disabled={isHidden}
+								{...swipeHandlers}
+								className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
+								aria-label="게시물 상세 보기">
+								{imageUrls.length > 0 ? (
+									<div className="flex" style={trackStyle}>
+										{imageUrls.map((url, index) => (
+											<img
+												key={`${url}-${index}`}
+												src={url}
+												alt={`${post.author.nickname}의 게시물 ${index + 1}`}
+												draggable={false}
+												className={`aspect-[3/4] h-auto w-full shrink-0 object-cover ${
+													hasMultipleImages ? "" : "transition hover:scale-[1.01]"
+												}`}
+											/>
+										))}
+									</div>
+								) : (
+									<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
+								)}
+							</button>
+						) : (
+							<div
+								{...swipeHandlers}
+								className="block w-full overflow-hidden lg:rounded-[10px]">
+								{imageUrls.length > 0 ? (
+									<div className="flex" style={trackStyle}>
+										{imageUrls.map((url, index) => (
+											<img
+												key={`${url}-${index}`}
+												src={url}
+												alt={`${post.author.nickname}의 게시물 ${index + 1}`}
+												draggable={false}
+												className="aspect-[3/4] h-auto w-full shrink-0 object-cover"
+											/>
+										))}
+									</div>
+								) : (
+									<div className="aspect-[3/4] w-full bg-[#D9D9D9]" />
+								)}
+							</div>
+						)}
 
 						{hasMultipleImages && !isHidden && (
 							<>
@@ -303,6 +374,46 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 									{safeIndex + 1} / {imageUrls.length}
 								</span>
 							</>
+						)}
+
+						{/* 모바일·태블릿 상시, lg+ 호버 — 카드에서도 도안 추출 가능 */}
+						{canExtractDesign && currentTattooSeq != null && (
+							<button
+								type="button"
+								aria-label="도안 추출"
+								disabled={isDesignLoading}
+								onClick={(e) => {
+									e.stopPropagation();
+									if (!requireAuth()) return;
+									if (isArchiveFull && !hasTattoo(currentTattooSeq)) {
+										setShowArchiveFull(true);
+										return;
+									}
+									loadStoredDesign(currentTattooSeq);
+								}}
+								className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-[12px] font-semibold text-black opacity-100 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
+								{isDesignLoading ? (
+									<>
+										<span
+											aria-hidden="true"
+											className="size-3 animate-spin rounded-full border-2 border-black/20 border-t-black"
+										/>
+										추출 중...
+									</>
+								) : (
+									<>
+										<ExtractIcon />
+										도안 추출
+									</>
+								)}
+							</button>
+						)}
+						{designLoadError && (
+							<p className="absolute bottom-14 right-3 z-10 max-w-[70%] rounded-lg bg-black/60 px-2.5 py-1 text-[11px] font-light text-white">
+								{designLoadError instanceof Error
+									? designLoadError.message
+									: "도안 추출에 실패했습니다."}
+							</p>
 						)}
 					</div>
 
@@ -344,8 +455,8 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						<button
 							type="button"
 							aria-label="댓글 보기"
-							onClick={() => !isHidden && onOpen(post)}
-							disabled={isHidden}
+							onClick={() => !isHidden && openComments?.(post)}
+							disabled={isHidden || !openComments}
 							className="flex items-center gap-1.5 transition hover:text-black/60 disabled:opacity-50">
 							<CommentIcon />
 							<span className="text-[13px] font-light">{post.commentCount}</span>
@@ -372,18 +483,41 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 						</button>
 					</div>
 
-					<p className="mt-2 line-clamp-2 px-3 text-[13px] font-light leading-5 text-black lg:px-0">
-						<Link
-							to={profileTo}
-							className="font-semibold hover:underline"
-							tabIndex={isHidden ? -1 : undefined}>
-							{nickname}
-						</Link>
-						{post.author.isArtist && (
-							<ArtistBadge size={13} className="mx-1 inline-block align-[-2px]" />
-						)}
-						<span className="ml-2">{post.caption}</span>
-					</p>
+					{openComments ? (
+						<button
+							type="button"
+							aria-label="댓글 보기"
+							disabled={isHidden}
+							onClick={() => openComments(post)}
+							className="mt-2 block w-full px-3 text-left text-[13px] font-light leading-5 text-black disabled:opacity-50 lg:px-0">
+							<span className="line-clamp-2">
+								<span className="font-semibold">{nickname}</span>
+								{post.author.isArtist && (
+									<ArtistBadge
+										size={13}
+										className="mx-1 inline-block align-[-2px]"
+									/>
+								)}
+								<span className="ml-2">{post.caption}</span>
+							</span>
+						</button>
+					) : (
+						<p className="mt-2 line-clamp-2 px-3 text-[13px] font-light leading-5 text-black lg:px-0">
+							<Link
+								to={profileTo}
+								className="font-semibold hover:underline"
+								tabIndex={isHidden ? -1 : undefined}>
+								{nickname}
+							</Link>
+							{post.author.isArtist && (
+								<ArtistBadge
+									size={13}
+									className="mx-1 inline-block align-[-2px]"
+								/>
+							)}
+							<span className="ml-2">{post.caption}</span>
+						</p>
+					)}
 				</div>
 
 				{isHidden && (
@@ -394,6 +528,14 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 				)}
 			</div>
 
+			<DesignExtractResultModal
+				result={storedDesignResult ?? null}
+				onClose={resetStoredDesign}
+			/>
+			<ArchiveFullModal
+				isOpen={showArchiveFull}
+				onClose={() => setShowArchiveFull(false)}
+			/>
 			<ReportPostModal
 				postId={post.id}
 				isOpen={isReportOpen}

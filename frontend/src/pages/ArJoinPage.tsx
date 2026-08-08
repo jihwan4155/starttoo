@@ -138,7 +138,7 @@ export default function ArJoinPage() {
 	if (phase !== "ready") {
 		const connecting = phase === "connecting";
 		return (
-			<div className="min-h-screen bg-surface px-4 pb-10 pt-[76px]">
+			<div className="min-h-screen bg-surface px-4 pb-10 pt-[70px]">
 				<MobileHeader title={title} />
 				<div className="mx-auto flex max-w-[560px] flex-col items-center gap-4 pt-24 text-center">
 					{connecting ? (
@@ -171,8 +171,8 @@ export default function ArJoinPage() {
 
 	return (
 		<>
-			{/* 앱 셸이 없으므로 고정 헤더(50px) 높이만큼 직접 띄운다 */}
-			<div className="min-h-screen bg-surface px-4 pb-10 pt-[76px]">
+			{/* 앱 셸이 없으므로 고정 헤더(44px) 높이만큼 직접 띄운다 */}
+			<div className="min-h-screen bg-surface px-4 pb-10 pt-[70px]">
 				<MobileHeader title={title} />
 				{/* 엔진은 항상 마운트 유지 (캡처 시 언마운트하면 cv 정리 중 화면이 죽을 수 있음).
 				    결과는 위에 오버레이로 띄운다 — PoC와 동일한 방식. */}

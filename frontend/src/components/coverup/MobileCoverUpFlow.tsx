@@ -62,7 +62,7 @@ function HomeIcon() {
 
 function Header({ onHome, title }: { onHome: () => void; title: string }) {
 	return (
-		<header className="fixed inset-x-0 top-0 z-[70] flex h-[50px] items-center justify-center border-b border-[#E8E8E8] bg-white">
+		<header className="fixed inset-x-0 top-0 z-[70] flex h-[44px] items-center justify-center border-b border-[#E8E8E8] bg-white">
 			<button type="button" onClick={onHome} aria-label="홈으로 가기" className="absolute left-4 flex size-8 items-center justify-center text-[#555]"><HomeIcon /></button>
 			<h1 className="text-[19px] font-bold">{title}</h1>
 		</header>
