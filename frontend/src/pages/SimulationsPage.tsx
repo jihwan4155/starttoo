@@ -106,14 +106,21 @@ export default function SimulationsPage() {
 	useLayoutEffect(() => {
 		const handoff = consumeHandoff();
 		if (!handoff) return;
-		const bodyPreview = URL.createObjectURL(handoff.bodyPhoto);
-		bodyPhotoUpload.setFromUrl(bodyPreview);
 		designUpload.setFromUrl(handoff.designUrl);
-		if (handoff.scan) setHandedScan({ preview: bodyPreview, scan: handoff.scan });
 		setTab("image");
-		setImageStep(3);
 		setMobileMode("image");
 		setMobileModeConfirmed(true);
+		if (handoff.bodyPhoto) {
+			const bodyPreview = URL.createObjectURL(handoff.bodyPhoto);
+			bodyPhotoUpload.setFromUrl(bodyPreview);
+			if (handoff.scan) {
+				setHandedScan({ preview: bodyPreview, scan: handoff.scan });
+			}
+			setImageStep(3);
+		} else {
+			// 낙서 검색에서는 도안만 인계된다. 신체 사진부터 고르게 하되 도안은 유지한다.
+			setImageStep(1);
+		}
 		// 마운트 시 한 번만 소비한다 (consume이 스토어를 비우므로 재실행돼도 무해하다)
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);

@@ -91,6 +91,8 @@ export default function App() {
 					/>
 					{/* API: GET /artists */}
 					<Route path="/artists" element={<TattooistPage />} />
+					{/* 형태 검색·추천 결과는 공개. 저장·시뮬레이션은 페이지 내부에서 로그인 확인 */}
+					<Route path="/coverups" element={<CoverUpPage />} />
 					{/* 피드 — 목록은 공개, 피드 상세 진입만 로그인 필요 (페이지 안에서 처리) */}
 					{/* API: GET /posts/search */}
 					<Route path="/posts/search" element={<CommunitySearchPage />} />
@@ -100,8 +102,6 @@ export default function App() {
 						<Route path="/ai" element={<AiPage />} />
 						{/* API: POST /simulations/ar-sessions */}
 						<Route path="/simulations" element={<SimulationsPage />} />
-						{/* API: POST /coverups/recommendations */}
-						<Route path="/coverups" element={<CoverUpPage />} />
 						{/* API: GET /posts */}
 						<Route path="/posts" element={<CommunityPage />} />
 						{/* 피드 단건 주소 — DM으로 공유한 링크가 여기로 들어온다.
