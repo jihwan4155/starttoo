@@ -30,6 +30,15 @@ export async function generateTattoo(
 			if (error.status === 504 || error.code === "NETWORK") {
 				throw new Error("도안 생성 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.");
 			}
+			// 502(게이트웨이)·500 등 서버 쪽 실패. blob 응답이라 본문에서 사유를 읽을
+			// 수 없어 api.ts의 기본 문장이 그대로 오는데, 상태 코드를 화면에 흘리지
+			// 않도록 여기서 안내 문구로 바꾼다.
+			if (
+				error.code !== "EMPTY_GENERATION" &&
+				(error.status >= 500 || error.status === 0)
+			) {
+				throw new Error("도안을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.");
+			}
 		}
 		throw error;
 	}

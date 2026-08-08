@@ -33,6 +33,27 @@ type AuthRetryConfig = InternalAxiosRequestConfig & {
 	_retriedWithRefresh?: boolean;
 };
 
+/**
+ * 사용자에게 보여줄 실패 안내.
+ *
+ * <p>상태 코드는 붙이지 않는다. "요청에 실패했습니다. (502)" 같은 문장은 무엇을
+ * 해야 하는지 알려주지 못하면서 숫자만 남겨 사용자를 불안하게 만든다. 원인 추적은
+ * 콘솔·서버 로그 몫이고 화면에는 다음 행동만 안내한다.
+ */
+const FALLBACK_ERROR_MESSAGE = "요청에 실패했습니다. 잠시 후 다시 시도해주세요.";
+
+/**
+ * 평문 에러 본문. 게이트웨이가 돌려주는 HTML 오류 페이지("<html>…502 Bad
+ * Gateway…")는 안내가 아니라 노이즈이므로 걸러 낸다.
+ */
+function plainTextBody(body: unknown): string | undefined {
+	if (typeof body !== "string") return undefined;
+	const trimmed = body.trim();
+	if (trimmed.length === 0) return undefined;
+	if (trimmed.startsWith("<")) return undefined;
+	return trimmed;
+}
+
 function unwrapResponseData<T>(response: AxiosResponse<T | ApiResponseBody<T>>): T {
 	const body = response.data;
 	if (
@@ -177,10 +198,8 @@ api.interceptors.response.use(
 				(typeof body === "object" && body != null && "message" in body
 					? String(body.message)
 					: undefined) ??
-				(typeof body === "string" && body.trim().length > 0
-					? body.trim()
-					: undefined) ??
-				`요청에 실패했습니다. (${error.response.status})`;
+				plainTextBody(body) ??
+				FALLBACK_ERROR_MESSAGE;
 			return Promise.reject(
 				new ApiError(error.response.status, code, message),
 			);

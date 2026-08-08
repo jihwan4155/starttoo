@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ArtistBadge from "../common/ArtistBadge";
 import usePost from "../../hooks/queries/usePost";
 import { avatarImageClassName, resolveAvatar } from "../../utils/profile";
@@ -23,7 +23,10 @@ type SharedPostCardProps = {
  */
 export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { data: post, isPending, isError } = usePost(postId);
+	// 지금 보고 있는 방(?room=)까지 담아야 상세를 닫았을 때 그 대화로 돌아온다
+	const backTo = `${location.pathname}${location.search}`;
 
 	// 말풍선이 max-w-75%라 좁은 화면에서는 240px를 다 못 준다 — max-w-full로 접히게 둔다.
 	// 내 말풍선(브랜드색) 안에서도 카드는 흰 배경으로 두어 피드 미리보기가 또렷하게 보이게 한다.
@@ -61,9 +64,7 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 	return (
 		<button
 			type="button"
-			onClick={() =>
-				navigate(`/posts/${post.id}`, { state: { from: "/dm" } })
-			}
+			onClick={() => navigate(`/posts/${post.id}`, { state: { from: backTo } })}
 			aria-label={`${post.author.nickname}의 게시물 보기`}
 			className={`${frameClass} hover:brightness-95`}>
 			{thumbnail ? (

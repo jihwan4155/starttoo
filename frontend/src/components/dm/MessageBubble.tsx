@@ -60,7 +60,7 @@ export default function MessageBubble({ message, mine }: MessageBubbleProps) {
 						<div
 							className={`w-fit max-w-full overflow-hidden rounded-[16px] p-2 ${
 								message.imageUrl ? "mt-1" : ""
-							} ${
+							} ${mine ? "ml-auto" : ""} ${
 								mine
 									? "rounded-br-[4px] bg-brand"
 									: "rounded-bl-[4px] bg-black/5"
@@ -77,10 +77,17 @@ export default function MessageBubble({ message, mine }: MessageBubbleProps) {
 						</div>
 					) : (
 						message.textContent && (
+							/*
+							 * w-fit — 말풍선은 글자만큼만 차지한다.
+							 *
+							 * 이미지와 함께 보내면 이 칸의 너비가 이미지 너비로 정해지는데,
+							 * 블록 요소는 그 너비를 그대로 채워서 "ㅇㅇ" 한 마디에도 사진만큼
+							 * 긴 말풍선이 그려진다. 내 메시지는 ml-auto로 사진 오른쪽 끝에 맞춘다.
+							 */
 							<div
-								className={`rounded-[16px] px-4 py-2.5 text-[13px] font-light leading-5 ${
+								className={`w-fit max-w-full rounded-[16px] px-4 py-2.5 text-[13px] font-light leading-5 ${
 									message.imageUrl ? "mt-1" : ""
-								} ${
+								} ${mine ? "ml-auto" : ""} ${
 									mine
 										? "rounded-br-[4px] bg-brand text-white"
 										: "rounded-bl-[4px] bg-black/5 text-black"
