@@ -17,8 +17,8 @@ function NavIcon({ name }: { name: NavIconName }) {
 }
 
 const items = [
-	{ label: "커뮤니티", to: "/posts", icon: "community" },
-	{ label: "게시물", to: "/posts/search", icon: "feed" },
+	{ label: "피드", to: "/posts", icon: "community" },
+	{ label: "탐색", to: "/posts/search", icon: "feed" },
 	{ label: "타투이스트", to: "/artists", icon: "artist" },
 	{ label: "마이페이지", to: "/mypage", icon: "profile" },
 ] as const;

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ARCHIVE_DRAG_MIME } from "../../constants/collectionDrag";
+import ActionConfirmModal from "../common/ActionConfirmModal";
 import {
 	MANNEQUIN_ASSETS,
 	MANNEQUIN_SKIN_OPTIONS,
@@ -32,6 +33,7 @@ export default function MannequinCanvas({ userId }: MannequinCanvasProps) {
 	const draftRef = useRef<LiveDraft | null>(null);
 	const draftRafRef = useRef<number | null>(null);
 	const [renderDraft, setRenderDraft] = useState<LiveDraft | null>(null);
+	const [isClearConfirmOpen, setClearConfirmOpen] = useState(false);
 
 	const {
 		editorSkin,
@@ -161,14 +163,9 @@ export default function MannequinCanvas({ userId }: MannequinCanvasProps) {
 		});
 	};
 
-	const handleClearView = () => {
-		if (
-			placements.length === 0 ||
-			!window.confirm("현재 보기의 배치를 모두 지울까요?")
-		) {
-			return;
-		}
+	const handleConfirmClearView = () => {
 		clearViewPlacements(userId, safeView);
+		setClearConfirmOpen(false);
 	};
 
 	return (
@@ -204,7 +201,7 @@ export default function MannequinCanvas({ userId }: MannequinCanvasProps) {
 
 				<button
 					type="button"
-					onClick={handleClearView}
+					onClick={() => setClearConfirmOpen(true)}
 					disabled={placements.length === 0}
 					className="text-[13px] text-black/45 underline-offset-2 hover:text-black/70 hover:underline disabled:cursor-not-allowed disabled:opacity-30">
 					현재 보기 초기화
@@ -254,6 +251,15 @@ export default function MannequinCanvas({ userId }: MannequinCanvasProps) {
 					? "오른쪽 도안 보관함에서 끌어다 놓으세요"
 					: `${placements.length}개 배치됨 · 도안 클릭 후 박스 핸들로 조절`}
 			</p>
+
+			<ActionConfirmModal
+				isOpen={isClearConfirmOpen}
+				title="현재 보기의 배치를 모두 지울까요?"
+				description={`${safeView === "front" ? "앞" : "뒤"}면에 놓은 도안 ${placements.length}개가 지워집니다. 반대쪽 배치는 그대로 남습니다.`}
+				confirmText="모두 지우기"
+				onClose={() => setClearConfirmOpen(false)}
+				onConfirm={handleConfirmClearView}
+			/>
 		</div>
 	);
 }
