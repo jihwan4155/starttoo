@@ -36,7 +36,7 @@ export default function DesignThumbnailGrid({
 							aria-label="도안 삭제"
 							disabled={removeDisabled}
 							onClick={() => onRemove(design.id)}
-							className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity duration-200 hover:bg-black/70 group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40">
+							className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-black/50 text-white opacity-100 transition-opacity duration-200 hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-40 lg:opacity-0 lg:group-hover:opacity-100">
 							<svg
 								width="12"
 								height="12"
