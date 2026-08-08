@@ -21,7 +21,7 @@ import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
 import useHidePost from "../../hooks/mutations/useHidePost";
 import useTogglePostBookmark from "../../hooks/mutations/useTogglePostBookmark";
 import useTogglePostLike from "../../hooks/mutations/useTogglePostLike";
-import useArchiveCapacity from "../../hooks/useArchiveCapacity";
+import useArchiveCapacity from "../../hooks/queries/useArchiveCapacity";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import { avatarImageClassName } from "../../utils/profile";
 import useImageSwipe from "../../hooks/useImageSwipe";
