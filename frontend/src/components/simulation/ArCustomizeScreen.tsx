@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ArLiveStage, { type ArEngineOptions } from "./ar-live/ArLiveStage";
 import useArchive from "../../hooks/queries/useArchive";
 import { mapArchiveItemToSavedDesign } from "../../utils/mapArchive";
-import starDesign from "../../assets/ar/design-star.svg";
-import vineDesign from "../../assets/ar/design-vine.svg";
+import octopusDesign from "../../assets/ar/design-octopus.png";
 
 /** 슬라이더가 다루는 UI 단위 옵션 (% / 도) */
 type ArOptions = {
@@ -32,10 +31,7 @@ const BASE_SCALE = 4.4;
  *
  * AR 엔진은 항상 얹을 도안이 하나는 있어야 해서, 레일을 비워 두는 대신 샘플을 남긴다.
  */
-const SAMPLE_DESIGNS: RailDesign[] = [
-	{ name: "샘플 · 별", url: starDesign },
-	{ name: "샘플 · 덩굴", url: vineDesign },
-];
+const SAMPLE_DESIGNS: RailDesign[] = [{ name: "샘플 도안", url: octopusDesign }];
 
 /** 레일에 놓이는 도안 한 칸 */
 type RailDesign = {
@@ -239,7 +235,7 @@ export default function ArCustomizeScreen({
 				{/* 샘플만 있는 이유를 알려 준다 — 레일이 비어 보이는 것보다 낫다 */}
 				{!hasOwnDesigns && !isArchiveFetching && (
 					<p className="mt-1.5 text-[11px] font-light leading-4 text-black/40">
-						보관한 도안이 없어 샘플을 보여드려요. 피드에서 도안을 저장하면
+						보관한 도안이 없어 샘플을 보여드려요. 게시물에서 도안을 저장하면
 						여기에서 고를 수 있어요.
 					</p>
 				)}
