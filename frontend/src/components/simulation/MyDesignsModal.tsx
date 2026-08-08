@@ -44,7 +44,7 @@ export default function MyDesignsModal({
 						보관된 도안이 없어요
 					</p>
 					<p className="text-[13px] font-light leading-5 text-black/50">
-						피드에서 도안을 저장하면
+						게시물에서 도안을 저장하면
 						<br />
 						여기에서 선택할 수 있어요.
 					</p>

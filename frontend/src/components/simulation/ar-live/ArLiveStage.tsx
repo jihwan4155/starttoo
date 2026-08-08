@@ -12,10 +12,14 @@ import {
 } from "./engine/skinMask";
 import {
 	concealSmileMarkerArea,
+	concealSmileMarkerInpaint,
 	compositeDesignCurvedOntoCanvas,
 	designImageToMat,
 } from "./engine/perspectiveComposite";
 import { TattooPoseStabilizer } from "./engine/tattooPoseStabilizer";
+// 도안은 MinIO 공개 호스트에서 오는 교차 출처 이미지다. 여기서 예전처럼 image.src 로
+// 바로 받으면 캔버스가 오염돼 cv.imread 가 SecurityError 로 죽는다 (AR 도안 로드 실패).
+import { loadImage } from "../loadImage";
 
 /** 엔진 네이티브 옵션값 (슬라이더 %가 아니라 실제 엔진 단위) */
 export type ArEngineOptions = {
@@ -50,15 +54,6 @@ const CAMERA_MESSAGE: Partial<Record<CameraStatus, string>> = {
 	unsupported: "HTTPS(보안 연결)에서만 카메라를 켤 수 있어요.",
 	error: "카메라를 열 수 없어요.",
 };
-
-function loadImage(url: string): Promise<HTMLImageElement> {
-	return new Promise((resolve, reject) => {
-		const image = new Image();
-		image.onload = () => resolve(image);
-		image.onerror = reject;
-		image.src = url;
-	});
-}
 
 function ensureCanvas(
 	canvas: HTMLCanvasElement | null,
@@ -343,13 +338,22 @@ export default function ArLiveStage({
 
 						if (result && designMatRef.current) {
 							setTrackingState("tracking");
-							// 마커 영역을 옆 피부로 이식 + 방사형 페이드로 덮어 가린다
-							concealSmileMarkerArea(
+							// 마커가 감싸는 영역을 마스크로 잡고 cv.inpaint로 주변 피부에서
+							// 복원한다. 실패하면 기존 방식(옆 피부 이식 + 방사형 페이드)으로
+							// 되돌아가므로 최악의 경우에도 이전 동작이 유지된다.
+							concealSmileMarkerInpaint(
+								cv,
 								overlayContext!,
 								result.features,
 								analysisContext!,
-								skinColorRef.current,
-								armAxisAngleRef.current
+								() =>
+									concealSmileMarkerArea(
+										overlayContext!,
+										result.features,
+										analysisContext!,
+										skinColorRef.current,
+										armAxisAngleRef.current
+									)
 							);
 							if (
 								skinMask &&

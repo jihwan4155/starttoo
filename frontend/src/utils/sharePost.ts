@@ -20,7 +20,7 @@ export function shareMessageText(post: Post): string {
 		preview.length > PREVIEW_LIMIT
 			? `${preview.slice(0, PREVIEW_LIMIT)}…`
 			: preview;
-	const head = `${post.author.nickname}님의 피드`;
+	const head = `${post.author.nickname}님의 게시물`;
 	return shortened
 		? `${head}\n"${shortened}"\n${postPermalink(post.id)}`
 		: `${head}\n${postPermalink(post.id)}`;

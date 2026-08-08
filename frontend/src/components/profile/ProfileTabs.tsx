@@ -6,7 +6,7 @@ type ProfileTabsProps = {
 };
 
 const TABS: { id: ProfileTab; label: string }[] = [
-	{ id: "feed", label: "피드" },
+	{ id: "feed", label: "게시물" },
 	{ id: "collection", label: "컬렉션" },
 ];
 

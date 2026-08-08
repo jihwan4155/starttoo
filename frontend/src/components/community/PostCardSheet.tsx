@@ -50,7 +50,7 @@ export default function PostCardSheet({
 			className="fixed inset-0 z-[75] flex flex-col bg-surface"
 			role="dialog"
 			aria-modal="true"
-			aria-label="피드">
+			aria-label="게시물">
 			{/* 상단바는 모바일 TopNav와 같은 높이·로고 크기 */}
 			<div className="h-[44px] shrink-0 border-b border-black/10 bg-white">
 				<div className="grid h-full grid-cols-[48px_1fr_48px] items-center px-4">

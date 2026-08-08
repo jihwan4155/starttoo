@@ -107,7 +107,7 @@ export default function CommunityPage() {
 	const errorMessage =
 		error instanceof ApiError
 			? error.message
-			: "피드를 불러오지 못했습니다.";
+			: "게시물을 불러오지 못했습니다.";
 
 	return (
 		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
@@ -148,9 +148,9 @@ export default function CommunityPage() {
 
 				{!isPending && !isError && feedPosts.length === 0 && (
 					<p className="py-20 text-center text-[14px] leading-6 text-black/40">
-						보여줄 피드가 없습니다.
+						보여줄 게시물이 없습니다.
 						<br />
-						관심 있는 작가를 팔로우하거나 첫 피드를 올려보세요.
+						관심 있는 작가를 팔로우하거나 첫 게시물을 올려보세요.
 					</p>
 				)}
 
@@ -170,7 +170,7 @@ export default function CommunityPage() {
 							</div>
 						)}
 						{!hasNextPage && !isFetchingNextPage && (
-							<p className="text-[13px] text-black/30">마지막 피드입니다</p>
+							<p className="text-[13px] text-black/30">마지막 게시물입니다</p>
 						)}
 					</div>
 				)}
@@ -187,7 +187,7 @@ export default function CommunityPage() {
 
 			<button
 				type="button"
-				aria-label="피드 작성"
+				aria-label="게시물 작성"
 				onClick={() => requireAuth(() => setWriteOpen(true))}
 				className="fixed bottom-8 right-8 z-40 flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_6px_20px_rgba(255,70,70,0.4)] transition hover:brightness-95 active:scale-95 max-lg:hidden">
 				<PlusIcon />

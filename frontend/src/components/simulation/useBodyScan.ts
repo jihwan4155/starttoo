@@ -28,36 +28,11 @@ const IDLE: BodyScanResult = {
 	error: null,
 };
 
-/** 다른 출처의 이미지는 blob으로 변환해 캔버스 CORS 오염을 막는다. */
-function isCrossOrigin(url: string): boolean {
-	if (!/^https?:/i.test(url)) return false;
-	try {
-		return new URL(url, window.location.href).origin !== window.location.origin;
-	} catch {
-		return false;
-	}
-}
+// 다른 출처의 이미지는 blob으로 변환해 캔버스 CORS 오염을 막는다. 구현은 loadImage.ts
+// 한곳에 두고, 이 파일 안에서도 쓰면서 기존 import 경로(./useBodyScan)를 위해 함께 내보낸다.
+import { loadImage } from "./loadImage";
 
-export async function loadImage(url: string): Promise<HTMLImageElement> {
-	let objectUrl: string | null = null;
-	if (isCrossOrigin(url)) {
-		const response = await fetch(url, { mode: "cors" });
-		if (!response.ok) throw new Error("이미지를 불러오지 못했습니다.");
-		objectUrl = URL.createObjectURL(await response.blob());
-	}
-
-	const source = objectUrl ?? url;
-	try {
-		return await new Promise<HTMLImageElement>((resolve, reject) => {
-			const image = new Image();
-			image.onload = () => resolve(image);
-			image.onerror = () => reject(new Error("이미지를 불러오지 못했습니다."));
-			image.src = source;
-		});
-	} finally {
-		if (objectUrl) URL.revokeObjectURL(objectUrl);
-	}
-}
+export { loadImage };
 
 /**
  * 신체 사진 선택 후 다음 단계(도안 선택)로 넘어가는 동안 백그라운드에서

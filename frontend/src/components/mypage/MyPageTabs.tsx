@@ -6,9 +6,9 @@ type MyPageTabsProps = {
 };
 
 const TABS: { id: MyPageTab; label: string }[] = [
-	{ id: "feed", label: "내 피드" },
+	{ id: "feed", label: "내 게시물" },
 	{ id: "designs", label: "도안 보관함" },
-	{ id: "bookmarks", label: "북마크한 피드" },
+	{ id: "bookmarks", label: "북마크한 게시물" },
 	{ id: "collection", label: "내 컬렉션" },
 ];
 

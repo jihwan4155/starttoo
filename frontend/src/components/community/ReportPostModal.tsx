@@ -69,9 +69,9 @@ export default function ReportPostModal({
 				onClick={(e) => e.stopPropagation()}
 				role="dialog"
 				aria-modal="true"
-				aria-label="피드 신고">
+				aria-label="게시물 신고">
 				<div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
-					<p className="text-[15px] font-semibold text-black">피드 신고</p>
+					<p className="text-[15px] font-semibold text-black">게시물 신고</p>
 					<button
 						type="button"
 						aria-label="닫기"

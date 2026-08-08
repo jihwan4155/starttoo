@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import ArchiveFullModal from "../components/common/ArchiveFullModal";
 import ImageViewerModal from "../components/common/ImageViewerModal";
 import CreatePostModal from "../components/community/CreatePostModal";
 import PostCardSheet from "../components/community/PostCardSheet";
@@ -32,6 +33,7 @@ import type { Post } from "../types/community";
 import type { SavedDesign } from "../types/designExtract";
 import { ApiError } from "../services/api";
 import { isVerifiedArtist } from "../utils/artistStatus";
+import { MAX_ARCHIVE_DESIGNS } from "../constants/archive";
 import { isDemoArchiveDesign } from "../constants/demoArchiveDesigns";
 import { mapArchiveItemToSavedDesign } from "../utils/mapArchive";
 import mergeWithDemoArchiveDesigns from "../utils/mergeArchiveDesigns";
@@ -80,6 +82,7 @@ export default function MyPage() {
 	const [isBadgeRequestOpen, setBadgeRequestOpen] = useState(false);
 	const [isBlockedListOpen, setBlockedListOpen] = useState(false);
 	const [isExtractOpen, setExtractOpen] = useState(false);
+	const [showArchiveFull, setShowArchiveFull] = useState(false);
 
 	useEffect(() => {
 		if (isMyPageTab(tabParam)) {
@@ -183,6 +186,14 @@ export default function MyPage() {
 		return QA_MOCK_DATA_ENABLED ? mergeWithDemoArchiveDesigns(fromApi) : fromApi;
 	}, [archiveData?.pages, isLoggedIn]);
 
+	/*
+	 * 가득 찼는지는 데모용으로 섞는 도안을 뺀 서버 개수로만 따진다.
+	 * 여기서 이미 첫 페이지(size 50)를 받아오므로 용량 훅을 따로 부르지 않는다.
+	 */
+	const archiveCount =
+		archiveData?.pages.reduce((total, page) => total + page.items.length, 0) ?? 0;
+	const isArchiveFull = isLoggedIn && archiveCount >= MAX_ARCHIVE_DESIGNS;
+
 	const meErrorMessage =
 		meError instanceof ApiError
 			? meError.message
@@ -283,7 +294,16 @@ export default function MyPage() {
 								type="button"
 								aria-label="도안 추출"
 								title="도안 추출"
-								onClick={() => requireAuth(() => setExtractOpen(true))}
+								onClick={() =>
+								requireAuth(() => {
+									// 가득 찼으면 추출 창을 열기 전에 먼저 알린다
+									if (isArchiveFull) {
+										setShowArchiveFull(true);
+										return;
+									}
+									setExtractOpen(true);
+								})
+							}
 								className="flex size-11 items-center justify-center rounded-full text-brand transition hover:bg-brand/10">
 								<PlusIcon />
 							</button>
@@ -293,16 +313,16 @@ export default function MyPage() {
 					{tab === "feed" &&
 						(!isLoggedIn ? (
 							<MyPageEmptyState
-								message="로그인 후 내 피드를 확인할 수 있습니다"
-								actionLabel="피드 작성"
+								message="로그인 후 내 게시물을 확인할 수 있습니다"
+								actionLabel="게시물 작성"
 								onAction={() => requireAuth(() => setWriteOpen(true))}
 							/>
 						) : isFeedLoading ? (
 							<StarttooLoader variant="block" />
 						) : myPosts.length === 0 ? (
 							<MyPageEmptyState
-								message="피드가 없습니다"
-								actionLabel="피드 작성"
+								message="게시물이 없습니다"
+								actionLabel="게시물 작성"
 								onAction={() => requireAuth(() => setWriteOpen(true))}
 							/>
 						) : (
@@ -333,7 +353,7 @@ export default function MyPage() {
 						) : isBookmarkLoading ? (
 							<StarttooLoader variant="block" />
 						) : bookmarkedPosts.length === 0 ? (
-							<MyPageEmptyState message="북마크한 피드가 없습니다" />
+							<MyPageEmptyState message="북마크한 게시물이 없습니다" />
 						) : (
 							<PostThumbnailGrid
 								posts={bookmarkedPosts}
@@ -397,6 +417,10 @@ export default function MyPage() {
 			{isExtractOpen && (
 				<DesignExtractModal onClose={() => setExtractOpen(false)} />
 			)}
+			<ArchiveFullModal
+				isOpen={showArchiveFull}
+				onClose={() => setShowArchiveFull(false)}
+			/>
 		</div>
 	);
 }

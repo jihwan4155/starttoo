@@ -9,12 +9,9 @@ import useRequireAuth from "../../hooks/useRequireAuth";
 import useRecentSearches from "../../hooks/queries/useRecentSearches";
 import { recentSearchesQueryKey } from "../../hooks/queries/useRecentSearches";
 import useSubjectAutocomplete from "../../hooks/queries/useSubjectAutocomplete";
-import {
-	deleteRecentSearch,
-	saveRecentSearch,
-} from "../../services/userApi";
+import { deleteRecentSearch, saveRecentSearch } from "../../services/userApi";
 import { ApiError } from "../../services/api";
-import { SEARCH_CATEGORIES } from "../../constants/community";
+import { PRIMARY_STYLE_CATEGORIES } from "../../constants/community";
 import useAuthStore from "../../store/useAuthStore";
 
 type CommunitySearchBarProps = {
@@ -96,6 +93,12 @@ export default function CommunitySearchBar({
 		navigate(`/posts/search?q=${encodeURIComponent(keyword)}`);
 	};
 
+	const submitPrimaryCategory = (primaryStyle: string) => {
+		setValue("");
+		setFocused(false);
+		navigate(`/posts/search?primary=${encodeURIComponent(primaryStyle)}`);
+	};
+
 	const handleDeleteRecent = async (keyword: string) => {
 		try {
 			await deleteRecentSearch(keyword);
@@ -104,7 +107,7 @@ export default function CommunitySearchBar({
 			window.alert(
 				err instanceof ApiError
 					? err.message
-					: "최근 검색어 삭제에 실패했습니다.",
+					: "최근 검색어 삭제에 실패했습니다."
 			);
 		}
 	};
@@ -136,7 +139,7 @@ export default function CommunitySearchBar({
 						setCameraOpen(false);
 					}}
 					onBlur={() => setFocused(false)}
-					placeholder="피드 검색 → 예: 나비, 장미"
+					placeholder="게시물 검색 → 예: 나비, 장미"
 					maxLength={50}
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 				/>
@@ -226,16 +229,18 @@ export default function CommunitySearchBar({
 							<p className="text-[13px] font-semibold text-black">
 								추천 카테고리
 							</p>
-							<div className="mt-2.5 flex flex-wrap gap-2">
-								{SEARCH_CATEGORIES.map((category) => (
-									<button
-										key={category}
-										type="button"
-										onClick={() => submit(category)}
-										className="rounded-full bg-brand px-3.5 py-1.5 text-[12px] font-semibold text-white transition hover:brightness-95">
-										{category}
-									</button>
-								))}
+							<div className="mt-2.5 overflow-x-auto pb-1">
+								<div className="flex w-max flex-nowrap gap-2">
+									{PRIMARY_STYLE_CATEGORIES.map((category) => (
+										<button
+											key={category.code}
+											type="button"
+											onClick={() => submitPrimaryCategory(category.code)}
+											className="shrink-0 rounded-full bg-brand px-3.5 py-1.5 text-[12px] font-semibold text-white transition hover:brightness-95">
+											{category.label}
+										</button>
+									))}
+								</div>
 							</div>
 
 							<p className="mt-5 text-[13px] font-semibold text-black">

@@ -15,11 +15,13 @@ import EditPostModal from "./EditPostModal";
 import DeletePostModal from "./DeletePostModal";
 import SharePostModal from "./SharePostModal";
 import HiddenPostOverlay from "./HiddenPostOverlay";
+import ArchiveFullModal from "../common/ArchiveFullModal";
 import useDeletePost from "../../hooks/mutations/useDeletePost";
 import useDesignExtractMutation from "../../hooks/mutations/useDesignExtract";
 import useHidePost from "../../hooks/mutations/useHidePost";
 import useTogglePostBookmark from "../../hooks/mutations/useTogglePostBookmark";
 import useTogglePostLike from "../../hooks/mutations/useTogglePostLike";
+import useArchiveCapacity from "../../hooks/useArchiveCapacity";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
 import { avatarImageClassName } from "../../utils/profile";
 import useImageSwipe from "../../hooks/useImageSwipe";
@@ -88,6 +90,7 @@ export default function PostCard({
 	const [isEditOpen, setEditOpen] = useState(false);
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
 	const [isShareOpen, setShareOpen] = useState(false);
+	const [showArchiveFull, setShowArchiveFull] = useState(false);
 	const [imageIndex, setImageIndex] = useState(0);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
@@ -107,6 +110,7 @@ export default function PostCard({
 		error: designLoadError,
 		reset: resetStoredDesign,
 	} = useDesignExtractMutation();
+	const { isFull: isArchiveFull, hasTattoo } = useArchiveCapacity();
 
 	const { isLiked, isBookmarked } = usePostEngagement(post);
 
@@ -225,7 +229,7 @@ export default function PostCard({
 						<>
 							<button
 								type="button"
-								aria-label="피드 메뉴"
+								aria-label="게시물 메뉴"
 								onClick={() => setMenuOpen((prev) => !prev)}
 								className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/5">
 								<MoreIcon size={20} />
@@ -240,7 +244,7 @@ export default function PostCard({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-black transition hover:bg-black/5">
 												수정
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													피드 내용을 수정합니다
+													게시물 내용을 수정합니다
 												</span>
 											</button>
 											<button
@@ -250,7 +254,7 @@ export default function PostCard({
 												className="block w-full whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5 disabled:opacity-50">
 												삭제
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 피드를 삭제합니다
+													이 게시물을 삭제합니다
 												</span>
 											</button>
 										</>
@@ -272,7 +276,7 @@ export default function PostCard({
 												className="block w-full whitespace-nowrap px-4 py-2.5 text-left text-[13px] text-brand transition hover:bg-black/5 disabled:opacity-50">
 												숨기기
 												<span className="mt-0.5 block text-[11px] font-light text-black/40">
-													이 피드를 숨깁니다
+													이 게시물을 숨깁니다
 												</span>
 											</button>
 										</>
@@ -305,14 +309,14 @@ export default function PostCard({
 								disabled={isHidden}
 								{...swipeHandlers}
 								className="block w-full overflow-hidden disabled:cursor-default lg:rounded-[10px]"
-								aria-label="피드 상세 보기">
+								aria-label="게시물 상세 보기">
 								{imageUrls.length > 0 ? (
 									<div className="flex" style={trackStyle}>
 										{imageUrls.map((url, index) => (
 											<img
 												key={`${url}-${index}`}
 												src={url}
-												alt={`${post.author.nickname}의 피드 ${index + 1}`}
+												alt={`${post.author.nickname}의 게시물 ${index + 1}`}
 												draggable={false}
 												className={`aspect-[3/4] h-auto w-full shrink-0 object-cover ${
 													hasMultipleImages ? "" : "transition hover:scale-[1.01]"
@@ -334,7 +338,7 @@ export default function PostCard({
 											<img
 												key={`${url}-${index}`}
 												src={url}
-												alt={`${post.author.nickname}의 피드 ${index + 1}`}
+												alt={`${post.author.nickname}의 게시물 ${index + 1}`}
 												draggable={false}
 												className="aspect-[3/4] h-auto w-full shrink-0 object-cover"
 											/>
@@ -381,6 +385,10 @@ export default function PostCard({
 								onClick={(e) => {
 									e.stopPropagation();
 									if (!requireAuth()) return;
+									if (isArchiveFull && !hasTattoo(currentTattooSeq)) {
+										setShowArchiveFull(true);
+										return;
+									}
 									loadStoredDesign(currentTattooSeq);
 								}}
 								className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-[12px] font-semibold text-black opacity-100 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
@@ -523,6 +531,10 @@ export default function PostCard({
 			<DesignExtractResultModal
 				result={storedDesignResult ?? null}
 				onClose={resetStoredDesign}
+			/>
+			<ArchiveFullModal
+				isOpen={showArchiveFull}
+				onClose={() => setShowArchiveFull(false)}
 			/>
 			<ReportPostModal
 				postId={post.id}

@@ -12,16 +12,17 @@ type PostsInfiniteParams = Omit<FetchPostsParams, "cursor"> & {
 
 /** GET /posts — 커서 기반 무한 스크롤 */
 export default function usePosts(params?: PostsInfiniteParams) {
-	const { size = 20, authorSeq, enabled = true } = params ?? {};
+	const { size = 20, authorSeq, primaryStyle, enabled = true } = params ?? {};
 
 	return useInfiniteQuery({
-		queryKey: [...postsQueryKey, { size, authorSeq }],
+		queryKey: [...postsQueryKey, { size, authorSeq, primaryStyle }],
 		enabled,
 		initialPageParam: undefined as string | undefined,
 		queryFn: async ({ pageParam }) => {
 			const page = await fetchPosts({
 				size,
 				authorSeq,
+				primaryStyle,
 				cursor: pageParam,
 			});
 			return {
@@ -30,8 +31,6 @@ export default function usePosts(params?: PostsInfiniteParams) {
 			};
 		},
 		getNextPageParam: (lastPage) =>
-			lastPage.hasNext && lastPage.nextCursor
-				? lastPage.nextCursor
-				: undefined,
+			lastPage.hasNext && lastPage.nextCursor ? lastPage.nextCursor : undefined,
 	});
 }
