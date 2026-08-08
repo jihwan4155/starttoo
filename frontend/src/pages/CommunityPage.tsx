@@ -155,7 +155,11 @@ export default function CommunityPage() {
 				)}
 
 				{feedPosts.map((post) => (
-						<PostCard key={post.id} post={post} onOpen={setActivePost} />
+						<PostCard
+							key={post.id}
+							post={post}
+							onOpenComments={setActivePost}
+						/>
 					))}
 
 				{!isPending && !isError && feedPosts.length > 0 && (

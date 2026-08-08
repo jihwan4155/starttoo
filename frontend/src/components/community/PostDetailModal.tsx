@@ -570,14 +570,14 @@ export default function PostDetailModal({
 						</>
 					)}
 
-					{/* 호버 시 노출되는 도안 추출 버튼 — 타투로 판별된 사진에서만 */}
+					{/* 도안 추출 — 타투 판별된 사진만. 모바일·태블릿은 상시, lg+는 호버 시 */}
 					{canExtractDesign && currentTattooSeq != null && (
 						<button
 							type="button"
 							aria-label="도안 추출"
 							disabled={isDesignLoading}
 							onClick={() => loadStoredDesign(currentTattooSeq)}
-							className={`absolute right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 group-hover:opacity-100 ${
+							className={`absolute right-4 flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-[13px] font-semibold text-black opacity-100 backdrop-blur-sm transition-opacity duration-200 hover:bg-white/90 disabled:cursor-wait disabled:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 ${
 								hasMultipleImages ? "bottom-10" : "bottom-4"
 							}`}>
 							{isDesignLoading ? (

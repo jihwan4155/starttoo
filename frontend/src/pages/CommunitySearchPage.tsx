@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import PostCardSheet from "../components/community/PostCardSheet";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import { PostGridSkeleton } from "../components/loader/Skeletons";
 import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../constants/auth";
 import usePostSearch from "../hooks/queries/usePostSearch";
 import usePosts from "../hooks/queries/usePosts";
+import { useIsMobile } from "../hooks/useIsMobile";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
 import { ApiError } from "../services/api";
 import useAuthStore from "../store/useAuthStore";
@@ -31,26 +33,39 @@ export default function CommunitySearchPage() {
 	const [searchParams] = useSearchParams();
 	const keyword = searchParams.get("q") ?? "";
 	const [activePost, setActivePost] = useState<Post | null>(null);
+	// 모바일: 썸네일 → 카드 시트(게시글 상세) → 댓글 모달 (마이페이지 내 피드와 동일)
+	const [cardPost, setCardPost] = useState<Post | null>(null);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const navigate = useNavigate();
 	const location = useLocation();
 	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
+	const isMobile = useIsMobile(639);
+	const hiddenIds = useHiddenIdsForUser();
 
-	// 피드 목록은 공개지만 피드 상세는 로그인이 필요하다.
-	// 로그인 후 이 검색 결과(검색어 포함)로 돌아오도록 목적지를 남긴다.
+	/** 댓글 모달·데스크톱 상세만 로그인 필요. 모바일 카드 시트는 공개. */
+	const requireLoginForComments = () => {
+		if (isLoggedIn) return true;
+		sessionStorage.setItem(
+			POST_LOGIN_REDIRECT_STORAGE_KEY,
+			location.pathname + location.search,
+		);
+		navigate("/login");
+		return false;
+	};
+
 	const handleOpenPost = (post: Post) => {
-		if (!isLoggedIn) {
-			sessionStorage.setItem(
-				POST_LOGIN_REDIRECT_STORAGE_KEY,
-				location.pathname + location.search,
-			);
-			navigate("/login");
+		if (isMobile) {
+			setCardPost(post);
 			return;
 		}
+		if (!requireLoginForComments()) return;
 		setActivePost(post);
 	};
 
-	const hiddenIds = useHiddenIdsForUser();
+	const handleOpenComments = (post: Post) => {
+		if (!requireLoginForComments()) return;
+		setActivePost(post);
+	};
 
 	const trimmed = keyword.trim();
 	/** 서버에 보낼 수 없는 검색어 — 쿼리가 꺼져 있어 로딩·결과 상태를 믿을 수 없다 */
@@ -236,6 +251,11 @@ export default function CommunitySearchPage() {
 				)}
 			</div>
 
+			<PostCardSheet
+				post={cardPost}
+				onOpenComments={handleOpenComments}
+				onClose={() => setCardPost(null)}
+			/>
 			<PostDetailModal
 				key={`${activePost?.id ?? "closed"}-${activePost?.searchMatchedImageIndex ?? 0}`}
 				post={activePost}
