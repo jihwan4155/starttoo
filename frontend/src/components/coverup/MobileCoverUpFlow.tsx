@@ -1,7 +1,8 @@
 import { useState, type RefObject } from "react";
 import type { DesignResult, SearchMode } from "../../types/shapeSearch";
+import BrushSizeSlider from "./BrushSizeSlider";
 import ShapeCanvas from "./ShapeCanvas";
-import { MODE_KEYS, MODES } from "./shapeSearchConstants";
+import { MODES } from "./shapeSearchConstants";
 import LoadingLabel from "../loader/LoadingLabel";
 import Simulation3DStep from "../simulation/Simulation3DStep";
 import type { BodyScanResult } from "../simulation/useBodyScan";
@@ -12,9 +13,12 @@ type MobileCoverUpFlowProps = {
 	title: string;
 	/** 4 = 고른 도안을 내 사진에 얹어 보는 단계 (PC와 같은 STEP 4) */
 	step: 1 | 2 | 3 | 4;
-	/** 그리기 방식 — 면(coverup) / 선(shape) */
+	/** 그리기 방식 — 면(coverup) / 선(shape). 지금 화면에는 선만 노출한다 */
 	mode: SearchMode;
 	onModeChange: (mode: SearchMode) => void;
+	/** 펜 굵기(px) */
+	brush: number;
+	onBrushChange: (px: number) => void;
 	/** STEP 4에서 쓰는 신체 분석 결과 */
 	bodyScan: BodyScanResult;
 	fileInputRef: RefObject<HTMLInputElement | null>;
@@ -73,7 +77,8 @@ export default function MobileCoverUpFlow({
 	title,
 	step,
 	mode,
-	onModeChange,
+	brush,
+	onBrushChange,
 	bodyScan,
 	fileInputRef,
 	previewUrl,
@@ -149,18 +154,9 @@ export default function MobileCoverUpFlow({
 						<button type="button" onClick={onBack} aria-label="이전 단계" className="absolute left-0 flex size-8 items-center justify-center text-[#BDBDBD]"><BackIcon /></button>
 						<h2 className="text-center text-[19px] font-semibold">덮을 영역을 그려주세요</h2>
 					</div>
-					{/* 무엇을 그릴지 먼저 고르도록 캔버스 위에 둔다 (PC와 같은 자리) */}
-					<div className="mx-auto mb-2 flex h-[40px] w-full max-w-[240px] shrink-0 items-center rounded-[12px] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
-						{MODE_KEYS.map((key) => (
-							<button
-								key={key}
-								type="button"
-								aria-pressed={mode === key}
-								onClick={() => onModeChange(key)}
-								className={`h-full flex-1 rounded-[9px] text-[14px] font-semibold transition ${mode === key ? "bg-surface text-black" : "text-black/40"}`}>
-								{MODES[key].label}
-							</button>
-						))}
+					{/* 펜 굵기를 먼저 정하도록 캔버스 위에 둔다 (PC와 같은 자리) */}
+					<div className="mb-2 shrink-0">
+						<BrushSizeSlider value={brush} onChange={onBrushChange} />
 					</div>
 					<p className="mb-2 shrink-0 text-center text-[13px] font-light text-black/50">{MODES[mode].hint}</p>
 					<div className="mx-auto flex min-h-0 w-full max-w-[420px] flex-1 items-center justify-center overflow-hidden rounded-[12px]">

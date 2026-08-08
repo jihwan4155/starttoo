@@ -108,7 +108,7 @@ export default function DesignExtractResultModal({
 								href={result.downloadUrl}
 								download="tattoo-design.png"
 								className="rounded-full bg-brand px-5 py-2 text-[13px] font-semibold text-white transition hover:brightness-95">
-								PNG 다운로드
+								기기에 저장
 							</a>
 						) : isSaved ? (
 							<button

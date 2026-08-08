@@ -473,7 +473,7 @@ export default function SimulationsPage() {
 							href={captureUrl}
 							download="starttoo-tattoo.png"
 							className="rounded-full bg-brand px-8 py-3 text-[16px] font-semibold text-white transition hover:brightness-95">
-							결과 이미지 저장
+							기기에 저장
 						</a>
 						<button
 							type="button"
