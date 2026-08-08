@@ -134,12 +134,20 @@ public class SearchService {
         }
     }
 
-    public List<SearchDtos.AccountResult> autocompleteAccounts(String query, int size) {
-        return autocompleteAccounts(ACCOUNT_KEY, query, size, false);
+    public List<SearchDtos.AccountResult> autocompleteAccounts(
+            String query,
+            int size,
+            Integer viewerSeq
+    ) {
+        return autocompleteAccounts(ACCOUNT_KEY, query, size, false, viewerSeq);
     }
 
-    public List<SearchDtos.AccountResult> autocompleteArtists(String query, int size) {
-        return autocompleteAccounts(ARTIST_KEY, query, size, true);
+    public List<SearchDtos.AccountResult> autocompleteArtists(
+            String query,
+            int size,
+            Integer viewerSeq
+    ) {
+        return autocompleteAccounts(ARTIST_KEY, query, size, true, viewerSeq);
     }
 
     public List<SearchDtos.SubjectResult> autocompleteSubjects(String query, int size) {
@@ -169,7 +177,8 @@ public class SearchService {
     public List<SearchDtos.AccountResult> searchAccounts(
             String query,
             int size,
-            boolean artistsOnly
+            boolean artistsOnly,
+            Integer viewerSeq
     ) {
         searchLogService.record(null, artistsOnly ? "ARTIST" : "ACCOUNT", query);
         int safeSize = Math.min(Math.max(size, 1), 50);
@@ -178,7 +187,7 @@ public class SearchService {
         List<SearchCandidate> candidates = artistsOnly
                 ? redisSearchGateway.artistCandidates(normalizedQuery, candidateLimit)
                 : redisSearchGateway.accountCandidates(normalizedQuery, candidateLimit);
-        return accountResults(candidates, safeSize, artistsOnly);
+        return accountResults(candidates, safeSize, artistsOnly, viewerSeq);
     }
 
     public SearchDtos.PostSearchResponse searchPosts(
@@ -319,7 +328,8 @@ public class SearchService {
             String key,
             String query,
             int size,
-            boolean artistsOnly
+            boolean artistsOnly,
+            Integer viewerSeq
     ) {
         int safeSize = Math.min(Math.max(size, 1), 20);
         List<Integer> ids = members(
@@ -330,7 +340,8 @@ public class SearchService {
         if (ids.isEmpty()) {
             return List.of();
         }
-        Map<Integer, SearchDtos.AccountResult> byId = accountResultMap(ids, artistsOnly);
+        Map<Integer, SearchDtos.AccountResult> byId =
+                accountResultMap(ids, artistsOnly, viewerSeq);
         return ids.stream()
                 .map(byId::get)
                 .filter(Objects::nonNull)
@@ -346,13 +357,15 @@ public class SearchService {
     private List<SearchDtos.AccountResult> accountResults(
             List<SearchCandidate> candidates,
             int size,
-            boolean artistsOnly
+            boolean artistsOnly,
+            Integer viewerSeq
     ) {
         if (candidates.isEmpty()) {
             return List.of();
         }
         List<Integer> ids = candidates.stream().map(SearchCandidate::targetSeq).toList();
-        Map<Integer, SearchDtos.AccountResult> byId = accountResultMap(ids, artistsOnly);
+        Map<Integer, SearchDtos.AccountResult> byId =
+                accountResultMap(ids, artistsOnly, viewerSeq);
         // Redis가 반환한 tier와 점수 순서를 그대로 보존한다. PostgreSQL은 최신 노출
         // 상태를 재검증하고 화면 필드만 공급한다.
         return candidates.stream()
@@ -364,7 +377,8 @@ public class SearchService {
 
     private Map<Integer, SearchDtos.AccountResult> accountResultMap(
             List<Integer> ids,
-            boolean artistsOnly
+            boolean artistsOnly,
+            Integer viewerSeq
     ) {
         Map<Integer, SearchDtos.AccountResult> byId = new LinkedHashMap<>();
         namedParameterJdbcTemplate.query("""
@@ -394,9 +408,23 @@ public class SearchService {
                            AND a.verification_status = 'VERIFIED'
                        )
                    )
+                   AND (
+                       :viewerSeq IS NULL OR NOT EXISTS (
+                           SELECT 1
+                             FROM user_blocks block
+                            WHERE (
+                                block.blocker_seq = :viewerSeq
+                                AND block.blocked_seq = u.user_seq
+                            ) OR (
+                                block.blocker_seq = u.user_seq
+                                AND block.blocked_seq = :viewerSeq
+                            )
+                       )
+                   )
                 """, new MapSqlParameterSource()
                 .addValue("ids", ids)
-                .addValue("artistsOnly", artistsOnly), rs -> {
+                .addValue("artistsOnly", artistsOnly)
+                .addValue("viewerSeq", viewerSeq, Types.INTEGER), rs -> {
             String profileObjectKey = rs.getString("profile_object_key");
             SearchDtos.AccountResult value = new SearchDtos.AccountResult(
                     rs.getInt("user_seq"),
