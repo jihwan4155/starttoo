@@ -57,6 +57,11 @@ public class SecurityConfig {
                                 "/v1/simulations/ar-sessions/*/composites",
                                 "/v1/simulations/ar-sessions/*/composites/presign"
                         ).permitAll()
+                        // 형태 검색은 조회성 공개 기능이다. 저장과 시뮬레이션 API는 계속 인증한다.
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/v1/designs/search-by-shape"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/comments/*/replies").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/artists").permitAll()
