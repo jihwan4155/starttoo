@@ -38,7 +38,7 @@ export default function UnfollowConfirmModal({
 					<img
 						src={avatarUrl}
 						alt=""
-						className="size-20 rounded-full border-4 border-white bg-[#D9D9D9] object-cover shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+						className="size-20 rounded-full border-4 border-white bg-white object-cover shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
 					/>
 
 					<p className="mt-4 text-center text-[18px] font-bold text-black">

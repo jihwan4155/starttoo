@@ -23,10 +23,14 @@ import useShapeSearchMutation from "../hooks/mutations/useShapeSearch";
 import useArchiveCapacity from "../hooks/queries/useArchiveCapacity";
 import useRequireAuth from "../hooks/useRequireAuth";
 import { saveToArchive } from "../services/archiveApi";
-import type { SearchMode } from "../types/shapeSearch";
+import type {
+	CoverupRouteState,
+	SearchMode,
+} from "../types/shapeSearch";
 import { useIsMobile } from "../hooks/useIsMobile";
 import MobileCoverUpFlow from "../components/coverup/MobileCoverUpFlow";
 import LoadingLabel from "../components/loader/LoadingLabel";
+import useSimulationHandoff from "../store/useSimulationHandoff";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -71,6 +75,12 @@ export default function CoverUpPage() {
 	const isMobile = useIsMobile();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { requireAuth } = useRequireAuth();
+	const startSimulation = useSimulationHandoff((state) => state.start);
+	const routeState = location.state as CoverupRouteState | null;
+	const isDoodleSearch =
+		routeState?.source === "doodle" &&
+		Boolean(routeState.doodleMaskPngB64) &&
+		(routeState.doodleResults?.length ?? 0) > 0;
 
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [fileError, setFileError] = useState<string | null>(null);
@@ -88,7 +98,9 @@ export default function CoverUpPage() {
 	const saveMutation = useMutation({ mutationFn: saveToArchive });
 	const { isFull, hasTattoo } = useArchiveCapacity();
 
-	const results = searchMutation.data ?? [];
+	const results =
+		searchMutation.data ??
+		(isDoodleSearch ? (routeState?.doodleResults ?? []) : []);
 
 	/*
 	 * 단계를 router history에 싣는다.
@@ -100,13 +112,23 @@ export default function CoverUpPage() {
 	 * 재료(사진·검색 결과)는 메모리에만 있는데 history.state는 새로고침 후에도 남으므로,
 	 * 실제로 도달 가능한 단계까지만 인정해 STEP 4로 복원되며 빈 화면이 뜨는 것을 막는다.
 	 */
-	const historyStep = (location.state as { coverupStep?: number } | null)
-		?.coverupStep;
-	const maxStep: Step = !previewUrl ? 1 : results.length === 0 ? 2 : 4;
+	const historyStep = routeState?.coverupStep;
+	const maxStep: Step = isDoodleSearch
+		? results.length > 0
+			? 3
+			: 1
+		: !previewUrl
+			? 1
+			: results.length === 0
+				? 2
+				: 4;
 	const step = Math.min(Math.max(historyStep ?? 1, 1), maxStep) as Step;
 
 	const goToStep = (next: Step) => {
-		navigate(location.pathname, { state: { coverupStep: next } });
+		const nextState: CoverupRouteState = isDoodleSearch
+			? { ...(routeState ?? {}), coverupStep: next }
+			: { coverupStep: next };
+		navigate(location.pathname, { state: nextState });
 	};
 
 	// 잘려 나간 단계는 히스토리에서도 지운다. 그대로 두면 사진을 다시 올리는 순간
@@ -114,15 +136,24 @@ export default function CoverUpPage() {
 	useEffect(() => {
 		if (historyStep != null && historyStep > step) {
 			navigate(location.pathname, {
-				state: { coverupStep: step },
+				state: isDoodleSearch
+					? { ...(routeState ?? {}), coverupStep: step }
+					: { coverupStep: step },
 				replace: true,
 			});
 		}
-	}, [historyStep, step, navigate, location.pathname]);
+	}, [
+		historyStep,
+		step,
+		navigate,
+		location.pathname,
+		isDoodleSearch,
+		routeState,
+	]);
 
 	// 사진을 고르고 그리기 단계로 넘어가는 동안 인물 분할·3D 굴곡 모델을 미리 돌려 둔다.
 	// 도안을 고를 때쯤 끝나 있어서 "시뮬레이션 해보기"가 곧바로 결과로 이어진다.
-	const bodyScan = useBodyScan(previewUrl, step >= 2);
+	const bodyScan = useBodyScan(previewUrl, !isDoodleSearch && step >= 2);
 
 	const selectedResult = results[selectedIndex] ?? null;
 	const errorInfo = searchMutation.isError
@@ -167,7 +198,9 @@ export default function CoverUpPage() {
 	};
 
 	const runSearch = () => {
-		const maskPngB64 = canvas.buildMask();
+		const maskPngB64 = isDoodleSearch
+			? routeState?.doodleMaskPngB64
+			: canvas.buildMask();
 		if (!maskPngB64) {
 			setShowEmptyStrokeHint(true);
 			return;
@@ -175,7 +208,7 @@ export default function CoverUpPage() {
 		setShowEmptyStrokeHint(false);
 		setStale(false);
 		searchMutation.mutate(
-			{ maskPngB64, mode },
+			{ maskPngB64, mode: isDoodleSearch ? "shape" : mode },
 			{
 				onSuccess: (nextResults) => {
 					setSelectedIndex(0);
@@ -194,20 +227,34 @@ export default function CoverUpPage() {
 	 * 결과 목록에 돌아가 다른 도안을 바로 시뮬레이션할 수 있다.
 	 */
 	const goToSimulation = () => {
-		if (!previewUrl || !selectedResult) return;
-		goToStep(4);
+		if (!selectedResult) return;
+		requireAuth(() => {
+			if (isDoodleSearch) {
+				startSimulation({
+					bodyPhoto: null,
+					designUrl: selectedResult.imageUrl,
+					scan: null,
+				});
+				navigate("/simulations");
+				return;
+			}
+			if (!previewUrl) return;
+			goToStep(4);
+		});
 	};
 
 	const handleSave = () => {
 		if (!selectedResult) return;
-		if (isFull && !hasTattoo(selectedResult.tattooSeq)) {
-			setShowArchiveFull(true);
-			return;
-		}
-		// 서버가 돌려주는 saved 값은 ApiResponse 봉투에 싸여 있어 아직 신뢰할 수 없다.
-		// 예외 없이 끝나면 저장된 것으로 본다. (전역 언랩 작업에서 정리)
-		saveMutation.mutate(selectedResult.tattooSeq, {
-			onSuccess: () => setSavedOpen(true),
+		requireAuth(() => {
+			if (isFull && !hasTattoo(selectedResult.tattooSeq)) {
+				setShowArchiveFull(true);
+				return;
+			}
+			// 서버가 돌려주는 saved 값은 ApiResponse 봉투에 싸여 있어 아직 신뢰할 수 없다.
+			// 예외 없이 끝나면 저장된 것으로 본다. (전역 언랩 작업에서 정리)
+			saveMutation.mutate(selectedResult.tattooSeq, {
+				onSuccess: () => setSavedOpen(true),
+			});
 		});
 	};
 
@@ -241,6 +288,7 @@ export default function CoverUpPage() {
 		return (
 			<>
 				<MobileCoverUpFlow
+					title={isDoodleSearch ? "타투 도안 추천" : "커버업 타투 도안 추천"}
 					step={step}
 					mode={mode}
 					onModeChange={switchMode}
@@ -289,11 +337,13 @@ export default function CoverUpPage() {
 				    시뮬레이션 단계에서는 캔버스에 높이를 넘겨주려고 접는다 */}
 				{step !== 4 && (
 					<>
-						<p className="shrink-0 text-center text-[13px] font-light text-black/60">
-							흉터도, 오래된 타투도 새롭게
-						</p>
-						<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
-							커버업 타투 도안 추천
+						{!isDoodleSearch && (
+							<p className="shrink-0 text-center text-[13px] font-light text-black/60">
+								흉터도, 오래된 타투도 새롭게
+							</p>
+						)}
+						<h1 className={`${isDoodleSearch ? "" : "mt-1"} shrink-0 text-center text-[26px] font-extrabold text-black`}>
+							{isDoodleSearch ? "타투 도안 추천" : "커버업 타투 도안 추천"}
 						</h1>
 					</>
 				)}
@@ -485,7 +535,9 @@ export default function CoverUpPage() {
 								</ActionButton>
 								<ActionButton
 									onClick={goToSimulation}
-									disabled={!previewUrl || !selectedResult}>
+									disabled={
+										!selectedResult || (!isDoodleSearch && !previewUrl)
+									}>
 									시뮬레이션 해보기
 								</ActionButton>
 							</div>

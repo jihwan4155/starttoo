@@ -1,5 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import LoadingLabel from "../loader/LoadingLabel";
+import { describeSearchError } from "../coverup/shapeSearchError";
+import useShapeSearchMutation from "../../hooks/mutations/useShapeSearch";
+import type { CoverupRouteState } from "../../types/shapeSearch";
 import DoodleToolbar from "./DoodleToolbar";
 import useDoodleCanvas from "./useDoodleCanvas";
 
@@ -23,20 +28,59 @@ function CloseIcon() {
 
 /** 줄노트 캔버스 + 펜/지우개 도구 */
 export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
+	const navigate = useNavigate();
+	const searchMutation = useShapeSearchMutation();
+	const [showEmptyHint, setShowEmptyHint] = useState(false);
 	const {
 		canvasRef,
 		tool,
 		setTool,
 		size,
 		setSize,
+		isEmpty,
 		canUndo,
 		canRedo,
 		undo,
 		redo,
 		clear,
+		buildSearchMask,
 		refresh,
 		handlers,
 	} = useDoodleCanvas({ color: "#171516", active: isOpen });
+
+	const handleSearch = () => {
+		const maskPngB64 = buildSearchMask();
+		if (!maskPngB64) {
+			setShowEmptyHint(true);
+			return;
+		}
+		setShowEmptyHint(false);
+		searchMutation.mutate(
+			{ maskPngB64, mode: "shape" },
+			{
+				onSuccess: (results) => {
+					if (results.length === 0) return;
+					const state: CoverupRouteState = {
+						coverupStep: 3,
+						source: "doodle",
+						doodleMaskPngB64: maskPngB64,
+						doodleResults: results,
+					};
+					onClose();
+					navigate("/coverups", { state });
+				},
+			},
+		);
+	};
+
+	const errorInfo = searchMutation.isError
+		? describeSearchError(searchMutation.error)
+		: null;
+	const searchMessage = showEmptyHint
+		? "도안을 찾을 선을 그려주세요."
+		: searchMutation.isSuccess && searchMutation.data.length === 0
+			? "비슷한 도안을 찾지 못했습니다. 모양을 조금 바꿔 다시 시도해주세요."
+			: errorInfo?.message;
 
 	useEffect(() => {
 		if (!isOpen) return undefined;
@@ -99,10 +143,22 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 						className="absolute inset-0 size-full touch-none cursor-crosshair"
 						aria-label="낙서 캔버스"
 						{...handlers}
+						onPointerDown={(event) => {
+							setShowEmptyHint(false);
+							searchMutation.reset();
+							handlers.onPointerDown(event);
+						}}
 					/>
 				</div>
 
-				<div className="mt-3 flex justify-center">
+				{searchMessage && (
+					<p className="mt-2 text-center text-[13px] text-brand" role="alert">
+						{searchMessage}
+					</p>
+				)}
+
+				<div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+					<span aria-hidden />
 					<DoodleToolbar
 						tool={tool}
 						onToolChange={setTool}
@@ -112,8 +168,23 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 						canRedo={canRedo}
 						onUndo={undo}
 						onRedo={redo}
-						onClear={clear}
+						onClear={() => {
+							clear();
+							setShowEmptyHint(false);
+							searchMutation.reset();
+						}}
 					/>
+					<button
+						type="button"
+						onClick={handleSearch}
+						disabled={isEmpty || searchMutation.isPending}
+						className="h-10 justify-self-end rounded-full bg-brand px-5 text-[14px] font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/30">
+						{searchMutation.isPending ? (
+							<LoadingLabel>찾는 중…</LoadingLabel>
+						) : (
+							"도안 찾기"
+						)}
+					</button>
 				</div>
 			</div>
 		</div>,

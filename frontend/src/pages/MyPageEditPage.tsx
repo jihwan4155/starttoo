@@ -268,7 +268,7 @@ export default function MyPageEditPage() {
 					type="button"
 					onClick={() => avatarInputRef.current?.click()}
 					aria-label="프로필 이미지 변경"
-					className={`relative block size-[84px] overflow-hidden rounded-full ${usesDefaultAvatar ? "bg-white" : "bg-[#D9D9D9]"}`}>
+					className="relative block size-[84px] overflow-hidden rounded-full bg-white">
 					<img
 						src={displayAvatar}
 						alt=""

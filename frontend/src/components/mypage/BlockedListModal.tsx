@@ -136,7 +136,7 @@ export default function BlockedListModal({
 										<img
 											src={resolveAvatar(user.profileImageUrl, user.nickname)}
 											alt=""
-											className="size-11 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+											className="size-11 shrink-0 rounded-full bg-white object-cover"
 										/>
 										<span className="flex min-w-0 flex-1 items-center gap-1.5">
 											<span className="truncate text-[15px] font-semibold text-black">

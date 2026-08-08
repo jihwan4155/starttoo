@@ -193,7 +193,7 @@ export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 										<img
 											src={resolveAvatar(user.profileImageUrl, user.nickname)}
 											alt=""
-											className="size-10 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+											className="size-10 shrink-0 rounded-full bg-white object-cover"
 										/>
 										<span className="min-w-0 flex-1">
 											<span className="block truncate text-[14px] font-semibold text-black">

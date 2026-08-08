@@ -25,3 +25,11 @@ export type SearchResponse = {
 	/** 검색 점수 내림차순. 프론트에서 다시 정렬하지 않는다 */
 	results: DesignResult[];
 };
+
+/** 낙서장 검색 결과를 커버업 결과 화면으로 넘길 때 사용하는 라우터 state. */
+export type CoverupRouteState = {
+	coverupStep?: number;
+	source?: "doodle";
+	doodleMaskPngB64?: string;
+	doodleResults?: DesignResult[];
+};

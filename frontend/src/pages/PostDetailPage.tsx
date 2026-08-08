@@ -1,8 +1,13 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import usePost from "../hooks/queries/usePost";
 import { ApiError } from "../services/api";
+
+type PostDetailLocationState = {
+	/** 들어온 화면 — DM 공유 카드 등. 없으면 커뮤니티로 보낸다. */
+	from?: string;
+};
 
 /**
  * 피드 단건 주소 — /posts/:postId
@@ -10,12 +15,15 @@ import { ApiError } from "../services/api";
  * 피드 안에서만 열리던 상세를 주소로도 열 수 있게 한다. DM으로 공유한 피드가
  * 이 경로로 들어오고, 새로고침·링크 복사도 여기서 받는다.
  *
- * 화면은 피드에서 쓰는 상세 모달을 그대로 띄운다. 모달을 닫으면 커뮤니티로
- * 보낸다 — 링크로 바로 들어온 경우 뒤로 갈 곳이 없기 때문이다.
+ * 화면은 피드에서 쓰는 상세 모달을 그대로 띄운다. 닫을 때는 state.from
+ * (예: /dm)으로 돌아가고, 링크로 바로 들어온 경우만 커뮤니티로 보낸다.
  */
 export default function PostDetailPage() {
 	const { postId } = useParams();
 	const navigate = useNavigate();
+	const location = useLocation();
+	const from =
+		(location.state as PostDetailLocationState | null)?.from ?? null;
 	const parsed = Number(postId);
 	const isValidId = Number.isInteger(parsed) && parsed > 0;
 
@@ -23,7 +31,7 @@ export default function PostDetailPage() {
 		isValidId ? parsed : undefined,
 	);
 
-	const close = () => navigate("/posts", { replace: true });
+	const close = () => navigate(from ?? "/posts", { replace: true });
 
 	if (!isValidId || isError) {
 		const message =
@@ -39,7 +47,7 @@ export default function PostDetailPage() {
 					type="button"
 					onClick={close}
 					className="rounded-full border border-black/20 px-5 py-2 text-[13px] font-semibold transition hover:bg-black/5">
-					커뮤니티로 가기
+					{from === "/dm" ? "DM으로 가기" : "커뮤니티로 가기"}
 				</button>
 			</div>
 		);

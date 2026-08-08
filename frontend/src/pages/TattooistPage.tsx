@@ -170,7 +170,7 @@ export default function TattooistPage() {
 											<img
 												src={resolveAvatar(null, account.nickname)}
 												alt=""
-												className="size-12 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+												className="size-12 shrink-0 rounded-full bg-white object-cover"
 											/>
 											<span className="flex min-w-0 items-center gap-1.5">
 												<span className="truncate text-[15px] font-bold text-black">
@@ -197,7 +197,7 @@ export default function TattooistPage() {
 											<img
 												src={resolveAvatar(artist.avatarUrl, artist.name)}
 												alt=""
-												className="size-14 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+												className="size-14 shrink-0 rounded-full bg-white object-cover transition hover:opacity-90"
 											/>
 										</Link>
 										<div className="min-w-0 flex-1">

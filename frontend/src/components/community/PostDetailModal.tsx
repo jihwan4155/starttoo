@@ -23,6 +23,7 @@ import useCommentReplies from "../../hooks/queries/useCommentReplies";
 import useComments from "../../hooks/queries/useComments";
 import usePost from "../../hooks/queries/usePost";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import { avatarImageClassName } from "../../utils/profile";
 import useBackClose from "../../hooks/useBackClose";
 import useImageSwipe from "../../hooks/useImageSwipe";
 import usePostDwell from "../../hooks/usePostDwell";
@@ -172,7 +173,7 @@ function CommentRow({
 					<img
 						src={avatarUrl}
 						alt=""
-						className="mt-0.5 size-7 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+						className={`mt-0.5 size-7 shrink-0 rounded-full transition hover:opacity-90 ${avatarImageClassName(avatarUrl)}`}
 					/>
 				</Link>
 				<div className="min-w-0 flex-1">
@@ -610,7 +611,7 @@ export default function PostDetailModal({
 							<img
 								src={authorAvatar}
 								alt=""
-								className="size-8 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+								className={`size-8 shrink-0 rounded-full transition hover:opacity-90 ${avatarImageClassName(authorAvatar)}`}
 							/>
 						</Link>
 						<div className="min-w-0 flex-1">

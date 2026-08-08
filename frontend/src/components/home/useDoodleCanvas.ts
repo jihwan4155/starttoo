@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import {
+	BRUSH_PX,
+	MASK_H,
+	MASK_W,
+} from "../coverup/shapeSearchConstants";
 
 export type DoodleTool = "pen" | "eraser";
 
@@ -320,6 +325,64 @@ export default function useDoodleCanvas({
 		return blob ? new File([blob], fileName, { type: "image/png" }) : null;
 	}, []);
 
+	/**
+	 * 낙서 획을 형태 검색 엔진 규격(420×520, 검은 배경 + 흰 선)으로 변환한다.
+	 * 가로형 낙서장의 비율은 유지하고 남는 위아래 공간에는 검은 여백을 둔다.
+	 */
+	const buildSearchMask = useCallback(() => {
+		const sourceCanvas = canvasRef.current;
+		const sourceRect = sourceCanvas?.getBoundingClientRect();
+		if (
+			!sourceCanvas ||
+			!sourceRect ||
+			sourceRect.width === 0 ||
+			sourceRect.height === 0 ||
+			!strokesRef.current.some(
+				(stroke) => !stroke.erase && stroke.points.length >= 2,
+			)
+		) {
+			return null;
+		}
+
+		const output = document.createElement("canvas");
+		output.width = MASK_W;
+		output.height = MASK_H;
+		const ctx = output.getContext("2d", { willReadFrequently: true });
+		if (!ctx) return null;
+
+		ctx.fillStyle = "#000";
+		ctx.fillRect(0, 0, MASK_W, MASK_H);
+
+		const pointScale = Math.min(
+			MASK_W / sourceRect.width,
+			MASK_H / sourceRect.height,
+		);
+		const offsetX = (MASK_W - sourceRect.width * pointScale) / 2;
+		const offsetY = (MASK_H - sourceRect.height * pointScale) / 2;
+		// 낙서장의 '보통 선'(4px)을 검색 엔진의 shape 기준 굵기(6px)에 맞춘다.
+		const widthScale = BRUSH_PX.shape / 4;
+
+		strokesRef.current.forEach((stroke) => {
+			const maskStroke: DoodleStroke = {
+				points: stroke.points.map(({ x, y }) => ({
+					x: offsetX + x * pointScale,
+					y: offsetY + y * pointScale,
+				})),
+				width: Math.max(1, stroke.width * widthScale),
+				color: stroke.erase ? "#000" : "#fff",
+				// 검은색으로 덮어 지워야 최종 PNG의 배경도 불투명한 검정으로 남는다.
+				erase: false,
+			};
+			drawStroke(ctx, maskStroke);
+		});
+
+		const pixels = ctx.getImageData(0, 0, MASK_W, MASK_H).data;
+		for (let index = 0; index < pixels.length; index += 4) {
+			if (pixels[index] > 10) return output.toDataURL("image/png");
+		}
+		return null;
+	}, []);
+
 	return {
 		canvasRef,
 		tool,
@@ -333,6 +396,7 @@ export default function useDoodleCanvas({
 		redo,
 		clear,
 		toFile,
+		buildSearchMask,
 		refresh,
 		handlers: {
 			onPointerDown: handlePointerDown,
