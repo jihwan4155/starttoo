@@ -175,7 +175,7 @@ app:
     design-url-expiry: ${AR_SESSION_DESIGN_URL_EXPIRY:1h}
   preference:
     survey: 5.0
-    post-like: 2.0
+    post-like: 200.0
     post-bookmark: 3.0
     collection: 4.0
     not-interested: -2.0
