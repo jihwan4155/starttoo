@@ -17,10 +17,11 @@ type ArOptions = {
 };
 
 const DEFAULT_OPTIONS: ArOptions = {
-	size: 50,
+	// 처음 들어왔을 때 도안이 너무 작고 연하게 보여서 기본값을 올렸다.
+	size: 80,
 	direction: 0,
 	curvature: 50,
-	opacity: 50,
+	opacity: 70,
 };
 
 /** PoC 기본 배율 — UI 100%가 이 값이 되도록 매핑 */
