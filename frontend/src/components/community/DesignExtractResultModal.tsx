@@ -40,8 +40,14 @@ export default function DesignExtractResultModal({
 		(isCurrentDesign && archiveState?.saved === true);
 	const currentSaveError = isCurrentDesign ? saveError : null;
 
-	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
-	useBackClose(!!result && !showArchiveFull, onClose);
+	/*
+	 * 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다.
+	 *
+	 * 보관함 안내가 떠 있는 동안 이 값을 false로 내리면, 정리 과정에서 부르는
+	 * history.back()이 방금 안내창이 밀어 넣은 항목을 도로 빼서 안내창이 깜빡이고
+	 * 사라진다. useBackClose 스택이 이미 맨 위 창만 닫아 주므로 그대로 열어 둔다.
+	 */
+	useBackClose(!!result, onClose);
 
 	if (!result) return null;
 

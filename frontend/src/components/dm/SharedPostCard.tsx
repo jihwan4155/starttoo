@@ -46,7 +46,7 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 		return (
 			<div className={`${frameClass} px-3 py-4`}>
 				<p className="text-[12px] font-light leading-5 text-black/45">
-					삭제되었거나 볼 수 없는 피드예요.
+					삭제되었거나 볼 수 없는 게시물이에요.
 				</p>
 			</div>
 		);
@@ -64,7 +64,7 @@ export default function SharedPostCard({ postId, mine }: SharedPostCardProps) {
 			onClick={() =>
 				navigate(`/posts/${post.id}`, { state: { from: "/dm" } })
 			}
-			aria-label={`${post.author.nickname}의 피드 보기`}
+			aria-label={`${post.author.nickname}의 게시물 보기`}
 			className={`${frameClass} hover:brightness-95`}>
 			{thumbnail ? (
 				<img

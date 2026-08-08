@@ -135,7 +135,7 @@ export default function CommunitySearchPage() {
 		error instanceof ApiError
 			? error.message
 			: isExplore
-				? "피드를 불러오지 못했습니다."
+				? "게시물을 불러오지 못했습니다."
 				: "검색 결과를 불러오지 못했습니다.";
 
 	return (
@@ -148,8 +148,8 @@ export default function CommunitySearchPage() {
 
 				{isExplore && !isPrimaryFilter && (
 					<p className="mb-4 text-[14px] font-light text-black/60">
-						<span className="font-semibold text-black">추천 피드</span> ·
-						키워드를 입력하면 검색할 수 있어요
+						<span className="font-semibold text-black">추천 게시물</span> ·
+						회원님의 취향을 반영한 맞춤 피드예요
 					</p>
 				)}
 
@@ -190,7 +190,7 @@ export default function CommunitySearchPage() {
 					<p className="py-20 text-center text-[14px] text-black/40">
 						{isPrimaryFilter
 							? "해당 카테고리의 이미지가 없습니다."
-							: "아직 올라온 피드가 없어요."}
+							: "아직 올라온 게시물이 없어요."}
 					</p>
 				)}
 
@@ -230,7 +230,7 @@ export default function CommunitySearchPage() {
 							<button
 								key={post.id}
 								type="button"
-								aria-label={`${post.author.nickname}의 피드 보기`}
+								aria-label={`${post.author.nickname}의 게시물 보기`}
 								onClick={() => handleOpenPost(post)}
 								className="aspect-[3/4] overflow-hidden bg-[#D9D9D9] lg:rounded-[6px]">
 								{imageUrl && (

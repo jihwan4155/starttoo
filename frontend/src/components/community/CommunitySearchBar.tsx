@@ -139,7 +139,7 @@ export default function CommunitySearchBar({
 						setCameraOpen(false);
 					}}
 					onBlur={() => setFocused(false)}
-					placeholder="피드 검색 → 예: 나비, 장미"
+					placeholder="게시물 검색 → 예: 나비, 장미"
 					maxLength={50}
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
 				/>

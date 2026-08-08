@@ -42,7 +42,7 @@ export default function CommunitySection() {
 								className="block shrink-0 transition hover:opacity-90">
 								<img
 									src={post.imageUrl ?? undefined}
-									alt={`${post.author.nickname}의 피드`}
+									alt={`${post.author.nickname}의 게시물`}
 									className="aspect-square h-auto w-full rounded-[10px] bg-[#D9D9D9] object-cover lg:h-[200px] lg:w-[200px]"
 								/>
 							</Link>
@@ -52,7 +52,7 @@ export default function CommunitySection() {
 			<Link
 				to="/posts/search"
 				className="mt-8 text-[16px] font-light text-black/60 transition hover:text-black">
-				→ 피드 보러가기
+				→ 게시물 보러가기
 			</Link>
 		</section>
 	);

@@ -92,15 +92,15 @@ export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 			}
 			showToast(
 				selected.length === 1
-					? "피드를 보냈습니다."
-					: `${selected.length}명에게 피드를 보냈습니다.`,
+					? "게시물을 보냈습니다."
+					: `${selected.length}명에게 게시물을 보냈습니다.`,
 			);
 			close();
 		} catch (cause) {
 			setError(
 				cause instanceof ApiError
 					? cause.message
-					: "피드를 보내지 못했습니다.",
+					: "게시물을 보내지 못했습니다.",
 			);
 		} finally {
 			setSending(false);
@@ -114,7 +114,7 @@ export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 			<div
 				role="dialog"
 				aria-modal="true"
-				aria-label="피드 공유"
+				aria-label="게시물 공유"
 				onClick={(event) => event.stopPropagation()}
 				className="flex max-h-[80vh] w-full max-w-[420px] flex-col overflow-hidden rounded-[16px] bg-white shadow-xl">
 				<div className="relative shrink-0 border-b border-black/10 px-5 py-4">

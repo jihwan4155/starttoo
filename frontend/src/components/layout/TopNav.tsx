@@ -337,7 +337,7 @@ const MOBILE_MENU_ITEMS = [
 	{ label: "타투 시뮬레이션", to: "/simulations" },
 	{ label: "커버업 타투", to: "/coverups" },
 	{ label: "커뮤니티", to: "/posts", dividerBefore: true, exact: true },
-	{ label: "피드", to: "/posts/search" },
+	{ label: "게시물", to: "/posts/search" },
 	{ label: "메시지", to: "/dm" },
 	{ label: "타투이스트", to: "/artists" },
 	{ label: "마이페이지", to: "/mypage" },

@@ -37,7 +37,7 @@ export default function PostDetailPage() {
 		const message =
 			error instanceof ApiError
 				? error.message
-				: "피드를 찾을 수 없습니다.";
+				: "게시물을 찾을 수 없습니다.";
 		return (
 			<div className="flex min-h-[calc(100vh-var(--nav-h))] flex-col items-center justify-center gap-4 px-6">
 				<p className="text-center text-[14px] text-black/60">
@@ -56,7 +56,7 @@ export default function PostDetailPage() {
 	if (isPending || !post) {
 		return (
 			<div className="min-h-[calc(100vh-var(--nav-h))] py-20">
-				<StarttooLoader variant="block" label="피드를 불러오는 중…" />
+				<StarttooLoader variant="block" label="게시물을 불러오는 중…" />
 			</div>
 		);
 	}

@@ -30,7 +30,7 @@ const MAIN_ITEMS: NavItem[] = [
 const COMMUNITY_ITEMS: NavItem[] = [
 	{
 		id: "community",
-		label: "커뮤니티",
+		label: "게시물",
 		to: "/posts",
 		icon: "community",
 		exact: true,

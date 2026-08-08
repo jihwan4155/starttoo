@@ -18,7 +18,7 @@ function NavIcon({ name }: { name: NavIconName }) {
 
 const items = [
 	{ label: "커뮤니티", to: "/posts", icon: "community" },
-	{ label: "피드", to: "/posts/search", icon: "feed" },
+	{ label: "게시물", to: "/posts/search", icon: "feed" },
 	{ label: "타투이스트", to: "/artists", icon: "artist" },
 	{ label: "마이페이지", to: "/mypage", icon: "profile" },
 ] as const;
@@ -37,7 +37,7 @@ export default function MobileCommunityNav() {
 					<NavIcon name={item.icon} /><span>{item.label}</span>
 				</Link>
 			))}
-			<button type="button" onClick={() => navigate("/posts?compose=1")} aria-label="새 피드 만들기" className="mx-auto -mt-4 flex size-14 items-center justify-center self-center rounded-full bg-brand text-[38px] font-extralight leading-none text-white shadow-[0_6px_18px_rgba(255,76,76,0.35)]">＋</button>
+			<button type="button" onClick={() => navigate("/posts?compose=1")} aria-label="새 게시물 만들기" className="mx-auto -mt-4 flex size-14 items-center justify-center self-center rounded-full bg-brand text-[38px] font-extralight leading-none text-white shadow-[0_6px_18px_rgba(255,76,76,0.35)]">＋</button>
 			{items.slice(2).map((item) => (
 				<Link key={item.to} to={item.to} onClick={navRefresh(item.to)} className={`flex flex-col items-center justify-center gap-1 text-[12px] ${active(item.to) ? "text-brand" : "text-[#333]"}`} aria-current={active(item.to) ? "page" : undefined}>
 					<NavIcon name={item.icon} /><span>{item.label}</span>

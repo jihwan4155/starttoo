@@ -16,7 +16,7 @@ export default function PostThumbnailGrid({
 					key={post.id}
 					type="button"
 					onClick={() => onOpen(post)}
-					aria-label={`${post.author.nickname}의 피드`}
+					aria-label={`${post.author.nickname}의 게시물`}
 					className="aspect-[3/4] overflow-hidden bg-[#D9D9D9] transition hover:opacity-90 lg:rounded-[6px]">
 					{post.imageUrl && (
 						<img
