@@ -12,6 +12,7 @@ import useAuthStore from "../store/useAuthStore";
 import type { Post } from "../types/community";
 import { isSearchableQuery } from "../types/search";
 import { filterVisiblePosts } from "../utils/filterPosts";
+import { getPostImageUrls } from "../utils/mapPost";
 import CommunitySearchBar from "../components/community/CommunitySearchBar";
 
 /**
@@ -79,6 +80,12 @@ export default function CommunitySearchPage() {
 		const items = pages?.flatMap((page) => page.items) ?? [];
 		return filterVisiblePosts(items, hiddenIds);
 	}, [isExplore, explorePages, searchPages, hiddenIds]);
+
+	const representativeImage = (post: Post) => {
+		const images = getPostImageUrls(post);
+		const index = isExplore ? 0 : (post.searchMatchedImageIndex ?? 0);
+		return images[index] ?? post.imageUrl;
+	};
 
 	/**
 	 * 오타가 보정된 실제 subject — 페이지마다 같아 첫 페이지 것을 쓴다.
@@ -194,22 +201,25 @@ export default function CommunitySearchPage() {
 					)}
 
 				<div className="grid grid-cols-3 gap-0.5 lg:grid-cols-4 lg:gap-3">
-					{results.map((post) => (
-						<button
-							key={post.id}
-							type="button"
-							aria-label={`${post.author.nickname}의 피드 보기`}
-							onClick={() => handleOpenPost(post)}
-							className="aspect-[3/4] overflow-hidden bg-[#D9D9D9] lg:rounded-[6px]">
-							{post.imageUrl && (
-								<img
-									src={post.imageUrl}
-									alt=""
-									className="h-full w-full object-cover transition hover:scale-[1.03]"
-								/>
-							)}
-						</button>
-					))}
+					{results.map((post) => {
+						const imageUrl = representativeImage(post);
+						return (
+							<button
+								key={post.id}
+								type="button"
+								aria-label={`${post.author.nickname}의 피드 보기`}
+								onClick={() => handleOpenPost(post)}
+								className="aspect-[3/4] overflow-hidden bg-[#D9D9D9] lg:rounded-[6px]">
+								{imageUrl && (
+									<img
+										src={imageUrl}
+										alt=""
+										className="h-full w-full object-cover transition hover:scale-[1.03]"
+									/>
+								)}
+							</button>
+						);
+					})}
 				</div>
 
 				{results.length > 0 && (
@@ -227,8 +237,9 @@ export default function CommunitySearchPage() {
 			</div>
 
 			<PostDetailModal
-				key={activePost?.id}
+				key={`${activePost?.id ?? "closed"}-${activePost?.searchMatchedImageIndex ?? 0}`}
 				post={activePost}
+				initialImageIndex={activePost?.searchMatchedImageIndex ?? 0}
 				onClose={() => setActivePost(null)}
 			/>
 		</div>

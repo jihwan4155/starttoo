@@ -256,9 +256,12 @@ public class SearchService {
         );
         boolean hasNext = ids.size() > safeSize;
         List<Long> page = hasNext ? ids.subList(0, safeSize) : ids;
+        Map<Long, Long> matchedImages = matchedImages(page, canonical.subjectSeq());
         List<PostDtos.PostResponse> items = page.isEmpty()
                 ? List.of()
-                : postService.responsesBySeqs(page, userSeq);
+                : postService.responsesBySeqs(page, userSeq).stream()
+                .map(post -> post.withMatchedImageSeq(matchedImages.get(post.postSeq())))
+                .toList();
         searchLogService.recordPostSearch(
                 userSeq,
                 query,
@@ -277,6 +280,39 @@ public class SearchService {
                 hasNext,
                 items.size()
         );
+    }
+
+    /**
+     * 게시물 단위 검색은 같은 subject가 붙은 여러 사진을 하나의 카드로 합친다.
+     * 그 과정에서도 실제로 검색에 걸린 사진을 잃지 않도록, 게시물 안에서 가장 앞선
+     * 일치 사진의 imageSeq를 대표 검색 이미지로 선택한다.
+     */
+    private Map<Long, Long> matchedImages(List<Long> postSeqs, Integer subjectSeq) {
+        if (postSeqs.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> matched = new LinkedHashMap<>();
+        namedParameterJdbcTemplate.query("""
+                SELECT DISTINCT ON (post_image.post_seq)
+                       post_image.post_seq,
+                       post_image.image_seq
+                  FROM post_images post_image
+                  JOIN tattoos tattoo
+                    ON tattoo.image_seq = post_image.image_seq
+                   AND tattoo.is_deleted = FALSE
+                  JOIN tattoo_subjects tattoo_subject
+                    ON tattoo_subject.tattoo_seq = tattoo.tattoo_seq
+                 WHERE post_image.post_seq IN (:postSeqs)
+                   AND tattoo_subject.subject_seq = :subjectSeq
+                 ORDER BY post_image.post_seq,
+                          post_image.display_order,
+                          post_image.post_image_seq
+                """, new MapSqlParameterSource()
+                .addValue("postSeqs", postSeqs)
+                .addValue("subjectSeq", subjectSeq), rs -> {
+            matched.put(rs.getLong("post_seq"), rs.getLong("image_seq"));
+        });
+        return matched;
     }
 
     private List<SearchDtos.AccountResult> autocompleteAccounts(
