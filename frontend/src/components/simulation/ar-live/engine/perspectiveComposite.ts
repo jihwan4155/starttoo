@@ -454,6 +454,264 @@ export function concealSmileMarkerArea(
 	ctx.restore();
 }
 
+/** 마커를 지울 영역의 모양. */
+export type ConcealShape =
+	/** 검출된 잉크 픽셀만. 실제 피부 질감이 가장 많이 남지만, 획이 근사 선분에서
+	 *  많이 벗어나면 일부가 비칠 수 있다. */
+	| "ink"
+	/** 세 획이 감싸는 영역 전체 (모서리 둥글게). */
+	| "rounded"
+	/** 같은 영역을 마커 방향에 맞춘 타원으로 (모서리 없음). */
+	| "ellipse";
+
+export interface ConcealInpaintOptions {
+	shape?: ConcealShape;
+	/** 획 반경의 배수만큼 영역을 더 넓게 덮는다. */
+	padding?: number;
+}
+
+/**
+ * 마커를 지우고 그 자리를 cv.inpaint(TELEA)로 주변 피부에서 복원한다.
+ *
+ * `concealSmileMarkerArea`가 옆 피부를 통째로 "이식"하는 것과 달리, 여기서는
+ * 가릴 픽셀만 마스크로 잡고 경계 피부로부터 안쪽을 채운다. 마스크는
+ * (1) 세 획이 감싸는 볼록 영역을 padding만큼 키운 것과
+ * (2) 주변에서 국소적으로 어두운 픽셀(= 펜 잉크)을 임계화한 것의 합집합이라,
+ * 모서리 밖으로 삐져나간 획까지 함께 사라진다.
+ *
+ * 마스크 픽셀만 그리고 경계는 페더링하므로 네모난 패치가 보이지 않는다.
+ * 실패하면 아무것도 그리지 않고 `fallback`을 호출한다 — 호출부에서 기존
+ * `concealSmileMarkerArea`를 넘겨두면 최악의 경우에도 기존 동작이 유지된다.
+ */
+export function concealSmileMarkerInpaint(
+	cv: any,
+	ctx: CanvasRenderingContext2D,
+	features: SmileMarkerFeatures,
+	sampleContext: CanvasRenderingContext2D = ctx,
+	fallback?: () => void,
+	options: ConcealInpaintOptions = {}
+): void {
+	const shape = options.shape ?? "rounded";
+	const padding = Math.max(0, options.padding ?? 2.5);
+	let drawn = false;
+
+	try {
+		const eyeLength =
+			(Math.hypot(
+				features.leftEyeBottom.x - features.leftEyeTop.x,
+				features.leftEyeBottom.y - features.leftEyeTop.y
+			) +
+				Math.hypot(
+					features.rightEyeBottom.x - features.rightEyeTop.x,
+					features.rightEyeBottom.y - features.rightEyeTop.y
+				)) *
+			0.5;
+
+		const strokes: [PointLike, PointLike][] = [
+			[features.leftEyeTop, features.leftEyeBottom],
+			[features.rightEyeTop, features.rightEyeBottom],
+			[features.mouthLeft, features.mouthRight],
+		];
+		// concealSmileMarker와 같은 폭 기준. padding 기본값과 곱하면 기존
+		// concealSmileMarkerArea의 여유(eyeLength * 0.55)와 같은 크기가 된다.
+		const coverRadius = Math.max(3, eyeLength * 0.22);
+		// 근사 선분은 손으로 그린 획을 그대로 따라가지 못하므로 잉크는 훨씬
+		// 바깥까지 찾는다. 실제로 무엇을 덮을지는 마스크가 정한다.
+		const bandRadius = coverRadius * 2.6;
+		const coverPadding = coverRadius * padding;
+		const points = Object.values(features);
+		// inpaint가 참고할 깨끗한 피부를 영역 바깥에 남겨둔다.
+		const margin = Math.max(bandRadius, coverPadding) + coverRadius * 3 + 4;
+		const left = Math.max(
+			0,
+			Math.floor(Math.min(...points.map((point) => point.x)) - margin)
+		);
+		const top = Math.max(
+			0,
+			Math.floor(Math.min(...points.map((point) => point.y)) - margin)
+		);
+		const right = Math.min(
+			sampleContext.canvas.width,
+			Math.ceil(Math.max(...points.map((point) => point.x)) + margin)
+		);
+		const bottom = Math.min(
+			sampleContext.canvas.height,
+			Math.ceil(Math.max(...points.map((point) => point.y)) + margin)
+		);
+		const width = right - left;
+		const height = bottom - top;
+		if (width < 2 || height < 2) return;
+
+		const source = sampleContext.getImageData(left, top, width, height);
+		const patchCanvas = getInpaintCanvas(width, height);
+		const patchContext = patchCanvas.getContext("2d");
+		if (!patchContext) return;
+
+		const rgba = cv.matFromImageData(source);
+		const rgb = new cv.Mat();
+		const gray = new cv.Mat();
+		const ink = new cv.Mat();
+		const repaired = new cv.Mat();
+		const alpha = new cv.Mat();
+		let kernel: any = null;
+
+		try {
+			cv.cvtColor(rgba, rgb, cv.COLOR_RGBA2RGB);
+			cv.cvtColor(rgb, gray, cv.COLOR_RGB2GRAY);
+
+			// 잉크는 주변보다 국소적으로 어둡다. 평균 기준 적응형 임계화를 쓰면
+			// 팔을 가로지르는 조명 그라데이션에 걸리지 않는다.
+			const blockSize = Math.max(3, Math.round(coverRadius * 4) | 1);
+			cv.adaptiveThreshold(
+				gray,
+				ink,
+				255,
+				cv.ADAPTIVE_THRESH_MEAN_C,
+				cv.THRESH_BINARY_INV,
+				blockSize,
+				7
+			);
+
+			// 획 주변으로 제한해 털/점/합성된 도안을 잉크로 오인하지 않게 하고,
+			// 임계화가 놓친 흐린 구간은 획 중심선으로 강제로 채운다.
+			const inkData = ink.data as Uint8Array;
+			const coreRadius = coverRadius * 0.9;
+			for (let localY = 0; localY < height; localY++) {
+				for (let localX = 0; localX < width; localX++) {
+					const x = left + localX;
+					const y = top + localY;
+					let nearest = Infinity;
+					for (const [start, end] of strokes) {
+						const candidate = distanceToStroke(x, y, start, end).distance;
+						if (candidate < nearest) nearest = candidate;
+					}
+					const index = localY * width + localX;
+					if (nearest > bandRadius) inkData[index] = 0;
+					else if (nearest <= coreRadius) inkData[index] = 255;
+				}
+			}
+
+			// 안티에일리어싱된 획 가장자리 밖까지 넓힌다. 남은 옅은 헐로가
+			// "마커가 아직 보인다"로 읽히는 주범이다.
+			const grow = Math.max(2, Math.round(coverRadius * 0.7));
+			kernel = cv.getStructuringElement(
+				cv.MORPH_ELLIPSE,
+				new cv.Size(grow * 2 + 1, grow * 2 + 1)
+			);
+			cv.dilate(ink, ink, kernel);
+
+			// 세 획이 감싸는 영역 전체와 합집합을 취해 획 사이 틈까지 덮는다.
+			// 타원 커널로 부풀리면 모서리가 둥글어진다 — 각진 모서리가 가장 먼저
+			// 눈에 띄기 때문.
+			if (shape !== "ink") {
+				const localPoints = cv.matFromArray(
+					points.length,
+					1,
+					cv.CV_32SC2,
+					points.flatMap((point) => [
+						Math.round(point.x - left),
+						Math.round(point.y - top),
+					])
+				);
+				const area = cv.Mat.zeros(height, width, cv.CV_8UC1);
+				let hull: any = null;
+				let polygons: any = null;
+				let areaKernel: any = null;
+				try {
+					if (shape === "ellipse") {
+						const box = cv.minAreaRect(localPoints);
+						cv.ellipse(
+							area,
+							new cv.Point(Math.round(box.center.x), Math.round(box.center.y)),
+							new cv.Size(
+								Math.round(box.size.width / 2 + coverPadding),
+								Math.round(box.size.height / 2 + coverPadding)
+							),
+							box.angle,
+							0,
+							360,
+							new cv.Scalar(255),
+							-1
+						);
+					} else {
+						hull = new cv.Mat();
+						cv.convexHull(localPoints, hull, false, true);
+						polygons = new cv.MatVector();
+						polygons.push_back(hull);
+						cv.fillPoly(area, polygons, new cv.Scalar(255));
+						const areaGrow = Math.max(1, Math.round(coverPadding));
+						areaKernel = cv.getStructuringElement(
+							cv.MORPH_ELLIPSE,
+							new cv.Size(areaGrow * 2 + 1, areaGrow * 2 + 1)
+						);
+						cv.dilate(area, area, areaKernel);
+					}
+					cv.bitwise_or(ink, area, ink);
+				} finally {
+					localPoints.delete();
+					area.delete();
+					hull?.delete();
+					polygons?.delete();
+					areaKernel?.delete();
+				}
+			}
+
+			// 마스크가 넓어진 만큼 샘플 반경도 키워야 채운 색이 밋밋해지지 않는다.
+			cv.inpaint(
+				rgb,
+				ink,
+				repaired,
+				Math.max(3, shape === "ink" ? coverRadius * 1.5 : coverRadius * 2.5),
+				cv.INPAINT_TELEA
+			);
+
+			// 사각형이 아니라 마스크 자체를 페더링하므로 건드리지 않은 피부는
+			// 완전히 투명하게 남고 복원 경계가 보이지 않는다.
+			const feather =
+				shape === "ink" ? grow : Math.max(grow, Math.round(coverRadius * 1.2));
+			cv.GaussianBlur(
+				ink,
+				alpha,
+				new cv.Size(feather * 2 + 1, feather * 2 + 1),
+				0
+			);
+
+			const patch = patchContext.createImageData(width, height);
+			const repairedData = repaired.data as Uint8Array;
+			const alphaData = alpha.data as Uint8Array;
+			for (let index = 0; index < width * height; index++) {
+				const outputIndex = index * 4;
+				const sourceIndex = index * 3;
+				patch.data[outputIndex] = repairedData[sourceIndex];
+				patch.data[outputIndex + 1] = repairedData[sourceIndex + 1];
+				patch.data[outputIndex + 2] = repairedData[sourceIndex + 2];
+				patch.data[outputIndex + 3] = alphaData[index];
+			}
+
+			patchContext.clearRect(0, 0, width, height);
+			patchContext.putImageData(patch, 0, 0);
+			ctx.save();
+			ctx.filter = `blur(${Math.max(0.35, eyeLength * 0.012)}px)`;
+			ctx.drawImage(patchCanvas, left, top);
+			ctx.restore();
+			drawn = true;
+		} finally {
+			rgba.delete();
+			rgb.delete();
+			gray.delete();
+			ink.delete();
+			repaired.delete();
+			alpha.delete();
+			kernel?.delete();
+		}
+	} catch {
+		// opencv 빌드에 photo 모듈이 없거나 기하가 degenerate한 프레임 등.
+		// 프레임 하나를 통째로 잃지 않도록 기존 방식으로 되돌린다.
+	}
+
+	if (!drawn) fallback?.();
+}
+
 export interface CompositeOptions {
 	scale?: number;
 	opacity?: number;

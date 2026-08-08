@@ -12,6 +12,7 @@ import {
 } from "./engine/skinMask";
 import {
 	concealSmileMarkerArea,
+	concealSmileMarkerInpaint,
 	compositeDesignCurvedOntoCanvas,
 	designImageToMat,
 } from "./engine/perspectiveComposite";
@@ -343,13 +344,22 @@ export default function ArLiveStage({
 
 						if (result && designMatRef.current) {
 							setTrackingState("tracking");
-							// 마커 영역을 옆 피부로 이식 + 방사형 페이드로 덮어 가린다
-							concealSmileMarkerArea(
+							// 마커가 감싸는 영역을 마스크로 잡고 cv.inpaint로 주변 피부에서
+							// 복원한다. 실패하면 기존 방식(옆 피부 이식 + 방사형 페이드)으로
+							// 되돌아가므로 최악의 경우에도 이전 동작이 유지된다.
+							concealSmileMarkerInpaint(
+								cv,
 								overlayContext!,
 								result.features,
 								analysisContext!,
-								skinColorRef.current,
-								armAxisAngleRef.current
+								() =>
+									concealSmileMarkerArea(
+										overlayContext!,
+										result.features,
+										analysisContext!,
+										skinColorRef.current,
+										armAxisAngleRef.current
+									)
 							);
 							if (
 								skinMask &&
