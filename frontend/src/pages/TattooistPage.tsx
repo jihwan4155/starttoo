@@ -224,24 +224,22 @@ export default function TattooistPage() {
 										</div>
 									</div>
 
-									<div className="grid grid-cols-4 gap-1 lg:grid-cols-6 lg:gap-1.5">
-										{Array.from({ length: 6 }, (_, i) => {
-											const imageUrl = artist.imageUrls[i];
-											return (
+									{/* 작업물이 있을 때만 — 빈 칸을 회색으로 채우지 않는다 */}
+									{artist.imageUrls.length > 0 && (
+										<div className="grid grid-cols-4 gap-1 lg:grid-cols-6 lg:gap-1.5">
+											{artist.imageUrls.slice(0, 6).map((imageUrl, i) => (
 												<span
 													key={i}
 													className={`aspect-square overflow-hidden rounded-[4px] bg-[#D9D9D9] ${i >= 4 ? "max-lg:hidden" : ""}`}>
-													{imageUrl && (
-														<img
-															src={imageUrl}
-															alt=""
-															className="h-full w-full object-cover"
-														/>
-													)}
+													<img
+														src={imageUrl}
+														alt=""
+														className="h-full w-full object-cover"
+													/>
 												</span>
-											);
-										})}
-									</div>
+											))}
+										</div>
+									)}
 								</article>
 							))}
 
