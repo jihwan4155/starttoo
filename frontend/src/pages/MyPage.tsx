@@ -39,6 +39,7 @@ import { mapArchiveItemToSavedDesign } from "../utils/mapArchive";
 import mergeWithDemoArchiveDesigns from "../utils/mergeArchiveDesigns";
 import { mockPosts } from "../mocks/community";
 import { QA_MOCK_DATA_ENABLED } from "../config/qa";
+import { notifyActionError } from "../utils/actionError";
 
 function PlusIcon() {
 	return (
@@ -207,11 +208,7 @@ export default function MyPage() {
 		if (!requireAuth() || isDemoArchiveDesign(tattooId)) return;
 		removeFromArchive(tattooId, {
 			onError: (err) => {
-				window.alert(
-					err instanceof ApiError
-						? err.message
-						: "도안 보관함에서 삭제하지 못했습니다.",
-				);
+				notifyActionError(err, "도안 보관함에서 삭제하지 못했습니다.");
 			},
 		});
 	};

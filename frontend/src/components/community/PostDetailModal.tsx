@@ -42,6 +42,7 @@ import { ApiError } from "../../services/api";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import { getPostImageUrls } from "../../utils/mapPost";
 import type { Post, PostComment } from "../../types/community";
+import { notifyActionError } from "../../utils/actionError";
 
 /*
  * 사진 넘기기 화살표 버튼 — 모양을 바꾸려면 여기 두 값만 고치면 된다.
@@ -155,11 +156,7 @@ function CommentRow({
 			{
 				onSuccess: () => setDeleteCommentOpen(false),
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "댓글 삭제에 실패했습니다.",
-					);
+					notifyActionError(err, "댓글 삭제에 실패했습니다.");
 				},
 			},
 		);
@@ -424,9 +421,7 @@ export default function PostDetailModal({
 				onClose();
 			},
 			onError: (err) => {
-				window.alert(
-					err instanceof ApiError ? err.message : "삭제에 실패했습니다.",
-				);
+				notifyActionError(err, "삭제에 실패했습니다.");
 			},
 		});
 	};
@@ -440,9 +435,7 @@ export default function PostDetailModal({
 			{ postId: post.id, hidden: false },
 			{
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError ? err.message : "숨김 처리에 실패했습니다.",
-					);
+					notifyActionError(err, "숨김 처리에 실패했습니다.");
 				},
 			},
 		);

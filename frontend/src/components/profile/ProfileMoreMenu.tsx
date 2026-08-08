@@ -3,7 +3,7 @@ import { MoreIcon } from "../community/icons";
 import ActionConfirmModal from "../common/ActionConfirmModal";
 import useBlockUser from "../../hooks/mutations/useBlockUser";
 import useRequireAuth from "../../hooks/useRequireAuth";
-import { ApiError } from "../../services/api";
+import { notifyActionError } from "../../utils/actionError";
 
 type ProfileMoreMenuProps = {
 	userId: number;
@@ -58,9 +58,7 @@ export default function ProfileMoreMenu({
 				},
 				onError: (err) => {
 					setConfirmOpen(false);
-					window.alert(
-						err instanceof ApiError ? err.message : "차단하지 못했습니다.",
-					);
+					notifyActionError(err, "차단하지 못했습니다.");
 				},
 			},
 		);
