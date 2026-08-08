@@ -9,6 +9,7 @@ import useBackClose from "../../hooks/useBackClose";
 import { ApiError } from "../../services/api";
 import { resolveAvatar } from "../../utils/profile";
 import LoadingLabel from "../loader/LoadingLabel";
+import { notifyActionError } from "../../utils/actionError";
 
 type BlockedListModalProps = {
 	isOpen: boolean;
@@ -88,11 +89,7 @@ export default function BlockedListModal({
 				onSuccess: () => setPendingUnblock(null),
 				onError: (err) => {
 					setPendingUnblock(null);
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "차단을 해제하지 못했습니다.",
-					);
+					notifyActionError(err, "차단을 해제하지 못했습니다.");
 				},
 			},
 		);

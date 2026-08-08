@@ -28,10 +28,10 @@ import useImageSwipe from "../../hooks/useImageSwipe";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
 import usePostHiddenOverlay from "../../hooks/usePostHidden";
-import { ApiError } from "../../services/api";
 import { getPostImageUrls } from "../../utils/mapPost";
 import { formatTimeAgo } from "../../utils/timeAgo";
 import type { Post } from "../../types/community";
+import { notifyActionError } from "../../utils/actionError";
 
 /*
  * 사진 넘기기 화살표 버튼 — 모양을 바꾸려면 여기 두 값만 고치면 된다.
@@ -145,9 +145,7 @@ export default function PostCard({
 		deletePostMutate(post.id, {
 			onSuccess: () => setDeleteOpen(false),
 			onError: (err) => {
-				window.alert(
-					err instanceof ApiError ? err.message : "삭제에 실패했습니다.",
-				);
+				notifyActionError(err, "삭제에 실패했습니다.");
 			},
 		});
 	};
@@ -159,9 +157,7 @@ export default function PostCard({
 			{ postId: post.id, hidden: false },
 			{
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError ? err.message : "숨김 처리에 실패했습니다.",
-					);
+					notifyActionError(err, "숨김 처리에 실패했습니다.");
 				},
 			},
 		);
@@ -173,11 +169,7 @@ export default function PostCard({
 			{ postId: post.id, hidden: true },
 			{
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "숨김 취소에 실패했습니다.",
-					);
+					notifyActionError(err, "숨김 취소에 실패했습니다.");
 				},
 			},
 		);

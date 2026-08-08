@@ -12,7 +12,7 @@ import {
 } from "../../utils/toggleCommitQueue";
 import { bookmarkedPostsQueryKey } from "../queries/useBookmarkedPosts";
 import useCommunityStore from "../../store/useCommunityStore";
-import { ApiError } from "../../services/api";
+import { notifyActionError } from "../../utils/actionError";
 
 const KEY_PREFIX = "post-bookmark:";
 
@@ -48,11 +48,7 @@ export default function useTogglePostBookmark() {
 			void queryClient.invalidateQueries({ queryKey: bookmarkedPostsQueryKey });
 			// 연타로 인한 429는 아이콘이 되돌아가는 것으로 충분
 			if (isRateLimited(error)) return;
-			window.alert(
-				error instanceof ApiError
-					? error.message
-					: "북마크 처리에 실패했습니다.",
-			);
+			notifyActionError(error, "북마크 처리에 실패했습니다.");
 		},
 	});
 

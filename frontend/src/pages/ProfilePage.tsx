@@ -27,6 +27,7 @@ import useAuthStore from "../store/useAuthStore";
 import useDmStore from "../store/useDmStore";
 import type { Post } from "../types/community";
 import { resolveAvatar } from "../utils/profile";
+import { notifyActionError } from "../utils/actionError";
 
 /** 상대방 프로필 — GET /users/{userId} + GET /users/{userId}/posts */
 export default function ProfilePage() {
@@ -123,11 +124,7 @@ export default function ProfilePage() {
 			{
 				onSuccess: () => setUnfollowOpen(false),
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "팔로우 처리에 실패했습니다.",
-					);
+					notifyActionError(err, "팔로우 처리에 실패했습니다.");
 				},
 			},
 		);
@@ -157,11 +154,7 @@ export default function ProfilePage() {
 					navigate("/dm");
 				},
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "대화를 시작하지 못했습니다.",
-					);
+					notifyActionError(err, "대화를 시작하지 못했습니다.");
 				},
 			});
 		});
