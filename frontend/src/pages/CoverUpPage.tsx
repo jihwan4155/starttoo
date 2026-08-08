@@ -336,16 +336,9 @@ export default function CoverUpPage() {
 				{/* 기능명세 4-1: 서비스 소개 섹션.
 				    시뮬레이션 단계에서는 캔버스에 높이를 넘겨주려고 접는다 */}
 				{step !== 4 && (
-					<>
-						{!isDoodleSearch && (
-							<p className="shrink-0 text-center text-[13px] font-light text-black/60">
-								흉터도, 오래된 타투도 새롭게
-							</p>
-						)}
-						<h1 className={`${isDoodleSearch ? "" : "mt-1"} shrink-0 text-center text-[26px] font-extrabold text-black`}>
-							{isDoodleSearch ? "타투 도안 추천" : "커버업 타투 도안 추천"}
-						</h1>
-					</>
+					<h1 className="shrink-0 text-center text-[26px] font-extrabold text-black">
+						{isDoodleSearch ? "타투 도안 추천" : "커버업 타투 도안 추천"}
+					</h1>
 				)}
 
 				<StepHeader description={STEP_DESCRIPTION[step]} />
@@ -448,8 +441,9 @@ export default function CoverUpPage() {
 									컴퓨터에서 선택
 								</ActionButton>
 							</div>
-							<p className="mt-2 text-center text-[13px] font-light text-black/50">
-								{fileError ?? "내 사진을 사용하면 실제 피부에 어떻게 보일지 확인할 수 있어요"}
+							{/* 안내가 아니라 오류만 남긴다. 자리는 비워 둬 버튼이 흔들리지 않게 한다 */}
+							<p className="mt-2 text-center text-[13px] text-brand">
+								{fileError ?? " "}
 							</p>
 						</>
 					)}

@@ -289,10 +289,7 @@ export default function SimulationsPage() {
 			<div className="mx-auto flex h-full w-full max-w-[1020px] flex-col px-6 pt-6 pb-6">
 				{!hideHeader && (
 					<>
-						<p className="shrink-0 text-center text-[13px] font-light text-black/60">
-							상상만 하던 타투, 이제 눈으로 확인해보세요
-						</p>
-						<h1 className="mt-1 shrink-0 text-center text-[26px] font-extrabold text-black">
+						<h1 className="shrink-0 text-center text-[26px] font-extrabold text-black">
 							타투 시뮬레이션
 						</h1>
 
@@ -434,10 +431,7 @@ export default function SimulationsPage() {
 				)}
 
 				{tab === "image" && step === 1 && (
-					<UploadDropzoneActions
-						onPick={bodyPhotoUpload.openPicker}
-						hint="내 사진을 사용하면 실제로 내 피부에 어떻게 보일지 확인할 수 있어요"
-					/>
+					<UploadDropzoneActions onPick={bodyPhotoUpload.openPicker} />
 				)}
 				{tab === "image" && step === 2 && (
 					<UploadDropzoneActions
