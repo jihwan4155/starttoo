@@ -196,8 +196,10 @@ export default function MyPageEditPage() {
 				artist && hasArtistShopChanges(shopForm, shopBaseline),
 			);
 
+			// 고친 게 없으면 저장할 것도 없다. 오류로 붙잡아 둘 이유가 없으니
+			// 저장을 누른 대로 마이페이지로 돌려보낸다.
 			if (!hasProfileChanges && !avatarChanged && !hasArtistChanges) {
-				setFormError("변경된 내용이 없습니다.");
+				navigate("/mypage");
 				return;
 			}
 
