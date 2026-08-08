@@ -85,7 +85,8 @@ public class ArtistService {
     public CursorPageResponse<ArtistDtos.ArtistListItem> list(
             String cursor,
             int size,
-            String city
+            String city,
+            Integer viewerSeq
     ) {
         int safeSize = Math.min(Math.max(size, 1), 50);
         ArtistCursor decoded = decodeCursor(cursor);
@@ -117,6 +118,19 @@ public class ArtistService {
                    AND u.account_status = 'ACTIVE'
                    AND u.is_deleted = FALSE
                    AND (CAST(? AS VARCHAR) IS NULL OR a.shop_city = ?)
+                   AND (
+                       CAST(? AS INTEGER) IS NULL OR NOT EXISTS (
+                           SELECT 1
+                             FROM user_blocks block
+                            WHERE (
+                                block.blocker_seq = ?
+                                AND block.blocked_seq = a.user_seq
+                            ) OR (
+                                block.blocker_seq = a.user_seq
+                                AND block.blocked_seq = ?
+                            )
+                       )
+                   )
                    AND (
                        CAST(? AS INTEGER) IS NULL
                        OR COALESCE(f.followers, 0) < ?
@@ -150,6 +164,7 @@ public class ArtistService {
                     return new Row(userSeq, followerCount, profile);
                 },
                 city, city,
+                viewerSeq, viewerSeq, viewerSeq,
                 decoded == null ? null : decoded.userSeq(),
                 decoded == null ? null : decoded.followerCount(),
                 decoded == null ? null : decoded.followerCount(),
