@@ -6,10 +6,10 @@ import OnboardingDialog from "../components/onboarding/OnboardingDialog";
 import ProfileFormStep from "../components/onboarding/ProfileFormStep";
 import type { ProfileFormValues } from "../components/onboarding/ProfileFormStep";
 import TastePickStep from "../components/onboarding/TastePickStep";
+import useUpdateMe from "../hooks/mutations/useUpdateMe";
 import { ApiError } from "../services/api";
 import { upsertArtistProfile } from "../services/artistApi";
 import { submitPreferenceSurvey } from "../services/preferenceApi";
-import { updateMe } from "../services/userApi";
 import useAuthStore from "../store/useAuthStore";
 import useSignupStore from "../store/useSignupStore";
 import type { RequestedRole } from "../types/auth";
@@ -47,6 +47,12 @@ export default function OnboardingPage() {
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
+	// 서비스 함수(updateMe)를 직접 부르지 않고 뮤테이션 훅을 쓴다. 훅이 onSuccess 에서
+	// meQueryKey 를 무효화해 주기 때문이다. 직접 호출하면 서버만 바뀌고 GET /users/me
+	// 캐시(staleTime 60초)는 가입 시점의 임시 닉네임을 그대로 들고 있어서,
+	// 마이페이지가 임시 닉네임을 보여주다 새로고침해야 고쳐진다.
+	const updateMeMutation = useUpdateMe();
+
 	// 세션 없이 들어오면 온보딩할 대상이 없다.
 	if (!accessToken) {
 		return <Navigate to="/login" replace />;
@@ -70,7 +76,7 @@ export default function OnboardingPage() {
 		try {
 			// nickname은 서버에서 필수라 바꾸지 않았어도 현재 값을 그대로 다시 보낸다.
 			// 생년월일·성별은 폼이 채워질 때까지 [다음]을 막으므로 항상 값이 있다.
-			await updateMe({
+			await updateMeMutation.mutateAsync({
 				nickname: values.nickname,
 				birthDate: values.birthDate,
 				gender: values.gender,
