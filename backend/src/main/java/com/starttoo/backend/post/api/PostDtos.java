@@ -65,7 +65,7 @@ public final class PostDtos {
             int likeCount,
             int commentCount,
             List<PostImageResponse> images,
-            @Schema(description = "게시물 검색에서 subject가 일치한 이미지 seq. 일반 피드 응답에서는 null", nullable = true)
+            @Schema(description = "검색·카테고리 필터 또는 개인화 대표 이미지 seq. 해당 조건이 없으면 null", nullable = true)
             @JsonInclude(JsonInclude.Include.NON_NULL)
             Long matchedImageSeq,
             boolean likedByMe,

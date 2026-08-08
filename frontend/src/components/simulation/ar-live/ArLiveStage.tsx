@@ -16,6 +16,9 @@ import {
 	designImageToMat,
 } from "./engine/perspectiveComposite";
 import { TattooPoseStabilizer } from "./engine/tattooPoseStabilizer";
+// 도안은 MinIO 공개 호스트에서 오는 교차 출처 이미지다. 여기서 예전처럼 image.src 로
+// 바로 받으면 캔버스가 오염돼 cv.imread 가 SecurityError 로 죽는다 (AR 도안 로드 실패).
+import { loadImage } from "../loadImage";
 
 /** 엔진 네이티브 옵션값 (슬라이더 %가 아니라 실제 엔진 단위) */
 export type ArEngineOptions = {
@@ -50,15 +53,6 @@ const CAMERA_MESSAGE: Partial<Record<CameraStatus, string>> = {
 	unsupported: "HTTPS(보안 연결)에서만 카메라를 켤 수 있어요.",
 	error: "카메라를 열 수 없어요.",
 };
-
-function loadImage(url: string): Promise<HTMLImageElement> {
-	return new Promise((resolve, reject) => {
-		const image = new Image();
-		image.onload = () => resolve(image);
-		image.onerror = reject;
-		image.src = url;
-	});
-}
 
 function ensureCanvas(
 	canvas: HTMLCanvasElement | null,

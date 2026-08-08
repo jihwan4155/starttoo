@@ -4,6 +4,7 @@ import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import { PostGridSkeleton } from "../components/loader/Skeletons";
 import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../constants/auth";
+import { PRIMARY_STYLE_CATEGORIES } from "../constants/community";
 import usePostSearch from "../hooks/queries/usePostSearch";
 import usePosts from "../hooks/queries/usePosts";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
@@ -42,7 +43,7 @@ export default function CommunitySearchPage() {
 		if (!isLoggedIn) {
 			sessionStorage.setItem(
 				POST_LOGIN_REDIRECT_STORAGE_KEY,
-				location.pathname + location.search,
+				location.pathname + location.search
 			);
 			navigate("/login");
 			return;
@@ -53,13 +54,25 @@ export default function CommunitySearchPage() {
 	const hiddenIds = useHiddenIdsForUser();
 
 	const trimmed = keyword.trim();
+	const requestedPrimary = searchParams.get("primary") ?? "";
+	const activePrimary =
+		trimmed.length === 0
+			? PRIMARY_STYLE_CATEGORIES.find(
+					(category) => category.code === requestedPrimary
+				)
+			: undefined;
+	const isPrimaryFilter = activePrimary != null;
 	/** 서버에 보낼 수 없는 검색어 — 쿼리가 꺼져 있어 로딩·결과 상태를 믿을 수 없다 */
 	const isUnsearchable = trimmed.length > 0 && !isSearchableQuery(trimmed);
 	/** 검색어가 없을 때만 탐색 그리드를 띄운다 */
 	const isExplore = trimmed.length === 0;
 
 	const searchQuery = usePostSearch(keyword);
-	const exploreQuery = usePosts({ size: 24, enabled: isExplore });
+	const exploreQuery = usePosts({
+		size: 24,
+		primaryStyle: activePrimary?.code,
+		enabled: isExplore,
+	});
 
 	// 두 목록은 화면을 번갈아 차지한다. 페이지 타입이 서로 달라(검색만 matchedSubject를
 	// 갖는다) 구조 분해로 합치면 유니온이 되므로, 쓰는 값만 하나씩 골라 온다.
@@ -83,7 +96,7 @@ export default function CommunitySearchPage() {
 
 	const representativeImage = (post: Post) => {
 		const images = getPostImageUrls(post);
-		const index = isExplore ? 0 : (post.searchMatchedImageIndex ?? 0);
+		const index = post.searchMatchedImageIndex ?? 0;
 		return images[index] ?? post.imageUrl;
 	};
 
@@ -112,7 +125,7 @@ export default function CommunitySearchPage() {
 					void fetchNextPage();
 				}
 			},
-			{ root: null, rootMargin: "240px", threshold: 0 },
+			{ root: null, rootMargin: "240px", threshold: 0 }
 		);
 		observer.observe(node);
 		return () => observer.disconnect();
@@ -133,10 +146,19 @@ export default function CommunitySearchPage() {
 					<CommunitySearchBar fullWidth />
 				</div>
 
-				{isExplore && (
+				{isExplore && !isPrimaryFilter && (
 					<p className="mb-4 text-[14px] font-light text-black/60">
 						<span className="font-semibold text-black">추천 게시물</span> ·
 						회원님의 취향을 반영한 맞춤 피드예요
+					</p>
+				)}
+
+				{isPrimaryFilter && !isPending && (
+					<p className="mb-4 text-[14px] font-light text-black/60">
+						<span className="font-semibold text-black">
+							&ldquo;{activePrimary.label}&rdquo;
+						</span>{" "}
+						카테고리 결과 {results.length}건{hasNextPage && "+"}
 					</p>
 				)}
 
@@ -145,8 +167,7 @@ export default function CommunitySearchPage() {
 						<span className="font-semibold text-black">
 							&ldquo;{trimmed}&rdquo;
 						</span>{" "}
-						검색 결과 {results.length}건
-						{hasNextPage && "+"}
+						검색 결과 {results.length}건{hasNextPage && "+"}
 						{isCorrected && (
 							<span className="ml-1 text-black/45">
 								· &lsquo;{matchedSubject?.subjectName}&rsquo;(으)로 찾았어요
@@ -167,7 +188,9 @@ export default function CommunitySearchPage() {
 
 				{isExplore && !isPending && !isError && results.length === 0 && (
 					<p className="py-20 text-center text-[14px] text-black/40">
-						아직 올라온 게시물이 없어요.
+						{isPrimaryFilter
+							? "해당 카테고리의 이미지가 없습니다."
+							: "아직 올라온 게시물이 없어요."}
 					</p>
 				)}
 
