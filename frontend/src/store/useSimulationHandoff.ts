@@ -2,8 +2,8 @@ import { create } from "zustand";
 import type { BodyScanResult } from "../components/simulation/useBodyScan";
 
 export type SimulationHandoff = {
-	/** 커버업에서 올린 신체 사진. blob URL은 페이지가 바뀌면 해제되므로 File로 넘긴다 */
-	bodyPhoto: File;
+	/** 커버업에서 올린 신체 사진. 낙서 검색에서 고른 도안만 넘길 때는 null. */
+	bodyPhoto: File | null;
 	/** 선택한 추천 도안 이미지 URL */
 	designUrl: string;
 	/**
@@ -17,7 +17,7 @@ export type SimulationHandoff = {
  * 커버업 → 시뮬레이션 인계 데이터.
  *
  * <p>persist하지 않는다. File은 직렬화 대상이 아니고, 새로고침했다면 흐름을 처음부터
- * 다시 타는 편이 맞다. 시뮬레이션 페이지가 한 번 읽고 비운다.
+	 * 다시 타는 편이 맞다. 시뮬레이션 페이지가 한 번 읽고 비운다.
  */
 type SimulationHandoffState = {
 	pending: SimulationHandoff | null;
