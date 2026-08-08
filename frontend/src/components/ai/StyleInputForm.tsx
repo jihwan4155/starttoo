@@ -83,8 +83,7 @@ export default function StyleInputForm({
 		<div className="px-8 py-10 max-lg:px-0 max-lg:pb-32 max-lg:pt-9">
 			{showHero && (
 				<div className="mx-auto mb-14 flex max-w-[720px] flex-col items-center text-center max-lg:hidden">
-					<p className="text-[20px] leading-6 text-black">상상만 하던 타투, 이제 눈으로 확인해보세요</p>
-					<h1 className="mt-3 text-[36px] font-extrabold leading-[43px] text-black">AI로 나만의 맞춤 타투 도안을 생성해보세요</h1>
+					<h1 className="text-[36px] font-extrabold leading-[43px] text-black">AI로 나만의 맞춤 타투 도안을 생성해보세요</h1>
 				</div>
 			)}
 

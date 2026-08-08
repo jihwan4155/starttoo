@@ -415,12 +415,6 @@ export default function SimulationsPage() {
 					</div>
 				)}
 
-				{tab === "ar" && step === 1 && (
-					<p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/50">
-						마커를 진하게 그릴수록 AR 인식률이 높아져요!
-					</p>
-				)}
-
 				{/* QR 안내는 폰이 붙기 전까지만 — 붙은 뒤에는 안내가 상단 문구와 겹친다 */}
 				{tab === "ar" && step === 2 && !isMobile && !arPhoneReady && (
 					<p className="mt-2 shrink-0 text-center text-[14px] font-light leading-5 text-black/50">
