@@ -254,7 +254,7 @@ export default function DmPage() {
 												room.partner.nickname,
 											)}
 											alt=""
-										className="size-12 shrink-0 rounded-full bg-[#D9D9D9] object-cover lg:size-11"
+										className="size-12 shrink-0 rounded-full bg-white object-cover lg:size-11"
 										/>
 										<span className="min-w-0 flex-1">
 											<span className="flex items-center gap-1.5">
@@ -315,7 +315,7 @@ export default function DmPage() {
 									selectedRoom.partner.nickname,
 								)}
 								alt=""
-								className="size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+								className="size-9 shrink-0 rounded-full bg-white object-cover transition hover:opacity-90"
 							/>
 						</Link>
 						<div className="min-w-0 flex-1">

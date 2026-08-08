@@ -4,6 +4,25 @@ import { MOCK_ARTISTS } from "../mocks/artists";
 /** 기본 프로필 이미지 — 프로필 사진이 없을 때 공통 fallback (홈 헤더와 동일) */
 export const DEFAULT_PROFILE_IMAGE = defaultProfile;
 
+/** resolveAvatar 결과인지 여부 — 투명 아이콘이라 배경색이 비친다 */
+export function isDefaultProfileImage(url: string): boolean {
+	return url === DEFAULT_PROFILE_IMAGE;
+}
+
+/**
+ * 원형 아바타 img className.
+ * 기본 프로필은 흰 배경 + contain, 업로드 사진은 cover.
+ */
+export function avatarImageClassName(
+	resolvedUrl: string,
+	extra = "",
+): string {
+	const fit = isDefaultProfileImage(resolvedUrl)
+		? "bg-white object-contain"
+		: "bg-white object-cover";
+	return [fit, extra].filter(Boolean).join(" ");
+}
+
 /** 닉네임 → 타투이스트 프로필 이미지 (커뮤니티·DM에서 아티스트 아바타를 일관되게 적용) */
 const artistAvatarByName = new Map<string, string>(
 	MOCK_ARTISTS.map((artist) => [artist.name, artist.avatarUrl]),

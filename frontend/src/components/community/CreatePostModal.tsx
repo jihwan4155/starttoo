@@ -462,7 +462,7 @@ export default function CreatePostModal({
 								<img
 									src={resolveAvatar(avatarUrl)}
 									alt=""
-									className="size-8 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+									className="size-8 shrink-0 rounded-full bg-white object-cover"
 								/>
 								<span className="text-[14px] font-semibold text-black">
 									{nickname}

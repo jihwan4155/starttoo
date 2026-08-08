@@ -55,8 +55,10 @@ export default function MessageBubble({ message, mine }: MessageBubbleProps) {
 						</button>
 					)}
 					{shared ? (
+						// 카드(240px)에 맞춰 말풍선이 줄어들게 한다. 상단 문구가 길면
+						// max-content로 75%까지 늘어나 오른쪽에 빈 브랜드색이 남는다.
 						<div
-							className={`overflow-hidden rounded-[16px] p-2 ${
+							className={`w-fit max-w-full overflow-hidden rounded-[16px] p-2 ${
 								message.imageUrl ? "mt-1" : ""
 							} ${
 								mine
@@ -65,7 +67,7 @@ export default function MessageBubble({ message, mine }: MessageBubbleProps) {
 							}`}>
 							{shared.text && (
 								<p
-									className={`px-2 pb-2 pt-1 text-[13px] font-light leading-5 ${
+									className={`w-[240px] max-w-full whitespace-pre-wrap break-words px-2 pb-2 pt-1 text-[13px] font-light leading-5 ${
 										mine ? "text-white" : "text-black"
 									}`}>
 									{shared.text}

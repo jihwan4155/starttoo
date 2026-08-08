@@ -186,7 +186,7 @@ function NotificationBell() {
 										<img
 											src={resolveAvatar(undefined, n.title)}
 											alt=""
-											className="mt-0.5 size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover"
+											className="mt-0.5 size-9 shrink-0 rounded-full bg-white object-cover"
 										/>
 										<span className="min-w-0 flex-1">
 											<span className="flex items-center gap-1.5">

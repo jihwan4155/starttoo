@@ -19,6 +19,7 @@ import useHidePost from "../../hooks/mutations/useHidePost";
 import useTogglePostBookmark from "../../hooks/mutations/useTogglePostBookmark";
 import useTogglePostLike from "../../hooks/mutations/useTogglePostLike";
 import useAuthorDisplay from "../../hooks/useAuthorDisplay";
+import { avatarImageClassName } from "../../utils/profile";
 import useImageSwipe from "../../hooks/useImageSwipe";
 import usePostEngagement from "../../hooks/usePostEngagement";
 import useRequireAuth from "../../hooks/useRequireAuth";
@@ -161,7 +162,7 @@ export default function PostCard({ post, onOpen }: PostCardProps) {
 					<img
 						src={avatarUrl}
 						alt=""
-						className="size-9 shrink-0 rounded-full bg-[#D9D9D9] object-cover transition hover:opacity-90"
+						className={`size-9 shrink-0 rounded-full transition hover:opacity-90 ${avatarImageClassName(avatarUrl)}`}
 					/>
 				</Link>
 				<div className="flex min-w-0 flex-1 items-center gap-2">

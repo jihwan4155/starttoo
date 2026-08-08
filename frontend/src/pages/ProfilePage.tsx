@@ -219,7 +219,7 @@ export default function ProfilePage() {
 								<img
 									src={avatarUrl}
 									alt={`${profile.nickname}의 프로필 이미지`}
-									className={`size-[48px] shrink-0 rounded-full lg:size-[84px] ${usesDefaultAvatar ? "bg-white object-contain" : "bg-[#D9D9D9] object-cover"}`}
+									className={`size-[48px] shrink-0 rounded-full lg:size-[84px] ${usesDefaultAvatar ? "bg-white object-contain" : "bg-white object-cover"}`}
 								/>
 								<div className="min-w-0">
 									<p className="flex items-center gap-2 text-[18px] font-bold text-black lg:text-[22px]">
