@@ -8,6 +8,7 @@ import { ApiError } from "../../services/api";
 import { createDmRoom, sendDmMessage } from "../../services/dmApi";
 import useAuthStore from "../../store/useAuthStore";
 import useToastStore from "../../store/useToastStore";
+import useUserStore from "../../store/useUserStore";
 import type { Post } from "../../types/community";
 import { shareMessageText } from "../../utils/sharePost";
 import { resolveAvatar } from "../../utils/profile";
@@ -31,6 +32,7 @@ type SharePostModalProps = {
  */
 export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 	const myUserId = useAuthStore((s) => s.user?.userId);
+	const myNickname = useUserStore((s) => s.nickname);
 	const showToast = useToastStore((s) => s.showToast);
 
 	const [keyword, setKeyword] = useState("");
@@ -83,7 +85,8 @@ export default function SharePostModal({ post, onClose }: SharePostModalProps) {
 		setError(null);
 		setSending(true);
 		try {
-			const text = shareMessageText(post);
+			// 받는 쪽 화면에 "OOO님이 게시글을 공유했습니다"로 뜨도록 내 닉네임을 싣는다
+			const text = shareMessageText(post, myNickname);
 			// 방 생성은 상대별로 따로 필요하고, 이미 있으면 서버가 그 방을 돌려준다.
 			// 한 명이라도 실패하면 어디까지 갔는지 알려야 하므로 순서대로 보낸다.
 			for (const partnerSeq of selected) {

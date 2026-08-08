@@ -23,6 +23,7 @@ import useUserStore from "../store/useUserStore";
 import { ApiError } from "../services/api";
 import type { DmMessageResponse } from "../types/dm";
 import { profilePath, resolveAvatar } from "../utils/profile";
+import { dmPreviewText } from "../utils/sharePost";
 import { formatDmTime } from "../components/dm/dmTime";
 import LoadingLabel from "../components/loader/LoadingLabel";
 
@@ -389,7 +390,8 @@ export default function DmPage() {
 														? "font-semibold text-black"
 														: "font-light text-black/45"
 												}`}>
-												{room.lastMessagePreview ?? "대화를 시작해보세요"}
+												{dmPreviewText(room.lastMessagePreview) ??
+													"대화를 시작해보세요"}
 											</span>
 										</span>
 										<span className="flex shrink-0 flex-col items-end gap-1">
