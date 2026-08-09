@@ -13,7 +13,7 @@
 coverup/
 ├─ store.py     도안당 고정 18KB 레코드 raw 파일 + mmap. append / tombstone / refresh
 ├─ features.py  알파 채널을 실루엣 마스크로 (누끼 대응) + 흰배경 폴백
-├─ engine.py    line/gate 채점. 후보 행 배열만 순회한다
+├─ engine.py    line 채점(chamfer). 후보 행 배열만 순회한다
 ├─ embed.py     1단계 후보 추림용 서술자 (chamfer 풀링 256차원)
 ├─ builder.py   도안 이미지 → 특징 레코드. 배치 적재와 증분 색인이 같은 코드
 ├─ service.py   1단계 후보 추림 + 2단계 정확 재채점 오케스트레이션
@@ -35,10 +35,13 @@ tests/          정확성·계약·성능 검증 (이미지에는 포함되지 �
 
 **요청 경로에 이미지 연산도 DB 도 없다.**
 
-검색 모드는 둘이다.
+검색 모드는 `line` 하나다 — 그린 **선의 궤적**을 닮은 도안을 찾고, 점수는 chamfer
+재현·정밀의 조화평균이다.
 
-- `line` — 그린 **선의 궤적**을 닮은 도안. 점수 = chamfer 재현·정밀의 조화평균
-- `gate` — 그린 영역 **안쪽까지 덮는** 도안. `fill`/`opacity` 로 자격을 걸고 실루엣 IoU 로 순위
+면(`gate`) 모드는 제품에서 내리면서 검색 경로를 걷어냈다. 다만 스토어 포맷(FORMAT=2)의
+`norms`·`emb_gate` 컬럼은 그대로 두어 색인할 때 계속 채운다 — 되살릴 때 전 도안
+재색인을 피하기 위함이다. 컬럼까지 지우려면 FORMAT 을 3 으로 올려야 하고, 그 순간
+기존 스토어가 전부 무효가 된다(장당 18.4KB → 9.2KB).
 
 크기·회전·좌우반전에 무관하게 매칭한다(쿼리를 90°씩 4방향 회전 + 반전).
 
@@ -64,15 +67,15 @@ tests/          정확성·계약·성능 검증 (이미지에는 포함되지 �
 ### `POST /search`
 
 ```json
-{ "mask_png_b64": "iVBOR...", "mode": "gate", "top_k": 24 }
+{ "mask_png_b64": "iVBOR...", "mode": "line", "top_k": 24 }
 ```
 
-`w_shape`/`w_cover`/`tau`/`min_fill`/`min_opacity` 는 **보내지 않는다.** 튜닝된
+`w_shape`/`w_cover`/`tau` 는 **보내지 않는다.** 튜닝된
 서버 기본값이 있다. `candidate_keys` 를 넘기면 1단계를 건너뛰고 그 도안만 재채점한다
 (나중에 pgvector 로 후보를 고를 때 쓰는 경로).
 
-응답 `results[]` 는 `key`·`score`·`shape` 공통, `line` 은 `cover`/`weak`/`rec`/`prec`,
-`gate` 는 `fill`/`opacity` 가 추가된다. backend 는 `key`·`score` 만 읽는다.
+응답 `results[]` 는 `key`·`score`·`shape`·`cover`·`weak`·`rec`·`prec` 다.
+backend 는 `key`·`score` 만 읽고 나머지는 디버깅용이다.
 
 ## 설정
 
@@ -196,7 +199,6 @@ python -m tests.bench_recall   # N 을 늘려가며 recall 곡선
 
 | | |
 |---|---|
-| 원본 대조 (gate) | 위치별 점수 **비트 단위 동일**, 순위 12/12 일치 |
 | 원본 대조 (line) | 결과 집합 12/12 일치, 점수 최대차 0.0017 (거리 정량화) |
 | 누끼 처리 | 16종 도형에서 투명 영역 아래 RGB 와 무관하게 완전 일치 |
 | 1단계 서술자 | K=10% 가 2단계 1위를 **100%** 포함 |
@@ -231,4 +233,6 @@ python -m tests.bench_recall   # N 을 늘려가며 recall 곡선
 - [x] 최초 대량 적재 CLI (`coverup/cli.py`)
 - [ ] compaction — tombstone 이 쌓이면 정리 (`stat` 이 20% 넘으면 알려준다)
 - [ ] 구조화 로그·메트릭 — `timing_ms` 를 지금은 흘려보내고 있다
-- [ ] pgvector 1단계 — 도안 3만 장 넘을 때. 스키마는 `tattoo_embeddings` 에 준비돼 있다
+- [ ] pgvector 1단계 — 도안 **50만 장**(`BRUTE_MAX_ROWS`)을 넘으면 브루트포스 코사인이
+      막히므로 그 전에 필요하다. 3만 장(`STAGE1_MIN_ROWS`)은 1단계가 켜지는 지점일 뿐
+      pgvector 가 필요한 지점이 아니다. 스키마는 `tattoo_embeddings` 에 준비돼 있다

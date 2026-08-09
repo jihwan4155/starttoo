@@ -9,7 +9,7 @@ cv2.imread 를 IMREAD_COLOR 로 읽으면 알파를 버리고 그 아래 깔린 
 
 그래서 IMREAD_UNCHANGED 로 읽고 알파가 있으면 알파를 마스크로 쓴다. 투명 영역
 아래 RGB 가 무엇이든 무관해진다. 단 모폴로지(OPEN 1 / CLOSE 2)는 반드시 같이
-통과시킨다 — 튜닝 상수(FILL·MIN_FILL·LINE_TAU·DUP_COSINE)가 그 정리를 거친
+통과시킨다 — 튜닝 상수(FILL·LINE_TAU·LINE_DUP_COSINE)가 그 정리를 거친
 출력 분포에 맞춰진 값이다.
 """
 
@@ -20,7 +20,6 @@ import cv2
 
 ALPHA_THRESHOLD = 127      # 누끼 경계는 안티에일리어싱이라 중간값이 있다
 _K3 = np.ones((3, 3), np.uint8)
-_K5 = np.ones((5, 5), np.uint8)
 
 
 def decode_design(data: bytes) -> tuple[np.ndarray, np.ndarray] | None:
@@ -103,19 +102,9 @@ def _binarize(mask_png: np.ndarray) -> np.ndarray:
     return m
 
 
-def query_mask_from_strokes(mask_png: np.ndarray) -> np.ndarray:
-    """그린 선 -> 안쪽까지 채운 이진 마스크. (게이트 모드)"""
-    m = cv2.dilate(_binarize(mask_png), _K5, iterations=2)
-    cnts, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    filled = np.zeros_like(m)
-    if cnts:
-        cv2.drawContours(filled, cnts, -1, 255, thickness=cv2.FILLED)
-    return filled if filled.any() else m
-
-
 def query_line_from_strokes(mask_png: np.ndarray) -> np.ndarray:
     """
-    그린 선 -> 획 궤적 그대로의 이진 마스크. (선 모드)
+    그린 선 -> 획 궤적 그대로의 이진 마스크.
     안쪽을 채우지 않는다. 원을 그리면 '원판'이 아니라 '원 테두리'로 남는다.
     """
     return cv2.morphologyEx(_binarize(mask_png), cv2.MORPH_CLOSE, _K3, iterations=1)

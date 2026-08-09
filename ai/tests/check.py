@@ -106,14 +106,12 @@ def t2_cutout_pollution() -> None:
         fill = float((m > 0).sum()) / region
         op = features.opacity_map(bgr, m)
         opacity = float(op[m > 0].mean() / 255.0)
-        gate = fill >= engine.MIN_FILL and opacity >= engine.MIN_OPACITY
-        print(f"    under={under:5s}  fill={fill:.3f}  opacity={opacity:.3f}  "
-              f"게이트통과={gate}")
+        print(f"    under={under:5s}  fill={fill:.3f}  opacity={opacity:.3f}")
         if under == "black":
-            check(gate and fill > 0.99,
-                  "검정 누끼는 IMREAD_COLOR 로 읽으면 fill≈1.0 으로 게이트를 통과한다(오염 확인)")
+            check(fill > 0.99,
+                  "검정 누끼는 IMREAD_COLOR 로 읽으면 프레임 전체가 도안이 된다(오염 확인)")
         else:
-            check(not gate or fill < 0.5,
+            check(fill < 0.5,
                   "흰색 누끼는 IMREAD_COLOR 로도 정상 판정된다")
 
 
@@ -220,7 +218,7 @@ def t4_parity(tmp: Path) -> None:
                 "dmax": max(gaps, default=0.0),
                 "swaps": swaps, "tie_swaps": tie_swaps, "n": len(keys_a)}
 
-    agg = {"line": [], "gate": []}
+    agg = {"line": []}
     for kind, rot in cases:
         png = synth.query_png(kind, brush=6, rot_deg=rot)
         arr = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_GRAYSCALE)
@@ -229,12 +227,6 @@ def t4_parity(tmp: Path) -> None:
             c3.line_search(q, dict(idx), top_k=16),
             searcher.search(png, mode="line", top_k=16)["results"]))
 
-        pngg = synth.query_png(kind, brush=16, rot_deg=rot)
-        arrg = cv2.imdecode(np.frombuffer(pngg, np.uint8), cv2.IMREAD_GRAYSCALE)
-        qg = features.query_mask_from_strokes(arrg)
-        agg["gate"].append(compare(
-            c3.coverup_search_gate(qg, dict(idx), top_k=16),
-            searcher.search(pngg, mode="gate", top_k=16)["results"]))
 
     n = len(cases)
     for mode, rs in agg.items():
@@ -250,10 +242,7 @@ def t4_parity(tmp: Path) -> None:
         agg[mode] = {"exact": exact, "sets": sets, "dmax": dmax,
                      "swaps": swaps, "ties": ties}
 
-    g, l = agg["gate"], agg["line"]
-    check(g["dmax"] == 0.0, "게이트: 위치별 점수가 원본과 비트 단위로 동일")
-    check(g["swaps"] == g["ties"], "게이트: 자리 바뀜이 전부 완전동점 스왑 (알고리즘 동일)")
-    check(g["sets"] == n, "게이트: 결과 집합이 모든 케이스에서 동일")
+    l = agg["line"]
     check(l["dmax"] < 0.005, f"선: 위치별 점수차 < 0.005 (정량화 오차, 실측 {l['dmax']:.6f})")
     check(l["sets"] >= n - 1, f"선: 결과 집합 일치 {l['sets']}/{n}")
 
@@ -393,7 +382,7 @@ def t7_timing(tmp: Path) -> None:
     st = FeatureStore(tmp / "s7")             # 콜드 오픈 (mmap)
     for label, stage1 in (("전수", "off"), ("2단계", "on")):
         searcher = Searcher(st, stage1=stage1, k_min=300)
-        for mode, brush in (("line", 6), ("gate", 16)):
+        for mode, brush in (("line", 6),):
             png = synth.query_png("ring", brush=brush)
             searcher.search(png, mode=mode, top_k=16)     # 워밍업
             ts = []

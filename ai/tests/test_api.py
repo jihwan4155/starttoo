@@ -80,12 +80,9 @@ def main() -> int:
             check(plain.json()["results"] == d["results"],
                   "data:image/png;base64, 접두어가 있어도 같은 결과")
 
-            g64 = base64.b64encode(synth.query_png("disc", brush=16)).decode()
-            r = c.post("/search", json={"mask_png_b64": g64, "mode": "gate", "top_k": 8})
-            d = r.json()
-            need_g = {"key", "score", "shape", "fill", "opacity"}
-            check(r.status_code == 200 and set(d["results"][0]) == need_g,
-                  f"게이트 모드 필드 == {sorted(need_g)}")
+            # 면 모드는 걷어냈다 — 400 으로 거절해야 한다
+            r = c.post("/search", json={"mask_png_b64": b64, "mode": "gate", "top_k": 8})
+            check(r.status_code == 400, f"mode=gate 는 400 (실제 {r.status_code})")
 
             # 증분 색인
             mask = synth.shape_mask("ring", size=256, thick=9)

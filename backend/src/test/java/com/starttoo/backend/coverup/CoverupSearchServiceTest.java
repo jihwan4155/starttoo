@@ -63,7 +63,7 @@ class CoverupSearchServiceTest {
 
     @Test
     void resultsFollowEngineScoreOrderNotDatabaseOrder() {
-        stubEngine(EngineMode.GATE, hit(30L, 0.91), hit(10L, 0.8590), hit(20L, 0.42));
+        stubEngine(EngineMode.LINE, hit(30L, 0.91), hit(10L, 0.8590), hit(20L, 0.42));
         // DB 는 tattoo_seq 오름차순으로 돌려준다. 검색 순위와 무관한 순서다.
         stubMeta(row(10L), row(20L), row(30L));
         stubPresign();
@@ -82,7 +82,7 @@ class CoverupSearchServiceTest {
 
     @Test
     void deletedDesignsAreExcludedAndTheQueryChecksAllThreeTables() {
-        stubEngine(EngineMode.GATE, hit(10L, 0.9), hit(20L, 0.8), hit(30L, 0.7));
+        stubEngine(EngineMode.LINE, hit(10L, 0.9), hit(20L, 0.8), hit(30L, 0.7));
         // 20번은 세 테이블 중 하나가 삭제돼 조회에서 빠진 상태다.
         stubMeta(row(10L), row(30L));
         stubPresign();
@@ -132,7 +132,7 @@ class CoverupSearchServiceTest {
 
     @Test
     void everythingDeletedReturnsAnEmptyResultInsteadOfAnError() {
-        stubEngine(EngineMode.GATE, hit(10L, 0.9), hit(20L, 0.8));
+        stubEngine(EngineMode.LINE, hit(10L, 0.9), hit(20L, 0.8));
         stubMeta();
 
         CoverupDtos.SearchResponse response = service.search(request("coverup"));
@@ -146,7 +146,7 @@ class CoverupSearchServiceTest {
     void emptyEngineResultSkipsTheDatabaseEntirely() {
         when(engineClient.search(anyString(), any(EngineMode.class)))
                 .thenReturn(new CoverupEngineClient.SearchResponse(
-                        "gate", 0, List.of(), Map.of(), 0, "off"
+                        "line", 0, List.of(), Map.of(), 0, "off"
                 ));
 
         CoverupDtos.SearchResponse response = service.search(request("coverup"));
@@ -161,7 +161,7 @@ class CoverupSearchServiceTest {
 
     @Test
     void dataUrlPrefixIsStrippedBeforeTheEngineCall() {
-        stubEngine(EngineMode.GATE, hit(10L, 0.9));
+        stubEngine(EngineMode.LINE, hit(10L, 0.9));
         stubMeta(row(10L));
         stubPresign();
 
@@ -170,7 +170,7 @@ class CoverupSearchServiceTest {
                 "coverup"
         ));
 
-        verify(engineClient).search("iVBORw0KGgo", EngineMode.GATE);
+        verify(engineClient).search("iVBORw0KGgo", EngineMode.LINE);
     }
 
     @Test
@@ -207,7 +207,7 @@ class CoverupSearchServiceTest {
 
     @Test
     void imageUrlsUseTheLongPresignExpiryNotTheShortDefault() {
-        stubEngine(EngineMode.GATE, hit(10L, 0.9));
+        stubEngine(EngineMode.LINE, hit(10L, 0.9));
         stubMeta(row(10L));
         stubPresign();
 

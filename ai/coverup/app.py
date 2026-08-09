@@ -75,11 +75,10 @@ def _warmup() -> None:
         dummy = np.zeros((520, 420), np.uint8)
         cv2.circle(dummy, (210, 260), 120, 255, 6)
         png = cv2.imencode(".png", dummy)[1].tobytes()
-        for mode in ("line", "gate"):
-            try:
-                searcher.search(png, mode=mode, top_k=4)
-            except Exception:       # 빈 스토어·구버전 등. 워밍업 실패가 부팅을 막지 않는다
-                pass
+        try:
+            searcher.search(png, top_k=4)
+        except Exception:       # 빈 스토어·구버전 등. 워밍업 실패가 부팅을 막지 않는다
+            pass
     _state["ready"] = True
     if not API_SECRET:
         _log.warning("COVERUP_INTERNAL_TOKEN 이 비어 있다 — 인증이 꺼진 상태다. "
@@ -121,8 +120,6 @@ class SearchReq(BaseModel):
     w_shape: float = 1.0
     w_cover: float = 0.0
     tau: float = engine.LINE_TAU
-    min_fill: float = engine.MIN_FILL
-    min_opacity: float = engine.MIN_OPACITY
     # 팀 서버가 pgvector + SQL WHERE 로 후보를 고른 경우 그 tattoo_seq 목록.
     # 넘기면 엔진의 1단계를 건너뛴다.
     candidate_keys: list[int] | None = None
@@ -189,8 +186,7 @@ def search(req: SearchReq):
     try:
         return searcher.search(raw, mode=req.mode, top_k=req.top_k,
                                w_shape=req.w_shape, w_cover=req.w_cover,
-                               tau=req.tau, min_fill=req.min_fill,
-                               min_opacity=req.min_opacity, candidates=cand)
+                               tau=req.tau, candidates=cand)
     finally:
         _slots.release()
 

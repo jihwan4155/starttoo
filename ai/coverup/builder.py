@@ -50,7 +50,8 @@ def design_record(key: int, data: bytes) -> Record | None:
     ldist = quantize_dist(engine.dist_to_ink(line))
 
     # 1단계 서술자는 방금 만든 특징에서 그대로 유도된다(새 이미지 연산 없음).
-    # line 은 거리변환에서, gate 는 실루엣에서 — 각 모드의 점수 함수를 근사한다.
+    # emb_line 은 거리변환에서 유도해 2단계 chamfer 점수를 근사한다.
+    # emb_gate 는 검색에서 더 이상 읽지 않지만 FORMAT=2 컬럼이라 계속 채운다(store 참고).
     dist_px = ldist.reshape(-1).astype(np.float32) / LDIST_SCALE
 
     return Record(key=key, fill=fill_ratio, opacity=opacity,

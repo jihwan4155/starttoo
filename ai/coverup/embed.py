@@ -79,8 +79,11 @@ def line_descriptor(ldist_px: np.ndarray) -> np.ndarray:
 
 def gate_descriptor(norms: np.ndarray) -> np.ndarray:
     """
-    정규화 실루엣 -> 서술자. 게이트 모드는 IoU 로 랭킹하므로 실루엣을 그대로
-    풀링해 코사인으로 겹침을 근사한다(거리 감쇠를 쓰지 않는다).
+    정규화 실루엣 -> 서술자.
+
+    <p>면(gate) 모드 검색 경로는 걷어냈지만 스토어 포맷(FORMAT=2)의 emb_gate 컬럼은
+    남아 있어 색인할 때 계속 채워야 한다. 포맷을 유지하는 덕에 면 모드를 되살릴 때
+    전 도안 재색인이 필요 없다. 포맷을 올려 이 컬럼을 지우면 이 함수도 함께 지운다.
     """
     return pool_l2(np.asarray(norms, np.float32))
 
@@ -94,13 +97,6 @@ def line_probes(variants: list[np.ndarray], tau: float = TAU_REF) -> np.ndarray:
     near = np.stack([np.exp(-dist_to_ink(v).reshape(-1) / max(tau, 1e-3))
                      for v in variants])
     return pool_l2(near)
-
-
-def gate_probes(q: np.ndarray) -> np.ndarray:
-    """게이트 쿼리의 4변형(축 모호성) 서술자."""
-    vs = [q, q[:, ::-1], q[::-1, :], q[::-1, ::-1]]
-    return pool_l2(np.stack([np.ascontiguousarray(v).reshape(-1).astype(np.float32)
-                             for v in vs]))
 
 
 def topk_multiprobe(probes: np.ndarray, bank: np.ndarray, k: int,

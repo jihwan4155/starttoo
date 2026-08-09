@@ -17,6 +17,17 @@
   둘 다 담는다.
   회전은 2단계와 똑같이 처리한다 — 쿼리 변형 8개로 각각 조회하고 유사도를 max.
 
+## 공정성을 위해 맞춘 것
+
+  · FM 과 chamfer 를 **같은 입력**(정규화된 64x64 선맵)에서 뽑는다. 전처리가
+    동일하므로 차이는 서술자 함수 하나로 좁혀진다. 이 입력은 이미 주축 정렬을
+    거쳤으므로 FM 에 유리한 쪽으로 관대한 설정이다.
+  · FM 은 프로브 1개다(회전 불변이 존재 이유이므로 변형 탐색을 주지 않는다).
+    chamfer 는 2단계와 같은 변형 집합으로 다중 프로브 max 를 쓴다.
+  · 차원: FM = FM_FREQ(8) x FM_RAD(16) = 128
+          chamfer pool p x p = p^2  ->  8x8 = 64, 16x16 = 256
+    8x8(64차원)은 FM 의 절반이다. 여기서도 이기면 '차원이 많아서'가 아니다.
+
 실행:  python -m tests.exp_descriptor [N] [쿼리수]
 """
 
@@ -37,8 +48,9 @@ if hasattr(sys.stdout, "reconfigure"):
 import cv2                                                  # noqa: E402
 from coverup import engine, features                         # noqa: E402
 from coverup.builder import index_all                        # noqa: E402
+from coverup.embed import fourier_mellin                     # noqa: E402
 from coverup.service import Searcher                         # noqa: E402
-from coverup.store import FeatureStore                       # noqa: E402
+from coverup.store import GRID, FeatureStore                 # noqa: E402
 from tests import synth                                      # noqa: E402
 
 TOP_K = 16
@@ -50,13 +62,13 @@ KS = (100, 200, 500, 1000, 2000)
 def pool_near(near_flat: np.ndarray, p: int) -> np.ndarray:
     """(n,4096) 근접도 -> (n, p*p) 평균 풀링 + L2 정규화."""
     n = near_flat.shape[0]
-    s = 64 // p
+    s = GRID // p
     v = near_flat.reshape(n, p, s, p, s).mean(axis=(2, 4)).reshape(n, p * p)
     nrm = np.linalg.norm(v, axis=1, keepdims=True)
     return (v / np.maximum(nrm, 1e-9)).astype(np.float32)
 
 
-def design_bank(store: FeatureStore, p: int) -> np.ndarray:
+def design_bank_chamfer(store: FeatureStore, p: int) -> np.ndarray:
     """도안 서술자 — 저장된 ldist 에서 바로 유도한다(새 계산이 필요 없다)."""
     rows = np.arange(store.count)
     out = np.empty((store.count, p * p), np.float32)
@@ -67,7 +79,25 @@ def design_bank(store: FeatureStore, p: int) -> np.ndarray:
     return out
 
 
-def query_probes(png: bytes, p: int) -> np.ndarray:
+def design_bank_fm(store: FeatureStore) -> np.ndarray:
+    """
+    도안 서술자 — 정규화된 선맵(64x64)에 Fourier-Mellin.
+
+    chamfer 쪽과 같은 선맵에서 뽑아 전처리를 맞춘다. FM 은 내부에서 무게중심+반지름
+    으로 다시 정규화하므로, 이 입력은 '주축 정렬까지 마친 상태'를 FM 에 얹어 주는
+    관대한 조건이다.
+    """
+    rows = np.arange(store.count)
+    out = np.empty((store.count, 8 * 16), np.float32)
+    for i in range(0, store.count, 4096):
+        chunk = rows[i:i + 4096]
+        lines = store.line(chunk).reshape(-1, GRID, GRID)
+        for j, lm in enumerate(lines):
+            out[i + j] = fourier_mellin(lm)
+    return out
+
+
+def query_probes_chamfer(png: bytes, p: int) -> np.ndarray:
     """쿼리 변형 8개의 서술자. 2단계와 같은 변형 집합을 쓴다."""
     arr = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_GRAYSCALE)
     q = features.query_line_from_strokes(arr)
@@ -75,6 +105,31 @@ def query_probes(png: bytes, p: int) -> np.ndarray:
     near = np.stack([np.exp(-engine.dist_to_ink(v) / TAU_REF).reshape(-1)
                      for v in variants])
     return pool_near(near, p)
+
+
+def query_probe_fm(png: bytes) -> np.ndarray:
+    """쿼리 서술자 1개. FM 은 회전 불변이 존재 이유라 변형 탐색을 주지 않는다."""
+    arr = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_GRAYSCALE)
+    q = features.query_line_from_strokes(arr)
+    return fourier_mellin(engine.normalize_line(q))[None, :]
+
+
+# 이전 이름 — tests/exp_quality.py 가 이 이름으로 가져다 쓴다.
+design_bank = design_bank_chamfer
+query_probes = query_probes_chamfer
+
+
+def recalls(bank: np.ndarray, probes_of, queries, truth_rows) -> tuple[list, list]:
+    """서술자 하나에 대한 recall@K. probes_of(png) -> (v, dim)."""
+    recs = {k: [] for k in KS}
+    for q, tr in zip(queries, truth_rows):
+        probes = probes_of(q)
+        sims = (bank @ probes.T).max(axis=1)      # 변형 max — 2단계와 같은 규칙
+        order = np.argsort(-sims)
+        for k in KS:
+            recs[k].append(len(set(order[:k].tolist()) & set(tr.tolist())) / len(tr))
+    return ([float(np.mean(recs[k])) for k in KS],
+            [float(np.min(recs[k])) for k in KS])
 
 
 def main() -> int:
@@ -106,48 +161,32 @@ def main() -> int:
         key2row = {int(k): i for i, k in enumerate(keys)}
         truth_rows = [np.array([key2row[k] for k in t_], np.int64) for t_ in truth]
 
-        print(f"{'서술자':22} {'차원':>5} | " +
-              " ".join(f"K={k:<5}" for k in KS))
-        print("-" * (30 + 8 * len(KS)))
+        rows = []
 
-        # --- A: 현재 Fourier-Mellin (store.emb) ---
-        bankA = np.asarray(store.emb)
-        rowsA = []
-        for p_ in (None,):
-            recs = {k: [] for k in KS}
-            for q, tr in zip(queries, truth_rows):
-                arr = cv2.imdecode(np.frombuffer(q, np.uint8), cv2.IMREAD_GRAYSCALE)
-                qm = features.query_line_from_strokes(arr)
-                from coverup.embed import shape_embedding
-                sims = bankA @ shape_embedding(qm)
-                order = np.argsort(-sims)
-                for k in KS:
-                    recs[k].append(len(set(order[:k].tolist()) & set(tr.tolist())) / len(tr))
-            rowsA.append(("A Fourier-Mellin", bankA.shape[1],
-                          [float(np.mean(recs[k])) for k in KS],
-                          [float(np.min(recs[k])) for k in KS]))
+        # --- A: Fourier-Mellin (기각안 재현) ---
+        t = time.perf_counter()
+        bankA = design_bank_fm(store)
+        tA = time.perf_counter() - t
+        means, mins = recalls(bankA, query_probe_fm, queries, truth_rows)
+        rows.append(("A Fourier-Mellin", bankA.shape[1], means, mins, tA))
 
         # --- B: chamfer 풀링 (다중 프로브 max) ---
-        rowsB = []
         for p in POOLS:
-            bank = design_bank(store, p)
-            recs = {k: [] for k in KS}
-            for q, tr in zip(queries, truth_rows):
-                probes = query_probes(q, p)             # (v, p*p)
-                sims = (bank @ probes.T).max(axis=1)    # 변형 max — 2단계와 같은 규칙
-                order = np.argsort(-sims)
-                for k in KS:
-                    recs[k].append(len(set(order[:k].tolist()) & set(tr.tolist())) / len(tr))
-            rowsB.append((f"B chamfer pool {p}x{p}", p * p,
-                          [float(np.mean(recs[k])) for k in KS],
-                          [float(np.min(recs[k])) for k in KS]))
+            t = time.perf_counter()
+            bank = design_bank_chamfer(store, p)
+            tB = time.perf_counter() - t
+            means, mins = recalls(
+                bank, lambda q, _p=p: query_probes_chamfer(q, _p),
+                queries, truth_rows)
+            rows.append((f"B chamfer pool {p}x{p}", p * p, means, mins, tB))
 
-        for name, dim, means, mins in rowsA + rowsB:
-            print(f"{name:22} {dim:>5} | " +
-                  " ".join(f"{m:.3f}  " for m in means))
-            print(f"{'  (최저)':22} {'':>5} | " +
-                  " ".join(f"{m:.3f}  " for m in mins))
-        print(f"\n(N={store.count}, 쿼리 {n_q}개, 정답 top-{TOP_K})")
+        print(f"{'서술자':24} {'차원':>5} | " + " ".join(f"K={k:<5}" for k in KS))
+        print("-" * (32 + 8 * len(KS)))
+        for name, dim, means, mins, tb in rows:
+            print(f"{name:24} {dim:>5} | " + " ".join(f"{m:.3f}  " for m in means))
+            print(f"{'  (최저 쿼리)':24} {'':>5} | " + " ".join(f"{m:.3f}  " for m in mins))
+            print(f"{'  (뱅크 구축)':24} {'':>5} | {tb:.1f}s")
+        print(f"\n(N={store.count}, 쿼리 {n_q}개, 정답 = 전수 정밀 채점 top-{TOP_K})")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return 0

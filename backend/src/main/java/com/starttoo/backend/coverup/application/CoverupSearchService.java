@@ -133,10 +133,17 @@ public class CoverupSearchService {
         }
     }
 
+    /**
+     * 공개 mode 값을 엔진 모드로 옮긴다.
+     *
+     * <p>면(coverup) 모드는 제품에서 내렸고 엔진에서도 걷어냈다. 그래도 값 자체는
+     * 계속 받아 준다 — 배포 직후에는 예전 번들을 캐시한 브라우저가 {@code coverup}
+     * 을 보내는데, 여기서 거절하면 그 사용자만 검색이 통째로 깨진다. 선 모드로
+     * 넘겨 주는 편이 낫다. 캐시가 다 돌고 나면 이 분기를 지워도 된다.
+     */
     private EngineMode engineMode(String mode) {
         return switch (mode.toLowerCase(Locale.ROOT)) {
-            case PUBLIC_MODE_COVERUP -> EngineMode.GATE;
-            case PUBLIC_MODE_SHAPE -> EngineMode.LINE;
+            case PUBLIC_MODE_COVERUP, PUBLIC_MODE_SHAPE -> EngineMode.LINE;
             default -> throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     "mode 는 coverup 또는 shape 여야 합니다."
