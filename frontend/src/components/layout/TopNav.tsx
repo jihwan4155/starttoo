@@ -35,6 +35,54 @@ function BellIcon() {
 	);
 }
 
+function MessageIcon() {
+	return (
+		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+			<path
+				d="M4 5.5h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Z"
+				stroke="#1A1A1A"
+				strokeWidth="1.8"
+				strokeLinejoin="round"
+			/>
+			<path
+				d="m3.6 6.4 7.6 5.6a1.4 1.4 0 0 0 1.6 0l7.6-5.6"
+				stroke="#1A1A1A"
+				strokeWidth="1.8"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}
+
+/**
+ * 모바일 상단바의 메시지 바로가기.
+ *
+ * <p>그전에는 DM 이 햄버거 메뉴 안에만 있어서 두 번 눌러야 닿았다. 알림과 같은 줄에
+ * 두어 한 번에 들어가게 한다. 안읽음 뱃지는 알림 벨과 같은 unread-counts 응답의
+ * NEW_DM 값을 쓴다(SideNav 와 동일).
+ */
+function MessageShortcut() {
+	const { data: unreadCounts } = useUnreadCounts();
+	const unreadDmCount = unreadCounts?.byType.NEW_DM ?? 0;
+
+	return (
+		<Link
+			to="/dm"
+			aria-label={
+				unreadDmCount > 0 ? `메시지, 안 읽음 ${unreadDmCount}개` : "메시지"
+			}
+			className="relative flex size-6 items-center justify-center">
+			<MessageIcon />
+			{unreadDmCount > 0 && (
+				<span className="absolute -right-1.5 -top-1.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-brand px-1 text-[9px] font-semibold leading-none text-white">
+					{unreadDmCount > 99 ? "99+" : unreadDmCount}
+				</span>
+			)}
+		</Link>
+	);
+}
+
 function SettingIcon() {
 	return (
 		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -137,7 +185,10 @@ function NotificationBell() {
 			</button>
 
 			{open && (
-				<div className="absolute right-0 top-[calc(100%+14px)] z-50 w-[320px] overflow-hidden rounded-[14px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
+				/* 모바일에서는 벨이 오른쪽 끝이 아니라 메시지 아이콘 왼쪽이다. right-0 이면
+				   패널이 그만큼 왼쪽으로 밀려 화면 밖으로 넘치므로 화면 가장자리에 맞춰
+				   되돌린다. lg 이상은 벨이 원래 자리라 그대로 둔다. */
+				<div className="absolute -right-10 top-[calc(100%+14px)] z-50 w-[320px] max-w-[calc(100vw-24px)] overflow-hidden rounded-[14px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)] lg:right-0">
 					<div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
 						<span className="text-[14px] font-bold text-black">알림</span>
 						{unreadCount > 0 && (
@@ -392,7 +443,8 @@ function MobileTopNav() {
 	return (
 		<>
 			<header className="fixed inset-x-0 top-0 z-[60] h-[44px] border-b border-black/10 bg-white lg:hidden">
-				<div className="grid h-full grid-cols-[48px_1fr_48px] items-center px-4">
+				{/* 오른쪽에 아이콘이 둘이라 양쪽 칸 폭을 같게 잡아야 로고가 가운데 선다 */}
+				<div className="grid h-full grid-cols-[76px_1fr_76px] items-center px-4">
 					<button
 						type="button"
 						aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
@@ -413,9 +465,14 @@ function MobileTopNav() {
 						/>
 					</Link>
 
-					{/* 데스크톱 상단바와 같은 이유로 로그인 전에는 알림을 걸지 않는다 */}
-					<div className="flex size-10 items-center justify-end justify-self-end">
-						{isLoggedIn && <NotificationBell />}
+					{/* 데스크톱 상단바와 같은 이유로 로그인 전에는 알림·메시지를 걸지 않는다 */}
+					<div className="flex h-10 items-center justify-end gap-4 justify-self-end">
+						{isLoggedIn && (
+							<>
+								<NotificationBell />
+								<MessageShortcut />
+							</>
+						)}
 					</div>
 				</div>
 			</header>
