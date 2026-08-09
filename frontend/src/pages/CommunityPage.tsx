@@ -10,6 +10,7 @@ import { PlusIcon } from "../components/community/icons";
 import useFollowingPosts from "../hooks/queries/useFollowingPosts";
 import useMyPosts from "../hooks/queries/useMyPosts";
 import useRequireAuth from "../hooks/useRequireAuth";
+import { useIsMobile } from "../hooks/useIsMobile";
 import useCommunityStore from "../store/useCommunityStore";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
 import { ApiError } from "../services/api";
@@ -29,6 +30,7 @@ export default function CommunityPage() {
 	const [isWriteOpen, setWriteOpen] = useState(false);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
+	const isMobile = useIsMobile();
 	const hiddenIds = useHiddenIdsForUser();
 	const overlayHiddenIds = useCommunityStore((s) => s.overlayHiddenIds);
 	const clearAllOverlays = useCommunityStore((s) => s.clearAllOverlays);
@@ -154,10 +156,19 @@ export default function CommunityPage() {
 					</p>
 				)}
 
+				{/*
+				  PC에서는 사진을 눌러도 상세가 열린다. 그동안 댓글 아이콘으로만 들어갈
+				  수 있어서, 카드를 눌러도 아무 반응이 없는 것처럼 보였다.
+
+				  모바일은 지금 동작을 유지한다 — 좁은 화면에서는 사진 자리가 캐러셀
+				  조작에 더 많이 쓰여서, 상세 진입은 댓글 아이콘 쪽으로 남겨 둔다.
+				  (스와이프와 탭 구분 자체는 useImageSwipe가 이미 하고 있다)
+				*/}
 				{feedPosts.map((post) => (
 						<PostCard
 							key={post.id}
 							post={post}
+							onOpenPhoto={isMobile ? undefined : setActivePost}
 							onOpenComments={setActivePost}
 						/>
 					))}
