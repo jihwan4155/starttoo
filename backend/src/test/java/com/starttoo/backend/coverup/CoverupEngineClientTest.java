@@ -28,7 +28,7 @@ class CoverupEngineClientTest {
     private static final String BASE_URL = "http://coverup-engine.test";
     private static final String SEARCH_BODY = """
             {
-              "mode": "gate",
+              "mode": "line",
               "count": 2,
               "results": [
                 {"key": 183920, "score": 0.8590, "shape": 0.8590, "fill": 0.940, "opacity": 0.612},
@@ -48,12 +48,12 @@ class CoverupEngineClientTest {
                 .andExpect(method(org.springframework.http.HttpMethod.POST))
                 // strict=true 라 tau·w_cover 같은 값이 하나라도 섞이면 실패한다.
                 .andExpect(content().json("""
-                        {"mask_png_b64":"iVBORw0KGgo","mode":"gate","top_k":24}
+                        {"mask_png_b64":"iVBORw0KGgo","mode":"line","top_k":24}
                         """, true))
                 .andRespond(withSuccess(SEARCH_BODY, MediaType.APPLICATION_JSON));
 
         CoverupEngineClient.SearchResponse response =
-                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.GATE);
+                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.LINE);
 
         assertThat(response.results())
                 .extracting(CoverupEngineClient.Hit::key)
@@ -71,7 +71,7 @@ class CoverupEngineClientTest {
                 .andExpect(header("X-Internal-Token", "secret-token"))
                 .andRespond(withSuccess(SEARCH_BODY, MediaType.APPLICATION_JSON));
 
-        fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.GATE);
+        fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.LINE);
 
         fixture.server().verify();
     }
@@ -86,7 +86,7 @@ class CoverupEngineClientTest {
                         .body("{\"detail\": \"base64 디코딩 실패: invalid\"}"));
 
         assertThatThrownBy(() ->
-                fixture.client().search("!!", CoverupEngineClient.EngineMode.GATE))
+                fixture.client().search("!!", CoverupEngineClient.EngineMode.LINE))
                 .isInstanceOfSatisfying(BusinessException.class, exception -> {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
                     assertThat(exception.getMessage()).contains("base64 디코딩 실패");
@@ -100,10 +100,10 @@ class CoverupEngineClientTest {
                 .expect(requestTo(BASE_URL + "/search"))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body("{\"detail\": \"mode 는 line 또는 gate 여야 함: coverup\"}"));
+                        .body("{\"detail\": \"mode 는 line 만 지원한다: gate\"}"));
 
         assertThatThrownBy(() ->
-                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.GATE))
+                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.LINE))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR));
@@ -119,7 +119,7 @@ class CoverupEngineClientTest {
                         .body("{\"detail\": [{\"loc\": [\"body\", \"top_k\"]}]}"));
 
         assertThatThrownBy(() ->
-                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.GATE))
+                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.LINE))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR));
@@ -137,7 +137,7 @@ class CoverupEngineClientTest {
                         .body("{\"detail\": \"워밍업 중\"}"));
 
         assertThatThrownBy(() ->
-                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.GATE))
+                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.LINE))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.SERVICE_UNAVAILABLE));
@@ -152,7 +152,7 @@ class CoverupEngineClientTest {
         Fixture fixture = fixture(properties, circuitBreaker);
 
         assertThatThrownBy(() ->
-                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.GATE))
+                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.LINE))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.SERVICE_UNAVAILABLE));
@@ -165,7 +165,7 @@ class CoverupEngineClientTest {
         Fixture fixture = fixture(properties(false, ""));
 
         assertThatThrownBy(() ->
-                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.GATE))
+                fixture.client().search("iVBORw0KGgo", CoverupEngineClient.EngineMode.LINE))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.SERVICE_UNAVAILABLE));

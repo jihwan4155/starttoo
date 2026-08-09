@@ -50,8 +50,10 @@ _SCALARS = (
     ("fill.f32", np.float32, 1),
     ("opacity.f32", np.float32, 1),
 )
-# 모드별로 서술자가 다르다. line 은 chamfer 근접도(exp(-d/tau))를, gate 는 실루엣을
-# 풀링한다 — 두 모드의 점수 함수가 각각 chamfer 와 IoU 라서 유도식이 다르다.
+# emb_line 은 chamfer 근접도(exp(-d/tau))를 풀링한 것으로, 2단계 점수 함수에서 유도된다.
+# emb_gate 는 면 모드용이었고 지금은 아무도 읽지 않는다. 컬럼을 남겨 두는 것은
+# FORMAT 을 유지해 면 모드를 되살릴 때 전 도안 재색인을 피하기 위함이다.
+# 지우려면 FORMAT 을 3 으로 올려야 하고, 그 순간 기존 스토어가 전부 무효가 된다.
 _EMBEDS = (
     ("emb_line.f32", np.float32, EMB_DIM),
     ("emb_gate.f32", np.float32, EMB_DIM),
@@ -214,9 +216,9 @@ class FeatureStore:
         """
         return self._take("ldist.u8", rows)[:, cols].astype(np.float32) / LDIST_SCALE
 
-    def emb(self, mode: str) -> np.ndarray:
-        """(N, EMB_DIM) 모드별 1단계 서술자."""
-        return np.asarray(self._mm["emb_line.f32" if mode == "line" else "emb_gate.f32"])
+    def emb(self) -> np.ndarray:
+        """(N, EMB_DIM) 1단계 서술자. 면 모드를 걷어내 line 한 벌만 읽는다."""
+        return np.asarray(self._mm["emb_line.f32"])
 
     def _take(self, name: str, rows) -> np.ndarray:
         mm = self._mm[name]
@@ -299,16 +301,6 @@ class FeatureStore:
         if self.count == 0:
             return np.empty(0, np.int64)
         return np.nonzero(self.alive)[0].astype(np.int64)
-
-    def gate_rows(self, min_fill: float, min_opacity: float) -> np.ndarray:
-        """
-        게이트 1단계를 로컬에서 적용한다. 운영에서는 이 필터를 pgvector 쿼리의
-        WHERE 로 내려서 O(N) 스캔 자체를 없앤다(engine.search 의 candidates 인자).
-        """
-        if self.count == 0:
-            return np.empty(0, np.int64)
-        ok = (self.alive > 0) & (self.fill >= min_fill) & (self.opacity >= min_opacity)
-        return np.nonzero(ok)[0].astype(np.int64)
 
     def stats(self) -> dict:
         alive = int(self.alive.sum()) if self.count else 0

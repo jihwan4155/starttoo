@@ -233,9 +233,9 @@ public class CoverupEngineClient {
         }
     }
 
+    /** 엔진이 지원하는 검색 모드. 면(gate) 모드를 걷어내 지금은 line 하나다. */
     public enum EngineMode {
-        LINE("line"),
-        GATE("gate");
+        LINE("line");
 
         private final String wireValue;
 

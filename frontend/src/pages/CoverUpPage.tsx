@@ -84,7 +84,8 @@ export default function CoverUpPage() {
 
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [fileError, setFileError] = useState<string | null>(null);
-	const [mode, setMode] = useState<SearchMode>(DEFAULT_MODE);
+	// 지금은 선 모드만 쓴다 (shapeSearchConstants의 DEFAULT_MODE 주석 참고)
+	const mode: SearchMode = DEFAULT_MODE;
 	// 획 없이 검색을 누른 경우. 요청은 보내지 않고 안내만 띄운다
 	const [showEmptyStrokeHint, setShowEmptyStrokeHint] = useState(false);
 	const [isStale, setStale] = useState(false);
@@ -188,21 +189,6 @@ export default function CoverUpPage() {
 		setShowEmptyStrokeHint(false);
 	};
 
-	/**
-	 * 모드를 바꾸면 기존 결과를 비운다. 붓 굵기는 useCanvasStrokes가 그 모드의
-	 * 기준값으로 되돌린다.
-	 *
-	 * <p>지금은 모드 토글 UI가 없어 호출되지 않지만, 면 모드를 되살릴 때 그대로
-	 * 쓰도록 남겨 둔다(shapeSearchConstants의 DEFAULT_MODE 주석 참고).
-	 */
-	const switchMode = (next: SearchMode) => {
-		if (next === mode) return;
-		setMode(next);
-		searchMutation.reset();
-		setStale(false);
-		setShowEmptyStrokeHint(false);
-	};
-
 	const runSearch = () => {
 		const maskPngB64 = isDoodleSearch
 			? routeState?.doodleMaskPngB64
@@ -285,10 +271,6 @@ export default function CoverUpPage() {
 		: hasEmptyResult
 			? "조건에 맞는 도안이 없습니다. 영역을 조금 바꿔 다시 시도해주세요."
 			: (errorInfo?.message ?? null);
-	// 오류가 아니라 그리기 안내라, 빨간 searchMessage와 자리를 나눈다
-	const openShapeHint = canvas.hasOpenShape
-		? "시작점까지 이어 그리면 안쪽까지 덮어요."
-		: null;
 
 	if (isMobile) {
 		return (
@@ -297,7 +279,6 @@ export default function CoverUpPage() {
 					title={isDoodleSearch ? "타투 도안 추천" : "커버업 타투 도안 추천"}
 					step={step}
 					mode={mode}
-					onModeChange={switchMode}
 					brush={canvas.brush}
 					onBrushChange={canvas.setBrush}
 					bodyScan={bodyScan}
@@ -319,7 +300,6 @@ export default function CoverUpPage() {
 					nextDisabled={!forwardEnabled}
 					isSearching={searchMutation.isPending}
 					searchMessage={mobileSearchMessage}
-					openShapeHint={openShapeHint}
 					results={results}
 					selectedIndex={selectedIndex}
 					onSelectResult={setSelectedIndex}
@@ -500,18 +480,11 @@ export default function CoverUpPage() {
 										)}
 									</>
 								)}
-								{!showEmptyStrokeHint &&
-									!hasEmptyResult &&
-									!errorInfo &&
-									(canvas.hasOpenShape ? (
-										<p className="text-[13px] font-light text-black/60">
-											시작점까지 이어 그리면 안쪽까지 덮어요.
-										</p>
-									) : (
-										<p className="text-[13px] font-light text-black/50">
-											{MODES[mode].hint}
-										</p>
-									))}
+								{!showEmptyStrokeHint && !hasEmptyResult && !errorInfo && (
+									<p className="text-[13px] font-light text-black/50">
+										{MODES[mode].hint}
+									</p>
+								)}
 							</div>
 						</>
 					)}

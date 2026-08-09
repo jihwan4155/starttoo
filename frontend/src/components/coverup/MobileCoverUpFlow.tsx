@@ -13,9 +13,8 @@ type MobileCoverUpFlowProps = {
 	title: string;
 	/** 4 = 고른 도안을 내 사진에 얹어 보는 단계 (PC와 같은 STEP 4) */
 	step: 1 | 2 | 3 | 4;
-	/** 그리기 방식 — 면(coverup) / 선(shape). 지금 화면에는 선만 노출한다 */
+	/** 그리기 방식 — 지금은 선(shape)만 쓴다 */
 	mode: SearchMode;
-	onModeChange: (mode: SearchMode) => void;
 	/** 펜 굵기(px) */
 	brush: number;
 	onBrushChange: (px: number) => void;
@@ -35,8 +34,6 @@ type MobileCoverUpFlowProps = {
 	nextDisabled: boolean;
 	isSearching: boolean;
 	searchMessage: string | null;
-	/** 면 모드에서 획이 안 닫혔을 때의 그리기 안내 (오류가 아니라 회색으로 둔다) */
-	openShapeHint: string | null;
 	results: DesignResult[];
 	selectedIndex: number;
 	onSelectResult: (index: number) => void;
@@ -94,7 +91,6 @@ export default function MobileCoverUpFlow({
 	nextDisabled,
 	isSearching,
 	searchMessage,
-	openShapeHint,
 	results,
 	selectedIndex,
 	onSelectResult,
@@ -167,7 +163,6 @@ export default function MobileCoverUpFlow({
 						<button type="button" disabled={!canUndo} onClick={onClear} className="h-11 flex-1 rounded-full border border-black bg-white text-[14px] font-semibold disabled:opacity-40">지우기</button>
 					</div>
 					{searchMessage && <p className="mt-2 shrink-0 text-center text-[13px] text-brand">{searchMessage}</p>}
-					{!searchMessage && openShapeHint && <p className="mt-2 shrink-0 text-center text-[13px] font-light text-black/55">{openShapeHint}</p>}
 					<BottomButton disabled={nextDisabled} onClick={onNext}>
 						{isSearching ? <LoadingLabel>추천 중…</LoadingLabel> : "타투 추천받기"}
 					</BottomButton>

@@ -1,11 +1,10 @@
 """
-커버업 채점 엔진. coverup3/python-search/app/coverup.py 의 수식을 그대로 옮기고
-'후보 행만 도는' 형태로 바꿨다.
+커버업 채점 엔진. coverup3/python-search/app/coverup.py 의 line 모드 수식을 그대로
+옮기고 '후보 행만 도는' 형태로 바꿨다.
 
 원본과의 차이 (수식은 동일, 접근 방식만 다름)
-  ① 전수 순회 -> 후보 행 배열(rows)을 받아 그 행만 계산한다. 원본의 gate 모드는
-     이미 rows 를 받았지만 line 모드는 전체를 돌았다. 수백만 장에서는 O(N) 자체가
-     불가능하므로 line 모드도 같은 형태로 맞췄다.
+  ① 전수 순회 -> 후보 행 배열(rows)을 받아 그 행만 계산한다. 원본의 line 모드는
+     전체를 돌았다. 수백만 장에서는 O(N) 자체가 불가능하다.
   ② soft_ink 전역 캐시(장당 41MB, tau 바뀌면 전량 재계산)를 없앴다. 후보 K개의
      거리맵만 mmap 에서 읽어 exp() 를 그 자리에서 취한다. 2,000장이면 8.2M 원소로
      수 ms 다. 저장도 안 하고 상주도 안 한다.
@@ -13,6 +12,9 @@
   ④ allow(카테고리 하드필터)를 뺐다. 필터링은 1단계 후보 선정에서 끝낸다
      (pgvector 쿼리의 WHERE 로 내려가므로 엔진이 알 필요가 없다).
   ⑤ 결과 id 가 파일 상대경로가 아니라 tattoo_seq(int) 다.
+  ⑥ 면(gate) 모드를 걷어냈다. 제품에서 선 모드만 노출하므로 검색 경로가 죽어 있었다.
+     스토어 포맷(FORMAT=2)은 그대로라 norms·emb_gate 컬럼은 계속 기록된다 —
+     되살릴 때 재색인이 필요 없게 하기 위함이다.
 """
 
 from __future__ import annotations
@@ -24,9 +26,6 @@ from .store import FeatureStore, GRID, AREA
 
 NORM = GRID
 FILL = 0.82          # 캔버스 채움 비율
-MIN_FILL = 0.85      # 게이트 1단계: 실루엣 내부가 꽉 찼나
-MIN_OPACITY = 0.40   # 게이트 2단계: 실루엣 내부 평균 불투명도
-DUP_COSINE = 0.96    # 이 이상 닮은 불투명도맵은 하나만 노출
 LINE_DUP_COSINE = 0.93
 LINE_TAU = 2.5       # exp(-거리/TAU) 감쇠 폭
 FAR = 1e3
@@ -76,10 +75,6 @@ def normalize_pair(mask: np.ndarray, opac: np.ndarray | None = None,
         co[oy:oy + nh, ox:ox + nw] = ocR
         norm_opac = co
     return norm_mask, norm_opac
-
-
-def normalize_shape(mask: np.ndarray) -> np.ndarray:
-    return normalize_pair(mask)[0]
 
 
 def normalize_line(mask: np.ndarray, extra_deg: float = 0.0) -> np.ndarray:
@@ -157,50 +152,6 @@ def _pick_top(final: np.ndarray, sig: np.ndarray, top_k: int, thr: float) -> lis
         if len(kept) >= top_k:
             break
     return kept
-
-
-def _iou_batch(q: np.ndarray, norms: np.ndarray) -> np.ndarray:
-    """q(64,64) vs norms(k,4096) IoU. 축(방향) 모호성 대비 4변형 max."""
-    variants = [q, q[:, ::-1], q[::-1, :], q[::-1, ::-1]]
-    best = np.zeros(norms.shape[0], dtype="float32")
-    nsum = norms.sum(axis=1, dtype="int64")
-    for v in variants:
-        vf = np.ascontiguousarray(v).reshape(-1)
-        inter = (norms & vf).sum(axis=1, dtype="int64").astype("float32")
-        union = (nsum + int(vf.sum()) - inter).astype("float32")
-        best = np.maximum(best, np.where(union > 0, inter / union, 0.0))
-    return best
-
-
-# ---------------------------------------------------------------------------
-# 게이트 모드: 밀도를 순위에서 빼고 자격 요건으로만 쓴다
-#   1단계 게이트 : fill >= min_fill AND opacity >= min_opacity  (후보 선정 단계)
-#   2단계 순위   : IoU(정규화 흉터, 정규화 도안) + 중복 도안 제거
-#
-# 밀도를 점수에 가중 합산하면 '진한 도안' 순위가 모양을 덮어써서 무엇을 그려도
-# 같은 도안이 1위로 올라온다(실측: 흉터 9종 상위16 평균 겹침 5.7/16 -> 1.3/16).
-# ---------------------------------------------------------------------------
-def gate_search(scar_mask: np.ndarray, store: FeatureStore, rows: np.ndarray,
-                top_k: int = 16, dup_cosine: float = DUP_COSINE,
-                sn: np.ndarray | None = None) -> list[dict]:
-    # sn(정규화 실루엣)은 1단계에서 이미 만들었으면 그걸 받는다(중복 계산 회피).
-    sn = normalize_shape(scar_mask) if sn is None else sn
-    if sn.sum() == 0 or len(rows) == 0:
-        return []
-
-    rows = np.asarray(rows, np.int64)
-    scores = _iou_batch(sn, store.norms(rows))
-    sig = store.opac(rows).astype("float32")
-    kept = _pick_top(scores, sig, top_k, dup_cosine)
-
-    keys, fill, opacity = store.keys, store.fill, store.opacity
-    return [{
-        "key": int(keys[rows[o]]),
-        "score": round(float(scores[o]), 4),
-        "shape": round(float(scores[o]), 4),        # 프론트 표시용 별칭
-        "fill": round(float(fill[rows[o]]), 3),
-        "opacity": round(float(opacity[rows[o]]), 3),
-    } for o in kept]
 
 
 # ---------------------------------------------------------------------------

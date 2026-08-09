@@ -61,15 +61,12 @@ export const MODES = {
 	},
 } as const;
 
-/** 토글 표시 순서. 커버업 페이지라 면이 먼저다 */
-export const MODE_KEYS = ["coverup", "shape"] as const;
-
 /**
  * 지금은 선 모드만 쓴다.
  *
- * <p>면 모드는 화면에서만 걷어낸 상태다(모드 토글 UI 제거). 엔진·마스크 쪽 코드는
- * 그대로 두었으니 되살리려면 CoverUpPage/MobileCoverUpFlow에 MODE_KEYS 토글을
- * 다시 넣고 이 값을 "coverup"으로 돌리면 된다.
+ * <p>면(coverup) 모드는 화면·프론트 코드에서 걷어냈다. SearchMode 타입과 API 계약에는
+ * 남아 있으므로, 되살리려면 모드 토글 UI와 열린 획 안내를 다시 넣고 이 값을
+ * "coverup"으로 돌리면 된다.
  */
 export const DEFAULT_MODE: SearchMode = "shape";
 
