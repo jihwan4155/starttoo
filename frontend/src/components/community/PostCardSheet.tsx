@@ -11,6 +11,8 @@ type PostCardSheetProps = {
 	/** 댓글 아이콘을 눌렀을 때 — 댓글 모달로 넘어간다 (사진 클릭은 아님) */
 	onOpenComments: (post: Post) => void;
 	onClose: () => void;
+	/** 검색 결과가 가리킨 사진부터 카드를 연다 (PostDetailModal과 같은 규칙) */
+	initialImageIndex?: number;
 };
 
 /**
@@ -27,6 +29,7 @@ export default function PostCardSheet({
 	post,
 	onOpenComments,
 	onClose,
+	initialImageIndex = 0,
 }: PostCardSheetProps) {
 	const isOpen = !!post;
 
@@ -72,7 +75,11 @@ export default function PostCardSheet({
 			{/* 커뮤니티 피드와 같은 폭·여백 — 카드가 같은 모양으로 보이게 */}
 			<div className="flex-1 overflow-y-auto py-5">
 				<div className="mx-auto w-full max-w-[440px] px-4">
-					<PostCard post={post} onOpenComments={onOpenComments} />
+					<PostCard
+						post={post}
+						onOpenComments={onOpenComments}
+						initialImageIndex={initialImageIndex}
+					/>
 				</div>
 			</div>
 		</div>,
