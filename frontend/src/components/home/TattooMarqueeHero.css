@@ -5,11 +5,29 @@
 	padding-block: clamp(16px, 2vw, 32px);
 	overflow: hidden;
 	background-color: #f9f6f6;
+	color: #000;
+}
+
+/*
+  배경은 섹션에 직접 깔지 않고 이 레이어로 깐다.
+
+  원본(1024×682)은 붉은 접시가 630px 언저리에서 끝나고 그 아래는 빈 여백이다.
+  cover 는 폭과 높이 중 모자란 쪽에 맞춰 확대하는데, 섹션이 이미지보다 세로로
+  길어지는 좁은 화면에서는 높이에 맞춰지면서 이 여백까지 화면 안으로 들어와
+  아래쪽에 창백한 띠가 남았다.
+
+  그래서 레이어만 여백 높이(682/630 ≈ 8.25%)만큼 아래로 키워, 그 부분이 섹션
+  밖으로 나가 overflow 에 잘리게 한다. 잘라 낸 이미지를 따로 두는 것과 결과가
+  같으면서 확대는 여백을 밀어내는 데 필요한 만큼(좁은 화면 기준 8%)에 그친다.
+*/
+.tattoo-marquee::before {
+	content: "";
+	position: absolute;
+	inset: 0 0 -8.25%;
 	background-image: url("../../assets/images/home/banner-background.png");
 	background-position: center;
 	background-repeat: no-repeat;
 	background-size: cover;
-	color: #000;
 }
 
 .tattoo-marquee__logo-rail {
