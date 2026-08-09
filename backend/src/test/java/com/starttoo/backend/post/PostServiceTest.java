@@ -32,8 +32,11 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.time.OffsetDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -48,6 +51,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -122,7 +126,7 @@ class PostServiceTest {
 
     @Test
     void loggedInFeedBlendsPreferenceScoreWithRecency() {
-        when(preferenceProperties.feedPreferenceWeight()).thenReturn(1.0);
+        when(preferenceProperties.feedPreferenceWeight()).thenReturn(24.0);
         when(preferenceProperties.feedRecencyPerHour()).thenReturn(0.2);
         when(jdbcTemplate.query(
                 anyString(),
@@ -152,6 +156,122 @@ class PostServiceTest {
                 "ORDER BY ranked.blend_score DESC, ranked.post_seq DESC"
         );
         assertThat(page.items()).isEmpty();
+    }
+
+    @Test
+    void loggedInFeedNormalizesPreferenceScoreByAxisTotal() throws Exception {
+        when(preferenceProperties.feedPreferenceWeight()).thenReturn(24.0);
+        when(preferenceProperties.feedRecencyPerHour()).thenReturn(0.2);
+        ResultSet totals = mock(ResultSet.class);
+        when(totals.getBigDecimal("style_total")).thenReturn(new BigDecimal("40"));
+        when(totals.getBigDecimal("color_total")).thenReturn(new BigDecimal("10"));
+        when(jdbcTemplate.queryForObject(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        )).thenAnswer(invocation -> invocation
+                .<RowMapper<Object>>getArgument(1)
+                .mapRow(totals, 0));
+        when(jdbcTemplate.query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        )).thenReturn(List.of());
+
+        postService.list((String) null, 20, null, 7);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> params = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(
+                sql.capture(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                params.capture()
+        );
+        // 이미지 점수를 합하면 사진을 많이 붙인 게시물이 점유율 상한을 장수만큼 뚫는다.
+        assertThat(sql.getValue())
+                .contains("MAX(image_pref.score) AS score")
+                .doesNotContain("SUM(image_pref.score)");
+        // 가중치·최신성 다음 두 자리가 스타일·색상 축의 분모다.
+        assertThat(params.getValue()[2]).isEqualTo(new BigDecimal("40"));
+        assertThat(params.getValue()[3]).isEqualTo(new BigDecimal("10"));
+    }
+
+    @Test
+    void loggedInFeedFallsBackToOneWhenPreferenceTotalIsZero() {
+        when(preferenceProperties.feedPreferenceWeight()).thenReturn(24.0);
+        when(preferenceProperties.feedRecencyPerHour()).thenReturn(0.2);
+        when(jdbcTemplate.query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        )).thenReturn(List.of());
+
+        postService.list((String) null, 20, null, 7);
+
+        ArgumentCaptor<Object[]> params = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                params.capture()
+        );
+        // 취향이 아직 없는 회원은 0으로 나누면 안 된다. 분자도 0이라 결과는 0이 된다.
+        assertThat(params.getValue()[2]).isEqualTo(BigDecimal.ONE);
+        assertThat(params.getValue()[3]).isEqualTo(BigDecimal.ONE);
+    }
+
+    @Test
+    void feedCursorCarriesAxisTotalsSoNextPageKeepsSameDenominator() {
+        when(preferenceProperties.feedPreferenceWeight()).thenReturn(24.0);
+        when(preferenceProperties.feedRecencyPerHour()).thenReturn(0.2);
+        when(jdbcTemplate.query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        )).thenReturn(List.of());
+
+        String cursor = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                "12.5000|31|40|10".getBytes(StandardCharsets.UTF_8)
+        );
+        postService.list(cursor, 20, null, 7);
+
+        ArgumentCaptor<Object[]> params = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                params.capture()
+        );
+        // 커서에 총합이 실려 있으면 다시 조회하지 않는다. 페이지를 넘기는 도중
+        // 좋아요를 눌러도 분모가 그대로여서 이미 본 게시물의 순위가 흔들리지 않는다.
+        verify(jdbcTemplate, never()).queryForObject(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        );
+        assertThat(params.getValue()[2]).isEqualTo(new BigDecimal("40"));
+        assertThat(params.getValue()[3]).isEqualTo(new BigDecimal("10"));
+    }
+
+    @Test
+    void feedCursorIssuedBeforeAxisTotalsStillWorks() {
+        when(preferenceProperties.feedPreferenceWeight()).thenReturn(24.0);
+        when(preferenceProperties.feedRecencyPerHour()).thenReturn(0.2);
+        when(jdbcTemplate.query(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        )).thenReturn(List.of());
+
+        String legacy = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                "12.5000|31".getBytes(StandardCharsets.UTF_8)
+        );
+
+        // 배포 직후 화면에 남아 있던 두 칸짜리 커서도 오류 없이 이어져야 한다.
+        assertThat(postService.list(legacy, 20, null, 7).items()).isEmpty();
+        verify(jdbcTemplate).queryForObject(
+                anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                any(Object[].class)
+        );
     }
 
     @Test
