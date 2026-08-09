@@ -23,6 +23,39 @@ function isDrawableStroke(stroke: Stroke): boolean {
 	return stroke.length >= 2;
 }
 
+/**
+ * 사진을 캔버스 안에 비율 그대로 담는다(contain).
+ *
+ * <p>캔버스는 마스크 좌표계(420×520)로 고정돼 있어 비율이 0.81이다. 예전에는
+ * drawImage(photo, 0, 0, MASK_W, MASK_H)로 그 크기에 그대로 늘려 넣었는데, 비율이
+ * 다른 사진일수록 눌려 보였다. 세로로 긴 폰 사진(3:4 = 0.75)은 위아래가 줄어든다.
+ *
+ * <p>잘라내기(cover)가 아니라 여백을 두는 쪽을 골랐다. 가리려는 흉터·타투가 사진
+ * 가장자리에 있을 때 잘려 나가면 그 위에 그릴 수가 없기 때문이다. 여백 색은 캔버스
+ * 배경과 같아 눈에 띄지 않는다.
+ *
+ * <p>서버로 보내는 마스크(buildMaskDataUrl)는 사진을 쓰지 않고 획만 그리므로, 여기서
+ * 사진을 어떻게 배치하든 검색 결과에는 영향이 없다.
+ */
+function drawPhotoContained(
+	ctx: CanvasRenderingContext2D,
+	photo: HTMLImageElement,
+): void {
+	// 아직 디코딩 전이면 0이 나온다. 그 경우 예전처럼 꽉 채워 최소한 화면은 그린다.
+	const width = photo.naturalWidth || MASK_W;
+	const height = photo.naturalHeight || MASK_H;
+	const scale = Math.min(MASK_W / width, MASK_H / height);
+	const drawWidth = width * scale;
+	const drawHeight = height * scale;
+	ctx.drawImage(
+		photo,
+		(MASK_W - drawWidth) / 2,
+		(MASK_H - drawHeight) / 2,
+		drawWidth,
+		drawHeight,
+	);
+}
+
 /** 획 궤적을 잇는다. 프리뷰와 마스크가 같은 경로를 쓰도록 공용화 */
 function tracePath(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
 	ctx.beginPath();
@@ -48,7 +81,7 @@ export function drawPreview(
 	ctx.clearRect(0, 0, MASK_W, MASK_H);
 	ctx.fillStyle = EMPTY_BACKGROUND;
 	ctx.fillRect(0, 0, MASK_W, MASK_H);
-	if (photo) ctx.drawImage(photo, 0, 0, MASK_W, MASK_H);
+	if (photo) drawPhotoContained(ctx, photo);
 
 	ctx.lineCap = "round";
 	ctx.lineJoin = "round";
