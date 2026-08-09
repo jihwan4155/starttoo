@@ -94,7 +94,7 @@ export default function App() {
 					{/* 피드 — 목록은 공개, 피드 상세 진입만 로그인 필요 (페이지 안에서 처리) */}
 					{/* API: GET /posts/search */}
 					<Route path="/posts/search" element={<CommunitySearchPage />} />
-					{/* 로그인 필요 페이지 — 미로그인 접근 시 /login으로 보낸다 */}
+					{/* 로그인 필요 페이지 — 미로그인 접근 시 홈으로 옮기고 로그인 안내를 띄운다 */}
 					<Route element={<RequireAuth />}>
 						{/* 신체 사진을 올려 저장·시뮬레이션까지 이어지는 화면이라 들어오는
 						    문턱에서 로그인을 받는다. 낙서로 도안만 보고 싶으면 홈 낙서장의
