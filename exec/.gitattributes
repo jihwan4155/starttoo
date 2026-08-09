@@ -1,0 +1,3 @@
+# DB 덤프는 개행을 변환하면 안 된다. Windows 체크아웃에서 CRLF로 바뀌면
+# COPY ... FROM stdin 블록의 각 행 마지막 컬럼에 \r 이 붙어 복원 결과가 깨진다.
+*.sql -text
