@@ -86,7 +86,12 @@ export default function TattooistPage() {
 	return (
 		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-8">
 			<div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-4 lg:gap-6">
-				<div className="hidden max-lg:block [&>div>div]:h-12 [&>div>div]:shadow-none">
+				{/*
+				  검색 바는 상단바에 놓일 때를 기준으로 520px 에서 멈추는데, 여기서는
+				  아래 카드와 같은 폭이어야 목록의 머리처럼 읽힌다. 카드가 컨테이너를
+				  꽉 채우므로 상한을 풀어 같이 늘고 줄게 한다.
+				*/}
+				<div className="hidden max-lg:block [&>div]:max-w-none [&>div>div]:h-12 [&>div>div]:shadow-none">
 					<ArtistSearchBar />
 				</div>
 
