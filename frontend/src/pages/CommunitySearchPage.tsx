@@ -270,8 +270,12 @@ export default function CommunitySearchPage() {
 				)}
 			</div>
 
+			{/* 데스크톱 상세와 같은 규칙 — 썸네일이 보여 준 사진부터 연다.
+			    key 를 붙여야 다른 게시물을 열 때 캐러셀 초기값이 다시 잡힌다. */}
 			<PostCardSheet
+				key={`${cardPost?.id ?? "closed"}-${cardPost?.searchMatchedImageIndex ?? 0}`}
 				post={cardPost}
+				initialImageIndex={cardPost?.searchMatchedImageIndex ?? 0}
 				onOpenComments={handleOpenComments}
 				onClose={() => setCardPost(null)}
 			/>

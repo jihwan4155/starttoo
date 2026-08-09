@@ -75,6 +75,8 @@ type PostCardProps = {
 	onOpenPhoto?: (post: Post) => void;
 	/** 댓글 아이콘 클릭 */
 	onOpenComments?: (post: Post) => void;
+	/** 검색 결과가 가리킨 사진부터 캐러셀을 연다 (PostDetailModal과 같은 규칙) */
+	initialImageIndex?: number;
 };
 
 export default function PostCard({
@@ -82,6 +84,7 @@ export default function PostCard({
 	onOpen,
 	onOpenPhoto,
 	onOpenComments,
+	initialImageIndex = 0,
 }: PostCardProps) {
 	const openPhoto = onOpenPhoto ?? onOpen;
 	const openComments = onOpenComments ?? onOpen;
@@ -91,7 +94,9 @@ export default function PostCard({
 	const [isDeleteOpen, setDeleteOpen] = useState(false);
 	const [isShareOpen, setShareOpen] = useState(false);
 	const [showArchiveFull, setShowArchiveFull] = useState(false);
-	const [imageIndex, setImageIndex] = useState(0);
+	const [imageIndex, setImageIndex] = useState(() =>
+		Math.max(0, initialImageIndex),
+	);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
 
