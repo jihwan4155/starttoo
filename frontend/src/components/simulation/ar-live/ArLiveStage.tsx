@@ -6,6 +6,7 @@ import { SmileMarkerTracker } from "./engine/smileMarkerTracker";
 import {
 	computeSkinMask,
 	estimateLocalSkinAxisAngleDeg,
+	keepComponentAt,
 	largestSkinOutline,
 	skinFraction,
 	type OutlinePoint,
@@ -17,6 +18,10 @@ import {
 	designImageToMat,
 } from "./engine/perspectiveComposite";
 import { TattooPoseStabilizer } from "./engine/tattooPoseStabilizer";
+import {
+	loadPersonSegmenter,
+	personMaskFromVideo,
+} from "./engine/personSegmenter";
 // 도안은 MinIO 공개 호스트에서 오는 교차 출처 이미지다. 여기서 예전처럼 image.src 로
 // 바로 받으면 캔버스가 오염돼 cv.imread 가 SecurityError 로 죽는다 (AR 도안 로드 실패).
 import { loadImage } from "../loadImage";
@@ -35,17 +40,47 @@ export type ArEngineOptions = {
 
 type TrackingState = "loading" | "searching" | "tracking";
 
+/** 한 프레임을 처리하는 데 걸린 구간별 시간 (ms). */
+export type ArFrameTiming = {
+	/** 실제로 처리한 프레임 기준 초당 횟수. */
+	fps: number;
+	/** 프레임 전체 처리 시간. */
+	totalMs: number;
+	/** 마커 추적. */
+	trackMs: number;
+	/** 마커 지우기(inpaint). */
+	concealMs: number;
+	/** 도안 합성 + 피부 클리핑. */
+	compositeMs: number;
+	/** 피부 마스크 + 인물 분할. 이 프레임에서 안 돌았으면 0. */
+	maskMs: number;
+};
+
 type ArLiveStageProps = {
 	/** 합성할 도안 이미지 URL */
 	designUrl: string;
 	options: ArEngineOptions;
 	/** 캡처 시 합성된 화면의 dataURL 전달 */
 	onCapture: (dataUrl: string) => void;
+	/**
+	 * 구간별 성능 측정 훅. 넘기지 않으면 구간 계측을 아예 하지 않으므로
+	 * 평소 비용은 없다 (프레임 간격 조절에 쓰는 전체 시간만 잰다).
+	 */
+	onPerf?: (timing: ArFrameTiming) => void;
 };
 
 const ANALYSIS_MAX_SIDE = 640;
-const FRAME_INTERVAL_MS = 80;
+// 프레임 간격은 고정값이 아니라 직전 처리 시간에 맞춰 조절한다. 고정 80ms는
+// 빠른 기기에서 12.5fps로 천장을 씌우고, 느린 기기에서는 처리가 주기를 넘겨
+// 루프가 포화됐다. 아래 범위 안에서 "처리 시간 × 1.25"를 목표로 삼아,
+// 여유가 있으면 더 자주 돌고 벅차면 스스로 물러난다.
+const MIN_FRAME_INTERVAL_MS = 40; // 25fps 상한
+const MAX_FRAME_INTERVAL_MS = 120; // 8.3fps 하한
+const INITIAL_FRAME_INTERVAL_MS = 80;
 const SKIN_MASK_INTERVAL_MS = 320;
+// 인물 분할은 피부 마스크보다 뜸하게 돌린다. 사람은 천천히 움직이는 데다,
+// 둘을 같은 프레임에서 함께 돌리면 그 프레임만 크게 튀어 화면이 걸린다.
+const PERSON_MASK_INTERVAL_MS = 640;
 const MIN_SKIN_FRACTION = 0.004;
 
 const CAMERA_MESSAGE: Partial<Record<CameraStatus, string>> = {
@@ -68,6 +103,15 @@ function ensureCanvas(
 	return target;
 }
 
+/**
+ * 검출용 피부 마스크는 팔 실루엣의 Canny 엣지를 배제하려고 일부러 안쪽으로
+ * erode 되어 있다(skinMask.ts 참고). 그 마스크를 합성 클리핑에 그대로 쓰면
+ * 팔 가장자리 쪽 도안이 잘려나가므로, 그릴 때 쓰는 마스크는 다시 부풀린다.
+ * erode 폭(7)보다 조금 크게 잡아 실루엣 바로 바깥까지 덮고, 뒤이은 블러가
+ * 경계를 흐려 배경으로 새는 부분은 눈에 띄지 않는다.
+ */
+const RENDER_MASK_DILATE_SIZE = 13;
+
 function updateSkinAlphaCanvas(
 	cv: any,
 	mask: any,
@@ -77,8 +121,15 @@ function updateSkinAlphaCanvas(
 	const context = canvas.getContext("2d");
 	if (!context) return canvas;
 	const feathered = new cv.Mat();
+	const expanded = new cv.Mat();
+	let dilateKernel: any = null;
 	try {
-		cv.GaussianBlur(mask, feathered, new cv.Size(11, 11), 0);
+		dilateKernel = cv.getStructuringElement(
+			cv.MORPH_ELLIPSE,
+			new cv.Size(RENDER_MASK_DILATE_SIZE, RENDER_MASK_DILATE_SIZE)
+		);
+		cv.dilate(mask, expanded, dilateKernel);
+		cv.GaussianBlur(expanded, feathered, new cv.Size(11, 11), 0);
 		const image = context.createImageData(mask.cols, mask.rows);
 		const alpha = feathered.data as Uint8Array;
 		for (let index = 0; index < alpha.length; index++) {
@@ -92,6 +143,8 @@ function updateSkinAlphaCanvas(
 		return canvas;
 	} finally {
 		feathered.delete();
+		expanded.delete();
+		dilateKernel?.delete();
 	}
 }
 
@@ -123,6 +176,7 @@ export default function ArLiveStage({
 	designUrl,
 	options,
 	onCapture,
+	onPerf,
 }: ArLiveStageProps) {
 	const { videoRef, status: cameraStatus, retry } = useCamera();
 	const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -143,19 +197,43 @@ export default function ArLiveStage({
 	const skinOutlineRef = useRef<OutlinePoint[] | null>(null);
 	const tattooLayerCanvasRef = useRef<HTMLCanvasElement | null>(null);
 	const armAxisAngleRef = useRef<number | null>(null);
+	// 마커 중심 — 피부 마스크에서 "팔인 덩어리"를 고르는 기준점
+	const lastMarkerCenterRef = useRef<{ x: number; y: number } | null>(null);
+	// 인물 분할기. 못 받으면 null로 남고 피부 마스크만으로 동작한다.
+	const personSegmenterRef = useRef<Awaited<
+		ReturnType<typeof loadPersonSegmenter>
+	> | null>(null);
 	const rafIdRef = useRef<number | null>(null);
 	const lastFrameAtRef = useRef(0);
+	const frameIntervalRef = useRef(INITIAL_FRAME_INTERVAL_MS);
 	const lastSkinMaskAtRef = useRef(0);
+	// 직전 인물 분할 결과. 피부 마스크보다 뜸하게 갱신하고 그 사이엔 재사용한다.
+	const personMaskRef = useRef<any>(null);
+	const lastPersonMaskAtRef = useRef(0);
 	const lastArmAxisAtRef = useRef(0);
 	const trackingRef = useRef<TrackingState>("loading");
 	const skinVisibleRef = useRef(false);
 	const optionsRef = useRef(options);
+	// 렌더 루프가 매번 새로 만들어지지 않도록 콜백은 ref로 들고 있는다.
+	const onPerfRef = useRef(onPerf);
+	onPerfRef.current = onPerf;
 
 	useEffect(() => {
 		optionsRef.current = options;
 		// 회전/도안이 바뀌면 포즈 스무딩을 리셋해 튀는 것을 방지
 		poseStabilizerRef.current.reset();
 	}, [options]);
+
+	// 인물 분할기 로드 — 실패해도 AR은 그대로 동작한다.
+	useEffect(() => {
+		let cancelled = false;
+		loadPersonSegmenter().then((segmenter) => {
+			if (!cancelled) personSegmenterRef.current = segmenter;
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	// OpenCV 초기화 + 트래커 생성
 	useEffect(() => {
@@ -246,11 +324,21 @@ export default function ArLiveStage({
 					video!.videoHeight > 0
 				) {
 					const now = performance.now();
-					if (now - lastFrameAtRef.current < FRAME_INTERVAL_MS) {
+					if (now - lastFrameAtRef.current < frameIntervalRef.current) {
 						rafIdRef.current = requestAnimationFrame(renderLoop);
 						return;
 					}
+					const sinceLastFrame = now - lastFrameAtRef.current;
 					lastFrameAtRef.current = now;
+					// onPerf가 없으면 구간별 measure* 는 전부 0으로 남고 콜백도 안 부른다.
+					// 전체 처리 시간은 간격 조절에 필요하므로 항상 잰다 (호출 두 번).
+					const measuring = Boolean(onPerfRef.current);
+					const stamp = () => (measuring ? performance.now() : 0);
+					const frameStartedAt = performance.now();
+					let maskMs = 0;
+					let trackMs = 0;
+					let concealMs = 0;
+					let compositeMs = 0;
 
 					const analysisScale = Math.min(
 						1,
@@ -278,6 +366,10 @@ export default function ArLiveStage({
 						poseStabilizer.reset();
 						skinMaskRef.current?.delete();
 						skinMaskRef.current = null;
+						// 캐시해 둔 인물 마스크는 이전 해상도 기준이라 못 쓴다.
+						personMaskRef.current?.delete();
+						personMaskRef.current = null;
+						lastPersonMaskAtRef.current = 0;
 						skinAlphaCanvasRef.current = null;
 						skinOutlineRef.current = null;
 					}
@@ -289,8 +381,41 @@ export default function ArLiveStage({
 
 					try {
 						if (now - lastSkinMaskAtRef.current >= SKIN_MASK_INTERVAL_MS) {
+							const maskStartedAt = stamp();
 							lastSkinMaskAtRef.current = now;
 							const nextSkinMask = computeSkinMask(cv, src);
+							// 인물 분할과 교집합. 색만 보면 따뜻한 흰 벽·나무 책상이
+							// 피부로 잡히고, MORPH_CLOSE가 그 배경을 팔에 이어붙여
+							// 덩어리 필터까지 무력화된다. 사람/배경을 직접 가르는
+							// 마스크를 곱해 그 경로를 끊는다.
+							const segmenter = personSegmenterRef.current;
+							if (
+								segmenter &&
+								now - lastPersonMaskAtRef.current >= PERSON_MASK_INTERVAL_MS
+							) {
+								lastPersonMaskAtRef.current = now;
+								const nextPersonMask = personMaskFromVideo(
+									cv,
+									segmenter,
+									video!,
+									now,
+									width,
+									height
+								);
+								if (nextPersonMask) {
+									personMaskRef.current?.delete();
+									personMaskRef.current = nextPersonMask;
+								}
+							}
+							// 크기가 안 맞으면(해상도 변경 직후) 버리고 다음 갱신을 기다린다.
+							const personMask = personMaskRef.current;
+							if (
+								personMask &&
+								personMask.rows === nextSkinMask.rows &&
+								personMask.cols === nextSkinMask.cols
+							) {
+								cv.bitwise_and(nextSkinMask, personMask, nextSkinMask);
+							}
 							try {
 								const hasSkin =
 									skinFraction(cv, nextSkinMask) >= MIN_SKIN_FRACTION;
@@ -308,14 +433,31 @@ export default function ArLiveStage({
 									skinColorRef.current = null;
 								}
 								skinMaskRef.current?.delete();
+								// 검출용 마스크는 전체를 유지한다 — 최초 락 전에는
+								// 마커가 어디 있는지 모르므로 탐색 범위를 좁히면 안 된다.
 								skinMaskRef.current = hasSkin ? nextSkinMask.clone() : null;
-								skinAlphaCanvasRef.current = hasSkin
-									? updateSkinAlphaCanvas(
-											cv,
-											nextSkinMask,
-											skinAlphaCanvasRef.current
-										)
-									: null;
+								// 합성 클리핑용 마스크는 마커가 올라가 있는 덩어리만
+								// 남긴다. 색이 피부와 겹치는 배경(따뜻한 흰 벽, 나무
+								// 책상, 살구빛 옷)은 팔과 이어져 있지 않아 통째로
+								// 떨어져 나가고, 팔은 한 덩어리라 줄어들지 않는다.
+								let renderMask = nextSkinMask;
+								let isolated: any = null;
+								const markerCenter = lastMarkerCenterRef.current;
+								if (hasSkin && markerCenter) {
+									isolated = keepComponentAt(cv, nextSkinMask, markerCenter);
+									if (isolated) renderMask = isolated;
+								}
+								try {
+									skinAlphaCanvasRef.current = hasSkin
+										? updateSkinAlphaCanvas(
+												cv,
+												renderMask,
+												skinAlphaCanvasRef.current
+											)
+										: null;
+								} finally {
+									isolated?.delete();
+								}
 								skinOutlineRef.current = hasSkin
 									? largestSkinOutline(cv, nextSkinMask)
 									: null;
@@ -324,8 +466,10 @@ export default function ArLiveStage({
 							} finally {
 								nextSkinMask.delete();
 							}
+							maskMs = measuring ? performance.now() - maskStartedAt : 0;
 						}
 
+						const trackStartedAt = stamp();
 						cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 						const skinMask = skinMaskRef.current;
 						const searchContext = skinMask
@@ -335,9 +479,27 @@ export default function ArLiveStage({
 						const result = canProcess
 							? tracker!.process(gray, now / 1000, searchContext)
 							: null;
+						trackMs = measuring ? performance.now() - trackStartedAt : 0;
 
 						if (result && designMatRef.current) {
 							setTrackingState("tracking");
+							const concealStartedAt = stamp();
+							// 마커가 찍힌 곳은 반드시 팔이다. 다음 피부 마스크 갱신 때
+							// 어느 덩어리가 팔인지 고르는 기준으로 쓴다.
+							lastMarkerCenterRef.current = {
+								x:
+									(result.points.topLeft.x +
+										result.points.topRight.x +
+										result.points.bottomRight.x +
+										result.points.bottomLeft.x) /
+									4,
+								y:
+									(result.points.topLeft.y +
+										result.points.topRight.y +
+										result.points.bottomRight.y +
+										result.points.bottomLeft.y) /
+									4,
+							};
 							// 마커가 감싸는 영역을 마스크로 잡고 cv.inpaint로 주변 피부에서
 							// 복원한다. 실패하면 기존 방식(옆 피부 이식 + 방사형 페이드)으로
 							// 되돌아가므로 최악의 경우에도 이전 동작이 유지된다.
@@ -355,7 +517,15 @@ export default function ArLiveStage({
 										armAxisAngleRef.current
 									)
 							);
-							if (
+							concealMs = measuring
+								? performance.now() - concealStartedAt
+								: 0;
+							// 마스크가 화면을 이만큼 덮으면 팔이 아니라 배경까지 피부로
+							// 잡힌 것이다. 그 마스크로 팔 축을 추정하면 각도가 프레임마다
+							// 튀어 타투가 혼자 도니, 차라리 마커 자체 각도를 쓴다.
+							if (skinMask && skinFraction(cv, skinMask) > 0.55) {
+								armAxisAngleRef.current = null;
+							} else if (
 								skinMask &&
 								now - lastArmAxisAtRef.current >= SKIN_MASK_INTERVAL_MS
 							) {
@@ -383,11 +553,13 @@ export default function ArLiveStage({
 										Math.max(size * 2.6, Math.min(width, height) * 0.16)
 									) ?? armAxisAngleRef.current;
 							}
+							const compositeStartedAt = stamp();
 							const opts = optionsRef.current;
 							const stabilized = poseStabilizer.update(
 								result.points,
 								armAxisAngleRef.current,
-								opts.rotation
+								opts.rotation,
+								now
 							);
 							const tattooLayer = ensureCanvas(
 								tattooLayerCanvasRef.current,
@@ -421,14 +593,43 @@ export default function ArLiveStage({
 								}
 								overlayContext!.drawImage(tattooLayer, 0, 0);
 							}
+							compositeMs = measuring
+								? performance.now() - compositeStartedAt
+								: 0;
 						} else {
 							setTrackingState("searching");
+							// 추적을 놓치면 기준점도 버린다. 팔이 화면을 벗어난 뒤에도
+							// 옛 좌표를 들고 있으면 엉뚱한 덩어리를 팔로 고르게 된다.
+							lastMarkerCenterRef.current = null;
 						}
 						if (!result)
 							drawSkinOutline(overlayContext!, skinOutlineRef.current);
 					} finally {
 						src.delete();
 						gray.delete();
+					}
+
+					const processMs = performance.now() - frameStartedAt;
+					// 처리 시간의 1.25배를 다음 간격으로 삼아 25% 여유를 남긴다.
+					// 여유가 없으면 rAF·UI·터치 반응이 같이 죽는다. 급변을 막으려
+					// 이전 값과 섞어 서서히 수렴시킨다.
+					frameIntervalRef.current = Math.min(
+						MAX_FRAME_INTERVAL_MS,
+						Math.max(
+							MIN_FRAME_INTERVAL_MS,
+							frameIntervalRef.current * 0.7 + processMs * 1.25 * 0.3
+						)
+					);
+
+					if (measuring) {
+						onPerfRef.current?.({
+							fps: sinceLastFrame > 0 ? 1000 / sinceLastFrame : 0,
+							totalMs: processMs,
+							trackMs,
+							concealMs,
+							compositeMs,
+							maskMs,
+						});
 					}
 				}
 			} catch (err) {
@@ -448,6 +649,8 @@ export default function ArLiveStage({
 			poseStabilizer.reset();
 			skinMaskRef.current?.delete();
 			skinMaskRef.current = null;
+			personMaskRef.current?.delete();
+			personMaskRef.current = null;
 			skinAlphaCanvasRef.current = null;
 			skinOutlineRef.current = null;
 		};

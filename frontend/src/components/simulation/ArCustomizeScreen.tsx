@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import ArLiveStage, { type ArEngineOptions } from "./ar-live/ArLiveStage";
+import { warmUpPersonSegmenter } from "./ar-live/engine/personSegmenter";
 import useArchive from "../../hooks/queries/useArchive";
 import { mapArchiveItemToSavedDesign } from "../../utils/mapArchive";
 import octopusDesign from "../../assets/ar/design-octopus.png";
@@ -17,15 +18,25 @@ type ArOptions = {
 };
 
 const DEFAULT_OPTIONS: ArOptions = {
-	// 처음 들어왔을 때 도안이 너무 작고 연하게 보여서 기본값을 올렸다.
+	// 처음 들어왔을 때 도안이 너무 작고 연하고 평평해 보여서 기본값을 올렸다.
 	size: 80,
+	// 0 = 팔 축과 나란함. 왼팔에서는 50° 정도 돌려야 반듯해 보이는데, 그건
+	// 팔 축의 앞뒤를 구분하지 못해 생기는 계통 오차라(아래 주석) 오른팔에서는
+	// 반대로 걸린다. 한쪽 팔에 맞춘 값을 기본으로 박으면 다른 쪽이 크게
+	// 틀어지므로, 원인을 고치기 전까지는 중립값을 쓴다.
 	direction: 0,
-	curvature: 50,
+	curvature: 65,
 	opacity: 70,
 };
 
 /** PoC 기본 배율 — UI 100%가 이 값이 되도록 매핑 */
 const BASE_SCALE = 4.4;
+
+// TODO: 도안이 팔 축에 대해 한쪽으로 기운 채로 얹힌다. estimateLocalSkinAxisAngleDeg가
+// 방향 없는 축(0~180°)만 돌려줘서 손목/팔꿈치 방향을 구분하지 못하는 것이 원인이라,
+// 보정값을 기본으로 박으면 반대쪽 팔에서 어긋난다. 마커의 방향 있는 각도
+// (tattooPoseStabilizer의 markerXAxisAngle)로 팔 축의 앞뒤를 판별하면 양쪽이
+// 같아진다 — 그때 direction 기본값을 다시 잡을 것.
 
 /**
  * 도안 보관함도 세션 도안도 비었을 때 쓰는 샘플 도안.
@@ -153,6 +164,12 @@ export default function ArCustomizeScreen({
 		const timer = window.setTimeout(() => setHintTick(0), 3500);
 		return () => window.clearTimeout(timer);
 	}, [hintTick]);
+
+	// 인물 분할 WASM이 10MB대라 카메라를 켠 뒤에 받기 시작하면 초반 몇 초 동안
+	// 배경 분리가 안 된다. 도안을 고르는 동안 미리 받아 둔다.
+	useEffect(() => {
+		warmUpPersonSegmenter();
+	}, []);
 
 	const setOption = (key: keyof ArOptions) => (value: number) =>
 		setOptions((current) => ({ ...current, [key]: value }));

@@ -16,22 +16,69 @@
 // slightly inside the silhouette so the contour's own Canny edges are
 // excluded too; the marker sits well inside the forearm and survives.
 
+// 임계값을 중립(Cr=Cb=128) 쪽으로 넓히면 안 된다. 실측해 보면 피부는
+// Cr≈153 / Cb≈107인데 따뜻한 조명 아래 흰 벽이 Cr≈130 / Cb≈124라, 하한을
+// 130까지만 내려도 벽 전체가 피부로 잡혀 타투가 배경으로 새어나갔다.
+// 그래서 범위는 아래 하나로 고정하고, 배경 분리는 색이 아니라 연결 성분
+// (keepComponentAt)으로 처리한다 — 나무 책상처럼 색만으로는 피부와 구분되지
+// 않는 물체는 임계값을 어떻게 잡아도 걸러낼 수 없기 때문이다.
 const SKIN_CR_MIN = 133;
 const SKIN_CR_MAX = 173;
 const SKIN_CB_MIN = 77;
 const SKIN_CB_MAX = 127;
+
+// 커널 크기는 640px 폭 기준으로 잡은 값이다. 실제 계산은 아래 MASK_MAX_SIDE로
+// 줄여서 하고 커널도 같은 비율로 줄인다 — MORPH_CLOSE의 타원 커널은 분리가
+// 안 되어 픽셀당 k² 연산이라, 640×480/25×25 조합이 갤럭시에서 400ms를 넘겼다.
+// 해상도를 절반으로 낮추면 픽셀 수 1/4 × 커널 면적 1/4 = 약 16배 빨라지고,
+// 마스크는 원래 부드러운 영역이라 정밀도 손실은 거의 없다.
 const CLOSE_KERNEL_SIZE = 25;
 const ERODE_KERNEL_SIZE = 7;
 const OPEN_KERNEL_SIZE = 5;
 const SMOOTH_KERNEL_SIZE = 9;
 
+/** 형태학 연산을 수행할 최대 변 길이. */
+const MASK_MAX_SIDE = 320;
+
+/** 디버그용 출력 — 형태학 연산 전 원본 마스크 비율. */
+export interface SkinMaskInfo {
+	rawFraction: number;
+}
+
 /** Caller owns the returned Mat and must delete() it. */
-export function computeSkinMask(cv: any, colorRoi: any): any {
+export function computeSkinMask(cv: any, colorRoi: any, info?: SkinMaskInfo): any {
+	const scale = Math.min(
+		1,
+		MASK_MAX_SIDE / Math.max(colorRoi.cols, colorRoi.rows)
+	);
+	/** 640px 기준 커널을 작업 해상도에 맞춰 줄인다 (홀수 유지). */
+	const kernelSize = (base: number) =>
+		Math.max(3, Math.round(base * scale) | 1);
+
+	let working = colorRoi;
+	let downscaled: any = null;
+	if (scale < 1) {
+		downscaled = new cv.Mat();
+		cv.resize(
+			colorRoi,
+			downscaled,
+			new cv.Size(
+				Math.max(1, Math.round(colorRoi.cols * scale)),
+				Math.max(1, Math.round(colorRoi.rows * scale))
+			),
+			0,
+			0,
+			cv.INTER_AREA
+		);
+		working = downscaled;
+	}
+
 	const rgb = new cv.Mat();
-	cv.cvtColor(colorRoi, rgb, cv.COLOR_RGBA2RGB);
+	cv.cvtColor(working, rgb, cv.COLOR_RGBA2RGB);
 	const ycrcb = new cv.Mat();
 	cv.cvtColor(rgb, ycrcb, cv.COLOR_RGB2YCrCb);
 	rgb.delete();
+	downscaled?.delete();
 
 	const low = new cv.Mat(ycrcb.rows, ycrcb.cols, ycrcb.type(), [
 		0,
@@ -51,35 +98,121 @@ export function computeSkinMask(cv: any, colorRoi: any): any {
 	low.delete();
 	high.delete();
 
+	if (info) {
+		const total = mask.rows * mask.cols;
+		info.rawFraction = total > 0 ? cv.countNonZero(mask) / total : 0;
+	}
+
+	const closeSize = kernelSize(CLOSE_KERNEL_SIZE);
 	const closeKernel = cv.getStructuringElement(
 		cv.MORPH_ELLIPSE,
-		new cv.Size(CLOSE_KERNEL_SIZE, CLOSE_KERNEL_SIZE)
+		new cv.Size(closeSize, closeSize)
 	);
 	cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, closeKernel);
 	closeKernel.delete();
 
+	const erodeSize = kernelSize(ERODE_KERNEL_SIZE);
 	const erodeKernel = cv.getStructuringElement(
 		cv.MORPH_ELLIPSE,
-		new cv.Size(ERODE_KERNEL_SIZE, ERODE_KERNEL_SIZE)
+		new cv.Size(erodeSize, erodeSize)
 	);
 	cv.erode(mask, mask, erodeKernel);
 	erodeKernel.delete();
 
+	const openSize = kernelSize(OPEN_KERNEL_SIZE);
 	const openKernel = cv.getStructuringElement(
 		cv.MORPH_ELLIPSE,
-		new cv.Size(OPEN_KERNEL_SIZE, OPEN_KERNEL_SIZE)
+		new cv.Size(openSize, openSize)
 	);
 	cv.morphologyEx(mask, mask, cv.MORPH_OPEN, openKernel);
 	openKernel.delete();
-	cv.GaussianBlur(
-		mask,
-		mask,
-		new cv.Size(SMOOTH_KERNEL_SIZE, SMOOTH_KERNEL_SIZE),
-		0
-	);
+	const smoothSize = kernelSize(SMOOTH_KERNEL_SIZE);
+	cv.GaussianBlur(mask, mask, new cv.Size(smoothSize, smoothSize), 0);
 	cv.threshold(mask, mask, 127, 255, cv.THRESH_BINARY);
 
+	// 호출부는 원본 해상도의 마스크를 기대한다 (인물 마스크와 bitwise_and,
+	// 합성 클리핑 모두 원본 좌표계 기준).
+	if (scale < 1) {
+		const full = new cv.Mat();
+		try {
+			cv.resize(
+				mask,
+				full,
+				new cv.Size(colorRoi.cols, colorRoi.rows),
+				0,
+				0,
+				cv.INTER_NEAREST
+			);
+			mask.delete();
+			return full;
+		} catch (error) {
+			full.delete();
+			throw error;
+		}
+	}
+
 	return mask;
+}
+
+/**
+ * 마스크에서 `point`가 속한 연결 성분 하나만 남긴 새 마스크를 돌려준다.
+ * 없으면 null (호출부가 원본 마스크를 그대로 쓰도록).
+ *
+ * 색 임계값만으로는 배경을 못 거른다 — 따뜻한 흰 벽, 나무 책상, 살구빛 옷은
+ * 피부와 Cr/Cb가 겹치고, 임계값을 좁히면 이번엔 팔이 깎인다. 하지만 마커가
+ * 찍힌 곳은 반드시 팔이므로, 마커를 품은 덩어리만 남기면 배경이 무슨 색이든
+ * (흰 벽이든 검은 배경이든) 전부 떨어져 나간다. 팔 자체는 한 덩어리라
+ * 마스크가 줄어들지도 않는다.
+ *
+ * Caller owns the returned Mat and must delete() it.
+ */
+export function keepComponentAt(
+	cv: any,
+	mask: any,
+	point: { x: number; y: number }
+): any {
+	const x = Math.round(point.x);
+	const y = Math.round(point.y);
+	if (x < 0 || y < 0 || x >= mask.cols || y >= mask.rows) return null;
+
+	const labels = new cv.Mat();
+	try {
+		const count = cv.connectedComponents(mask, labels, 8, cv.CV_32S);
+		if (count <= 1) return null;
+		const labelData = labels.data32S as Int32Array;
+		let target = labelData[y * mask.cols + x];
+
+		// 마커가 잉크 때문에 마스크 구멍 위에 떨어질 수 있다. 그럴 땐 주변을
+		// 조금 훑어 가장 가까운 성분을 집는다.
+		if (target === 0) {
+			const radius = Math.max(4, Math.round(Math.min(mask.cols, mask.rows) * 0.03));
+			search: for (let r = 1; r <= radius; r++) {
+				for (let dy = -r; dy <= r; dy++) {
+					for (let dx = -r; dx <= r; dx++) {
+						if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+						const nx = x + dx;
+						const ny = y + dy;
+						if (nx < 0 || ny < 0 || nx >= mask.cols || ny >= mask.rows) continue;
+						const label = labelData[ny * mask.cols + nx];
+						if (label !== 0) {
+							target = label;
+							break search;
+						}
+					}
+				}
+			}
+		}
+		if (target === 0) return null;
+
+		const isolated = cv.Mat.zeros(mask.rows, mask.cols, cv.CV_8UC1);
+		const out = isolated.data as Uint8Array;
+		for (let index = 0; index < labelData.length; index++) {
+			if (labelData[index] === target) out[index] = 255;
+		}
+		return isolated;
+	} finally {
+		labels.delete();
+	}
 }
 
 /** Fraction (0..1) of the mask that is skin. Used to bail out when almost no
