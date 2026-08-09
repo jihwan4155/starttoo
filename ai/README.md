@@ -231,4 +231,6 @@ python -m tests.bench_recall   # N 을 늘려가며 recall 곡선
 - [x] 최초 대량 적재 CLI (`coverup/cli.py`)
 - [ ] compaction — tombstone 이 쌓이면 정리 (`stat` 이 20% 넘으면 알려준다)
 - [ ] 구조화 로그·메트릭 — `timing_ms` 를 지금은 흘려보내고 있다
-- [ ] pgvector 1단계 — 도안 3만 장 넘을 때. 스키마는 `tattoo_embeddings` 에 준비돼 있다
+- [ ] pgvector 1단계 — 도안 **50만 장**(`BRUTE_MAX_ROWS`)을 넘으면 브루트포스 코사인이
+      막히므로 그 전에 필요하다. 3만 장(`STAGE1_MIN_ROWS`)은 1단계가 켜지는 지점일 뿐
+      pgvector 가 필요한 지점이 아니다. 스키마는 `tattoo_embeddings` 에 준비돼 있다
