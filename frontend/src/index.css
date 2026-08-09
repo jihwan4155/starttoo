@@ -119,6 +119,26 @@ img {
 	background: #ff4646;
 }
 
+/*
+ * 오른쪽에서 밀려 들어오는 화면 전환 (모바일 DM).
+ *
+ * 상단바 메시지 아이콘으로 들어갈 때 화면이 그냥 갈리면 어디서 온 화면인지
+ * 알기 어렵다. 오른쪽에서 덮어 오는 움직임을 주면 "뒤로 가면 돌아간다"는 것이
+ * 손에 잡힌다. 나가는 애니메이션은 없다 — 라우터 전환이라 언마운트를 붙잡아 둘
+ * 방법이 없고, 들어올 때만 있어도 방향은 충분히 전달된다.
+ *
+ * 쓰는 쪽은 Tailwind 유틸리티다: animate-[slide-in-from-right_220ms_ease-out].
+ * 그래야 max-lg / motion-reduce 같은 변형을 그대로 붙일 수 있다.
+ */
+@keyframes slide-in-from-right {
+	from {
+		transform: translateX(100%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}
+
 /* 홈 기능 소개 카피 — 모바일에서만 가운데 정렬 (lg 이상은 왼쪽) */
 @media (max-width: 1023px) {
 	.home-feature-copy,

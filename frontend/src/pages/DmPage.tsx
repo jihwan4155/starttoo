@@ -343,7 +343,12 @@ export default function DmPage() {
 	}
 
 	return (
-		<div className="flex h-[calc(100dvh-var(--nav-h))] min-h-0 border-t border-gray-200 bg-white lg:h-[calc(100vh-var(--nav-h))] lg:border-l">
+		/*
+		 * 모바일은 오른쪽에서 밀려 들어온다 — 상단바 메시지 아이콘으로 들어온
+		 * 화면이라는 것을 움직임으로 알린다. lg 이상은 사이드바 옆에 붙는 레이아웃이라
+		 * 밀어 넣을 방향이 없어 걸지 않는다. (키프레임은 index.css)
+		 */
+		<div className="flex h-[calc(100dvh-var(--nav-h))] min-h-0 border-t border-gray-200 bg-white max-lg:animate-[slide-in-from-right_220ms_ease-out] motion-reduce:animate-none lg:h-[calc(100vh-var(--nav-h))] lg:border-l">
 			{/* 좌: 채팅방 목록 */}
 			<aside className={`${selectedRoom ? "hidden lg:flex" : "flex"} w-full flex-col border-r border-black/10 lg:max-w-[340px]`}>
 				<div className="flex h-[58px] shrink-0 items-center justify-between border-b border-black/10 px-5 lg:h-auto lg:border-b-0 lg:pb-3 lg:pt-5">
@@ -508,7 +513,9 @@ export default function DmPage() {
 
 			{/* 우: 대화창 */}
 			{selectedRoom ? (
-				<section className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
+				/* 대화방도 목록 위로 오른쪽에서 덮어 온다 — 화면 진입과 같은 방향이라
+				   "한 겹 더 들어왔다"가 읽힌다. lg 이상은 목록과 나란히 놓이므로 제외 */
+				<section className="flex min-h-0 min-w-0 flex-1 flex-col bg-white max-lg:animate-[slide-in-from-right_220ms_ease-out] motion-reduce:animate-none">
 					<div className="flex h-[58px] shrink-0 items-center gap-2 border-b border-black/10 px-3 lg:h-auto lg:gap-3 lg:px-6 lg:py-3">
 						<button type="button" aria-label="대화 목록으로 돌아가기" onClick={closeRoom} className="flex size-9 shrink-0 items-center justify-center text-black/65 lg:hidden"><BackIcon /></button>
 						<Link
