@@ -13,14 +13,15 @@ import LoginModal from "./LoginModal";
 export default function LoginPromptHost() {
 	const isPromptOpen = useLoginPromptStore((s) => s.isOpen);
 	const closeLoginPrompt = useLoginPromptStore((s) => s.closeLoginPrompt);
+	const redirectTo = useLoginPromptStore((s) => s.redirectTo);
 	const [isLoginOpen, setLoginOpen] = useState(false);
 
 	return (
 		<>
 			<ActionConfirmModal
 				isOpen={isPromptOpen}
-				title="로그인이 필요합니다"
-				description="로그인하면 메시지, 팔로우, 게시물 작성을 이용할 수 있어요."
+				title="로그인이 필요한 서비스 입니다"
+				description="로그인 하시겠습니까?"
 				cancelText="닫기"
 				confirmText="로그인"
 				onClose={closeLoginPrompt}
@@ -29,7 +30,11 @@ export default function LoginPromptHost() {
 					setLoginOpen(true);
 				}}
 			/>
-			<LoginModal isOpen={isLoginOpen} onClose={() => setLoginOpen(false)} />
+			<LoginModal
+				isOpen={isLoginOpen}
+				onClose={() => setLoginOpen(false)}
+				redirectTo={redirectTo}
+			/>
 		</>
 	);
 }

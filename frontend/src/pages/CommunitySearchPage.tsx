@@ -157,7 +157,7 @@ export default function CommunitySearchPage() {
 		<div className="min-h-[calc(100vh-var(--nav-h))] bg-surface pb-28 pt-5 lg:pb-16 lg:pt-6">
 			<div className="mx-auto w-full max-w-[1000px] px-4 lg:px-6">
 				{/* 좁은 화면에는 상단 바에 검색이 없어 이 자리가 유일한 입구다 — 폭을 꽉 채운다 */}
-				<div className="mb-5 hidden max-lg:block [&_form]:h-12 [&_form]:shadow-none">
+				<div className="mb-5 hidden max-lg:block">
 					<CommunitySearchBar fullWidth />
 				</div>
 

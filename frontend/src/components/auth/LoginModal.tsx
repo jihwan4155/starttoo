@@ -10,6 +10,13 @@ import LoginPanel from "./LoginPanel";
 type LoginModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
+	/**
+	 * 로그인 뒤 돌아갈 곳. 비워 두면 지금 보고 있는 경로로 돌아온다.
+	 *
+	 * 로그인 필요 페이지에 직접 들어온 경우처럼, 창을 띄운 화면과 사용자가 원래
+	 * 가려던 곳이 다를 때만 넘긴다.
+	 */
+	redirectTo?: string | null;
 };
 
 /**
@@ -19,23 +26,26 @@ type LoginModalProps = {
  * 원래 보고 있던 경로로 돌려보내도록 모달이 열릴 때 목적지를 보관한다. (OAuth 콜백이
  * 이 값을 읽어 이동한다 — RequireAuth가 튕겨낼 때 쓰는 키와 같다.)
  */
-export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export default function LoginModal({
+	isOpen,
+	onClose,
+	redirectTo,
+}: LoginModalProps) {
 	useEffect(() => {
 		if (!isOpen) return undefined;
+		const destination =
+			redirectTo ?? window.location.pathname + window.location.search;
 		// 가입·온보딩·콜백 화면에서 연 로그인은 그 화면으로 돌아가면 안 된다. 앞선
 		// 시도가 남긴 목적지를 그대로 쓰지 않도록, 저장하는 대신 지워서 홈으로 보낸다.
-		if (isAuthFlowPath(window.location.pathname)) {
+		if (isAuthFlowPath(new URL(destination, window.location.origin).pathname)) {
 			sessionStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
 		} else {
-			sessionStorage.setItem(
-				POST_LOGIN_REDIRECT_STORAGE_KEY,
-				window.location.pathname + window.location.search,
-			);
+			sessionStorage.setItem(POST_LOGIN_REDIRECT_STORAGE_KEY, destination);
 		}
 		const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
-	}, [isOpen, onClose]);
+	}, [isOpen, onClose, redirectTo]);
 
 	// 뒤로가기는 페이지를 떠나는 대신 이 창만 닫는다
 	useBackClose(isOpen, onClose);
