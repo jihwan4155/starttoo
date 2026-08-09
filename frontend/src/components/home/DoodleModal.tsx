@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
 import LoadingLabel from "../loader/LoadingLabel";
 import { describeSearchError } from "../coverup/shapeSearchError";
 import useShapeSearchMutation from "../../hooks/mutations/useShapeSearch";
-import type { CoverupRouteState } from "../../types/shapeSearch";
+import type { DesignResult } from "../../types/shapeSearch";
+import DoodleResultModal from "./DoodleResultModal";
 import DoodleToolbar from "./DoodleToolbar";
 import useDoodleCanvas from "./useDoodleCanvas";
 
@@ -28,9 +28,10 @@ function CloseIcon() {
 
 /** 줄노트 캔버스 + 펜/지우개 도구 */
 export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
-	const navigate = useNavigate();
 	const searchMutation = useShapeSearchMutation();
 	const [showEmptyHint, setShowEmptyHint] = useState(false);
+	/** 검색 결과 — 있으면 결과 모달이 낙서장 위에 뜬다 */
+	const [results, setResults] = useState<DesignResult[] | null>(null);
 	const {
 		canvasRef,
 		tool,
@@ -48,6 +49,12 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 		handlers,
 	} = useDoodleCanvas({ color: "#171516", active: isOpen });
 
+	/*
+	 * 결과는 이 자리에서 모달로 보여 준다.
+	 *
+	 * 예전에는 커버업 페이지로 넘겼는데, 커버업은 로그인 전용이고 신체 사진부터
+	 * 다시 받는 화면이라 낙서 한 장으로 도안만 보려는 사람에게는 과한 우회였다.
+	 */
 	const handleSearch = () => {
 		const maskPngB64 = buildSearchMask();
 		if (!maskPngB64) {
@@ -60,14 +67,7 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 			{
 				onSuccess: (results) => {
 					if (results.length === 0) return;
-					const state: CoverupRouteState = {
-						coverupStep: 3,
-						source: "doodle",
-						doodleMaskPngB64: maskPngB64,
-						doodleResults: results,
-					};
-					onClose();
-					navigate("/coverups", { state });
+					setResults(results);
 				},
 			},
 		);
@@ -107,6 +107,23 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 	}, [isOpen, onClose, refresh]);
 
 	if (!isOpen) return null;
+
+	if (results) {
+		return (
+			<DoodleResultModal
+				results={results}
+				onRedraw={() => {
+					setResults(null);
+					searchMutation.reset();
+				}}
+				onClose={() => {
+					setResults(null);
+					searchMutation.reset();
+					onClose();
+				}}
+			/>
+		);
+	}
 
 	return createPortal(
 		<div

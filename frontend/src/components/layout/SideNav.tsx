@@ -30,12 +30,12 @@ const MAIN_ITEMS: NavItem[] = [
 const COMMUNITY_ITEMS: NavItem[] = [
 	{
 		id: "community",
-		label: "게시물",
+		label: "피드",
 		to: "/posts",
 		icon: "community",
 		exact: true,
 	},
-	{ id: "search", label: "피드", to: "/posts/search", icon: "search" },
+	{ id: "search", label: "탐색", to: "/posts/search", icon: "search" },
 	{ id: "dm", label: "메시지", to: "/dm", icon: "dm" },
 	{ id: "artist", label: "타투이스트", to: "/artists", icon: "artist" },
 ];

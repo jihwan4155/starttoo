@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
 import useBackClose from "../../hooks/useBackClose";
 import useReportPost from "../../hooks/mutations/useReportPost";
-import { ApiError } from "../../services/api";
 import { REPORT_REASONS } from "../../constants/community";
 import type { ReportReasonCode } from "../../types/community";
+import { notifyActionError } from "../../utils/actionError";
 
 type ReportPostModalProps = {
 	postId: number;
@@ -49,11 +49,7 @@ export default function ReportPostModal({
 					onClose();
 				},
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "신고에 실패했습니다.",
-					);
+					notifyActionError(err, "신고에 실패했습니다.");
 				},
 			},
 		);

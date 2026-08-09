@@ -10,9 +10,9 @@ import useRecentSearches from "../../hooks/queries/useRecentSearches";
 import { recentSearchesQueryKey } from "../../hooks/queries/useRecentSearches";
 import useSubjectAutocomplete from "../../hooks/queries/useSubjectAutocomplete";
 import { deleteRecentSearch, saveRecentSearch } from "../../services/userApi";
-import { ApiError } from "../../services/api";
 import { PRIMARY_STYLE_CATEGORIES } from "../../constants/community";
 import useAuthStore from "../../store/useAuthStore";
+import { notifyActionError } from "../../utils/actionError";
 
 type CommunitySearchBarProps = {
 	/**
@@ -104,11 +104,7 @@ export default function CommunitySearchBar({
 			await deleteRecentSearch(keyword);
 			await queryClient.invalidateQueries({ queryKey: recentSearchesQueryKey });
 		} catch (err) {
-			window.alert(
-				err instanceof ApiError
-					? err.message
-					: "최근 검색어 삭제에 실패했습니다."
-			);
+			notifyActionError(err, "최근 검색어 삭제에 실패했습니다.");
 		}
 	};
 

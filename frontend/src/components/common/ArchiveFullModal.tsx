@@ -54,7 +54,7 @@ export default function ArchiveFullModal({ isOpen, onClose }: ArchiveFullModalPr
 				<p
 					id="archive-full-title"
 					className="text-center text-[20px] font-semibold text-black sm:text-[24px]">
-					도안 보관함이 가득 찼어요 ({MAX_ARCHIVE_DESIGNS}/{MAX_ARCHIVE_DESIGNS})
+					도안 보관함이 가득 찼어요
 				</p>
 				<p className="mt-3 text-center text-[14px] font-light leading-5 text-black/55 sm:text-[15px]">
 					최대 {MAX_ARCHIVE_DESIGNS}개까지 저장할 수 있어요.
@@ -73,7 +73,7 @@ export default function ArchiveFullModal({ isOpen, onClose }: ArchiveFullModalPr
 						type="button"
 						onClick={goToArchive}
 						className="h-12 min-w-0 rounded-full bg-brand px-2 text-[14px] font-semibold text-white transition hover:brightness-95 active:scale-[0.99] sm:h-[52px] sm:text-[16px]">
-						보관함 정리하러 가기
+						도안 보관함 가기
 					</button>
 				</div>
 			</div>

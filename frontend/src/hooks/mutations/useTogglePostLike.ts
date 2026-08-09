@@ -11,7 +11,7 @@ import {
 	scheduleToggleCommit,
 } from "../../utils/toggleCommitQueue";
 import useCommunityStore from "../../store/useCommunityStore";
-import { ApiError } from "../../services/api";
+import { notifyActionError } from "../../utils/actionError";
 
 const KEY_PREFIX = "post-like:";
 
@@ -46,11 +46,7 @@ export default function useTogglePostLike() {
 			bumpPostLikeInCache(queryClient, postId, !nextLiked, nextLiked ? -1 : 1);
 			// 연타로 인한 429는 하트가 되돌아가는 것으로 충분 — 알림창까지 띄우지 않는다
 			if (isRateLimited(error)) return;
-			window.alert(
-				error instanceof ApiError
-					? error.message
-					: "좋아요 처리에 실패했습니다.",
-			);
+			notifyActionError(error, "좋아요 처리에 실패했습니다.");
 		},
 	});
 

@@ -27,6 +27,7 @@ import useAuthStore from "../store/useAuthStore";
 import useDmStore from "../store/useDmStore";
 import type { Post } from "../types/community";
 import { resolveAvatar } from "../utils/profile";
+import { notifyActionError } from "../utils/actionError";
 
 /** 상대방 프로필 — GET /users/{userId} + GET /users/{userId}/posts */
 export default function ProfilePage() {
@@ -123,11 +124,7 @@ export default function ProfilePage() {
 			{
 				onSuccess: () => setUnfollowOpen(false),
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "팔로우 처리에 실패했습니다.",
-					);
+					notifyActionError(err, "팔로우 처리에 실패했습니다.");
 				},
 			},
 		);
@@ -157,11 +154,7 @@ export default function ProfilePage() {
 					navigate("/dm");
 				},
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "대화를 시작하지 못했습니다.",
-					);
+					notifyActionError(err, "대화를 시작하지 못했습니다.");
 				},
 			});
 		});
@@ -170,9 +163,10 @@ export default function ProfilePage() {
 	/**
 	 * 차단 직후 — 이 프로필은 서버가 USER_NOT_FOUND로 막으므로 화면에 남아 있으면
 	 * 다음 조회가 오류로 뜬다. 히스토리를 대체해 뒤로 가기로도 돌아오지 않게 한다.
+	 * 프로필은 게시물 목록에서 들어오는 화면이라 그 목록으로 돌려보낸다.
 	 */
 	const handleBlocked = () => {
-		navigate("/", { replace: true });
+		navigate("/posts", { replace: true });
 	};
 
 	if (!Number.isFinite(userId) || userId <= 0) {

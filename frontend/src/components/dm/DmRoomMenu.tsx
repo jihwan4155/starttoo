@@ -5,8 +5,8 @@ import {
 	useLeaveDmRoom,
 	useSetDmRoomNotification,
 } from "../../hooks/mutations/useDmMutations";
-import { ApiError } from "../../services/api";
 import type { DmRoomResponse } from "../../types/dm";
+import { notifyActionError } from "../../utils/actionError";
 
 type DmRoomMenuProps = {
 	room: DmRoomResponse;
@@ -55,11 +55,7 @@ export default function DmRoomMenu({
 			{
 				onSuccess: () => setOpen(false),
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "알림 설정을 변경하지 못했습니다.",
-					);
+					notifyActionError(err, "알림 설정을 변경하지 못했습니다.");
 				},
 			},
 		);
@@ -76,11 +72,7 @@ export default function DmRoomMenu({
 				onLeft();
 			},
 			onError: (err) => {
-				window.alert(
-					err instanceof ApiError
-						? err.message
-						: "채팅방을 나가지 못했습니다.",
-				);
+				notifyActionError(err, "채팅방을 나가지 못했습니다.");
 			},
 		});
 	};
@@ -99,11 +91,7 @@ export default function DmRoomMenu({
 					onLeft();
 				},
 				onError: (err) => {
-					window.alert(
-						err instanceof ApiError
-							? err.message
-							: "차단하지 못했습니다.",
-					);
+					notifyActionError(err, "차단하지 못했습니다.");
 				},
 			},
 		);

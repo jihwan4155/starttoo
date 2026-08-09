@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { MoreIcon } from "../community/icons";
+import ActionConfirmModal from "../common/ActionConfirmModal";
 import useBlockUser from "../../hooks/mutations/useBlockUser";
 import useRequireAuth from "../../hooks/useRequireAuth";
-import { ApiError } from "../../services/api";
+import { notifyActionError } from "../../utils/actionError";
 
 type ProfileMoreMenuProps = {
 	userId: number;
@@ -24,6 +25,7 @@ export default function ProfileMoreMenu({
 	onBlocked,
 }: ProfileMoreMenuProps) {
 	const [isOpen, setOpen] = useState(false);
+	const [isConfirmOpen, setConfirmOpen] = useState(false);
 	const wrapRef = useRef<HTMLDivElement>(null);
 	const { requireAuth } = useRequireAuth();
 	const { mutate: block, isPending: isBlocking } = useBlockUser();
@@ -39,28 +41,27 @@ export default function ProfileMoreMenu({
 		return () => document.removeEventListener("mousedown", onPointerDown);
 	}, [isOpen]);
 
-	const handleBlock = () => {
+	const handleBlockClick = () => {
 		requireAuth(() => {
-			const confirmed = window.confirm(
-				`${nickname}님을 차단하시겠습니까?\n` +
-					"서로의 팔로우가 해제되고 이 프로필과 대화를 볼 수 없게 됩니다.",
-			);
-			if (!confirmed) return;
-			block(
-				{ userId, blocked: true },
-				{
-					onSuccess: () => {
-						setOpen(false);
-						onBlocked();
-					},
-					onError: (err) => {
-						window.alert(
-							err instanceof ApiError ? err.message : "차단하지 못했습니다.",
-						);
-					},
-				},
-			);
+			setOpen(false);
+			setConfirmOpen(true);
 		});
+	};
+
+	const handleConfirmBlock = () => {
+		block(
+			{ userId, blocked: true },
+			{
+				onSuccess: () => {
+					setConfirmOpen(false);
+					onBlocked();
+				},
+				onError: (err) => {
+					setConfirmOpen(false);
+					notifyActionError(err, "차단하지 못했습니다.");
+				},
+			},
+		);
 	};
 
 	return (
@@ -78,13 +79,26 @@ export default function ProfileMoreMenu({
 				<div className="absolute right-0 top-full z-20 mt-2 w-[160px] overflow-hidden rounded-[12px] border border-black/10 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)]">
 					<button
 						type="button"
-						onClick={handleBlock}
+						onClick={handleBlockClick}
 						disabled={isBlocking}
 						className="block w-full px-4 py-3 text-left text-[13px] text-red-600 transition hover:bg-red-50 disabled:opacity-50">
-						{isBlocking ? "차단하는 중…" : "차단하기"}
+						차단하기
 					</button>
 				</div>
 			)}
+
+			<ActionConfirmModal
+				isOpen={isConfirmOpen}
+				title={`${nickname}님을 차단하시겠습니까?`}
+				description="서로의 팔로우가 해제되고 이 프로필과 대화를 볼 수 없게 됩니다."
+				confirmText="차단하기"
+				pendingText="차단하는 중…"
+				onClose={() => {
+					if (!isBlocking) setConfirmOpen(false);
+				}}
+				onConfirm={handleConfirmBlock}
+				isPending={isBlocking}
+			/>
 		</div>
 	);
 }

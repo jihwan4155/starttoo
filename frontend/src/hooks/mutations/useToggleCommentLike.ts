@@ -11,7 +11,7 @@ import {
 	isRateLimited,
 	scheduleToggleCommit,
 } from "../../utils/toggleCommitQueue";
-import { ApiError } from "../../services/api";
+import { notifyActionError } from "../../utils/actionError";
 
 const KEY_PREFIX = "comment-like:";
 
@@ -61,11 +61,7 @@ export default function useToggleCommentLike() {
 			});
 			// 연타로 인한 429는 하트가 되돌아가는 것으로 충분
 			if (isRateLimited(error)) return;
-			window.alert(
-				error instanceof ApiError
-					? error.message
-					: "댓글 좋아요 처리에 실패했습니다.",
-			);
+			notifyActionError(error, "댓글 좋아요 처리에 실패했습니다.");
 		},
 	});
 
