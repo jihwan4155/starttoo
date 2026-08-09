@@ -29,14 +29,14 @@ export default function UserSearchPanel() {
 
 	return (
 		<aside className="w-full">
-			<h2 className="px-1 text-[14px] font-bold text-black">회원 검색</h2>
-
-			<div className="mt-3 flex h-10 items-center gap-2 rounded-full bg-white pl-4 pr-2 shadow-sm">
+			{/* 제목 대신 placeholder 가 무엇을 찾는 칸인지 말한다 — 입력하면 사라지는
+			    안내라 목록이 뜬 뒤에는 자리를 차지하지 않는다 */}
+			<div className="flex h-10 items-center gap-2 rounded-full bg-white pl-4 pr-2 shadow-sm">
 				<SearchIcon size={16} className="shrink-0 text-black/40" />
 				<input
 					value={value}
 					onChange={(e) => setValue(e.target.value)}
-					placeholder="닉네임으로 검색"
+					placeholder="회원 검색 → 예: 모노라인"
 					maxLength={20}
 					aria-label="회원 닉네임 검색"
 					className="min-w-0 flex-1 bg-transparent text-[13px] font-light text-black outline-none placeholder:text-black/35"
