@@ -59,12 +59,6 @@ export default function UserSearchPanel() {
 				</p>
 			)}
 
-			{!hasInvalidChars && trimmed.length === 0 && (
-				<p className="mt-3 px-1 text-[12px] font-light leading-5 text-black/40">
-					찾고 싶은 회원의 닉네임을 입력해 보세요.
-				</p>
-			)}
-
 			{!hasInvalidChars && trimmed.length > 0 && (
 				<div className="mt-3">
 					{isFetching && (
