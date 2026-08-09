@@ -117,8 +117,9 @@ export default function CommunitySearchBar({
 					e.preventDefault();
 					submit(value);
 				}}
-				className="flex h-9 items-center gap-2 rounded-full border border-solid border-black bg-white pl-4 pr-2 shadow-none">
-				<SearchIcon size={16} className="shrink-0 text-black" />
+				/* 생김새는 피드의 회원 검색 바와 같다 — 검은 테두리 대신 그림자로 띄운다 */
+				className="flex h-10 items-center gap-2 rounded-full bg-white pl-4 pr-2 shadow-sm">
+				<SearchIcon size={16} className="shrink-0 text-black/40" />
 				<input
 					value={value}
 					onChange={(e) => {
@@ -145,7 +146,7 @@ export default function CommunitySearchBar({
 						aria-label="검색어 지우기"
 						onMouseDown={(e) => e.preventDefault()}
 						onClick={() => setValue("")}
-						className="text-black">
+						className="text-black/40 transition hover:text-black">
 						<CloseIcon size={14} />
 					</button>
 				)}

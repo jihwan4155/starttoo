@@ -91,7 +91,7 @@ export default function TattooistPage() {
 				  아래 카드와 같은 폭이어야 목록의 머리처럼 읽힌다. 카드가 컨테이너를
 				  꽉 채우므로 상한을 풀어 같이 늘고 줄게 한다.
 				*/}
-				<div className="hidden max-lg:block [&>div]:max-w-none [&>div>div]:h-12 [&>div>div]:shadow-none">
+				<div className="hidden max-lg:block [&>div]:max-w-none">
 					<ArtistSearchBar />
 				</div>
 
