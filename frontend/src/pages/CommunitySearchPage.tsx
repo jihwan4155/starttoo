@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import PostCardSheet from "../components/community/PostCardSheet";
 import PostDetailModal from "../components/community/PostDetailModal";
 import StarttooLoader from "../components/loader/StarttooLoader";
 import { PostGridSkeleton } from "../components/loader/Skeletons";
-import { POST_LOGIN_REDIRECT_STORAGE_KEY } from "../constants/auth";
 import { PRIMARY_STYLE_CATEGORIES } from "../constants/community";
 import usePostSearch from "../hooks/queries/usePostSearch";
 import usePosts from "../hooks/queries/usePosts";
 import { useIsMobile } from "../hooks/useIsMobile";
 import useHiddenIdsForUser from "../hooks/useHiddenIdsForUser";
+import useRequireAuth from "../hooks/useRequireAuth";
 import { ApiError } from "../services/api";
-import useAuthStore from "../store/useAuthStore";
 import type { Post } from "../types/community";
 import { isSearchableQuery } from "../types/search";
 import { filterVisiblePosts } from "../utils/filterPosts";
@@ -37,22 +36,19 @@ export default function CommunitySearchPage() {
 	// 모바일: 썸네일 → 카드 시트(게시글 상세) → 댓글 모달 (마이페이지 내 피드와 동일)
 	const [cardPost, setCardPost] = useState<Post | null>(null);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
-	const navigate = useNavigate();
-	const location = useLocation();
-	const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken));
+	const { requireAuth } = useRequireAuth();
 	const isMobile = useIsMobile(639);
 	const hiddenIds = useHiddenIdsForUser();
 
-	/** 댓글 모달·데스크톱 상세만 로그인 필요. 모바일 카드 시트는 공개. */
-	const requireLoginForComments = () => {
-		if (isLoggedIn) return true;
-		sessionStorage.setItem(
-			POST_LOGIN_REDIRECT_STORAGE_KEY,
-			location.pathname + location.search,
-		);
-		navigate("/login");
-		return false;
-	};
+	/**
+	 * 댓글 모달·데스크톱 상세만 로그인 필요. 모바일 카드 시트는 공개.
+	 *
+	 * 다른 로그인 필요 동작과 같이 제자리에서 안내 모달을 띄운다. 예전에는 여기서만
+	 * /login 화면으로 보냈는데, 검색 결과를 보다 게시글을 눌렀을 뿐인데 목록을 잃고
+	 * 다른 화면으로 튕기는 자리였다. 복귀 경로는 로그인 창이 열릴 때 알아서 지금
+	 * 경로로 잡히므로 따로 저장하지 않는다.
+	 */
+	const requireLoginForComments = () => requireAuth();
 
 	const handleOpenPost = (post: Post) => {
 		if (isMobile) {
