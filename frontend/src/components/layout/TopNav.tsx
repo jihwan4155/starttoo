@@ -413,8 +413,9 @@ function MobileTopNav() {
 						/>
 					</Link>
 
+					{/* 데스크톱 상단바와 같은 이유로 로그인 전에는 알림을 걸지 않는다 */}
 					<div className="flex size-10 items-center justify-end justify-self-end">
-						<NotificationBell />
+						{isLoggedIn && <NotificationBell />}
 					</div>
 				</div>
 			</header>
@@ -534,8 +535,18 @@ export default function TopNav() {
 				)}
 
 				<div className="flex items-center gap-5">
-					<NotificationBell />
-					<SettingMenu onRequestLogin={() => setLoginOpen(true)} />
+					{/*
+					  알림·설정은 로그인해야 쓸 수 있는 자리다. 미로그인일 때 알림은 늘
+					  비어 있고, 설정은 "로그인" 한 줄뿐이라 바로 옆 로그인 버튼과 겹친다.
+					  눌러 봐야 로그인 안내로 되돌아오는 아이콘을 지워, 로그인 전에는
+					  로그인 버튼 하나만 남긴다.
+					*/}
+					{isLoggedIn && (
+						<>
+							<NotificationBell />
+							<SettingMenu onRequestLogin={() => setLoginOpen(true)} />
+						</>
+					)}
 					{/* 미로그인 상태에서는 화면을 떠나지 않고 로그인 모달을 띄운다 */}
 					{isLoggedIn ? (
 						<Link
