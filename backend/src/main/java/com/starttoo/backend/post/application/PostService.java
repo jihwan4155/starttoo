@@ -234,11 +234,22 @@ public class PostService {
     ) {
         int safeSize = Math.min(Math.max(size, 1), 50);
         FeedCursor decoded = decodeFeedCursor(cursor);
+        // 취향 점수는 감쇠도 상한도 없이 누적되어, 많이 쓴 회원일수록 최신성을 압도한다.
+        // 축별 총합으로 나눠 점유율(0~1)로 바꾸면 취향의 영향력이 활동량과 무관하게
+        // feedPreferenceWeight 안에 갇힌다. 순위에 필요한 것은 절대 점수가 아니라
+        // 축 사이의 상대 격차이므로 정규화해도 잃는 정보가 없다.
+        //
+        // 총합은 첫 페이지에서 확정해 커서에 실어 나른다. 페이지를 넘기는 도중
+        // 좋아요를 누르면 총합이 바뀌어 이미 본 게시물의 점수까지 흔들리고
+        // 중복·누락이 생기는데, 분모를 고정해 한 번의 탐색 안에서는 막는다.
+        PreferenceTotals totals = decoded == null || decoded.totals() == null
+                ? preferenceTotals(viewerSeq)
+                : decoded.totals();
         BigDecimal preferenceWeight =
                 BigDecimal.valueOf(preferenceProperties.feedPreferenceWeight());
         BigDecimal recencyPerHour =
                 BigDecimal.valueOf(preferenceProperties.feedRecencyPerHour());
-        // 블렌드 점수 = 게시물 이미지의 스타일·색상 취향 점수 합 * 가중치
+        // 블렌드 점수 = 가장 취향에 맞는 이미지의 스타일·색상 점유율 합 * 가중치
         //             + 등록 시각(epoch 시간 단위) * 시간당 최신성 가중치.
         // 등록 시각 기반이라 요청 시점과 무관하게 게시물마다 결정적이며,
         // 소수 4자리로 반올림해 커서 동등 비교를 안정화한다.
@@ -256,7 +267,11 @@ public class PostService {
                         FROM posts p
                         JOIN users author ON author.user_seq = p.author_seq
                         LEFT JOIN LATERAL (
-                            SELECT SUM(image_pref.score) AS score,
+                            -- 게시물 대표 점수는 이미지 점수의 합이 아니라 최댓값이다.
+                            -- 합이면 이미지를 많이 붙인 게시물이 점유율 상한을 장수만큼
+                            -- 뚫고 올라간다. 최댓값은 아래에서 고르는 대표 이미지와도
+                            -- 같은 값이라 "이 썸네일이라서 추천됐다"가 그대로 성립한다.
+                            SELECT MAX(image_pref.score) AS score,
                                    (ARRAY_AGG(
                                        image_pref.image_seq
                                        ORDER BY image_pref.score DESC,
@@ -267,7 +282,9 @@ public class PostService {
                                   SELECT pi.image_seq,
                                          pi.display_order,
                                          COALESCE(style_pref.score, 0)
-                                         + COALESCE(color_pref.score, 0) AS score
+                                             / CAST(? AS NUMERIC)
+                                         + COALESCE(color_pref.score, 0)
+                                             / CAST(? AS NUMERIC) AS score
                                     FROM post_images pi
                                     JOIN tattoos t
                                       ON t.image_seq = pi.image_seq
@@ -314,6 +331,8 @@ public class PostService {
         ),
                 preferenceWeight,
                 recencyPerHour,
+                divisor(totals.styleTotal()),
+                divisor(totals.colorTotal()),
                 viewerSeq,
                 viewerSeq,
                 viewerSeq,
@@ -335,9 +354,42 @@ public class PostService {
                 .map(post -> post.withMatchedImageSeq(matchedImages.get(post.postSeq())))
                 .toList();
         String nextCursor = hasNext
-                ? encodeFeedCursor(page.get(page.size() - 1))
+                ? encodeFeedCursor(page.get(page.size() - 1), totals)
                 : null;
         return CursorPageResponse.of(items, nextCursor, hasNext);
+    }
+
+    /**
+     * 개인화 피드에서 취향 점수를 점유율로 만들 때 쓰는 축별 총합.
+     *
+     * 관심 없음이 음수를 남기므로 음수는 0으로 눌러 더한다. 그대로 더하면 분모가
+     * 작아지거나 부호가 뒤집혀 점유율이 1을 넘거나 음수가 된다.
+     */
+    private PreferenceTotals preferenceTotals(Integer viewerSeq) {
+        PreferenceTotals totals = jdbcTemplate.queryForObject("""
+                SELECT COALESCE((
+                           SELECT SUM(GREATEST(score, 0))
+                             FROM user_primary_style_preferences
+                            WHERE user_seq = ?
+                       ), 0) AS style_total,
+                       COALESCE((
+                           SELECT SUM(GREATEST(score, 0))
+                             FROM user_color_preferences
+                            WHERE user_seq = ?
+                       ), 0) AS color_total
+                """, (rs, rowNum) -> new PreferenceTotals(
+                rs.getBigDecimal("style_total"),
+                rs.getBigDecimal("color_total")
+        ), viewerSeq, viewerSeq);
+        return totals == null ? PreferenceTotals.EMPTY : totals;
+    }
+
+    /**
+     * 취향 점수가 아직 없는 회원은 분모가 0이라 나눌 수 없다. 1을 쓰면 분자도 0이라
+     * 점유율이 0이 되고, 블렌드 점수는 최신성만 남아 최신순으로 자연스럽게 떨어진다.
+     */
+    private static BigDecimal divisor(BigDecimal total) {
+        return total == null || total.signum() <= 0 ? BigDecimal.ONE : total;
     }
 
     @Transactional(readOnly = true)
@@ -814,20 +866,31 @@ public class PostService {
                     StandardCharsets.UTF_8
             );
             String[] values = decoded.split("\\|", -1);
-            if (values.length != 2) {
+            // 총합을 싣기 전에 발급한 커서는 두 칸이다. 배포 직후 화면에 남아 있던
+            // 커서로 다음 페이지를 부르면 오류가 나므로, 총합만 다시 조회해 이어간다.
+            if (values.length != 2 && values.length != 4) {
                 throw BusinessException.of(ErrorCode.INVALID_CURSOR);
             }
             return new FeedCursor(
                     new BigDecimal(values[0]),
-                    Long.parseLong(values[1])
+                    Long.parseLong(values[1]),
+                    values.length == 4
+                            ? new PreferenceTotals(
+                                    new BigDecimal(values[2]),
+                                    new BigDecimal(values[3])
+                            )
+                            : null
             );
         } catch (RuntimeException exception) {
             throw BusinessException.of(ErrorCode.INVALID_CURSOR);
         }
     }
 
-    private String encodeFeedCursor(FeedRow row) {
-        String value = row.blendScore().toPlainString() + "|" + row.postSeq();
+    private String encodeFeedCursor(FeedRow row, PreferenceTotals totals) {
+        String value = row.blendScore().toPlainString()
+                + "|" + row.postSeq()
+                + "|" + totals.styleTotal().toPlainString()
+                + "|" + totals.colorTotal().toPlainString();
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(value.getBytes(StandardCharsets.UTF_8));
     }
@@ -905,7 +968,17 @@ public class PostService {
     private record FeedRow(Long postSeq, BigDecimal blendScore, Long matchedImageSeq) {
     }
 
-    private record FeedCursor(BigDecimal blendScore, Long postSeq) {
+    /** totals가 null이면 총합을 싣기 전에 발급된 커서다. 이때는 다시 조회한다. */
+    private record FeedCursor(
+            BigDecimal blendScore,
+            Long postSeq,
+            PreferenceTotals totals
+    ) {
+    }
+
+    private record PreferenceTotals(BigDecimal styleTotal, BigDecimal colorTotal) {
+        private static final PreferenceTotals EMPTY =
+                new PreferenceTotals(BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     private record BookmarkCursor(OffsetDateTime bookmarkDttm, Long postSeq) {
