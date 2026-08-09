@@ -157,7 +157,7 @@ app:
     dm-capacity: ${RATE_LIMIT_DM_CAPACITY:60}
     dm-window: ${RATE_LIMIT_DM_WINDOW:1m}
     # 한도를 전부 면제할 계정(user_seq). 로그인 요청에만 적용된다.
-    exempt-user-seqs: ${RATE_LIMIT_EXEMPT_USER_SEQS:8}
+    exempt-user-seqs: ${RATE_LIMIT_EXEMPT_USER_SEQS:3,4,5,6,8}
   search:
     log-flush-delay: ${SEARCH_LOG_FLUSH_DELAY:60000}
     count-snapshot-delay: ${SEARCH_COUNT_SNAPSHOT_DELAY:3600000}
