@@ -1,49 +1,119 @@
-# D201 백두산 호랑이 팀
+<!-- 배너 이미지: docs/images/banner.png 로 교체 -->
+![starttoo 배너](docs/images/banner.png)
 
-# 프로젝트: starttoo
+# 🐯 starttoo
 
-## 📌 팀 Git & GitLab 컨벤션
+> 타투를 시작하는 가장 쉬운 방법 — AR 시착, AI 도안 생성, 커버업 시뮬레이션까지.
+> 타투가 처음인 사람과 타투이스트를 잇는 올인원 타투 플랫폼
 
-### 1. 태그 목록
-- `init`: 가장 처음 Initial Commit
-- `feat`: 새로운 기능 구현
-- `fix`: 버그나 오류 해결
-- `docs`: README, 템플릿 등 문서 수정
-- `setting`: 프로젝트 관련 설정 변경
-- `add`: 사진/에셋, 라이브러리 추가
-- `refactor`: 기존 코드 리팩토링 및 구조 수정
-- `chore`: 기타 경미한 수정
+<!-- 한 줄 소개는 팀에서 확정한 문구로 교체하세요 -->
+
+- **서비스 URL**: <!-- https://... -->
+- **시연 영상**: <!-- YouTube 링크 -->
+- **개발 기간**: 2026.07 ~ 2026.08 (SSAFY 15기 공통 프로젝트)
 
 ---
 
-### 2. 커밋 컨벤션
-- **포맷**: `이슈번호 [파트] 태그: 제목` (예: `S15P11D201-91 [FE] feat: 로그인 기능 구현`)
-- **이슈 번호**: Jira 이슈 키 필수 작성 (예: `S15P11D201-91`)
-- **파트 구분**: `[FE]`, `[BE]`, `[AI]` (대문자)
-- **태그**: 소문자 작성 (`feat`, `fix`, `docs`, `refactor` 등)
-- **제목**: 한글 명령조, 50자 이내 작성
+## 👥 팀원 (D201 백두산 호랑이)
 
-#### 📌 Jira 이슈 자동 완료 (Merge 시)
-- **GitLab/GitHub 기본 방식**: MR 설명란 또는 커밋 본문에 `Closes 이슈번호` 작성
-  - 예시: `Closes S15P11D201-91`
+<!-- 사진: docs/images/member-이름.png (권장 비율 3:4, width로 크기 조절) -->
 
----
+| 팀원1 | 팀원2 | 팀원3 |
+| :---: | :---: | :---: |
+| <img src="docs/images/member-1.png" width="180" /> | <img src="docs/images/member-2.png" width="180" /> | <img src="docs/images/member-3.png" width="180" /> |
+| `FE` AR 타투 시착<br>커버업 시뮬레이션 | `FE` 커뮤니티<br>DM · 알림 | `BE` 인증 · 회원<br>커뮤니티 API |
 
-### 3. 브랜치 컨벤션
-- **포맷**: `파트/태그/기능-이름` (예: `FE/feat/login-ui`, `BE/setting/gitignore`)
-- **파트 명시**: `FE`, `BE`, `AI` (대문자 사용)
-- **태그 및 기능명**: 소문자 및 하이픈(`-`) 사용
+| 팀원4 | 팀원5 | 팀원6 |
+| :---: | :---: | :---: |
+| <img src="docs/images/member-4.png" width="180" /> | <img src="docs/images/member-5.png" width="180" /> | <img src="docs/images/member-6.png" width="180" /> |
+| `BE` 채팅 · 파일<br>인프라 · 배포 | `AI` 타투 도안 생성<br>프롬프트 파이프라인 | `AI` 커버업 추천<br>이미지 처리 |
+
+<!-- 인원수/담당은 실제에 맞게 수정 -->
 
 ---
 
-## 🌿 브랜치 전략 (Branch Strategy)
-- **`master`**: 최종 배포 및 검증용 완성본 브랜치
-- **`dev`**: 팀원들의 작업이 1차 통합 및 테스트되는 **기본(Default) 브랜치**
-- **`[파트]feat/기능명`**: 개별 기능 개발 브랜치
+## 💡 기획 배경
 
-### ⚙️ 작업 워크플로우
-1. 작업 시작 시 항상 `dev` 브랜치를 기준으로 새 브랜치를 생성합니다.
-   ```bash
-   git checkout dev
-   git pull origin dev
-   git checkout -b [FE]feat/login-ui
+<!--
+- 어떤 문제를 봤는지 (예: 타투는 지울 수 없어서 시작하기 두렵다)
+- 왜 이 서비스인지 2~3문장
+-->
+
+---
+
+## ✨ 주요 기능
+
+### 1. AR 타투 시착
+
+> 카메라로 내 몸에 타투를 실시간으로 얹어보고, 인물 분할 기반 마스크로 자연스럽게 합성
+
+| 시착 화면 | 도안 조절 |
+| :---: | :---: |
+| <img src="docs/images/ar-tryon.png" width="240" /> | <img src="docs/images/ar-adjust.png" width="240" /> |
+
+<!-- 짧은 시연은 mp4/GIF로: ![AR 시연](docs/videos/ar-demo.mp4) -->
+
+### 2. AI 타투 도안 생성
+
+> 한국어 프롬프트를 번역·보강해 원하는 스타일의 타투 도안을 생성
+
+| 프롬프트 입력 | 생성 결과 |
+| :---: | :---: |
+| <img src="docs/images/ai-prompt.png" width="240" /> | <img src="docs/images/ai-result.png" width="240" /> |
+
+### 3. 커버업 시뮬레이션
+
+> 기존 타투 사진 위에 직접 그려보고, 커버업 도안을 미리 확인
+
+| 기존 타투 | 드로잉 | 커버업 결과 |
+| :---: | :---: | :---: |
+| <img src="docs/images/coverup-before.png" width="200" /> | <img src="docs/images/coverup-draw.png" width="200" /> | <img src="docs/images/coverup-after.png" width="200" /> |
+
+### 4. 타투이스트 커뮤니티 & DM
+
+> 포트폴리오 탐색, 게시글·검색, 타투이스트와 1:1 실시간 상담
+
+| 커뮤니티 | 검색 | DM |
+| :---: | :---: | :---: |
+| <img src="docs/images/community.png" width="200" /> | <img src="docs/images/search.png" width="200" /> | <img src="docs/images/dm.png" width="200" /> |
+
+<!-- 기능 개수·이름은 실제 서비스에 맞게 조정 -->
+
+---
+
+## 🛠 기술 스택
+
+### Frontend
+`React 19` `TypeScript` `Vite` `Tailwind CSS 4` `Zustand` `TanStack Query` `MediaPipe` `Transformers.js` `OpenCV.js` `STOMP`
+
+### Backend
+`Java 17` `Spring Boot` `Spring Security (OAuth2)` `JPA` `MySQL` `Redis` `WebSocket` `MinIO` `Firebase FCM`
+
+### AI
+`Python` `FastAPI` `PyTorch` `Diffusers` `Transformers` `Gemini API`
+
+### Infra
+`Docker` `Docker Compose` `Jenkins` `Nginx` `GitLab` `Jira`
+
+<!-- 버전/항목은 실제 사용 기준으로 다듬기 -->
+
+---
+
+## 🏗 아키텍처
+
+![시스템 아키텍처](docs/images/architecture.png)
+
+<!-- draw.io 등으로 그린 아키텍처 다이어그램 -->
+
+---
+
+## 📄 산출물
+
+| 구분 | 링크 |
+| :--- | :--- |
+| 기획/요구사항 | <!-- 링크 --> |
+| 화면 설계 (Figma) | <!-- 링크 --> |
+| ERD | <!-- docs/images/erd.png 또는 링크 --> |
+| API 명세 | <!-- Swagger 링크 --> |
+| 포팅 매뉴얼 | <!-- docs/... --> |
+| 팀 컨벤션 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) |
