@@ -172,3 +172,23 @@ export async function deleteRecentSearch(keyword: string): Promise<string[]> {
 	const { data } = await api.patch<string[]>("/users/me/recent-searches", body);
 	return data;
 }
+
+/**
+ * 최근 검색어 전체 삭제.
+ *
+ * <p>서버에는 전체 삭제 operation이 없다(REMOVE는 한 건씩). 목록 상한이 10개라
+ * 그만큼 REMOVE를 보내는 것으로 대신한다 — 한 번에 몰아 쏘면 같은 Redis 키를
+ * 두고 레이트리밋에 걸리기 쉬워 순차로 보낸다.
+ *
+ * <p>중간에 실패하면 지운 데까지만 반영된 채 예외가 올라간다. 부르는 쪽에서
+ * 목록을 다시 받아 화면을 맞춰야 한다.
+ */
+export async function clearRecentSearches(
+	keywords: string[],
+): Promise<string[]> {
+	let remaining: string[] = keywords;
+	for (const keyword of keywords) {
+		remaining = await deleteRecentSearch(keyword);
+	}
+	return remaining;
+}
