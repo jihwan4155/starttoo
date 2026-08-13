@@ -1,15 +1,16 @@
 ![starttoo 배너](docs/images/banner.gif)
 
-# <img src="docs/images/logo.png" width="32" valign="middle" /> starttoo
+
+<img src="docs/images/logo.png" width="100" valign="middle" /> starttoo
+
 
 > AI 도안 생성부터 AR/3D 시뮬레이션, 커버업 추천, 타투이스트 매칭까지. 
 > 타투를 새기기로 결심한 순간부터 실제로 새기는 순간까지 전 과정을 하나로 연결하는 플랫폼
 
 <!-- 한 줄 소개는 팀에서 확정한 문구로 교체하세요 -->
 
-- **서비스 URL**: <!-- https://stattoo.duckdns.org -->
-- **서비스 소개 영상**: <!-- YouTube 링크 -->
-- **시연 영상**: <!-- YouTube 링크 -->
+- **서비스 URL**: https://stattoo.duckdns.org
+- **서비스 소개 영상**: https://youtu.be/6rRotlTOfq4
 - **개발 기간**: 2026.07 ~ 2026.08 (SSAFY 15기 공통 프로젝트)
 
 ---
@@ -85,25 +86,13 @@
 
 ![커버업과 3D 시뮬레이션](docs/images/coverup_and_3d_simul.gif)
 
-### 5. 낙서장 — 그린 모양으로 도안 찾기
-
-> 홈에서 바로 열리는 줄노트에 원하는 모양을 그리면, 선의 형태를 닮은 도안을 찾아준다
-
-가입도 신체 사진도 없이 낙서 한 장으로 도안만 보고 싶은 사람을 위한 입구다. 커버업과 같은 형태 검색 엔진을 쓰되, 그린 획을 검색 규격(420×520 마스크)으로 변환해 보낸다. 결과에서 바로 도안 보관함에 저장하거나 시뮬레이션으로 넘어갈 수 있다.
-
-- **편집 도구**: 펜·지우개, 선 굵기 3단계, 되돌리기·다시 실행(`Ctrl/Cmd+Z`)
-- **회전**: 15° 단위로 그림 전체를 돌려 도안 방향을 맞춘다. 돌리다 캔버스 밖으로 나가는 획이 생기면 넘치는 만큼만 자동으로 줄여 전체가 보이게 한다
-- 결과를 보고 낙서장으로 돌아와도 그리던 그림이 그대로 남는다
-
-<!-- 이미지: docs/images/doodle-draw.png, docs/images/doodle-result.png -->
-
-### 6. 탐색 & 피드 & DM & 타투이스트 페이지
+### 5. 탐색 & 피드 & DM & 타투이스트 페이지
 
 > 포트폴리오 탐색, 게시글·검색, 타투이스트와 1:1 실시간 상담
 
-| 커뮤니티 | 검색 | DM |
+| 피드 | 탐색 | 메시지 |
 | :---: | :---: | :---: |
-| <img src="docs/images/community.png" width="200" /> | <img src="docs/images/search.png" width="200" /> | <img src="docs/images/dm.png" width="200" /> |
+| <img src="docs/images/피드.png" width="200" /> | <img src="docs/images/탐색.png" width="200" /> | <img src="docs/images/메시지.png" width="200" /> |
 
 ![피드: 추천, 검색](docs/images/feed.gif)
 
@@ -113,65 +102,29 @@
 
 ## 🛠 기술 스택
 
+### Frontend
+`React 19` `TypeScript` `Vite` `Tailwind CSS 4` `Zustand` `TanStack Query` `MediaPipe` `Transformers.js` `OpenCV.js` `STOMP`
 
-| 영역                 | 기술                                                                                            |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| **Frontend**       | React 19, TypeScript 5.8, Vite 7, React Router 7, Tailwind CSS 4, Zustand 5, TanStack Query 5 |
-| **Browser Vision** | MediaPipe Tasks Vision, Transformers.js, OpenCV.js                                            |
-| **Backend**        | Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, STOMP/WebSocket, Flyway           |
-| **AI**             | Python 3.11, FastAPI, PyTorch, Diffusers, Transformers, Stable Diffusion 1.5, SigLIP2, OpenCV |
-| **Data**           | PostgreSQL 16, Redis Stack, MinIO                                                             |
-| **Infra**          | Docker, Docker Compose, Nginx, Jenkins, GitLab                                                |
-| **External**       | Kakao·Google OAuth                                                                            |
+### Backend
+`Java 21` `Spring Boot` `Spring Security (OAuth2)` `JPA` `MySQL` `Redis` `WebSocket` `MinIO` `Firebase FCM`
 
----
+### AI
+`Python` `FastAPI` `PyTorch` `Diffusers` `Transformers` `Gemini API`
 
-## 🏗 시스템 아키텍처
+### Infra
+`Docker` `Docker Compose` `Jenkins` `Nginx` `GitLab` `Jira`
 
-```mermaid
-flowchart LR
-    U["Web / Mobile Browser"] --> N["Nginx"]
-    N -->|"SPA"| F["React Frontend"]
-    N -->|"REST / WebSocket"| B["Spring Boot API"]
-    N -->|"커버업 검색"| C["Cover-up Search API"]
-    B --> P[("PostgreSQL")]
-    B --> R[("Redis Stack")]
-    B --> M[("MinIO")]
-    B --> A["AI Inference API"]
-    A --> G["Generation · Extraction · Classification"]
-    J["Jenkins"] --> D["Docker Compose"]
-    D --> N
-```
-
-
-- Nginx가 SPA, REST API, WebSocket, AI 요청을 단일 진입점에서 라우팅합니다.
-- Spring Boot가 인증·사용자·게시물·컬렉션·DM·알림·미디어 도메인을 담당합니다.
-- AI 서비스는 도안 생성·추출·분류 API와 커버업 전용 검색 엔진으로 분리되어 있습니다.
-- PostgreSQL은 영속 데이터, Redis Stack은 캐시·검색·세션성 데이터, MinIO는 이미지 객체를 관리합니다.
+<!-- 버전/항목은 실제 사용 기준으로 다듬기 -->
 
 ---
 
+## 🏗 아키텍처
 
+![시스템 아키텍처](docs/images/architecture.png)
 
-## 📂 프로젝트 구조
-
-```text
-starttoo/
-├── frontend/    # React 기반 사용자 웹 애플리케이션
-├── backend/     # Spring Boot REST API 및 WebSocket 서버
-├── ai/          # AI 추론 API와 커버업 도안 검색 엔진
-├── nginx/       # 리버스 프록시 및 라우팅 설정
-├── relay/       # 외부 GPU 머신 연결용 AI 릴레이
-├── jenkins/     # Jenkins 실행 환경
-├── docs/        # 컨벤션 및 README 이미지
-├── exec/        # 빌드·배포·환경 변수 문서
-├── docker-compose.yml
-└── Jenkinsfile
-```
+<!-- draw.io 등으로 그린 아키텍처 다이어그램 -->
 
 ---
-
-
 
 ## ERD
 ![erd](docs/images/erd.png)
@@ -181,6 +134,6 @@ starttoo/
 | 구분 | 링크 |
 | :--- | :--- |
 | 기획/요구사항 | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
-| 화면 설계 (Figma) | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
+| 화면 설계 (Figma) | https://www.figma.com/design/lD3bqI5XAELh9rtrzzViLx/starttoo-%EC%99%80%EC%9D%B4%EC%96%B4%ED%94%84%EB%A0%88%EC%9E%84?node-id=0-1&t=7weNZHSoUT14mlQs-1|
 | API 명세 | https://brief-vase-0fa.notion.site/API_-3a4b65bd2732805bbe93cf1a066ba523?source=copy_link |
 | 팀 컨벤션 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) |
