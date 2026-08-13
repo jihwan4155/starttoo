@@ -8,23 +8,26 @@
 
 <!-- 한 줄 소개는 팀에서 확정한 문구로 교체하세요 -->
 
-- **서비스 URL**: <!-- https://... -->
+- **서비스 URL**: <!-- https://stattoo.duckdns.org -->
+- **서비스 소개 영상**: <!-- YouTube 링크 -->
 - **시연 영상**: <!-- YouTube 링크 -->
 - **개발 기간**: 2026.07 ~ 2026.08 (SSAFY 15기 공통 프로젝트)
 
 ---
 
-## 👥 팀원 (D201 백두산 호랑이)
+## 👥 Team (D201 백두산 호랑이)
 
 <!-- 사진: docs/images/member-이름.png (권장 비율 3:4, width로 크기 조절) -->
 
 | 팀장 | 팀원1 | 팀원2 |
-| :신지환: | :박범준: | :이한준: |
+| :---: | :---: | :---: |
+| 신지환 | 박범준 | 이한준 |
 | <img src="docs/images/member-1.png" width="180" /> | <img src="docs/images/member-2.png" width="180" /> | <img src="docs/images/member-3.png" width="180" /> |
 | `AI` AI 타투 도안 생성  · AR 타투 시뮬레이션<br>인프라 · 배포 | `FE` 커뮤니티<br>DM · 알림 | `BE` 인증 · 회원<br>커뮤니티 API |
 
 | 팀원3 | 팀원4 | 팀원5 |
-| :양혜림: | :심재훈: | :이효주: |
+| :---: | :---: | :---: |
+| 양혜림 | 심재훈 | 이효주 |
 | <img src="docs/images/member-4.png" width="180" /> | <img src="docs/images/member-5.png" width="180" /> | <img src="docs/images/member-6.png" width="180" /> |
 | `BE` 채팅 · 파일<br> | `AI` 타투 도안 생성<br>프롬프트 파이프라인 | `AI` 커버업 추천<br>이미지 처리 |
 
