@@ -1,7 +1,7 @@
 <!-- 배너 이미지: docs/images/banner.png 로 교체 -->
 ![starttoo 배너](docs/images/banner.png)
 
-# 🐯 starttoo
+# <img src="docs/images/logo.svg" width="32" valign="middle" /> starttoo
 
 > AI 도안 생성부터 AR/3D 시뮬레이션, 커버업 추천, 타투이스트 매칭까지. 
 > 타투를 새기기로 결심한 순간부터 실제로 새기는 순간까지 전 과정을 하나로 연결하는 플랫폼
@@ -104,7 +104,7 @@
 `React 19` `TypeScript` `Vite` `Tailwind CSS 4` `Zustand` `TanStack Query` `MediaPipe` `Transformers.js` `OpenCV.js` `STOMP`
 
 ### Backend
-`Java 17` `Spring Boot` `Spring Security (OAuth2)` `JPA` `MySQL` `Redis` `WebSocket` `MinIO` `Firebase FCM`
+`Java 21` `Spring Boot` `Spring Security (OAuth2)` `JPA` `MySQL` `Redis` `WebSocket` `MinIO` `Firebase FCM`
 
 ### AI
 `Python` `FastAPI` `PyTorch` `Diffusers` `Transformers` `Gemini API`
@@ -128,9 +128,8 @@
 
 | 구분 | 링크 |
 | :--- | :--- |
-| 기획/요구사항 | <!-- 링크 --> |
-| 화면 설계 (Figma) | <!-- 링크 --> |
-| ERD | <!-- docs/images/erd.png 또는 링크 --> |
-| API 명세 | <!-- Swagger 링크 --> |
-| 포팅 매뉴얼 | <!-- docs/... --> |
+| 기획/요구사항 | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
+| 화면 설계 (Figma) | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
+| ERD | google.com/url?q=https://www.erdcloud.com/d/cgN5KjAQzurEkFxZ8&sa=D&source=editors&ust=1786588833085613&usg=AOvVaw17yQSdJ8pcpqF97qfn9-WX |
+| API 명세 | https://brief-vase-0fa.notion.site/API_-3a4b65bd2732805bbe93cf1a066ba523?source=copy_link |
 | 팀 컨벤션 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) |
