@@ -1,0 +1,38 @@
+
+대상: https://i15d201.p.ssafy.io/v1
+인증: 없음 (공개 API 만 검사)
+──────────────────────────────────────────────────────────────────────
+
+[A-1] 게시물 조회
+  [[32mOK[0m] GET /posts 목록                            게시물 5건
+  [[32mOK[0m] GET /posts/{seq} 단건                      200
+
+[A-2] 이미지 URL 실제 도달 여부  ← backend -> MinIO -> nginx 경계
+  [[32mOK[0m] 이미지 URL 열림                         starttoo-storage.duckdns.org -> 200
+
+[A-3] 검색  ← backend -> Redis Search 인덱스
+  [[32mOK[0m] 게시물 검색 q=타투                    {"data":{"query":"타투","matchedSubject":{"subjectSeq":12,
+  [[32mOK[0m] 게시물 검색 q=tattoo                    {"data":{"query":"tattoo","items":[],"hasNext":false,"size":
+  [[32mOK[0m] 계정 자동완성 (한글 자모)          200
+  [[32mOK[0m] 아티스트 검색                          200
+
+[A-4] 목록 API
+  [[32mOK[0m] GET /artists                                 200
+  [[32mOK[0m] GET /classifications/primary-styles          200
+  [[32mOK[0m] GET /classifications/colors                  200
+
+[A-5] 실패 경로  ← 여기서 500 이 나오면 검증 계층에 구멍이 있다
+  [[32mOK[0m] size 초과 -> 400                           400
+  [[32mOK[0m] 없는 게시물 -> 404                      404
+  [[32mOK[0m] 검색어 특수문자 -> 400                400
+
+[B] 인증 구간
+  [[90mSKIP[0m] 인증 API 전체                            TOKEN 미지정 — 아래 안내 참고
+
+──────────────────────────────────────────────────────────────────────
+  PASS [32m13[0m   FAIL [31m0[0m   SKIP [90m1[0m
+
+  인증 구간까지 돌리려면:
+    1) 로그인한 탭에서 F12 -> Application -> Local Storage -> accessToken 복사
+    2) TOKEN=<붙여넣기> bash test/integration/api-flow.sh
+
