@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ROTATION_STEP } from "./useDoodleCanvas";
 import type { DoodleTool } from "./useDoodleCanvas";
 
 const STROKE_SIZES = [
@@ -77,6 +78,26 @@ function RedoIcon() {
 	);
 }
 
+/** 되돌리기 화살표와 헷갈리지 않도록 사각 도안이 도는 모양으로 그린다 */
+function RotateIcon({ clockwise = true }: { clockwise?: boolean }) {
+	return (
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			style={clockwise ? undefined : { transform: "scaleX(-1)" }}>
+			<rect x="4" y="11" width="12" height="9" rx="1.5" />
+			<path d="M13 7h4a4 4 0 0 1 4 4" />
+			<path d="m11 4.5 2.4 2.5L11 9.5" />
+		</svg>
+	);
+}
+
 type ToolbarButtonProps = {
 	label: string;
 	active?: boolean;
@@ -123,6 +144,10 @@ type DoodleToolbarProps = {
 	canRedo: boolean;
 	onUndo: () => void;
 	onRedo: () => void;
+	/** 현재 회전 각도(도) — 0이면 배지를 숨긴다 */
+	rotation: number;
+	onRotate: (deltaDeg: number) => void;
+	onResetRotation: () => void;
 	onClear: () => void;
 };
 
@@ -135,6 +160,9 @@ export default function DoodleToolbar({
 	canRedo,
 	onUndo,
 	onRedo,
+	rotation,
+	onRotate,
+	onResetRotation,
 	onClear,
 }: DoodleToolbarProps) {
 	return (
@@ -179,6 +207,32 @@ export default function DoodleToolbar({
 			<ToolbarButton label="다시 실행" disabled={!canRedo} onClick={onRedo}>
 				<RedoIcon />
 			</ToolbarButton>
+
+			<Divider />
+
+			{/* 회전 — 그린 그림 전체를 캔버스 중심으로 돌린다 */}
+			<ToolbarButton
+				label={`왼쪽으로 ${ROTATION_STEP}도 회전`}
+				disabled={!canUndo}
+				onClick={() => onRotate(-ROTATION_STEP)}>
+				<RotateIcon clockwise={false} />
+			</ToolbarButton>
+			<ToolbarButton
+				label={`오른쪽으로 ${ROTATION_STEP}도 회전`}
+				disabled={!canUndo}
+				onClick={() => onRotate(ROTATION_STEP)}>
+				<RotateIcon />
+			</ToolbarButton>
+			{rotation !== 0 && (
+				<button
+					type="button"
+					title="회전 초기화"
+					aria-label={`회전 ${rotation}도, 눌러서 초기화`}
+					onClick={onResetRotation}
+					className="shrink-0 rounded-full bg-black/5 px-2 py-1 text-[11px] font-semibold tabular-nums text-black/60 transition hover:bg-black/10 hover:text-black lg:text-[12px]">
+					{rotation > 0 ? `+${rotation}°` : `${rotation}°`}
+				</button>
+			)}
 
 			<Divider />
 
