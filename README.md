@@ -127,12 +127,14 @@
 
 ---
 
+## ERD
+![erd](docs/images/erd.png)
+
 ## 📄 산출물
 
 | 구분 | 링크 |
 | :--- | :--- |
 | 기획/요구사항 | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
 | 화면 설계 (Figma) | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
-| ERD | https://www.erdcloud.com/d/cgN5KjAQzurEkFxZ8 |
 | API 명세 | https://brief-vase-0fa.notion.site/API_-3a4b65bd2732805bbe93cf1a066ba523?source=copy_link |
 | 팀 컨벤션 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) |
