@@ -8,6 +8,9 @@ import {
 
 export type DoodleTool = "pen" | "eraser";
 
+/** 회전 버튼 한 번에 도는 각도 */
+export const ROTATION_STEP = 15;
+
 type Point = { x: number; y: number };
 
 type DoodleStroke = {
@@ -19,16 +22,92 @@ type DoodleStroke = {
 	erase: boolean;
 };
 
+/**
+ * 획(종이 좌표)을 화면에 얹을 때 거치는 변환.
+ *
+ * <p>중심을 기준으로 rad 만큼 돌리고 scale 만큼 줄인다. scale은 회전 때문에
+ * 캔버스 밖으로 밀려나는 획이 생기면 자동으로 1보다 작아진다.
+ */
+type CanvasView = {
+	rad: number;
+	scale: number;
+	cx: number;
+	cy: number;
+};
+
+const IDENTITY_VIEW: CanvasView = { rad: 0, scale: 1, cx: 0, cy: 0 };
+
 type UseDoodleCanvasOptions = {
 	/** 펜 색상 (기본 검정) */
 	color?: string;
-	/** false면 ResizeObserver를 끈다 — 모달 등에서 닫힌 동안 */
-	active?: boolean;
 };
 
 /** 두 점의 중간점 — 곡선 보간의 시작·끝점으로 사용 */
 function midpoint(a: Point, b: Point): Point {
 	return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+/** 종이 좌표 → 화면 좌표 (회전·축소 적용) */
+function project(point: Point, view: CanvasView): Point {
+	const cos = Math.cos(view.rad);
+	const sin = Math.sin(view.rad);
+	const dx = point.x - view.cx;
+	const dy = point.y - view.cy;
+	return {
+		x: view.cx + view.scale * (dx * cos - dy * sin),
+		y: view.cy + view.scale * (dx * sin + dy * cos),
+	};
+}
+
+/** 화면 좌표 → 종이 좌표 (project의 역변환) */
+function unproject(point: Point, view: CanvasView): Point {
+	const cos = Math.cos(-view.rad);
+	const sin = Math.sin(-view.rad);
+	const dx = (point.x - view.cx) / view.scale;
+	const dy = (point.y - view.cy) / view.scale;
+	return {
+		x: view.cx + dx * cos - dy * sin,
+		y: view.cy + dx * sin + dy * cos,
+	};
+}
+
+/** 화면에 보이는 그대로의 획 — 내보내기(마스크·PNG)는 이걸 쓴다 */
+function projectStroke(stroke: DoodleStroke, view: CanvasView): DoodleStroke {
+	if (view.rad === 0 && view.scale === 1) return stroke;
+	return {
+		...stroke,
+		points: stroke.points.map((point) => project(point, view)),
+		width: stroke.width * view.scale,
+	};
+}
+
+/**
+ * 지금 회전값으로 획을 돌렸을 때 캔버스 밖으로 나가지 않을 축소 배율.
+ *
+ * <p>회전만 걸면 모서리 쪽 획이 잘려 나가 "돌렸더니 그림이 사라졌다"가 된다.
+ * 넘치는 만큼만 줄여 항상 전체가 보이게 한다(안 넘치면 1 그대로).
+ */
+function fitScale(
+	strokes: DoodleStroke[],
+	rad: number,
+	cx: number,
+	cy: number,
+): number {
+	if (rad === 0 || cx <= 0 || cy <= 0) return 1;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	let overflow = 1;
+	strokes.forEach((stroke) => {
+		const half = stroke.width / 2;
+		stroke.points.forEach(({ x, y }) => {
+			const dx = x - cx;
+			const dy = y - cy;
+			const rx = Math.abs(dx * cos - dy * sin) + half;
+			const ry = Math.abs(dx * sin + dy * cos) + half;
+			overflow = Math.max(overflow, rx / cx, ry / cy);
+		});
+	});
+	return 1 / overflow;
 }
 
 function applyBrush(ctx: CanvasRenderingContext2D, stroke: DoodleStroke) {
@@ -96,22 +175,36 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: DoodleStroke) {
 	drawTail(ctx, stroke);
 }
 
+/** 회전 각도를 (-180, 180] 범위로 접는다 — 배지에 -165° 대신 195°가 뜨지 않게 */
+function normalizeDegrees(deg: number): number {
+	const wrapped = ((deg % 360) + 360) % 360;
+	return wrapped > 180 ? wrapped - 360 : wrapped;
+}
+
 /**
  * 메인 그림판의 드로잉 엔진.
  * 획을 좌표 배열로 들고 있어 undo·redo와 리사이즈 후 재렌더가 가능하다.
  */
 export default function useDoodleCanvas({
 	color = "#000000",
-	active = true,
 }: UseDoodleCanvasOptions = {}) {
-	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const observerRef = useRef<ResizeObserver | null>(null);
 	const strokesRef = useRef<DoodleStroke[]>([]);
 	const redoRef = useRef<DoodleStroke[]>([]);
 	// 그리는 중인 획 — 리렌더와 무관하게 즉시 반영돼야 하므로 ref로 관리
 	const activeRef = useRef<DoodleStroke | null>(null);
+	// 캔버스의 CSS 크기·배율. 그리기 좌표 계산이 리렌더와 무관해야 해서 ref로 둔다.
+	const sizeRef = useRef({ width: 0, height: 0 });
+	const dprRef = useRef(1);
+	const rotationRef = useRef(0);
+	// 화면 변환은 redraw 시점에만 갱신한다. 획을 긋는 도중에 배율이 바뀌면
+	// 선이 손끝에서 미끄러지므로, 한 획이 끝나기 전에는 고정돼 있어야 한다.
+	const viewRef = useRef<CanvasView>(IDENTITY_VIEW);
 
 	const [tool, setTool] = useState<DoodleTool>("pen");
 	const [size, setSize] = useState(4);
+	const [rotation, setRotation] = useState(0);
 	// 버튼 활성화 판단용 — 획이 바뀔 때만 갱신
 	const [counts, setCounts] = useState({ strokes: 0, redos: 0 });
 
@@ -124,71 +217,110 @@ export default function useDoodleCanvas({
 
 	const getContext = () => canvasRef.current?.getContext("2d") ?? null;
 
+	/** 지금 회전값·캔버스 크기로 화면 변환을 다시 계산해 둔다 */
+	const updateView = useCallback(() => {
+		const { width, height } = sizeRef.current;
+		const rad = (rotationRef.current * Math.PI) / 180;
+		const cx = width / 2;
+		const cy = height / 2;
+		viewRef.current = {
+			rad,
+			cx,
+			cy,
+			scale: fitScale(strokesRef.current, rad, cx, cy),
+		};
+		return viewRef.current;
+	}, []);
+
+	/** 고DPI 배율 + 회전·축소를 컨텍스트에 건다 (이후 그리기는 종이 좌표계) */
+	const applyTransform = useCallback((ctx: CanvasRenderingContext2D) => {
+		const { rad, scale, cx, cy } = viewRef.current;
+		ctx.setTransform(dprRef.current, 0, 0, dprRef.current, 0, 0);
+		ctx.translate(cx, cy);
+		ctx.scale(scale, scale);
+		ctx.rotate(rad);
+		ctx.translate(-cx, -cy);
+	}, []);
+
 	const redraw = useCallback(() => {
 		const canvas = canvasRef.current;
 		const ctx = getContext();
 		if (!canvas || !ctx) return;
+		updateView();
 		// 변환이 걸려 있어도 전체가 지워지도록 기본 좌표계로 되돌려 클리어
-		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		ctx.restore();
+		applyTransform(ctx);
 		strokesRef.current.forEach((stroke) => drawStroke(ctx, stroke));
 		ctx.globalCompositeOperation = "source-over";
+	}, [applyTransform, updateView]);
+
+	/** 부모 박스 크기를 캔버스 해상도에 반영한다. 바뀐 게 없으면 false */
+	const measure = useCallback((force: boolean) => {
+		const canvas = canvasRef.current;
+		const parent = canvas?.parentElement;
+		if (!canvas || !parent) return false;
+		const dpr = window.devicePixelRatio || 1;
+		const { width, height } = parent.getBoundingClientRect();
+		if (width === 0 || height === 0) return false;
+		const nextWidth = Math.round(width * dpr);
+		const nextHeight = Math.round(height * dpr);
+		if (!force && canvas.width === nextWidth && canvas.height === nextHeight) {
+			return false;
+		}
+		canvas.width = nextWidth;
+		canvas.height = nextHeight;
+		canvas.style.width = `${width}px`;
+		canvas.style.height = `${height}px`;
+		dprRef.current = dpr;
+		sizeRef.current = { width, height };
+		return true;
 	}, []);
 
 	// 부모 박스 크기에 맞춰 캔버스 해상도를 잡고(고DPI 대응) 다시 그린다.
 	// 크기가 이미 맞으면 아무것도 하지 않으므로 몇 번을 불러도 안전하다.
 	const syncSize = useCallback(() => {
-		const canvas = canvasRef.current;
-		const parent = canvas?.parentElement;
-		if (!canvas || !parent) return;
-		const dpr = window.devicePixelRatio || 1;
-		const { width, height } = parent.getBoundingClientRect();
-		if (width === 0 || height === 0) return;
-		const nextWidth = Math.round(width * dpr);
-		const nextHeight = Math.round(height * dpr);
-		if (canvas.width === nextWidth && canvas.height === nextHeight) return;
-		canvas.width = nextWidth;
-		canvas.height = nextHeight;
-		canvas.style.width = `${width}px`;
-		canvas.style.height = `${height}px`;
-		// width 대입으로 컨텍스트가 초기화되므로 배율을 다시 걸어준다
-		getContext()?.setTransform(dpr, 0, 0, dpr, 0, 0);
-		redraw();
-	}, [redraw]);
+		if (measure(false)) redraw();
+	}, [measure, redraw]);
 
 	/** 캔버스 크기를 맞추고 저장된 획을 다시 그린다 (모달 재오픈 등) */
 	const refresh = useCallback(() => {
-		const canvas = canvasRef.current;
-		const parent = canvas?.parentElement;
-		if (!canvas || !parent) return;
-		const dpr = window.devicePixelRatio || 1;
-		const { width, height } = parent.getBoundingClientRect();
-		if (width === 0 || height === 0) return;
-		const nextWidth = Math.round(width * dpr);
-		const nextHeight = Math.round(height * dpr);
-		canvas.width = nextWidth;
-		canvas.height = nextHeight;
-		canvas.style.width = `${width}px`;
-		canvas.style.height = `${height}px`;
-		getContext()?.setTransform(dpr, 0, 0, dpr, 0, 0);
-		redraw();
-	}, [redraw]);
+		if (measure(true)) redraw();
+	}, [measure, redraw]);
 
-	useEffect(() => {
-		if (!active) return undefined;
-		const parent = canvasRef.current?.parentElement;
-		if (!parent) return undefined;
-		refresh();
-		const observer = new ResizeObserver(() => syncSize());
-		observer.observe(parent);
-		return () => observer.disconnect();
-	}, [active, refresh, syncSize]);
+	/*
+	 * 캔버스는 ref 콜백으로 잡는다.
+	 *
+	 * 예전에는 useEffect에서 한 번만 붙였는데, 결과 화면을 보고 낙서장으로 돌아오면
+	 * canvas 엘리먼트는 새로 마운트되는 반면 이펙트는 다시 돌지 않았다. 그래서 저장된
+	 * 획이 그대로 있는데도 화면은 빈 캔버스였고, 한 번 눌러야(=pointerdown의 syncSize)
+	 * 되살아났다. 마운트 시점에 붙는 ref 콜백이면 그 틈이 없다.
+	 */
+	const attachCanvas = useCallback(
+		(node: HTMLCanvasElement | null) => {
+			observerRef.current?.disconnect();
+			observerRef.current = null;
+			canvasRef.current = node;
+			if (!node) return;
+			refresh();
+			const parent = node.parentElement;
+			if (!parent) return;
+			const observer = new ResizeObserver(() => syncSize());
+			observer.observe(parent);
+			observerRef.current = observer;
+		},
+		[refresh, syncSize],
+	);
 
+	useEffect(() => () => observerRef.current?.disconnect(), []);
+
+	/** 화면(CSS px) 좌표를 획이 저장되는 종이 좌표로 되돌린다 */
 	const pointFrom = (e: ReactPointerEvent<HTMLCanvasElement>): Point => {
 		const rect = e.currentTarget.getBoundingClientRect();
-		return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+		return unproject(
+			{ x: e.clientX - rect.left, y: e.clientY - rect.top },
+			viewRef.current,
+		);
 	};
 
 	const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -256,9 +388,34 @@ export default function useDoodleCanvas({
 	const clear = useCallback(() => {
 		strokesRef.current = [];
 		redoRef.current = [];
+		rotationRef.current = 0;
+		setRotation(0);
 		redraw();
 		syncCounts();
 	}, [redraw, syncCounts]);
+
+	/**
+	 * 그림 전체를 캔버스 중심 기준으로 돌린다.
+	 *
+	 * <p>획 좌표는 그대로 두고 보는 각도만 바꾼다 — 여러 번 돌려도 좌표가 누적
+	 * 반올림되지 않고, 0°로 되돌리면 처음 그린 그대로다. 검색 마스크도 화면에
+	 * 보이는 각도로 나간다.
+	 */
+	const rotateBy = useCallback(
+		(deltaDeg: number) => {
+			rotationRef.current = normalizeDegrees(rotationRef.current + deltaDeg);
+			setRotation(rotationRef.current);
+			redraw();
+		},
+		[redraw],
+	);
+
+	const resetRotation = useCallback(() => {
+		if (rotationRef.current === 0) return;
+		rotationRef.current = 0;
+		setRotation(0);
+		redraw();
+	}, [redraw]);
 
 	// Ctrl/Cmd+Z 되돌리기, Ctrl/Cmd+Shift+Z 다시 실행
 	useEffect(() => {
@@ -280,14 +437,19 @@ export default function useDoodleCanvas({
 	 * 추천 API가 바로 받을 수 있도록 File로 반환하며, 빈 캔버스면 null.
 	 */
 	const toFile = useCallback(async (fileName = "doodle.png") => {
-		const strokes = strokesRef.current.filter((stroke) => !stroke.erase);
-		if (strokes.length === 0) return null;
+		if (strokesRef.current.every((stroke) => stroke.erase)) return null;
+		const view = viewRef.current;
+		// 화면에 보이는 각도 그대로 내보낸다
+		const drawn = strokesRef.current.map((stroke) =>
+			projectStroke(stroke, view),
+		);
 
 		let minX = Infinity;
 		let minY = Infinity;
 		let maxX = -Infinity;
 		let maxY = -Infinity;
-		strokes.forEach((stroke) => {
+		drawn.forEach((stroke) => {
+			if (stroke.erase) return;
 			const half = stroke.width / 2;
 			stroke.points.forEach(({ x, y }) => {
 				minX = Math.min(minX, x - half);
@@ -296,6 +458,7 @@ export default function useDoodleCanvas({
 				maxY = Math.max(maxY, y + half);
 			});
 		});
+		if (!Number.isFinite(minX)) return null;
 
 		const padding = 32;
 		const width = Math.max(Math.ceil(maxX - minX) + padding * 2, 256);
@@ -308,7 +471,7 @@ export default function useDoodleCanvas({
 		const layerCtx = layer.getContext("2d");
 		if (!layerCtx) return null;
 		layerCtx.translate(-minX + padding, -minY + padding);
-		strokesRef.current.forEach((stroke) => drawStroke(layerCtx, stroke));
+		drawn.forEach((stroke) => drawStroke(layerCtx, stroke));
 
 		const output = document.createElement("canvas");
 		output.width = width;
@@ -361,14 +524,17 @@ export default function useDoodleCanvas({
 		const offsetY = (MASK_H - sourceRect.height * pointScale) / 2;
 		// 낙서장의 '보통 선'(4px)을 검색 엔진의 shape 기준 굵기(6px)에 맞춘다.
 		const widthScale = BRUSH_PX.shape / 4;
+		const view = viewRef.current;
 
 		strokesRef.current.forEach((stroke) => {
+			// 회전·축소를 먼저 먹인다 — 화면에 보이는 모양 그대로 검색해야 한다
+			const shown = projectStroke(stroke, view);
 			const maskStroke: DoodleStroke = {
-				points: stroke.points.map(({ x, y }) => ({
+				points: shown.points.map(({ x, y }) => ({
 					x: offsetX + x * pointScale,
 					y: offsetY + y * pointScale,
 				})),
-				width: Math.max(1, stroke.width * widthScale),
+				width: Math.max(1, shown.width * widthScale),
 				color: stroke.erase ? "#000" : "#fff",
 				// 검은색으로 덮어 지워야 최종 PNG의 배경도 불투명한 검정으로 남는다.
 				erase: false,
@@ -384,11 +550,14 @@ export default function useDoodleCanvas({
 	}, []);
 
 	return {
-		canvasRef,
+		canvasRef: attachCanvas,
 		tool,
 		setTool,
 		size,
 		setSize,
+		rotation,
+		rotateBy,
+		resetRotation,
 		isEmpty: counts.strokes === 0,
 		canUndo: counts.strokes > 0,
 		canRedo: counts.redos > 0,

@@ -5,7 +5,11 @@ import { CloseIcon, SearchIcon } from "./icons";
 import useRecentSearches from "../../hooks/queries/useRecentSearches";
 import { recentSearchesQueryKey } from "../../hooks/queries/useRecentSearches";
 import useSubjectAutocomplete from "../../hooks/queries/useSubjectAutocomplete";
-import { deleteRecentSearch, saveRecentSearch } from "../../services/userApi";
+import {
+	clearRecentSearches,
+	deleteRecentSearch,
+	saveRecentSearch,
+} from "../../services/userApi";
 import { PRIMARY_STYLE_CATEGORIES } from "../../constants/community";
 import useAuthStore from "../../store/useAuthStore";
 import { notifyActionError } from "../../utils/actionError";
@@ -26,6 +30,7 @@ export default function CommunitySearchBar({
 	const queryClient = useQueryClient();
 	const [value, setValue] = useState("");
 	const [isFocused, setFocused] = useState(false);
+	const [isClearing, setClearing] = useState(false);
 	const accessToken = useAuthStore((s) => s.accessToken);
 	const { data: recentItems = [] } = useRecentSearches();
 
@@ -67,6 +72,24 @@ export default function CommunitySearchBar({
 			await queryClient.invalidateQueries({ queryKey: recentSearchesQueryKey });
 		} catch (err) {
 			notifyActionError(err, "최근 검색어 삭제에 실패했습니다.");
+		}
+	};
+
+	/*
+	 * 전체 삭제는 REMOVE를 항목 수만큼 보내는 것이라(서버에 전체 삭제가 없다)
+	 * 한 건 삭제보다 오래 걸린다. 진행 중에는 버튼을 잠가 중복 실행을 막는다.
+	 * 중간에 실패해도 지운 데까지는 남으므로 성공·실패 모두 목록을 다시 받는다.
+	 */
+	const handleClearRecent = async () => {
+		if (isClearing) return;
+		setClearing(true);
+		try {
+			await clearRecentSearches(recentItems);
+		} catch (err) {
+			notifyActionError(err, "최근 검색어 삭제에 실패했습니다.");
+		} finally {
+			setClearing(false);
+			await queryClient.invalidateQueries({ queryKey: recentSearchesQueryKey });
 		}
 	};
 
@@ -150,27 +173,40 @@ export default function CommunitySearchBar({
 								최근 검색어
 							</p>
 							{accessToken && recentItems.length > 0 ? (
-								<ul className="mt-1.5">
-									{recentItems.map((keyword) => (
-										<li
-											key={keyword}
-											className="flex items-center justify-between">
-											<button
-												type="button"
-												onClick={() => submit(keyword)}
-												className="flex-1 rounded-lg px-2 py-2 text-left text-[13px] font-light text-black transition hover:bg-black/5">
-												{keyword}
-											</button>
-											<button
-												type="button"
-												aria-label={`${keyword} 삭제`}
-												onClick={() => void handleDeleteRecent(keyword)}
-												className="p-1.5 text-black/35 transition hover:text-black">
-												<CloseIcon size={13} />
-											</button>
-										</li>
-									))}
-								</ul>
+								<>
+									<ul className="mt-1.5">
+										{recentItems.map((keyword) => (
+											<li
+												key={keyword}
+												className="flex items-center justify-between">
+												<button
+													type="button"
+													onClick={() => submit(keyword)}
+													className="flex-1 rounded-lg px-2 py-2 text-left text-[13px] font-light text-black transition hover:bg-black/5">
+													{keyword}
+												</button>
+												<button
+													type="button"
+													aria-label={`${keyword} 삭제`}
+													disabled={isClearing}
+													onClick={() => void handleDeleteRecent(keyword)}
+													className="p-1.5 text-black/35 transition hover:text-black disabled:opacity-40">
+													<CloseIcon size={13} />
+												</button>
+											</li>
+										))}
+									</ul>
+									{/* 한 건씩 지우는 X 버튼만으로는 열 개를 비우기 번거로워 목록 끝에 둔다 */}
+									<div className="mt-1 flex justify-end">
+										<button
+											type="button"
+											disabled={isClearing}
+											onClick={() => void handleClearRecent()}
+											className="rounded-lg px-2 py-1 text-[12px] font-light text-black/45 transition hover:text-brand disabled:cursor-not-allowed disabled:opacity-50">
+											{isClearing ? "지우는 중…" : "전체 삭제"}
+										</button>
+									</div>
+								</>
 							) : (
 								<p className="mt-2 px-2 text-[13px] font-light text-black/40">
 									{accessToken

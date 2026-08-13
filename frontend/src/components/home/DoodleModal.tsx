@@ -38,6 +38,9 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 		setTool,
 		size,
 		setSize,
+		rotation,
+		rotateBy,
+		resetRotation,
 		isEmpty,
 		canUndo,
 		canRedo,
@@ -45,9 +48,8 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 		redo,
 		clear,
 		buildSearchMask,
-		refresh,
 		handlers,
-	} = useDoodleCanvas({ color: "#171516", active: isOpen });
+	} = useDoodleCanvas({ color: "#171516" });
 
 	/*
 	 * 결과는 이 자리에서 모달로 보여 준다.
@@ -91,20 +93,13 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 		document.body.style.overflow = "hidden";
 		document.addEventListener("keydown", onKeyDown);
 
-		// 캔버스가 다시 마운트된 뒤 저장된 획을 즉시 복원
-		let raf1 = 0;
-		let raf2 = 0;
-		raf1 = requestAnimationFrame(() => {
-			raf2 = requestAnimationFrame(() => refresh());
-		});
+		// 저장된 획 복원은 캔버스 ref 콜백이 마운트 시점에 처리한다(useDoodleCanvas)
 
 		return () => {
-			cancelAnimationFrame(raf1);
-			cancelAnimationFrame(raf2);
 			document.body.style.overflow = previousOverflow;
 			document.removeEventListener("keydown", onKeyDown);
 		};
-	}, [isOpen, onClose, refresh]);
+	}, [isOpen, onClose]);
 
 	if (!isOpen) return null;
 
@@ -136,7 +131,7 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="낙서장">
-				<div className="mb-3 flex items-center justify-between">
+				<div className="mb-1.5 flex items-center justify-between">
 					<h2 className="text-[16px] font-extrabold text-black sm:text-[17px]">
 						낙서장
 					</h2>
@@ -148,6 +143,18 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 						<CloseIcon />
 					</button>
 				</div>
+
+				{/*
+				  무엇을 그려야 하는 자리인지, 그리면 무슨 일이 일어나는지 아무 설명이
+				  없어서 빈 노트만 보고 닫는 경우가 있었다. 도구 이름까지 한 줄로 적어
+				  아래 도구 막대가 무엇인지도 함께 읽히게 한다.
+				*/}
+				<p className="mb-3 text-[12.5px] font-light leading-[1.55] text-black/55">
+					찾고 싶은 타투 모양을 그려 보세요. 그린 선을 닮은 도안을 찾아 드려요.
+					<br className="hidden sm:block" />
+					<span className="sm:hidden"> </span>
+					펜·지우개로 다듬고, 되돌리기·선 굵기·회전으로 모양을 맞출 수 있어요.
+				</p>
 
 				<div
 					className="relative aspect-[3/2] w-full overflow-hidden rounded-[4px] border-2 border-brand sm:aspect-[16/10]"
@@ -185,6 +192,9 @@ export default function DoodleModal({ isOpen, onClose }: DoodleModalProps) {
 						canRedo={canRedo}
 						onUndo={undo}
 						onRedo={redo}
+						rotation={rotation}
+						onRotate={rotateBy}
+						onResetRotation={resetRotation}
 						onClear={() => {
 							clear();
 							setShowEmptyHint(false);
