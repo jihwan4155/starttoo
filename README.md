@@ -61,9 +61,9 @@
 
 > 카메라로 내 몸에 타투를 실시간으로 얹어보고, 인물 분할 기반 마스크로 자연스럽게 합성
 
-| 시착 화면 | 도안 조절 |
-| :---: | :---: |
-| <img src="docs/images/ar-tryon.png" width="240" /> | <img src="docs/images/ar-adjust.png" width="240" /> |
+| 소개 화면 | QR 연결 전 | QR 연결 후 | AR 결과 |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/images/ar-intro.png" width="240" /> | <img src="docs/images/ar-qr1.png" width="240" /> | <img src="docs/images/ar-qr2.png" width="240" /> | <img src="docs/images/ar-after.png" width="240" /> |
 
 <!-- 짧은 시연은 mp4/GIF로: ![AR 시연](docs/videos/ar-demo.mp4) -->
 
@@ -71,11 +71,11 @@
 
 > 카메라로 내 몸에 타투를 실시간으로 얹어보고, 인물 분할 기반 마스크로 자연스럽게 합성
 
-| 시착 화면 | 도안 조절 |
-| :---: | :---: |
-| <img src="docs/images/ar-tryon.png" width="240" /> | <img src="docs/images/ar-adjust.png" width="240" /> |
+| 신체 사진 선택 | 도안 선택 | 도안 정리 | 도안 합성 |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/images/3d_select_body.png" width="240" /> | <img src="docs/images/3d_select_tattoo1.png" width="240" /> | <img src="docs/images/3d_select_tattoo2.png" width="240" /> | <img src="docs/images/3d_after.png" width="240" /> |
 
-<!-- 짧은 시연은 mp4/GIF로: ![AR 시연](docs/videos/ar-demo.mp4) -->
+![커버업과 3D 시뮬레이션](docs/images/3dsimulation.gif)
 
 ### 3. 커버업 도안 추천
 
@@ -83,15 +83,19 @@
 
 | 기존 타투 | 드로잉 | 커버업 결과 |
 | :---: | :---: | :---: |
-| <img src="docs/images/coverup-before.png" width="200" /> | <img src="docs/images/coverup-draw.png" width="200" /> | <img src="docs/images/coverup-after.png" width="200" /> |
+| <img src="docs/images/coverup_before.png" width="200" /> | <img src="docs/images/coverup_drawing" width="200" /> | <img src="docs/images/coverup_after.png" width="200" /> |
 
-### 4. 타투이스트 커뮤니티 & DM
+![커버업과 3D 시뮬레이션](docs/images/coverup_and_3d_simul.gif)
+
+### 4. 탐색 & 피드 & DM & 타투이스트 페이지
 
 > 포트폴리오 탐색, 게시글·검색, 타투이스트와 1:1 실시간 상담
 
 | 커뮤니티 | 검색 | DM |
 | :---: | :---: | :---: |
 | <img src="docs/images/community.png" width="200" /> | <img src="docs/images/search.png" width="200" /> | <img src="docs/images/dm.png" width="200" /> |
+
+![피드: 추천, 검색](docs/images/feed.gif)
 
 <!-- 기능 개수·이름은 실제 서비스에 맞게 조정 -->
 
