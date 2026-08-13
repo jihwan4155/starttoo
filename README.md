@@ -113,29 +113,65 @@
 
 ## 🛠 기술 스택
 
-### Frontend
-`React 19` `TypeScript` `Vite` `Tailwind CSS 4` `Zustand` `TanStack Query` `MediaPipe` `Transformers.js` `OpenCV.js` `STOMP`
 
-### Backend
-`Java 21` `Spring Boot` `Spring Security (OAuth2)` `JPA` `MySQL` `Redis` `WebSocket` `MinIO` `Firebase FCM`
-
-### AI
-`Python` `FastAPI` `PyTorch` `Diffusers` `Transformers` `Gemini API`
-
-### Infra
-`Docker` `Docker Compose` `Jenkins` `Nginx` `GitLab` `Jira`
-
-<!-- 버전/항목은 실제 사용 기준으로 다듬기 -->
+| 영역                 | 기술                                                                                            |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| **Frontend**       | React 19, TypeScript 5.8, Vite 7, React Router 7, Tailwind CSS 4, Zustand 5, TanStack Query 5 |
+| **Browser Vision** | MediaPipe Tasks Vision, Transformers.js, OpenCV.js                                            |
+| **Backend**        | Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, STOMP/WebSocket, Flyway           |
+| **AI**             | Python 3.11, FastAPI, PyTorch, Diffusers, Transformers, Stable Diffusion 1.5, SigLIP2, OpenCV |
+| **Data**           | PostgreSQL 16, Redis Stack, MinIO                                                             |
+| **Infra**          | Docker, Docker Compose, Nginx, Jenkins, GitLab                                                |
+| **External**       | Kakao·Google OAuth                                                                            |
 
 ---
 
-## 🏗 아키텍처
+## 🏗 시스템 아키텍처
 
-![시스템 아키텍처](docs/images/architecture.png)
+```mermaid
+flowchart LR
+    U["Web / Mobile Browser"] --> N["Nginx"]
+    N -->|"SPA"| F["React Frontend"]
+    N -->|"REST / WebSocket"| B["Spring Boot API"]
+    N -->|"커버업 검색"| C["Cover-up Search API"]
+    B --> P[("PostgreSQL")]
+    B --> R[("Redis Stack")]
+    B --> M[("MinIO")]
+    B --> A["AI Inference API"]
+    A --> G["Generation · Extraction · Classification"]
+    J["Jenkins"] --> D["Docker Compose"]
+    D --> N
+```
 
-<!-- draw.io 등으로 그린 아키텍처 다이어그램 -->
+
+- Nginx가 SPA, REST API, WebSocket, AI 요청을 단일 진입점에서 라우팅합니다.
+- Spring Boot가 인증·사용자·게시물·컬렉션·DM·알림·미디어 도메인을 담당합니다.
+- AI 서비스는 도안 생성·추출·분류 API와 커버업 전용 검색 엔진으로 분리되어 있습니다.
+- PostgreSQL은 영속 데이터, Redis Stack은 캐시·검색·세션성 데이터, MinIO는 이미지 객체를 관리합니다.
 
 ---
+
+
+
+## 📂 프로젝트 구조
+
+```text
+starttoo/
+├── frontend/    # React 기반 사용자 웹 애플리케이션
+├── backend/     # Spring Boot REST API 및 WebSocket 서버
+├── ai/          # AI 추론 API와 커버업 도안 검색 엔진
+├── nginx/       # 리버스 프록시 및 라우팅 설정
+├── relay/       # 외부 GPU 머신 연결용 AI 릴레이
+├── jenkins/     # Jenkins 실행 환경
+├── docs/        # 컨벤션 및 README 이미지
+├── exec/        # 빌드·배포·환경 변수 문서
+├── docker-compose.yml
+└── Jenkinsfile
+```
+
+---
+
+
 
 ## ERD
 ![erd](docs/images/erd.png)
