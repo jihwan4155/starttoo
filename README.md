@@ -1,5 +1,4 @@
-<!-- 배너 이미지: docs/images/banner.png 로 교체 -->
-![starttoo 배너](docs/images/banner.png)
+![starttoo 배너](docs/images/banner.gif)
 
 # <img src="docs/images/logo.svg" width="32" valign="middle" /> starttoo
 
