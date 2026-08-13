@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@source "../../../frontend/src";
+
+@theme {
+  --color-brand: #ff4646;
+  --color-surface: #faf9fe;
+  --color-hero-tint: #ff8f74;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface);
+  color: #000;
+}

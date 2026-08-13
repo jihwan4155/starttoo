@@ -1,0 +1,17 @@
+{
+  "name": "mask-hole-fill-real-photo-test",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 4791"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0",
+    "@mediapipe/tasks-vision": "^0.10.35"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vite": "^7.0.0"
+  }
+}
