@@ -1,0 +1,53 @@
+
+대상: https://i15d201.p.ssafy.io/v1
+인증: 토큰 주입됨
+──────────────────────────────────────────────────────────────────────
+
+[A-1] 게시물 조회
+  [[32mOK[0m] GET /posts 목록                            게시물 5건
+  [[32mOK[0m] GET /posts/{seq} 단건                      200
+
+[A-2] 이미지 URL 실제 도달 여부  ← backend -> MinIO -> nginx 경계
+  [[32mOK[0m] 이미지 URL 열림                         starttoo-storage.duckdns.org -> 200
+
+[A-3] 검색  ← backend -> Redis Search 인덱스
+  [[32mOK[0m] 게시물 검색 q=타투                    {"data":{"query":"타투","matchedSubject":{"subjectSeq":12,
+  [[32mOK[0m] 게시물 검색 q=tattoo                    {"data":{"query":"tattoo","items":[],"hasNext":false,"size":
+  [[32mOK[0m] 계정 자동완성 (한글 자모)          200
+  [[32mOK[0m] 아티스트 검색                          200
+
+[A-4] 목록 API
+  [[32mOK[0m] GET /artists                                 200
+  [[32mOK[0m] GET /classifications/primary-styles          200
+  [[32mOK[0m] GET /classifications/colors                  200
+
+[A-5] 실패 경로  ← 여기서 500 이 나오면 검증 계층에 구멍이 있다
+  [[32mOK[0m] size 초과 -> 400                           400
+  [[32mOK[0m] 없는 게시물 -> 404                      404
+  [[32mOK[0m] 검색어 특수문자 -> 400                400
+
+[B] 인증 구간
+  [[32mOK[0m] GET /users/me                                200
+  [[32mOK[0m] GET /posts/me                                200
+  [[32mOK[0m] GET /posts/bookmarked                        200
+  [[32mOK[0m] GET /posts/following                         200
+  [[32mOK[0m] GET /notifications                           200
+  ── 쓰기 플로우 (운영 데이터 생성) ──
+  [[32mOK[0m] presign 발급                               objectKey=users/5/post/b69fe32d-116a-4786-9619-913...
+  [[32mOK[0m] MinIO 직접 업로드 (PUT)                 200
+  [[32mOK[0m] 업로드 complete 등록                    imageSeq=10018
+  [[32mOK[0m] 방금 올린 이미지 다시 받기        200
+  [[32mOK[0m] 게시물 생성 (영문)                    postSeq=625
+  [[32mOK[0m] 생성한 게시물 조회 (영문)          200
+  [[32mOK[0m] 본문 왕복 일치 (영문)                인코딩 손상 없음
+  [[32mOK[0m] tattooSeq 키 항상 포함 (영문)         비동기 분류 대기
+  [[32mOK[0m] 테스트 게시물 정리 (영문)          200
+  [[32mOK[0m] 게시물 생성 (한글)                    postSeq=626
+  [[32mOK[0m] 생성한 게시물 조회 (한글)          200
+  [[32mOK[0m] 본문 왕복 일치 (한글)                인코딩 손상 없음
+  [[32mOK[0m] tattooSeq 키 항상 포함 (한글)         비동기 분류 대기
+  [[32mOK[0m] 테스트 게시물 정리 (한글)          200
+
+──────────────────────────────────────────────────────────────────────
+  PASS [32m32[0m   FAIL [31m0[0m   SKIP [90m0[0m
+

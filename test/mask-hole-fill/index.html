@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>인물 마스크 흉터 홀 패치 테스트</title>
+<style>
+  :root {
+    color-scheme: light dark;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    margin: 0;
+    padding: 28px 32px 70px;
+    background: #f4f2ee;
+    color: #1c1c1c;
+    max-width: 1360px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 8px;
+  }
+  h3.step-title {
+    font-size: 17px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #2b2b2b;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  p.lead {
+    max-width: 900px;
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: #4a4a4a;
+    margin: 0 0 26px;
+  }
+  code {
+    background: #e7e3da;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  section.step {
+    background: #fff;
+    border: 1px solid #ddd8cc;
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  section.step p.step-desc {
+    font-size: 13.5px;
+    color: #5a5a5a;
+    line-height: 1.6;
+    margin: 8px 0 18px 36px;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 18px 36px;
+    font-size: 14px;
+  }
+  .toolbar button {
+    border: 1px solid #c9c2b0;
+    background: #fbfaf7;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .toolbar button.active {
+    background: #2b2b2b;
+    color: #fff;
+    border-color: #2b2b2b;
+  }
+  .toolbar button:hover {
+    filter: brightness(0.96);
+  }
+  .toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toolbar input[type="range"] {
+    width: 120px;
+  }
+  .row {
+    display: grid;
+    gap: 22px;
+    margin-left: 36px;
+  }
+  .row.cols-1 {
+    grid-template-columns: minmax(0, 520px);
+  }
+  .row.cols-2 {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+  .row.cols-3 {
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+  }
+  .panel h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 20px;
+  }
+  .badge.bug {
+    background: #fbe2df;
+    color: #a33d33;
+  }
+  .badge.fixed {
+    background: #dcefe0;
+    color: #2c7a45;
+  }
+  canvas {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    display: block;
+    background: #222;
+    touch-action: none;
+    border: 2px solid transparent;
+  }
+  canvas#canvas-input {
+    cursor: crosshair;
+    border-color: #c9c2b0;
+  }
+  .panel p.caption {
+    font-size: 12.5px;
+    color: #6b6b6b;
+    margin: 9px 0 0;
+    line-height: 1.55;
+  }
+  .legend {
+    font-size: 13px;
+    color: #555;
+    margin: 20px 0 0 36px;
+    line-height: 1.8;
+  }
+  .legend span.swatch {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    margin-right: 5px;
+    vertical-align: -1px;
+  }
+</style>
+</head>
+<body>
+  <h1>흉터/피부 이상 부위가 인물 마스크에서 구멍으로 뚫리는 문제 — 재현 &amp; 패치 데모</h1>
+  <p class="lead">
+    <code>image-engine.ts</code>의 실제 마스크 계산 로직(<code>boxBlur</code> → <code>smoothStep(0.42, 0.7)</code>)을
+    그대로 옮겨온 "현재 코드"는 피부색·질감이 다른 흉터 부위를 배경으로 오탐해 구멍을 뚫습니다.
+    "수정판"은 테두리와 연결되지 않은 내부 구멍만 골라 피부로 승격시켜서 이 문제를 고칩니다.
+  </p>
+
+  <section class="step">
+    <h3 class="step-title"><span class="step-num">1</span>왼쪽 캔버스에 마우스로 그려서 "흉터"를 만들어보세요</h3>
+    <p class="step-desc">
+      기본값에는 이미 흉터 하나와 다리 사이 틈이 그려져 있습니다. 아무 곳이나 드래그하면 바로
+      새 흉터를 추가할 수 있고, 아래 결과들이 실시간으로 같이 바뀝니다.
+    </p>
+    <div class="toolbar">
+      <button id="mode-scar" class="active">🖌 흉터 그리기 (저신뢰)</button>
+      <button id="mode-heal">🩹 피부로 복원 (고신뢰)</button>
+      <label>브러시 크기
+        <input id="brush" type="range" min="2" max="12" value="5" />
+      </label>
+      <button id="reset">↺ 기본 시나리오로 초기화</button>
+      <button id="clear">🧹 전부 지우기(빈 배경)</button>
+    </div>
+    <div class="row cols-1">
+      <div class="panel">
+        <h2>신뢰도 점수 입력</h2>
+        <canvas id="canvas-input"></canvas>
+        <p class="caption">밝을수록 "사람"일 확률이 높다고 AI가 준 점수. 여기에 직접 그리세요.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <h3 class="step-title"><span class="step-num">2</span>마스크가 어떻게 다르게 나오는지 비교하세요</h3>
+    <p class="step-desc">
+      같은 입력인데 현재 코드는 흉터 자리를 구멍(검정)으로 남기고, 수정판은 그 구멍만 골라 메웁니다.
+      다리 사이 틈(진짜 배경)은 둘 다 그대로 유지되어야 정상입니다.
+    </p>
+    <div class="row cols-2">
+      <div class="panel">
+        <h2>현재 코드 마스크 <span class="badge bug">버그</span></h2>
+        <canvas id="canvas-current"></canvas>
+        <p class="caption"><code>buildPersonMask()</code> 그대로. 흉터 위치가 검은 구멍으로 남음.</p>
+      </div>
+      <div class="panel">
+        <h2>수정판 마스크 <span class="badge fixed">패치</span></h2>
+        <canvas id="canvas-fixed"></canvas>
+        <p class="caption">테두리와 안 이어진 내부 구멍만 인물로 승격. 다리 사이 틈은 그대로 유지.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <h3 class="step-title"><span class="step-num">3</span>실제 타투 합성 결과로 확인하세요</h3>
+    <p class="step-desc">
+      마스크 구멍이 실제로는 어떤 결과를 만드는지 보여줍니다. 현재 코드는 흉터 자리에 잉크가
+      없어 살색이 그대로 비어 보이고, 수정판은 정상적으로 잉크가 채워집니다.
+    </p>
+    <div class="row cols-2">
+      <div class="panel">
+        <h2>타투 미리보기 <span class="badge bug">현재 코드</span></h2>
+        <canvas id="canvas-preview-current"></canvas>
+        <p class="caption">마스크가 구멍이면 셰이더가 그 픽셀을 discard해서 타투에 살색 구멍이 생김.</p>
+      </div>
+      <div class="panel">
+        <h2>타투 미리보기 <span class="badge fixed">수정판</span></h2>
+        <canvas id="canvas-preview-fixed"></canvas>
+        <p class="caption">흉터 부위도 정상적으로 잉크가 채워짐. 다리 사이 틈은 여전히 잉크 없음(정상).</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <span class="swatch" style="background:#e7c79c"></span>실제 피부(참값) &nbsp;
+    <span class="swatch" style="background:#111"></span>타투 잉크 &nbsp;
+    <span class="swatch" style="background:#f4f2ee;border:1px solid #ccc"></span>배경/구멍(잉크 없음)
+  </div>
+
+  <script type="module" src="./demo.mjs"></script>
+</body>
+</html>

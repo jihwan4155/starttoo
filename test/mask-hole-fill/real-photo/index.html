@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>실제 사진으로 테스트 — 흉터 마스크 홀 패치</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    margin: 0;
+    padding: 24px 28px 60px;
+    background: #f4f2ee;
+    color: #1c1c1c;
+    max-width: 1300px;
+  }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p.lead {
+    max-width: 900px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: #4a4a4a;
+    margin: 0 0 20px;
+  }
+  code { background: #e7e3da; padding: 2px 6px; border-radius: 4px; font-size: 12.5px; }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+    background: #fff;
+    border: 1px solid #ddd8cc;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+    font-size: 13.5px;
+  }
+  .toolbar label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 600;
+  }
+  .toolbar input[type="file"] { font-size: 12.5px; }
+  #status {
+    background: #fff;
+    border: 1px solid #ddd8cc;
+    border-radius: 12px;
+    padding: 12px 18px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: #444;
+    min-height: 20px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    gap: 22px;
+  }
+  .panel {
+    background: #fff;
+    border: 1px solid #ddd8cc;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .panel h2 {
+    font-size: 14px;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 20px;
+  }
+  .badge.bug { background: #fbe2df; color: #a33d33; }
+  .badge.fixed { background: #dcefe0; color: #2c7a45; }
+  canvas {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+    background: #111;
+    touch-action: none;
+    cursor: grab;
+  }
+  .panel p.caption {
+    font-size: 12px;
+    color: #6b6b6b;
+    margin: 10px 0 0;
+    line-height: 1.5;
+  }
+  .hint {
+    font-size: 12.5px;
+    color: #6b6b6b;
+    margin: 16px 0 0;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <h1>실제 사진으로 테스트: 흉터 부위 마스크 홀 패치</h1>
+  <p class="lead">
+    <code>image-engine.ts</code>를 그대로 복사한 두 버전(현재 코드 / 흉터 홀 패치 적용판)으로
+    실제 신체 사진과 타투 도안을 올려 3D 합성 결과를 나란히 비교합니다. 프로덕션 코드는
+    전혀 건드리지 않았고, 이 폴더 안의 복사본만 사용합니다.
+  </p>
+
+  <div class="toolbar">
+    <label>① 신체 사진 (흉터가 있는 부위가 잘 보이게)
+      <input id="body-file" type="file" accept="image/*" />
+    </label>
+    <label>② 타투 도안
+      <input id="tattoo-file" type="file" accept="image/*" />
+    </label>
+    <label>잉크 농도(opacity) <span id="opacity-value">0.70</span>
+      <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.7" />
+    </label>
+    <label>굴곡 반영(curvature) <span id="curvature-value">1.10</span>
+      <input id="curvature" type="range" min="0" max="1.15" step="0.01" value="1.1" />
+    </label>
+    <label style="flex-direction: row; align-items: center; gap: 8px;">
+      <input id="show-mask" type="checkbox" />
+      마스크 경계 보기
+    </label>
+  </div>
+
+  <div id="status">사진을 올리면 인물 분리 + 3D 굴곡 분석이 자동으로 시작됩니다 (모델 다운로드로 첫 실행은 시간이 걸릴 수 있어요).</div>
+
+  <div class="row">
+    <div class="panel">
+      <h2>현재 코드 <span class="badge bug">버그</span></h2>
+      <canvas id="canvas-current"></canvas>
+      <p class="caption">흉터 부위에 타투를 올리면 그 자리만 잉크가 비어(구멍) 보여야 정상적으로 버그가 재현된 것입니다.</p>
+    </div>
+    <div class="panel">
+      <h2>수정판 <span class="badge fixed">패치</span></h2>
+      <canvas id="canvas-fixed"></canvas>
+      <p class="caption">같은 흉터 부위에도 타투가 자연스럽게 이어져야 합니다.</p>
+    </div>
+  </div>
+
+  <p class="hint">
+    드래그: 이동 · 휠: 확대/축소 · Shift+휠: 회전 (두 캔버스 모두 같은 위치/크기로 동기화됩니다)
+  </p>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

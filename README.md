@@ -1,6 +1,6 @@
 ![starttoo 배너](docs/images/banner.gif)
 
-# <img src="docs/images/logo.svg" width="32" valign="middle" /> starttoo
+# <img src="docs/images/logo.png" width="32" valign="middle" /> starttoo
 
 > AI 도안 생성부터 AR/3D 시뮬레이션, 커버업 추천, 타투이스트 매칭까지. 
 > 타투를 새기기로 결심한 순간부터 실제로 새기는 순간까지 전 과정을 하나로 연결하는 플랫폼
@@ -21,13 +21,11 @@
 | 팀장 | 팀원1 | 팀원2 |
 | :---: | :---: | :---: |
 | 신지환 | 박범준 | 이한준 |
-| <img src="docs/images/member-1.png" width="180" /> | <img src="docs/images/member-2.png" width="180" /> | <img src="docs/images/member-3.png" width="180" /> |
 | `AI/INFRA` | `BE` | `AI` |
 
 | 팀원3 | 팀원4 | 팀원5 |
 | :---: | :---: | :---: |
 | 양혜림 | 심재훈 | 이효주 |
-| <img src="docs/images/member-4.png" width="180" /> | <img src="docs/images/member-5.png" width="180" /> | <img src="docs/images/member-6.png" width="180" /> |
 | `FE`| `FE` | `FE` |
 
 

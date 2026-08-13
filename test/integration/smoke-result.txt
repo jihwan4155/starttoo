@@ -1,0 +1,41 @@
+
+대상: https://i15d201.p.ssafy.io
+──────────────────────────────────────────────────────────────────────
+
+[1] nginx / TLS
+  [[32mOK[0m] HTTP -> HTTPS 리다이렉트                  301
+  [[32mOK[0m] TLS 핸드셰이크 + 프론트 200            200
+  [[32mOK[0m] 보조 도메인 (duckdns)                     200
+  [[32m i[0m] 인증서 만료일                            Oct 28 03:24:10 2026 GMT
+
+[2] backend (Spring Boot)
+  [[32mOK[0m] actuator/health                                {"status":"UP","groups":["liveness","readiness"]}
+  [[32mOK[0m] actuator/health/readiness                      200
+  [[32mOK[0m] 인증 필요 API -> 401                       401
+  [[32mOK[0m] 미매핑 경로도 필터가 먼저 차단    401
+
+[3] frontend (SPA)
+  [[32mOK[0m] SPA 딥링크 fallback                         200
+  [[32mOK[0m] index.html 번들 참조                       <!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon
+
+[4] AI - 커버업 검색 엔진 (ai:8000, /ai-service/)
+  [[31mFAIL[0m] /ai-service/health 도달                      500 (기대 200)  https://i15d201.p.ssafy.io/ai-service/health
+  [[33mWARN[0m] 커버업 인덱스 워밍업 완료           <html>
+<head><title>500 Internal Server Error</title></head>
+<body>
+<center><h1>500 Internal Server Error</h1></center>
+<hr><center>nginx/1.27.5</center>
+</body>
+</html>
+
+[5] MinIO (스토리지 공개 호스트)
+  [[32mOK[0m] minio health/live                              200
+  [[32mOK[0m] S3 루트 접근 거부                        403
+
+──────────────────────────────────────────────────────────────────────
+  PASS [32m11[0m   FAIL [31m1[0m   WARN [33m1[0m
+
