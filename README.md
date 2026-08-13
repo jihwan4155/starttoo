@@ -23,7 +23,7 @@
 | :---: | :---: | :---: |
 | 신지환 | 박범준 | 이한준 |
 | <img src="docs/images/member-1.png" width="180" /> | <img src="docs/images/member-2.png" width="180" /> | <img src="docs/images/member-3.png" width="180" /> |
-| `AI``INFRA` 타투 도안 생성 AI  · AR 타투 시뮬레이션<br>인프라 · 배포 | `FE` 커뮤니티<br>DM · 알림 | `BE` 인증 · 회원<br>커뮤니티 API |
+| `AI/INFRA` 타투 도안 생성 AI  · AR 타투 시뮬레이션<br>인프라 · 배포 | `FE` 커뮤니티<br>DM · 알림 | `BE` 인증 · 회원<br>커뮤니티 API |
 
 | 팀원3 | 팀원4 | 팀원5 |
 | :---: | :---: | :---: |
