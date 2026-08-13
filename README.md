@@ -23,13 +23,13 @@
 | :---: | :---: | :---: |
 | 신지환 | 박범준 | 이한준 |
 | <img src="docs/images/member-1.png" width="180" /> | <img src="docs/images/member-2.png" width="180" /> | <img src="docs/images/member-3.png" width="180" /> |
-| `AI/INFRA` 타투 도안 생성 AI  · AR 타투 시뮬레이션<br>인프라 · 배포 | `FE` 커뮤니티<br>DM · 알림 | `BE` 인증 · 회원<br>커뮤니티 API |
+| `AI/INFRA` | `BE` | `AI` |
 
 | 팀원3 | 팀원4 | 팀원5 |
 | :---: | :---: | :---: |
 | 양혜림 | 심재훈 | 이효주 |
 | <img src="docs/images/member-4.png" width="180" /> | <img src="docs/images/member-5.png" width="180" /> | <img src="docs/images/member-6.png" width="180" /> |
-| `BE` 채팅 · 파일<br> | `AI` 타투 도안 생성<br>프롬프트 파이프라인 | `AI` 커버업 추천<br>이미지 처리 |
+| `FE`| `FE` | `FE` |
 
 
 ---
