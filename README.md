@@ -133,6 +133,6 @@
 | :--- | :--- |
 | 기획/요구사항 | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
 | 화면 설계 (Figma) | https://brief-vase-0fa.notion.site/39cb65bd273280c28e32f5d204fc897c |
-| ERD | google.com/url?q=https://www.erdcloud.com/d/cgN5KjAQzurEkFxZ8&sa=D&source=editors&ust=1786588833085613&usg=AOvVaw17yQSdJ8pcpqF97qfn9-WX |
+| ERD | https://www.erdcloud.com/d/cgN5KjAQzurEkFxZ8 |
 | API 명세 | https://brief-vase-0fa.notion.site/API_-3a4b65bd2732805bbe93cf1a066ba523?source=copy_link |
 | 팀 컨벤션 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) |
