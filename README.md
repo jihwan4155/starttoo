@@ -82,7 +82,7 @@
 
 | 피드 | 탐색 | 메시지 | 타투이스트 |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/images/pc_feed.png" width="190" /> | <img src="docs/images/pc_search.png" width="190" /> | <img src="docs/images/pc_message.png" width="190" /> | <img src="docs/images/pc_message.png" width="190" /> |
+| <img src="docs/images/pc_feed.png" width="190" /> | <img src="docs/images/pc_search.png" width="190" /> | <img src="docs/images/pc_message.png" width="190" /> | <img src="docs/images/pc_tattooist.png" width="190" /> |
 
 
 
