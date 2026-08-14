@@ -139,21 +139,8 @@
 
 
 ## 🏗 시스템 아키텍처
+ <img src="docs/images/architecture.png" width="600">
 
-```mermaid
-flowchart LR
-    U["Web / Mobile Browser"] --> N["Nginx"]
-    N -->|"SPA"| F["React Frontend"]
-    N -->|"REST / WebSocket"| B["Spring Boot API"]
-    N -->|"커버업 검색"| C["Cover-up Search API"]
-    B --> P[("PostgreSQL")]
-    B --> R[("Redis Stack")]
-    B --> M[("MinIO")]
-    B --> A["AI Inference API"]
-    A --> G["Generation · Extraction · Classification"]
-    J["Jenkins"] --> D["Docker Compose"]
-    D --> N
-```
 - Nginx가 SPA, REST API, WebSocket, AI 요청을 단일 진입점에서 라우팅합니다.
 - Spring Boot가 인증·사용자·게시물·컬렉션·DM·알림·미디어 도메인을 담당합니다.
 - AI 서비스는 도안 생성·추출·분류 API와 커버업 전용 검색 엔진으로 분리되어 있습니다.
