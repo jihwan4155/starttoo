@@ -1,4 +1,4 @@
-![starttoo 배너](docs/images/banner.gif)
+<img src="docs/images/banner.png" width="760" valign="middle" /> 
 
 
 <img src="docs/images/logo.png" width="150" valign="middle" /> 
@@ -48,7 +48,7 @@
 | :---: | :---: | :---: | :---: |
 | <img src="docs/images/pc_ar_intro.png" width="190" /> | <img src="docs/images/pc_ar_qr1.png" width="190" /> | <img src="docs/images/pc_ar_qr2.png" width="190" /> | <img src="docs/images/pc_ar_after.png" width="190" /> |
 
-
+<img src="docs/images/mobile_ar_simulation.gif" width="120"> 
 
 ### 3. 3D 이미지 시뮬레이션
 
