@@ -12,7 +12,7 @@
 - **서비스 URL**: https://stattoo.duckdns.org
 - **서비스 소개 영상**: https://youtu.be/6rRotlTOfq4
 - **개발 기간**: 2026.07 ~ 2026.08 (SSAFY 15기 공통 프로젝트)
-
+- **Award 🏆**: 프로젝트 우수상(3등)
 ---
 
 ## 👥 Team (D201 백두산 호랑이)
